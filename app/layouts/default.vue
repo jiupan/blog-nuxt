@@ -1,10 +1,10 @@
 <template>
   <div>
-    <header class="site-header" :class="{ 'is-scrolled': isScrolled }">
+    <header class="site-header" :class="{ 'is-scrolled': isScrolled, 'is-article-route': isArticleRoute }">
       <div class="header-inner">
         <NuxtLink to="/" class="brand" aria-label="返回首页">
-          <span class="brand-mark">✣</span>
-          <span>HEO</span>
+          <Icon name="i-simple-icons-nuxtdotjs" class="brand-mark" aria-hidden="true" />
+          <span>DYU</span>
         </NuxtLink>
 
         <NuxtLink to="/" class="scroll-title" aria-label="返回首页">
@@ -19,16 +19,19 @@
         </nav>
 
         <div class="header-actions">
-          <NuxtLink class="scroll-chip" :to="activeChip.to">
-            <span>{{ activeChip.icon }}</span>
-            <strong>{{ activeChip.label }}</strong>
-          </NuxtLink>
-
           <nav class="tool-nav" aria-label="快捷入口">
-            <NuxtLink to="/posts" aria-label="文库">▣</NuxtLink>
-            <NuxtLink to="/archive" aria-label="归档">◈</NuxtLink>
-            <NuxtLink to="/posts" aria-label="搜索">⌕</NuxtLink>
-            <NuxtLink to="/admin" aria-label="后台">▪</NuxtLink>
+            <NuxtLink to="/posts" aria-label="文库">
+              <Icon name="i-lucide-library" aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink to="/archive" aria-label="归档">
+              <Icon name="i-lucide-archive" aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink to="/posts" aria-label="搜索">
+              <Icon name="i-lucide-search" aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink to="/admin" aria-label="后台">
+              <Icon name="i-lucide-layout-dashboard" aria-hidden="true" />
+            </NuxtLink>
           </nav>
         </div>
       </div>
@@ -43,10 +46,16 @@
 const config = useRuntimeConfig()
 const route = useRoute()
 const isScrolled = ref(false)
+const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 
 const siteName = computed(() => config.public.siteName || 'HEO')
+const isArticleRoute = computed(() => route.path.startsWith('/posts/'))
 
 const scrollTitle = computed(() => {
+  if (route.path.startsWith('/posts/')) {
+    return layoutScrollTitle.value || '文章'
+  }
+
   if (route.path.startsWith('/posts')) {
     return '文库'
   }
@@ -64,22 +73,6 @@ const scrollTitle = computed(() => {
   }
 
   return `${siteName.value} - 个人博客`
-})
-
-const activeChip = computed(() => {
-  if (route.path.startsWith('/posts')) {
-    return { label: '文库', to: '/posts', icon: '▣' }
-  }
-
-  if (route.path.startsWith('/archive')) {
-    return { label: '专栏', to: '/archive', icon: '◈' }
-  }
-
-  if (route.path.startsWith('/admin')) {
-    return { label: '后台', to: '/admin', icon: '▪' }
-  }
-
-  return { label: siteName.value, to: '/', icon: '✦' }
 })
 
 function syncHeaderState() {
@@ -113,6 +106,12 @@ onBeforeUnmount(() => {
   box-shadow: none;
 }
 
+.site-header.is-article-route:not(.is-scrolled) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .header-inner {
   position: relative;
   display: flex;
@@ -127,14 +126,21 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 14px;
+  min-height: 48px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: transparent;
   color: #303137;
   font-size: 22px;
   font-weight: 900;
   letter-spacing: 0;
-  transition: padding .2s ease, border-radius .2s ease, background .2s ease, box-shadow .2s ease;
+  transition: background .2s ease, box-shadow .2s ease, color .2s ease;
 }
 
 .brand-mark {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
   font-size: 22px;
   line-height: 1;
 }
@@ -178,49 +184,18 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
-.scroll-chip {
-  display: inline-flex;
-  max-width: 360px;
-  align-items: center;
-  gap: 10px;
-  overflow: hidden;
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 20%);
-  color: white;
-  opacity: 0;
-  transform: translateY(-8px);
-  transition: opacity .18s ease, transform .18s ease;
-  pointer-events: none;
-}
-
-.scroll-chip span {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #44b5ff, #6f67f8);
-}
-
-.scroll-chip strong {
-  overflow: hidden;
-  color: inherit;
-  font-size: 16px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .tool-nav {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: transparent;
   color: #2f3339;
   font-size: 22px;
   font-weight: 900;
-  transition: gap .2s ease, padding .2s ease, border-radius .2s ease, background .2s ease, box-shadow .2s ease;
+  transition: background .2s ease, box-shadow .2s ease, color .2s ease;
 }
 
 .tool-nav a {
@@ -230,9 +205,19 @@ onBeforeUnmount(() => {
   place-items: center;
 }
 
+.tool-nav svg,
+.tool-nav span {
+  width: 20px;
+  height: 20px;
+}
+
+.site-header.is-article-route:not(.is-scrolled) .brand,
+.site-header.is-article-route:not(.is-scrolled) .main-nav,
+.site-header.is-article-route:not(.is-scrolled) .tool-nav {
+  color: white;
+}
+
 .site-header.is-scrolled .brand {
-  padding: 10px 22px;
-  border-radius: 999px;
   background: rgb(255 255 255 / 88%);
   box-shadow: 0 12px 32px rgb(31 43 68 / 14%);
 }
@@ -243,29 +228,15 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.site-header.is-scrolled .scroll-title,
-.site-header.is-scrolled .scroll-chip {
+.site-header.is-scrolled .scroll-title {
   opacity: 1;
   transform: translate(-50%, 0);
   pointer-events: auto;
 }
 
-.site-header.is-scrolled .scroll-chip {
-  transform: translateY(0);
-}
-
 .site-header.is-scrolled .tool-nav {
-  gap: 16px;
-  padding: 10px 18px;
-  border-radius: 999px;
   background: rgb(255 255 255 / 88%);
   box-shadow: 0 12px 32px rgb(31 43 68 / 14%);
-}
-
-@media (max-width: 900px) {
-  .scroll-chip {
-    display: none;
-  }
 }
 
 @media (max-width: 760px) {
@@ -290,10 +261,6 @@ onBeforeUnmount(() => {
 
   .tool-nav {
     display: none;
-  }
-
-  .site-header.is-scrolled .brand {
-    padding: 9px 18px;
   }
 }
 </style>

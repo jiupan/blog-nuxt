@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <section class="home-shell pt-6">
+    <section class="home-shell pt-2">
       <div class="hero-board" :class="{ 'has-no-posts': !latest }">
         <NuxtLink :to="latest ? `/posts/${latest.slug}` : '/posts'" class="hero-main">
           <img src="/images/home-hero-ai.png" alt="" class="hero-image">
@@ -18,7 +18,9 @@
             class="hero-link"
             :class="{ 'is-active': index === 0 }"
           >
-            <span class="hero-link-icon">{{ item.icon }}</span>
+            <span class="hero-link-icon">
+              <Icon :name="item.icon" aria-hidden="true" />
+            </span>
             <span>{{ item.title }}</span>
           </NuxtLink>
         </div>
@@ -32,7 +34,8 @@
           class="topic-tab"
           :class="{ 'is-active': tab.active }"
         >
-          <span>{{ tab.icon }}</span>{{ tab.label }}
+          <Icon v-if="tab.icon" :name="tab.icon" aria-hidden="true" />
+          {{ tab.label }}
         </NuxtLink>
       </nav>
 
@@ -42,7 +45,9 @@
             <article v-for="(post, index) in displayPosts" :key="post.key" class="post-card">
               <NuxtLink :to="post.to" class="post-cover" :class="post.coverClass">
                 <span class="cover-word">{{ post.coverWord }}</span>
-                <span class="cover-icon">{{ post.icon }}</span>
+                <span class="cover-icon">
+                  <Icon :name="post.icon" aria-hidden="true" />
+                </span>
               </NuxtLink>
               <div class="post-body">
                 <div class="post-meta">
@@ -71,7 +76,9 @@
         <aside class="sidebar">
           <section class="profile-card">
             <div class="profile-badge">欢迎访问</div>
-            <div class="profile-avatar">◉</div>
+            <div class="profile-avatar">
+              <Icon name="i-simple-icons-nuxtdotjs" aria-hidden="true" />
+            </div>
             <h2>{{ siteName }}</h2>
             <p>个人博客</p>
             <div class="profile-actions">
@@ -108,6 +115,39 @@
     </section>
 
     <footer class="home-footer">
+      <div class="footer-actions" aria-label="底部快捷入口">
+        <NuxtLink to="/posts" class="footer-action" aria-label="文章">
+          <Icon name="i-lucide-library" aria-hidden="true" />
+        </NuxtLink>
+        <NuxtLink to="/archive" class="footer-action" aria-label="归档">
+          <Icon name="i-lucide-archive" aria-hidden="true" />
+        </NuxtLink>
+        <NuxtLink to="/about" class="footer-action" aria-label="关于">
+          <Icon name="i-lucide-user-round" aria-hidden="true" />
+        </NuxtLink>
+        <NuxtLink to="/admin" class="footer-action" aria-label="后台">
+          <Icon name="i-lucide-settings" aria-hidden="true" />
+        </NuxtLink>
+        <button class="back-top-button" type="button" aria-label="返回顶部" @click="scrollToTop">
+          <span class="footer-avatar" aria-hidden="true">
+            <span class="footer-avatar-head"></span>
+            <span class="footer-avatar-body"></span>
+          </span>
+        </button>
+        <NuxtLink to="/posts" class="footer-action" aria-label="全部文章">
+          <Icon name="i-lucide-newspaper" aria-hidden="true" />
+        </NuxtLink>
+        <NuxtLink to="/archive" class="footer-action" aria-label="时间线">
+          <Icon name="i-lucide-clock-3" aria-hidden="true" />
+        </NuxtLink>
+        <NuxtLink to="/about" class="footer-action" aria-label="联系">
+          <Icon name="i-lucide-link" aria-hidden="true" />
+        </NuxtLink>
+        <NuxtLink to="/admin/login" class="footer-action" aria-label="登录">
+          <Icon name="i-lucide-log-in" aria-hidden="true" />
+        </NuxtLink>
+      </div>
+
       <div class="footer-links">
         <div v-for="group in footerGroups" :key="group.title">
           <h3>{{ group.title }}</h3>
@@ -168,6 +208,7 @@ type PostsPayload = {
 const config = useRuntimeConfig()
 const siteName = config.public.siteName
 const pageSize = 8
+const footerLinkLimit = 4
 const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
   useFetch<{ data: PostsPayload }>('/api/posts', { query: { pageSize } }),
   useFetch<{ data: TaxonomyItem[] }>('/api/categories'),
@@ -182,12 +223,12 @@ const latest = computed(() => posts.value[0])
 const hasMorePosts = computed(() => totalPosts.value > posts.value.length)
 
 const coverStyles = [
-  { coverClass: 'cover-pink', icon: '◉' },
-  { coverClass: 'cover-blue', icon: '◌' },
-  { coverClass: 'cover-green', icon: '✦' },
-  { coverClass: 'cover-orange', icon: '☺' },
-  { coverClass: 'cover-gray', icon: '◎' },
-  { coverClass: 'cover-coral', icon: '●' }
+  { coverClass: 'cover-pink', icon: 'i-lucide-sparkles' },
+  { coverClass: 'cover-blue', icon: 'i-lucide-brain-circuit' },
+  { coverClass: 'cover-green', icon: 'i-lucide-leaf' },
+  { coverClass: 'cover-orange', icon: 'i-lucide-smile-plus' },
+  { coverClass: 'cover-gray', icon: 'i-lucide-badge-check' },
+  { coverClass: 'cover-coral', icon: 'i-lucide-flame' }
 ]
 
 const displayPosts = computed(() => {
@@ -214,16 +255,16 @@ const heroLinks = computed(() => {
     return {
       title: post.title,
       to: `/posts/${post.slug}`,
-      icon: ['⌘', '信', 'AI', '章', '历'][index]
+      icon: ['i-lucide-command', 'i-lucide-mail', 'i-lucide-bot', 'i-lucide-newspaper', 'i-lucide-history'][index]
     }
   })
 })
 
 const topicTabs = computed(() => [
-  { label: '全部文章', icon: '▤', to: '/posts', active: true },
+  { label: '全部文章', icon: 'i-lucide-layout-list', to: '/posts', active: true },
   ...categories.value.map((category) => ({
     label: category.name,
-    icon: '',
+    icon: 'i-lucide-folder',
     to: `/categories/${category.slug}`,
     active: false
   }))
@@ -239,8 +280,7 @@ const footerGroups = computed(() => {
         { label: '首页', to: '/' },
         { label: '文章', to: '/posts' },
         { label: '归档', to: '/archive' },
-        { label: '关于', to: '/about' },
-        { label: '后台', to: '/admin' }
+        { label: '关于', to: '/about' }
       ]
     }
   ]
@@ -248,7 +288,7 @@ const footerGroups = computed(() => {
   if (categories.value.length) {
     groups.push({
       title: '分类',
-      links: categories.value.slice(0, 8).map((category) => ({
+      links: categories.value.slice(0, footerLinkLimit).map((category) => ({
         label: category.name,
         to: `/categories/${category.slug}`
       }))
@@ -258,7 +298,7 @@ const footerGroups = computed(() => {
   if (tags.value.length) {
     groups.push({
       title: '标签',
-      links: tags.value.slice(0, 8).map((tag) => ({
+      links: tags.value.slice(0, footerLinkLimit).map((tag) => ({
         label: tag.name,
         to: `/tags/${tag.slug}`
       }))
@@ -267,6 +307,13 @@ const footerGroups = computed(() => {
 
   return groups
 })
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  })
+}
 
 useSeoMeta({
   title: siteName,
@@ -391,6 +438,12 @@ function formatDate(value?: string | Date | null) {
   font-size: 12px;
 }
 
+.hero-link-icon :deep(svg),
+.hero-link-icon :deep(span) {
+  width: 18px;
+  height: 18px;
+}
+
 .topic-tabs {
   display: flex;
   gap: 10px;
@@ -413,6 +466,13 @@ function formatDate(value?: string | Date | null) {
   color: #3a3b44;
   font-size: 14px;
   font-weight: 800;
+}
+
+.topic-tab :deep(svg),
+.topic-tab :deep(span) {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
 }
 
 .topic-tab.is-active {
@@ -470,6 +530,12 @@ function formatDate(value?: string | Date | null) {
   color: #17181d;
   font-size: 58px;
   font-weight: 900;
+}
+
+.cover-icon :deep(svg),
+.cover-icon :deep(span) {
+  width: 54px;
+  height: 54px;
 }
 
 .cover-pink { background: linear-gradient(135deg, #e06abc, #d73d9f); }
@@ -559,6 +625,12 @@ function formatDate(value?: string | Date | null) {
   box-shadow: 0 16px 28px rgb(0 0 0 / 18%);
   font-size: 58px;
   font-weight: 900;
+}
+
+.profile-avatar :deep(svg),
+.profile-avatar :deep(span) {
+  width: 50px;
+  height: 50px;
 }
 
 .profile-card h2 {
@@ -723,35 +795,110 @@ function formatDate(value?: string | Date | null) {
 }
 
 .home-footer {
-  background: linear-gradient(180deg, #f3f6fc, #fff 34%);
+  margin-top: 15px;
+  background: linear-gradient(180deg, #f3f6fc 0%, #fff 26%);
 }
 
-.social-row {
+.footer-actions {
   display: flex;
+  width: min(100% - 32px, 780px);
+  align-items: center;
   justify-content: center;
-  gap: 36px;
-  padding: 12px 16px 42px;
+  gap: 34px;
+  margin: 0 auto;
+  padding: 10px 0 54px;
 }
 
-.social-row a {
+.footer-action,
+.back-top-button {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   place-items: center;
+  border: 0;
   border-radius: 999px;
   background: #3d3f45;
+  box-shadow: 0 10px 22px rgb(34 38 46 / 12%);
   color: white;
-  font-size: 15px;
+  font: inherit;
+  font-size: 13px;
   font-weight: 900;
+  line-height: 1;
+}
+
+.footer-action :deep(svg),
+.footer-action :deep(span) {
+  width: 17px;
+  height: 17px;
+}
+
+.back-top-button {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #ff777c, #f23842);
+  box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
+  cursor: pointer;
+}
+
+.back-top-button::before {
+  position: absolute;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: white;
+  content: "";
+}
+
+.footer-avatar {
+  position: relative;
+  display: grid;
+  width: 32px;
+  height: 36px;
+  place-items: center;
+}
+
+.footer-avatar-head {
+  position: absolute;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border: 3px solid #fff;
+  border-radius: 999px;
+  background: #19191d;
+}
+
+.footer-avatar-body {
+  position: absolute;
+  bottom: 2px;
+  width: 25px;
+  height: 25px;
+  border-radius: 999px 999px 10px 10px;
+  background: #111217;
+}
+
+.footer-avatar-body::before {
+  position: absolute;
+  top: 9px;
+  left: 7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 8px 0 0 white;
+  content: "";
 }
 
 .footer-links {
   display: grid;
-  width: min(100% - 32px, 1120px);
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 26px;
+  width: min(100% - 32px, 1180px);
+  grid-template-columns: repeat(auto-fit, 160px);
+  justify-content: center;
+  gap: 92px;
   margin: 0 auto;
-  padding: 54px 0 76px;
+  padding: 0 0 50px;
+  text-align: center;
 }
 
 .footer-links h3 {
@@ -770,23 +917,27 @@ function formatDate(value?: string | Date | null) {
 
 .footer-bottom {
   display: flex;
-  width: min(100% - 32px, 1290px);
+  width: 100%;
+  height: 82px;
   align-items: center;
   justify-content: space-between;
   margin: 0 auto;
-  padding: 28px 0;
-  border-top: 1px solid #e5eaf3;
+  padding: 0 max(16px, calc((100% - 1290px) / 2));
+  background: #f4f6fa;
   color: #444a55;
 }
 
 .footer-bottom p {
   margin: 0;
+  line-height: 1;
 }
 
 .footer-bottom nav {
   display: flex;
+  align-items: center;
   gap: 22px;
   font-weight: 800;
+  line-height: 1;
 }
 
 @media (max-width: 1100px) {
@@ -804,7 +955,8 @@ function formatDate(value?: string | Date | null) {
   }
 
   .footer-links {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(3, 150px);
+    gap: 54px;
   }
 }
 
@@ -854,13 +1006,14 @@ function formatDate(value?: string | Date | null) {
     margin-left: 0;
   }
 
-  .social-row {
+  .footer-actions {
     gap: 16px;
     flex-wrap: wrap;
   }
 
   .footer-links {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 28px;
   }
 
   .footer-bottom {
