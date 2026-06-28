@@ -6,3 +6,4 @@ uploads
 prisma/migrations
 dist
 *.log
+blog-app.tar

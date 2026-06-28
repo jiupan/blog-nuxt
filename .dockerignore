@@ -1,0 +1,10 @@
+node_modules
+.output
+.data
+uploads
+.git
+.gitignore
+.env
+.env.example
+*.md
+LICENSE
