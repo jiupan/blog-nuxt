@@ -2,21 +2,22 @@
   <div class="home-page">
     <section class="home-shell pt-2">
       <div class="hero-board" :class="{ 'has-no-posts': !latest }">
-        <NuxtLink :to="latest ? postPath(latest.slug) : '/posts'" class="hero-main">
+        <NuxtLink :to="activeHeroPost ? postPath(activeHeroPost.slug) : (latest ? postPath(latest.slug) : '/posts')" class="hero-main">
           <img src="/images/home-hero-ai.png" alt="" class="hero-image">
           <div class="hero-copy">
-            <h1>{{ latest?.title || siteName }}</h1>
-            <p>{{ latest ? '最新发布' : '暂无已发布文章' }}</p>
+            <h1>{{ activeHeroPost?.title || latest?.title || siteName }}</h1>
+            <p>{{ activeHeroPost ? '最新发布' : (latest ? '最新发布' : '暂无已发布文章') }}</p>
           </div>
         </NuxtLink>
 
-        <div v-if="heroLinks.length" class="hero-list">
+        <div v-if="heroPosts.length" class="hero-list" @mouseleave="resetHeroPost">
           <NuxtLink
-            v-for="(item, index) in heroLinks"
-            :key="item.title"
+            v-for="item in heroPosts"
+            :key="item.id"
             :to="item.to"
             class="hero-link"
-            :class="{ 'is-active': index === 0 }"
+            :class="{ 'is-active': item.id === activeHeroPost?.id }"
+            @mouseenter.prevent="activeHeroPost = item"
           >
             <span class="hero-link-icon">
               <Icon :name="item.icon" aria-hidden="true" />
@@ -250,15 +251,25 @@ const displayPosts = computed(() => {
   })
 })
 
-const heroLinks = computed(() => {
+const heroIconLabels = ['i-lucide-command', 'i-lucide-mail', 'i-lucide-bot', 'i-lucide-newspaper', 'i-lucide-history', 'i-lucide-zap']
+
+const heroPosts = computed(() => {
   return posts.value.slice(1, 6).map((post, index) => {
     return {
+      id: post.id,
       title: post.title,
+      slug: post.slug,
       to: postPath(post.slug),
-      icon: ['i-lucide-command', 'i-lucide-mail', 'i-lucide-bot', 'i-lucide-newspaper', 'i-lucide-history'][index]
+      icon: heroIconLabels[index] || 'i-lucide-file-text'
     }
   })
 })
+
+const activeHeroPost = ref<HomePost | null>(null)
+
+function resetHeroPost() {
+  activeHeroPost.value = null
+}
 
 const topicTabs = computed(() => [
   { label: '全部文章', icon: 'i-lucide-layout-list', to: '/posts', active: true },

@@ -61,6 +61,12 @@
             class="w-40"
             @update:model-value="applyFilters"
           />
+
+          <UButton
+            variant="outline"
+            icon="i-lucide-rotate-ccw"
+            @click="resetFilters"
+          >重置</UButton>
         </div>
       </div>
 
@@ -69,8 +75,10 @@
           <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
             <th class="px-5 py-3 font-medium">标题</th>
-            <th class="px-5 py-3 font-medium">状态</th>
+            <th class="px-5 py-3 font-medium">分类</th>
+            <th class="px-5 py-3 font-medium">标签</th>
             <th class="px-5 py-3 font-medium">更新时间</th>
+            <th class="px-5 py-3 font-medium">状态</th>
             <th class="px-5 py-3"></th>
           </tr>
         </thead>
@@ -80,12 +88,19 @@
               <div class="font-medium text-slate-950">{{ post.title }}</div>
               <div class="mt-1 text-xs text-slate-500">{{ postPath(post.slug) }}</div>
             </td>
+            <td class="px-5 py-4 text-slate-500">{{ post.category?.name || '-' }}</td>
+            <td class="px-5 py-4">
+              <div class="flex items-center gap-1 flex-wrap">
+                <UBadge v-for="tag in post.tags" :key="tag.id" variant="soft" color="primary" size="xs">{{ tag.name }}</UBadge>
+                <span v-if="!post.tags?.length" class="text-slate-400">-</span>
+              </div>
+            </td>
+            <td class="px-5 py-4 text-slate-500">{{ formatDate(post.updatedAt) }}</td>
             <td class="px-5 py-4">
               <UBadge :color="post.status === 'PUBLISHED' ? 'success' : 'neutral'" variant="soft">
                 {{ statusText(post.status) }}
               </UBadge>
             </td>
-            <td class="px-5 py-4 text-slate-500">{{ formatDate(post.updatedAt) }}</td>
             <td class="px-5 py-4 text-right">
               <UButton size="sm" variant="ghost" icon="i-lucide-square-pen" :to="`/admin/posts/${post.id}`">编辑</UButton>
             </td>
@@ -193,6 +208,15 @@ function setStatus(val: string) {
 
 function applyFilters() {
   page.value = 1
+}
+
+function resetFilters() {
+  filterStatus.value = ''
+  searchText.value = ''
+  categoryFilter.value = '__all__'
+  tagFilter.value = '__all__'
+  sortValue.value = 'updatedAt_desc'
+  applyFilters()
 }
 
 function goPage(p: number) {
