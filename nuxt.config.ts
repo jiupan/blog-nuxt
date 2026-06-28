@@ -15,7 +15,8 @@ export default defineNuxtConfig({
       contentSecurityPolicy: {
         'upgrade-insecure-requests': true
       }
-    }
+    },
+    rateLimiter: false
   },
   fonts: {
     providers: {
