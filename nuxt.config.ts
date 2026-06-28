@@ -13,7 +13,7 @@ export default defineNuxtConfig({
   security: {
     headers: {
       contentSecurityPolicy: {
-        'upgrade-insecure-requests': false
+        'upgrade-insecure-requests': true
       }
     }
   },
@@ -32,11 +32,6 @@ export default defineNuxtConfig({
     '/api/admin/**': { cors: false }
   },
   runtimeConfig: {
-    session: {
-      cookie: {
-        secure: false
-      }
-    },
     uploadDir: process.env.UPLOAD_DIR || './uploads',
     public: {
       siteUrl: process.env.SITE_URL || 'http://localhost:3000',
