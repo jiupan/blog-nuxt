@@ -13,6 +13,10 @@ export default defineNuxtConfig({
   fonts: {
     providers: {
       google: false,
+      bunny: false,
+      fontshare: false,
+      adobe: false,
+      fontsource: false,
     },
   },
   routeRules: {
