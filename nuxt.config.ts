@@ -10,6 +10,11 @@ export default defineNuxtConfig({
     'nuxt-auth-utils',
     'nuxt-security'
   ],
+  fonts: {
+    providers: {
+      google: false,
+    },
+  },
   routeRules: {
     '/admin/**': { ssr: false },
     '/api/admin/**': { cors: false }
