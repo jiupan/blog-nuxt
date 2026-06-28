@@ -20,8 +20,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: '只支持 jpg/png/webp/gif 图片' })
   }
 
-  if (file.data.byteLength > 5 * 1024 * 1024) {
-    throw createError({ statusCode: 400, statusMessage: '图片不能超过 5MB' })
+  if (file.data.byteLength > 50 * 1024 * 1024) {
+    throw createError({ statusCode: 400, statusMessage: '图片不能超过 50MB' })
   }
 
   const config = useRuntimeConfig()

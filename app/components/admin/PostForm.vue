@@ -20,25 +20,30 @@
         </div>
         <div class="grid gap-4">
         <UFormField label="标题">
-          <UInput v-model="form.title" placeholder="请输入文章标题" />
+          <UInput v-model="form.title" placeholder="请输入文章标题" class="w-full" />
         </UFormField>
         <UFormField label="别名">
-          <UInput v-model="form.slug" placeholder="留空时自动生成 8 位链接码" />
+          <UInput v-model="form.slug" placeholder="留空时自动生成 8 位链接码" class="w-full" />
         </UFormField>
         <UFormField label="摘要">
-          <UTextarea v-model="form.summary" :rows="4" />
+          <UTextarea v-model="form.summary" :rows="4" class="w-full" />
         </UFormField>
         <UFormField label="封面 URL">
-          <UInput v-model="form.cover" placeholder="/uploads/..." />
+          <div class="flex gap-2">
+            <UInput v-model="form.cover" placeholder="/uploads/..." class="flex-1" />
+            <input ref="coverInputRef" type="file" accept="image/*" class="hidden" @change="uploadCover" />
+            <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploadingCover" @click="coverInputRef?.click()">上传</UButton>
+            <span v-if="coverUploaded" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><UIcon name="i-lucide-check" class="size-4" />已上传</span>
+            <span v-if="coverUploadError" class="inline-flex items-center gap-1 text-sm font-medium text-red-500"><UIcon name="i-lucide-alert-circle" class="size-4" />上传失败</span>
+          </div>
         </UFormField>
         <UFormField label="分类">
-          <select v-model.number="form.categoryId" class="admin-select">
+          <select v-model.number="form.categoryId" class="admin-select w-full">
             <option :value="null">无分类</option>
             <option v-for="item in categories" :key="item.id" :value="item.id">{{ item.name }}</option>
           </select>
         </UFormField>
-        <div>
-          <div class="mb-2 text-sm font-medium text-slate-700">标签</div>
+        <UFormField label="标签">
           <div class="flex flex-wrap gap-2" :class="{ 'rounded-lg border border-dashed border-slate-200 p-3': !tags.length }">
             <label v-for="item in tags" :key="item.id" class="admin-check-pill">
               <input v-model="form.tagIds" type="checkbox" :value="item.id" class="accent-slate-950" />
@@ -46,12 +51,12 @@
             </label>
             <p v-if="!tags.length" class="text-sm text-slate-500">暂无标签，可先到标签管理中新增。</p>
           </div>
-        </div>
+        </UFormField>
         <UFormField label="SEO 标题">
-          <UInput v-model="form.seoTitle" />
+          <UInput v-model="form.seoTitle" class="w-full" />
         </UFormField>
         <UFormField label="SEO 描述">
-          <UTextarea v-model="form.seoDescription" :rows="3" />
+          <UTextarea v-model="form.seoDescription" :rows="3" class="w-full" />
         </UFormField>
         </div>
       </section>
@@ -80,6 +85,10 @@ const props = defineProps<{
 
 const toast = useToast()
 const pending = ref(false)
+const uploadingCover = ref(false)
+const coverUploaded = ref(false)
+const coverUploadError = ref(false)
+const coverInputRef = ref<HTMLInputElement | null>(null)
 const form = reactive({
   title: '',
   slug: '',
@@ -148,7 +157,7 @@ async function save(status: 'DRAFT' | 'PUBLISHED') {
       color: 'success'
     })
 
-    if (props.mode === 'create') {
+    if (props.mode === 'create' || status === 'PUBLISHED') {
       await navigateTo('/admin/posts')
     }
   } catch (error: any) {
@@ -257,5 +266,28 @@ async function uploadImages(files: File[], callback: (urls: string[]) => void) {
     urls.push(result.data.url)
   }
   callback(urls)
+}
+
+async function uploadCover(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  uploadingCover.value = true
+  coverUploadError.value = false
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', { method: 'POST', body })
+    form.cover = result.data.url
+    coverUploaded.value = true
+    setTimeout(() => { coverUploaded.value = false }, 2000)
+  } catch {
+    coverUploadError.value = true
+    setTimeout(() => { coverUploadError.value = false }, 3000)
+  } finally {
+    uploadingCover.value = false
+    input.value = ''
+  }
 }
 </script>

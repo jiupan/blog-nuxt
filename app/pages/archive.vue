@@ -29,7 +29,7 @@
           </nav>
 
           <div class="archive-list">
-            <NuxtLink v-for="post in filteredPosts" :key="post.id" :to="postPath(post.slug)" class="archive-item">
+            <NuxtLink v-for="post in pagedPosts" :key="post.id" :to="postPath(post.slug)" class="archive-item">
               <div class="archive-cover" :class="coverClass(post.id)">
                 <span>{{ coverWord(post) }}</span>
               </div>
@@ -43,6 +43,18 @@
               </div>
               <span class="archive-arrow" aria-hidden="true"></span>
             </NuxtLink>
+          </div>
+
+          <div v-if="totalPages > 1" class="pager">
+            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">‹</button>
+            <button
+              v-for="p in totalPages"
+              :key="p"
+              class="page-dot"
+              :class="{ 'is-active': p === currentPage }"
+              @click="goToPage(p)"
+            >{{ p }}</button>
+            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">›</button>
           </div>
 
           <div v-if="!filteredPosts.length" class="archive-empty">
@@ -98,8 +110,11 @@ type ArchivePost = {
 }
 
 const config = useRuntimeConfig()
+const siteSettings = useSiteSettings()
 const activeTab = ref('all')
 const activeYear = ref('all')
+const pageSize = 10
+const currentPage = ref(1)
 
 const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
   useFetch<{ data: { items: ArchivePost[] } }>('/api/posts', { query: { pageSize: 100 } }),
@@ -107,7 +122,7 @@ const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all(
   useFetch('/api/tags')
 ])
 
-const siteName = computed(() => config.public.siteName || 'Jiupan Blog')
+const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const siteInitial = computed(() => siteName.value.slice(0, 1).toUpperCase())
 const posts = computed(() => data.value?.data.items || [])
 const categories = computed(() => categoryData.value?.data || [])
@@ -162,6 +177,21 @@ const filteredPosts = computed(() => {
   })
 })
 
+const totalPages = computed(() => Math.ceil(filteredPosts.value.length / pageSize))
+const pagedPosts = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filteredPosts.value.slice(start, start + pageSize)
+})
+
+function goToPage(p: number) {
+  currentPage.value = p
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+watch([activeTab, activeYear], () => {
+  currentPage.value = 1
+})
+
 const hotPosts = computed(() => {
   return [...posts.value]
     .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
@@ -204,7 +234,7 @@ function formatDate(value?: string | Date | null) {
 }
 
 .archive-shell {
-  width: min(100% - 32px, 1120px);
+  width: min(100% - 32px, 1290px);
   margin: 0 auto;
   padding: 22px 0 72px;
 }
@@ -321,7 +351,7 @@ function formatDate(value?: string | Date | null) {
 .archive-copy h2 {
   margin: 0;
   color: #34373f;
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 900;
   line-height: 1.45;
 }
@@ -468,6 +498,38 @@ function formatDate(value?: string | Date | null) {
   line-height: 1.5;
 }
 
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+}
+
+.page-dot {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid #e1e7f2;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 6px 18px rgb(40 58 90 / 7%);
+  color: #3a3b44;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.page-dot:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.page-dot.is-active {
+  background: #4964f4;
+  color: white;
+}
+
 @media (max-width: 900px) {
   .archive-layout {
     grid-template-columns: 1fr;
@@ -480,7 +542,7 @@ function formatDate(value?: string | Date | null) {
 
 @media (max-width: 640px) {
   .archive-shell {
-    width: min(100% - 20px, 1120px);
+    width: min(100% - 20px, 1290px);
   }
 
   .archive-item {

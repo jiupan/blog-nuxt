@@ -18,7 +18,7 @@ export default defineEventHandler(async () => {
     { loc: '/archive', changefreq: 'weekly', priority: 0.6 },
     { loc: '/about', changefreq: 'monthly', priority: 0.5 },
     ...posts.map((post) => ({
-      loc: `/posts/${post.slug}.html`,
+      loc: `/${post.slug}.html`,
       lastmod: post.updatedAt
     }))
   ]

@@ -67,6 +67,12 @@ model PostTag {
   @@id([postId, tagId])
 }
 
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 enum PostStatus {
   DRAFT
   PUBLISHED

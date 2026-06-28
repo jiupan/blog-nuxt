@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="mx-auto max-w-4xl px-4 py-10">
+  <div class="mx-auto px-4 py-10" style="width: min(100% - 32px, 1290px)">
     <h1 class="text-3xl font-semibold">{{ title }}</h1>
     <div class="mt-6 grid gap-4">
       <article v-for="post in posts" :key="post.id" class="rounded-lg border border-gray-200 bg-white p-5">

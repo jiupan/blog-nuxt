@@ -44,7 +44,9 @@
         <main>
           <div v-if="displayPosts.length" class="post-grid">
             <article v-for="(post, index) in displayPosts" :key="post.key" class="post-card">
-              <NuxtLink :to="post.to" class="post-cover" :class="post.coverClass">
+              <NuxtLink :to="post.to" class="post-cover" :class="!post.cover && post.coverClass">
+                <img v-if="post.cover" :src="post.cover" :alt="post.title" class="cover-image" />
+                <span v-if="post.cover" class="cover-overlay"></span>
                 <span class="cover-word">{{ post.coverWord }}</span>
                 <span class="cover-icon">
                   <Icon :name="post.icon" aria-hidden="true" />
@@ -69,22 +71,34 @@
             <p>后台发布文章后，这里会自动显示最新内容。</p>
           </div>
 
-          <div v-if="hasMorePosts" class="pager">
-            <NuxtLink class="page-next" to="/posts">查看全部文章</NuxtLink>
+          <div v-if="totalPages > 1" class="pager">
+            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">‹</button>
+            <button
+              v-for="p in totalPages"
+              :key="p"
+              class="page-dot"
+              :class="{ 'is-active': p === currentPage }"
+              @click="goToPage(p)"
+            >{{ p }}</button>
+            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">›</button>
           </div>
         </main>
 
         <aside class="sidebar">
           <section class="profile-card">
-            <div class="profile-badge">欢迎访问</div>
             <div class="profile-avatar">
               <Icon name="i-simple-icons-nuxtdotjs" aria-hidden="true" />
             </div>
-            <h2>{{ siteName }}</h2>
-            <p>个人博客</p>
-            <div class="profile-actions">
-              <NuxtLink to="/about">档案</NuxtLink>
-              <NuxtLink to="/archive">归档</NuxtLink>
+            <div class="profile-bottom">
+              <NuxtLink to="/about" class="profile-info">
+                <div class="profile-name">{{ siteName }}</div>
+                <div class="profile-desc">{{ siteSettings.site_subtitle }}</div>
+              </NuxtLink>
+              <div class="profile-socials">
+                <a href="https://github.com" target="_blank" rel="noopener" title="GitHub" class="social-icon">
+                  <Icon name="i-simple-icons-github" aria-hidden="true" />
+                </a>
+              </div>
             </div>
           </section>
 
@@ -115,57 +129,6 @@
       </div>
     </section>
 
-    <footer class="home-footer">
-      <div class="footer-actions" aria-label="底部快捷入口">
-        <NuxtLink to="/posts" class="footer-action" aria-label="文章">
-          <Icon name="i-lucide-library" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/archive" class="footer-action" aria-label="归档">
-          <Icon name="i-lucide-archive" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/about" class="footer-action" aria-label="关于">
-          <Icon name="i-lucide-user-round" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/admin" class="footer-action" aria-label="后台">
-          <Icon name="i-lucide-settings" aria-hidden="true" />
-        </NuxtLink>
-        <button class="back-top-button" type="button" aria-label="返回顶部" @click="scrollToTop">
-          <span class="footer-avatar" aria-hidden="true">
-            <span class="footer-avatar-head"></span>
-            <span class="footer-avatar-body"></span>
-          </span>
-        </button>
-        <NuxtLink to="/posts" class="footer-action" aria-label="全部文章">
-          <Icon name="i-lucide-newspaper" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/archive" class="footer-action" aria-label="时间线">
-          <Icon name="i-lucide-clock-3" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/about" class="footer-action" aria-label="联系">
-          <Icon name="i-lucide-link" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/admin/login" class="footer-action" aria-label="登录">
-          <Icon name="i-lucide-log-in" aria-hidden="true" />
-        </NuxtLink>
-      </div>
-
-      <div class="footer-links">
-        <div v-for="group in footerGroups" :key="group.title">
-          <h3>{{ group.title }}</h3>
-          <NuxtLink v-for="link in group.links" :key="link.label" :to="link.to">{{ link.label }}</NuxtLink>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <p>©2026 <strong>{{ siteName }}</strong></p>
-        <nav>
-          <NuxtLink to="/posts">文章</NuxtLink>
-          <NuxtLink to="/archive">归档</NuxtLink>
-          <NuxtLink to="/about">关于</NuxtLink>
-          <NuxtLink to="/admin">后台</NuxtLink>
-        </nav>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -207,21 +170,26 @@ type PostsPayload = {
 }
 
 const config = useRuntimeConfig()
-const siteName = config.public.siteName
+const siteSettings = useSiteSettings()
+const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
 const pageSize = 8
-const footerLinkLimit = 4
+const currentPage = ref(1)
 const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
-  useFetch<{ data: PostsPayload }>('/api/posts', { query: { pageSize } }),
+  useFetch<{ data: PostsPayload }>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize })) }),
   useFetch<{ data: TaxonomyItem[] }>('/api/categories'),
   useFetch<{ data: TaxonomyItem[] }>('/api/tags')
 ])
 
 const posts = computed(() => data.value?.data.items || [])
 const totalPosts = computed(() => data.value?.data.total || posts.value.length)
+const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 const latest = computed(() => posts.value[0])
-const hasMorePosts = computed(() => totalPosts.value > posts.value.length)
+function goToPage(p: number) {
+  currentPage.value = p
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 const coverStyles = [
   { coverClass: 'cover-pink', icon: 'i-lucide-sparkles' },
@@ -234,7 +202,7 @@ const coverStyles = [
 
 const displayPosts = computed(() => {
   return posts.value.map((post, index) => {
-    const style = coverStyles[index % coverStyles.length]!
+    const style = coverStyles[post.id % coverStyles.length]!
     const category = post.category?.name || '未分类'
     const postTags = post.tags?.slice(0, 3).map((tag) => tag.name) || []
 
@@ -245,6 +213,7 @@ const displayPosts = computed(() => {
       category,
       tags: postTags,
       date: formatDate(post.publishedAt),
+      cover: post.cover || '',
       coverWord: category === '未分类' ? post.title.slice(0, 4) : category,
       ...style
     }
@@ -282,49 +251,6 @@ const topicTabs = computed(() => [
 ])
 
 const cloudTags = computed(() => tags.value.slice(0, 12))
-
-const footerGroups = computed(() => {
-  const groups = [
-    {
-      title: '导航',
-      links: [
-        { label: '首页', to: '/' },
-        { label: '文章', to: '/posts' },
-        { label: '归档', to: '/archive' },
-        { label: '关于', to: '/about' }
-      ]
-    }
-  ]
-
-  if (categories.value.length) {
-    groups.push({
-      title: '分类',
-      links: categories.value.slice(0, footerLinkLimit).map((category) => ({
-        label: category.name,
-        to: `/categories/${category.slug}`
-      }))
-    })
-  }
-
-  if (tags.value.length) {
-    groups.push({
-      title: '标签',
-      links: tags.value.slice(0, footerLinkLimit).map((tag) => ({
-        label: tag.name,
-        to: `/tags/${tag.slug}`
-      }))
-    })
-  }
-
-  return groups
-})
-
-function scrollToTop() {
-  window.scrollTo({
-    top: 0,
-    behavior: 'smooth'
-  })
-}
 
 useSeoMeta({
   title: siteName,
@@ -520,7 +446,23 @@ function formatDate(value?: string | Date | null) {
   overflow: hidden;
 }
 
+.cover-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgb(0 0 0 / 45%), rgb(0 0 0 / 15%));
+}
+
 .cover-word {
+  position: relative;
+  z-index: 2;
   color: rgb(255 255 255 / 42%);
   font-size: clamp(48px, 5vw, 74px);
   font-weight: 900;
@@ -529,6 +471,7 @@ function formatDate(value?: string | Date | null) {
 
 .cover-icon {
   position: absolute;
+  z-index: 2;
   display: grid;
   width: 104px;
   height: 104px;
@@ -593,6 +536,9 @@ function formatDate(value?: string | Date | null) {
 .sidebar {
   display: grid;
   gap: 10px;
+  position: sticky;
+  top: 82px;
+  z-index: 5;
 }
 
 .profile-card,
@@ -606,28 +552,16 @@ function formatDate(value?: string | Date | null) {
 
 .profile-card {
   overflow: hidden;
-  min-height: 308px;
-  padding: 18px 22px;
+  padding: 24px 22px 20px;
   background: linear-gradient(160deg, #5d6bf8, #4158f2);
   color: white;
-}
-
-.profile-badge {
-  width: max-content;
-  max-width: 100%;
-  margin: 0 auto 34px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 13%);
-  font-size: 13px;
-  font-weight: 800;
 }
 
 .profile-avatar {
   display: grid;
   width: 98px;
   height: 98px;
-  margin: 0 auto;
+  margin: 0 auto 28px;
   place-items: center;
   border: 7px solid white;
   border-radius: 999px;
@@ -643,33 +577,57 @@ function formatDate(value?: string | Date | null) {
   height: 50px;
 }
 
-.profile-card h2 {
-  margin: 28px 0 0;
-  font-size: 22px;
+.profile-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-name {
+  font-size: 18px;
   font-weight: 900;
 }
 
-.profile-card p {
-  margin: 4px 0 0;
-  opacity: .88;
+.profile-desc {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.78;
 }
 
-.profile-actions {
+.profile-socials {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 18px;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
-.profile-actions a {
+.social-icon {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: 999px;
   background: rgb(255 255 255 / 16%);
-  font-size: 12px;
-  font-weight: 800;
+  color: white;
+  font-size: 18px;
+  transition: background 0.2s ease;
+}
+
+.social-icon:hover {
+  background: rgb(255 255 255 / 28%);
+}
+
+.social-icon :deep(svg),
+.social-icon :deep(span) {
+  width: 18px;
+  height: 18px;
 }
 
 .wechat-card,
@@ -748,7 +706,7 @@ function formatDate(value?: string | Date | null) {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin: 16px 0 68px;
+  margin: 16px 0 0;
 }
 
 .page-dot,
@@ -765,6 +723,13 @@ function formatDate(value?: string | Date | null) {
 .page-dot {
   width: 38px;
   height: 38px;
+  color: #3a3b44;
+  cursor: pointer;
+}
+
+.page-dot:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .page-dot.is-active {
@@ -804,152 +769,6 @@ function formatDate(value?: string | Date | null) {
   color: #777d89;
 }
 
-.home-footer {
-  margin-top: 15px;
-  background: linear-gradient(180deg, #f3f6fc 0%, #fff 26%);
-}
-
-.footer-actions {
-  display: flex;
-  width: min(100% - 32px, 780px);
-  align-items: center;
-  justify-content: center;
-  gap: 34px;
-  margin: 0 auto;
-  padding: 10px 0 54px;
-}
-
-.footer-action,
-.back-top-button {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 0;
-  border-radius: 999px;
-  background: #3d3f45;
-  box-shadow: 0 10px 22px rgb(34 38 46 / 12%);
-  color: white;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.footer-action :deep(svg),
-.footer-action :deep(span) {
-  width: 17px;
-  height: 17px;
-}
-
-.back-top-button {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  background: linear-gradient(135deg, #ff777c, #f23842);
-  box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
-  cursor: pointer;
-}
-
-.back-top-button::before {
-  position: absolute;
-  top: 5px;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: white;
-  content: "";
-}
-
-.footer-avatar {
-  position: relative;
-  display: grid;
-  width: 32px;
-  height: 36px;
-  place-items: center;
-}
-
-.footer-avatar-head {
-  position: absolute;
-  top: 6px;
-  width: 12px;
-  height: 12px;
-  border: 3px solid #fff;
-  border-radius: 999px;
-  background: #19191d;
-}
-
-.footer-avatar-body {
-  position: absolute;
-  bottom: 2px;
-  width: 25px;
-  height: 25px;
-  border-radius: 999px 999px 10px 10px;
-  background: #111217;
-}
-
-.footer-avatar-body::before {
-  position: absolute;
-  top: 9px;
-  left: 7px;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: white;
-  box-shadow: 8px 0 0 white;
-  content: "";
-}
-
-.footer-links {
-  display: grid;
-  width: min(100% - 32px, 1180px);
-  grid-template-columns: repeat(auto-fit, 160px);
-  justify-content: center;
-  gap: 92px;
-  margin: 0 auto;
-  padding: 0 0 50px;
-  text-align: center;
-}
-
-.footer-links h3 {
-  margin: 0 0 20px;
-  color: #383a40;
-  font-size: 16px;
-  font-weight: 900;
-}
-
-.footer-links a {
-  display: block;
-  margin-top: 14px;
-  color: #626873;
-  font-weight: 700;
-}
-
-.footer-bottom {
-  display: flex;
-  width: 100%;
-  height: 82px;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 auto;
-  padding: 0 max(16px, calc((100% - 1290px) / 2));
-  background: #f4f6fa;
-  color: #444a55;
-}
-
-.footer-bottom p {
-  margin: 0;
-  line-height: 1;
-}
-
-.footer-bottom nav {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  font-weight: 800;
-  line-height: 1;
-}
-
 @media (max-width: 1100px) {
   .hero-board,
   .content-layout {
@@ -962,11 +781,6 @@ function formatDate(value?: string | Date | null) {
 
   .sidebar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .footer-links {
-    grid-template-columns: repeat(3, 150px);
-    gap: 54px;
   }
 }
 
@@ -987,6 +801,10 @@ function formatDate(value?: string | Date | null) {
   .post-grid,
   .sidebar {
     grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
   }
 
   .hero-copy {
@@ -1014,26 +832,6 @@ function formatDate(value?: string | Date | null) {
 
   .post-tags time {
     margin-left: 0;
-  }
-
-  .footer-actions {
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-
-  .footer-links {
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
-    gap: 28px;
-  }
-
-  .footer-bottom {
-    display: grid;
-    gap: 16px;
-  }
-
-  .footer-bottom nav {
-    flex-wrap: wrap;
-    gap: 14px;
   }
 }
 </style>

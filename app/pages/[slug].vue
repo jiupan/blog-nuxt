@@ -1,6 +1,6 @@
 <template>
   <div class="post-page">
-    <section class="post-hero">
+    <section class="post-hero" :style="{ background: `radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%), ${heroGradient}` }">
       <div class="post-hero-inner">
         <div class="post-kicker">
           <NuxtLink v-if="post.category" :to="`/categories/${post.category.slug}`">{{ post.category.name }}</NuxtLink>
@@ -19,7 +19,7 @@
           </div>
 
           <div class="post-cover-card">
-            <NuxtImg v-if="post.cover" :src="post.cover" :alt="post.title" />
+            <img v-if="post.cover" :src="post.cover" :alt="post.title" class="post-cover-img" />
             <div v-else class="cover-fallback">
               <span>{{ coverWord }}</span>
               <strong>{{ post.category?.name || '文章' }}</strong>
@@ -38,7 +38,7 @@
           </div>
           <div class="summary-body">
             <div class="summary-thumb">
-              <NuxtImg v-if="post.cover" :src="post.cover" :alt="post.title" />
+              <img v-if="post.cover" :src="post.cover" :alt="post.title" class="summary-thumb-img" />
               <span v-else>{{ coverWord }}</span>
             </div>
             <p>{{ post.summary }}</p>
@@ -112,12 +112,23 @@ if (error.value || !data.value?.data) {
 }
 
 const post = computed(() => data.value!.data)
-const siteName = computed(() => config.public.siteName || 'Jiupan Blog')
+const siteSettings = useSiteSettings()
+const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const coverWord = computed(() => {
   return post.value.category?.name || post.value.title.slice(0, 4)
 })
 const authorInitial = computed(() => siteName.value.slice(0, 1).toUpperCase())
+
+const heroGradients = [
+  'linear-gradient(135deg, #e06abc, #d73d9f)',
+  'linear-gradient(135deg, #80cfff, #35aaf6)',
+  'linear-gradient(135deg, #a7d64a, #7dbf31)',
+  'linear-gradient(135deg, #ffe27b, #ff9c25)',
+  'linear-gradient(135deg, #d5d5d5, #bfc1c4)',
+  'linear-gradient(135deg, #ffb5ad, #ff827a)'
+]
+const heroGradient = computed(() => heroGradients[post.value.id % heroGradients.length])
 
 layoutScrollTitle.value = post.value.title
 
@@ -149,9 +160,6 @@ function formatDate(value?: string | Date | null) {
   min-height: 400px;
   margin-top: -70px;
   padding: 108px 0 58px;
-  background:
-    radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%),
-    linear-gradient(135deg, #a71878 0%, #c63a98 50%, #a21d72 100%);
   color: white;
 }
 
@@ -163,8 +171,8 @@ function formatDate(value?: string | Date | null) {
 .post-kicker {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 30px;
   color: rgb(255 255 255 / 86%);
   font-size: 15px;
   font-weight: 800;

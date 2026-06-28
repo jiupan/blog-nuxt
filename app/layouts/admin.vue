@@ -78,14 +78,16 @@
 
 <script setup lang="ts">
 const config = useRuntimeConfig()
-const siteName = config.public.siteName
+const siteSettings = useSiteSettings()
+const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
 const route = useRoute()
 
 const navItems = [
   { label: '仪表盘', to: '/admin', icon: 'i-lucide-layout-dashboard' },
   { label: '文章', to: '/admin/posts', icon: 'i-lucide-newspaper' },
   { label: '分类', to: '/admin/categories', icon: 'i-lucide-folder-tree' },
-  { label: '标签', to: '/admin/tags', icon: 'i-lucide-tags' }
+  { label: '标签', to: '/admin/tags', icon: 'i-lucide-tags' },
+  { label: '设置', to: '/admin/settings', icon: 'i-lucide-settings' }
 ]
 
 function isActive(path: string) {

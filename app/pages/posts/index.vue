@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto max-w-6xl px-4 py-10">
+  <div class="mx-auto px-4 py-10" style="width: min(100% - 32px, 1290px)">
     <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 md:flex-row md:items-end md:justify-between">
       <div>
         <h1 class="text-3xl font-semibold text-gray-950">文章</h1>
