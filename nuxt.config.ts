@@ -10,6 +10,13 @@ export default defineNuxtConfig({
     'nuxt-auth-utils',
     'nuxt-security'
   ],
+  security: {
+    headers: {
+      contentSecurityPolicy: {
+        'upgrade-insecure-requests': false
+      }
+    }
+  },
   fonts: {
     providers: {
       google: false,
