@@ -18,7 +18,7 @@
             </div>
           </div>
 
-          <div class="post-cover-card">
+          <div class="post-cover-card" :style="{ background: heroGradient }">
             <img v-if="post.cover" :src="post.cover" :alt="post.title" class="post-cover-img" />
             <div v-else class="cover-fallback">
               <span>{{ coverWord }}</span>
@@ -224,7 +224,6 @@ function formatDate(value?: string | Date | null) {
   place-items: center;
   overflow: hidden;
   border-radius: 8px;
-  background: linear-gradient(135deg, #e875bf, #d94bab);
   box-shadow: 0 26px 56px rgb(91 11 65 / 22%);
 }
 

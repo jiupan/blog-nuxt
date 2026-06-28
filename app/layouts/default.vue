@@ -7,9 +7,9 @@
           <span>DYU</span>
         </NuxtLink>
 
-        <NuxtLink to="/" class="scroll-title" aria-label="返回首页">
+        <button class="scroll-title" aria-label="回到顶部" @click="scrollToTop">
           {{ scrollTitle }}
-        </NuxtLink>
+        </button>
 
         <nav class="main-nav" aria-label="主导航">
           <NuxtLink to="/posts">文库</NuxtLink>
@@ -291,6 +291,7 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   background: rgb(255 255 255 / 88%);
   box-shadow: 0 12px 32px rgb(31 43 68 / 14%);
+  cursor: pointer;
   color: #303137;
   font-size: 18px;
   font-weight: 900;
