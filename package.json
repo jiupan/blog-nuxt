@@ -1,0 +1,44 @@
+{
+  "name": "nuxt-dynamic-blog",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@nuxt/image": "latest",
+    "@nuxt/ui": "latest",
+    "@nuxtjs/sitemap": "latest",
+    "@prisma/client": "^6.19.3",
+    "argon2": "latest",
+    "github-slugger": "latest",
+    "markdown-it": "latest",
+    "md-editor-v3": "latest",
+    "nuxt": "latest",
+    "nuxt-auth-utils": "latest",
+    "nuxt-security": "^2.5.0",
+    "sanitize-html": "latest",
+    "shiki": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "latest",
+    "@types/node": "latest",
+    "@types/sanitize-html": "latest",
+    "prisma": "^6.19.3",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vue-tsc": "latest"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

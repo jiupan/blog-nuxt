@@ -1,0 +1,8 @@
+.nuxt
+.output
+node_modules
+.env
+uploads
+prisma/migrations
+dist
+*.log

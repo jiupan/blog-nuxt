@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nuxt_blog
+      POSTGRES_USER: blog
+      POSTGRES_PASSWORD: blog_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://blog:blog_password@postgres:5432/nuxt_blog?schema=public
+      NUXT_SESSION_PASSWORD: replace-with-at-least-32-characters-secret
+      UPLOAD_DIR: /app/uploads
+      SITE_URL: http://localhost
+      SITE_NAME: Jiupan Blog
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data:
+  uploads:
