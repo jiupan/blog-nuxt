@@ -50,11 +50,11 @@
         </div>
 
         <nav v-if="post.previous || post.next" class="post-pager">
-          <NuxtLink v-if="post.previous" :to="`/posts/${post.previous.slug}`">
+          <NuxtLink v-if="post.previous" :to="postPath(post.previous.slug)">
             <span>上一篇</span>
             <strong>{{ post.previous.title }}</strong>
           </NuxtLink>
-          <NuxtLink v-if="post.next" :to="`/posts/${post.next.slug}`">
+          <NuxtLink v-if="post.next" :to="postPath(post.next.slug)">
             <span>下一篇</span>
             <strong>{{ post.next.title }}</strong>
           </NuxtLink>

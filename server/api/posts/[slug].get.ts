@@ -1,9 +1,10 @@
 ﻿import { prisma } from '~~/server/utils/prisma'
 import { renderMarkdown } from '~~/server/utils/markdown'
 import { ok } from '~~/server/utils/response'
+import { normalizePostSlug } from '~~/server/utils/slug'
 
 export default defineEventHandler(async (event) => {
-  const slug = getRouterParam(event, 'slug') || ''
+  const slug = normalizePostSlug(getRouterParam(event, 'slug') || '')
   const now = new Date()
 
   const post = await prisma.post.findFirst({

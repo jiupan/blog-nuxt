@@ -1,8 +1,9 @@
 ﻿import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 import { prisma } from '~~/server/utils/prisma'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
-import { normalizeSlug } from '~~/server/utils/slug'
+import { createRandomPostSlug, normalizePostSlug } from '~~/server/utils/slug'
 
 const postSchema = z.object({
   title: z.string().min(1),
@@ -20,25 +21,52 @@ const postSchema = z.object({
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
   const body = postSchema.parse(await readBody(event))
-  const slug = normalizeSlug(body.slug || body.title)
+  const slug = await resolvePostSlug(body.slug)
 
-  const post = await prisma.post.create({
-    data: {
-      title: body.title,
-      slug,
-      summary: body.summary,
-      content: body.content,
-      cover: body.cover,
-      categoryId: body.categoryId,
-      status: body.status,
-      publishedAt: body.status === 'PUBLISHED' ? new Date() : null,
-      seoTitle: body.seoTitle,
-      seoDescription: body.seoDescription,
-      tags: {
-        create: body.tagIds.map((tagId) => ({ tagId }))
+  try {
+    const post = await prisma.post.create({
+      data: {
+        title: body.title,
+        slug,
+        summary: body.summary,
+        content: body.content,
+        cover: body.cover,
+        categoryId: body.categoryId,
+        status: body.status,
+        publishedAt: body.status === 'PUBLISHED' ? new Date() : null,
+        seoTitle: body.seoTitle,
+        seoDescription: body.seoDescription,
+        tags: {
+          create: body.tagIds.map((tagId) => ({ tagId }))
+        }
       }
-    }
-  })
+    })
 
-  return ok(post, '已创建')
+    return ok(post, '已创建')
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw createError({ statusCode: 409, statusMessage: '文章别名已存在，请换一个别名后重试' })
+    }
+
+    throw error
+  }
 })
+
+async function resolvePostSlug(value?: string | null) {
+  const customSlug = value ? normalizePostSlug(value) : ''
+
+  if (customSlug) {
+    return customSlug
+  }
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const slug = createRandomPostSlug()
+    const exists = await prisma.post.findUnique({ where: { slug }, select: { id: true } })
+
+    if (!exists) {
+      return slug
+    }
+  }
+
+  return createRandomPostSlug(12)
+}

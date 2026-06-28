@@ -1,39 +1,60 @@
 <template>
-  <div>
-    <h1 class="text-2xl font-semibold">{{ title }}</h1>
-    <form class="mt-6 grid gap-3 rounded-lg border border-gray-200 bg-white p-5 md:grid-cols-[1fr_1fr_auto]" @submit.prevent="createItem">
-      <UInput v-model="form.name" placeholder="名称" />
-      <UInput v-model="form.slug" placeholder="别名，留空自动生成" />
+  <div class="grid gap-6">
+    <div>
+      <p class="text-sm font-medium text-slate-500">{{ title.includes('分类') ? 'Categories' : 'Tags' }}</p>
+      <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{{ title }}</h1>
+    </div>
+
+    <form class="admin-panel grid gap-3 p-5 md:grid-cols-[1fr_1fr_auto]" @submit.prevent="createItem">
+      <UInput v-model="form.name" icon="i-lucide-type" placeholder="名称" />
+      <UInput v-model="form.slug" icon="i-lucide-link" placeholder="别名，留空自动生成" />
       <UButton type="submit" icon="i-lucide-plus" :loading="pending">新增</UButton>
     </form>
 
-    <div class="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
-      <table class="w-full text-left text-sm">
-        <thead class="bg-gray-50 text-gray-600">
+    <section class="admin-panel">
+      <div class="admin-panel-header">
+        <div>
+          <h2 class="text-base font-semibold text-slate-950">条目列表</h2>
+          <p class="mt-1 text-sm text-slate-500">共 {{ items.length }} 个条目，可直接在表格内编辑</p>
+        </div>
+      </div>
+
+      <div v-if="items.length" class="overflow-x-auto">
+        <table class="w-full min-w-[40rem] text-left text-sm">
+          <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
-            <th class="px-4 py-3">名称</th>
-            <th class="px-4 py-3">别名</th>
-            <th class="px-4 py-3">文章数</th>
-            <th class="px-4 py-3"></th>
+            <th class="px-5 py-3 font-medium">名称</th>
+            <th class="px-5 py-3 font-medium">别名</th>
+            <th class="px-5 py-3 font-medium">文章数</th>
+            <th class="px-5 py-3"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
-          <tr v-for="item in items" :key="item.id">
-            <td class="px-4 py-3">
+          <tbody class="divide-y divide-slate-100">
+          <tr v-for="item in items" :key="item.id" class="transition hover:bg-slate-50">
+            <td class="px-5 py-3">
               <UInput v-model="item.name" size="sm" />
             </td>
-            <td class="px-4 py-3">
+            <td class="px-5 py-3">
               <UInput v-model="item.slug" size="sm" />
             </td>
-            <td class="px-4 py-3 text-gray-500">{{ item._count?.posts || 0 }}</td>
-            <td class="px-4 py-3 text-right">
-              <UButton size="sm" variant="ghost" @click="updateItem(item)">保存</UButton>
-              <UButton size="sm" color="error" variant="ghost" @click="deleteItem(item.id)">删除</UButton>
+            <td class="px-5 py-3 text-slate-500">
+              <UBadge color="neutral" variant="soft">{{ item._count?.posts || 0 }}</UBadge>
+            </td>
+            <td class="px-5 py-3 text-right">
+              <UButton size="sm" variant="ghost" icon="i-lucide-save" @click="updateItem(item)">保存</UButton>
+              <UButton size="sm" color="error" variant="ghost" icon="i-lucide-trash-2" @click="deleteItem(item.id)">删除</UButton>
             </td>
           </tr>
         </tbody>
       </table>
-    </div>
+      </div>
+
+      <div v-else class="grid place-items-center px-5 py-16 text-center">
+        <UIcon name="i-lucide-inbox" class="size-10 text-slate-300" />
+        <p class="mt-3 font-medium text-slate-900">暂无条目</p>
+        <p class="mt-1 text-sm text-slate-500">使用上方表单新增{{ title.includes('分类') ? '分类' : '标签' }}。</p>
+      </div>
+    </section>
   </div>
 </template>
 

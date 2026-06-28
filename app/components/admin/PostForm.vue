@@ -1,21 +1,29 @@
 <template>
-  <div>
-    <div class="mb-6 flex items-center justify-between">
-      <h1 class="text-2xl font-semibold">{{ mode === 'create' ? '新建文章' : '编辑文章' }}</h1>
-      <div class="flex gap-2">
-        <UButton color="neutral" variant="outline" to="/admin/posts">返回</UButton>
-        <UButton color="neutral" variant="outline" :loading="pending" @click="save('DRAFT')">保存草稿</UButton>
-        <UButton :loading="pending" @click="save('PUBLISHED')">发布文章</UButton>
+  <div class="grid gap-6">
+    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div>
+        <p class="text-sm font-medium text-slate-500">Markdown Editor</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{{ mode === 'create' ? '新建文章' : '编辑文章' }}</h1>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <UButton color="neutral" variant="outline" icon="i-lucide-arrow-left" to="/admin/posts">返回</UButton>
+        <UButton color="neutral" variant="outline" icon="i-lucide-save" :loading="pending" @click="save('DRAFT')">保存草稿</UButton>
+        <UButton icon="i-lucide-send" :loading="pending" @click="save('PUBLISHED')">发布文章</UButton>
       </div>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[360px_1fr]">
-      <section class="grid gap-4 rounded-lg border border-gray-200 bg-white p-5">
+    <div class="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <section class="admin-panel self-start p-5">
+        <div class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-4">
+          <UIcon name="i-lucide-settings-2" class="size-4 text-slate-500" />
+          <h2 class="text-sm font-semibold text-slate-950">文章设置</h2>
+        </div>
+        <div class="grid gap-4">
         <UFormField label="标题">
-          <UInput v-model="form.title" />
+          <UInput v-model="form.title" placeholder="请输入文章标题" />
         </UFormField>
         <UFormField label="别名">
-          <UInput v-model="form.slug" placeholder="留空时根据标题生成" />
+          <UInput v-model="form.slug" placeholder="留空时自动生成 8 位链接码" />
         </UFormField>
         <UFormField label="摘要">
           <UTextarea v-model="form.summary" :rows="4" />
@@ -24,18 +32,19 @@
           <UInput v-model="form.cover" placeholder="/uploads/..." />
         </UFormField>
         <UFormField label="分类">
-          <select v-model.number="form.categoryId" class="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm">
+          <select v-model.number="form.categoryId" class="admin-select">
             <option :value="null">无分类</option>
             <option v-for="item in categories" :key="item.id" :value="item.id">{{ item.name }}</option>
           </select>
         </UFormField>
         <div>
-          <div class="mb-2 text-sm font-medium text-gray-700">标签</div>
-          <div class="flex flex-wrap gap-2">
-            <label v-for="item in tags" :key="item.id" class="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm">
-              <input v-model="form.tagIds" type="checkbox" :value="item.id" />
+          <div class="mb-2 text-sm font-medium text-slate-700">标签</div>
+          <div class="flex flex-wrap gap-2" :class="{ 'rounded-lg border border-dashed border-slate-200 p-3': !tags.length }">
+            <label v-for="item in tags" :key="item.id" class="admin-check-pill">
+              <input v-model="form.tagIds" type="checkbox" :value="item.id" class="accent-slate-950" />
               {{ item.name }}
             </label>
+            <p v-if="!tags.length" class="text-sm text-slate-500">暂无标签，可先到标签管理中新增。</p>
           </div>
         </div>
         <UFormField label="SEO 标题">
@@ -44,11 +53,17 @@
         <UFormField label="SEO 描述">
           <UTextarea v-model="form.seoDescription" :rows="3" />
         </UFormField>
+        </div>
       </section>
 
-      <section class="min-w-0 rounded-lg border border-gray-200 bg-white p-2">
+      <section class="admin-panel min-w-0 overflow-hidden p-2">
         <ClientOnly>
-          <MdEditor v-model="form.content" :toolbars-exclude="['github']" @on-upload-img="uploadImages" />
+          <MdEditor
+            v-model="form.content"
+            class="admin-md-editor"
+            :toolbars-exclude="['github']"
+            @on-upload-img="uploadImages"
+          />
         </ClientOnly>
       </section>
     </div>
@@ -63,6 +78,7 @@ const props = defineProps<{
   postId?: number
 }>()
 
+const toast = useToast()
 const pending = ref(false)
 const form = reactive({
   title: '',
@@ -101,22 +117,131 @@ if (props.mode === 'edit' && props.postId) {
 }
 
 async function save(status: 'DRAFT' | 'PUBLISHED') {
+  const localError = validateForm()
+
+  if (localError) {
+    toast.add({
+      title: '无法保存',
+      description: localError,
+      color: 'error'
+    })
+    return
+  }
+
   pending.value = true
   try {
     const body = {
       ...form,
       status,
-      slug: form.slug || form.title
+      slug: form.slug
     }
 
-    const result = props.mode === 'create'
-      ? await $fetch('/api/admin/posts', { method: 'POST', body })
-      : await $fetch(`/api/admin/posts/${props.postId}`, { method: 'PUT', body })
+    if (props.mode === 'create') {
+      await $fetch('/api/admin/posts', { method: 'POST', body })
+    } else {
+      await $fetch(`/api/admin/posts/${props.postId}`, { method: 'PUT', body })
+    }
 
-    const id = props.mode === 'create' ? result.data.id : props.postId
-    await navigateTo(`/admin/posts/${id}`)
+    toast.add({
+      title: successTitle(status),
+      description: props.mode === 'create' ? '文章已创建，正在返回文章列表。' : '文章修改已保存。',
+      color: 'success'
+    })
+
+    if (props.mode === 'create') {
+      await navigateTo('/admin/posts')
+    }
+  } catch (error: any) {
+    toast.add({
+      title: '保存失败',
+      description: getSaveErrorMessage(error),
+      color: 'error'
+    })
   } finally {
     pending.value = false
+  }
+}
+
+function successTitle(status: 'DRAFT' | 'PUBLISHED') {
+  if (status === 'DRAFT') {
+    return props.mode === 'create' ? '草稿已创建' : '草稿已保存'
+  }
+
+  return props.mode === 'create' ? '文章已发布' : '发布成功'
+}
+
+function validateForm() {
+  if (!form.title.trim()) {
+    return '请先填写文章标题。'
+  }
+
+  if (!form.content.trim()) {
+    return '请先填写文章内容。'
+  }
+
+  if (props.mode === 'edit' && !form.slug.trim()) {
+    return '文章别名不能为空。'
+  }
+
+  return ''
+}
+
+function getSaveErrorMessage(error: any) {
+  const rawMessage = error?.data?.message || error?.statusMessage || error?.message || ''
+  const zodMessage = parseZodMessage(rawMessage)
+
+  if (zodMessage) {
+    return zodMessage
+  }
+
+  if (rawMessage.includes('Unique constraint') || rawMessage.includes('P2002')) {
+    return '文章别名已存在，请换一个别名后重试。'
+  }
+
+  if (rawMessage.includes('文章别名不能为空')) {
+    return '文章别名不能为空。'
+  }
+
+  if (error?.statusCode === 401 || error?.status === 401) {
+    return '登录状态已失效，请重新登录后再保存。'
+  }
+
+  return rawMessage || '保存时发生未知错误，请稍后重试。'
+}
+
+function parseZodMessage(message: string) {
+  if (!message.trim().startsWith('[')) {
+    return ''
+  }
+
+  try {
+    const issues = JSON.parse(message)
+    const firstIssue = Array.isArray(issues) ? issues[0] : null
+    const field = firstIssue?.path?.[0]
+
+    if (field === 'title') {
+      return '请先填写文章标题。'
+    }
+
+    if (field === 'content') {
+      return '请先填写文章内容。'
+    }
+
+    if (field === 'slug') {
+      return '文章别名不能为空。'
+    }
+
+    if (field === 'categoryId') {
+      return '分类数据格式不正确，请重新选择分类。'
+    }
+
+    if (field === 'tagIds') {
+      return '标签数据格式不正确，请重新选择标签。'
+    }
+
+    return firstIssue?.message ? `表单内容不完整：${firstIssue.message}` : ''
+  } catch {
+    return ''
   }
 }
 

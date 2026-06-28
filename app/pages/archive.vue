@@ -29,7 +29,7 @@
           </nav>
 
           <div class="archive-list">
-            <NuxtLink v-for="post in filteredPosts" :key="post.id" :to="`/posts/${post.slug}`" class="archive-item">
+            <NuxtLink v-for="post in filteredPosts" :key="post.id" :to="postPath(post.slug)" class="archive-item">
               <div class="archive-cover" :class="coverClass(post.id)">
                 <span>{{ coverWord(post) }}</span>
               </div>
@@ -73,7 +73,7 @@
               <h2>今日热门</h2>
               <NuxtLink to="/posts">更多</NuxtLink>
             </div>
-            <NuxtLink v-for="(post, index) in hotPosts" :key="post.id" :to="`/posts/${post.slug}`">
+            <NuxtLink v-for="(post, index) in hotPosts" :key="post.id" :to="postPath(post.slug)">
               <span>{{ index + 1 }}</span>
               <strong>{{ post.title }}</strong>
             </NuxtLink>

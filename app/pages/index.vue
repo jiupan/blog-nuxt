@@ -2,7 +2,7 @@
   <div class="home-page">
     <section class="home-shell pt-2">
       <div class="hero-board" :class="{ 'has-no-posts': !latest }">
-        <NuxtLink :to="latest ? `/posts/${latest.slug}` : '/posts'" class="hero-main">
+        <NuxtLink :to="latest ? postPath(latest.slug) : '/posts'" class="hero-main">
           <img src="/images/home-hero-ai.png" alt="" class="hero-image">
           <div class="hero-copy">
             <h1>{{ latest?.title || siteName }}</h1>
@@ -239,7 +239,7 @@ const displayPosts = computed(() => {
 
     return {
       key: `post-${post.id}`,
-      to: `/posts/${post.slug}`,
+      to: postPath(post.slug),
       title: post.title,
       category,
       tags: postTags,
@@ -254,7 +254,7 @@ const heroLinks = computed(() => {
   return posts.value.slice(1, 6).map((post, index) => {
     return {
       title: post.title,
-      to: `/posts/${post.slug}`,
+      to: postPath(post.slug),
       icon: ['i-lucide-command', 'i-lucide-mail', 'i-lucide-bot', 'i-lucide-newspaper', 'i-lucide-history'][index]
     }
   })
@@ -462,7 +462,6 @@ function formatDate(value?: string | Date | null) {
   border: 1px solid #e1e7f2;
   border-radius: 999px;
   background: white;
-  box-shadow: 0 6px 16px rgb(44 61 91 / 5%);
   color: #3a3b44;
   font-size: 14px;
   font-weight: 800;

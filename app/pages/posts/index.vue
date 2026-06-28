@@ -34,7 +34,7 @@
 
       <div class="grid gap-4">
         <article v-for="post in posts" :key="post.id" class="rounded-lg border border-gray-200 bg-white p-5">
-          <NuxtLink :to="`/posts/${post.slug}`" class="text-xl font-semibold text-gray-950">{{ post.title }}</NuxtLink>
+          <NuxtLink :to="postPath(post.slug)" class="text-xl font-semibold text-gray-950">{{ post.title }}</NuxtLink>
           <p class="mt-3 text-sm leading-6 text-gray-600">{{ post.summary }}</p>
           <div class="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-500">
             <span>{{ formatDate(post.publishedAt) }}</span>
