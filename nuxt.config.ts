@@ -27,16 +27,16 @@ export default defineNuxtConfig({
       fontsource: false,
     },
   },
-  session: {
-    cookie: {
-      secure: false // 允许 HTTP 连接发送 session cookie
-    }
-  },
   routeRules: {
     '/admin/**': { ssr: false },
     '/api/admin/**': { cors: false }
   },
   runtimeConfig: {
+    session: {
+      cookie: {
+        secure: false
+      }
+    },
     uploadDir: process.env.UPLOAD_DIR || './uploads',
     public: {
       siteUrl: process.env.SITE_URL || 'http://localhost:3000',
