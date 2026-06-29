@@ -1,11 +1,13 @@
 <template>
-  <div class="grid gap-6">
-    <div>
-      <p class="text-sm font-medium text-slate-500">{{ title.includes('分类') ? 'Categories' : 'Tags' }}</p>
-      <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{{ title }}</h1>
+  <div class="admin-page">
+    <div class="admin-page-header">
+      <div class="admin-page-title">
+        <p>{{ title.includes('分类') ? 'Categories' : 'Tags' }}</p>
+        <h1>{{ title }}</h1>
+      </div>
     </div>
 
-    <form class="admin-panel grid gap-3 p-5 md:grid-cols-[1fr_1fr_auto]" @submit.prevent="createItem">
+    <form class="admin-panel grid gap-3 p-4 md:grid-cols-[1fr_1fr_auto]" @submit.prevent="createItem">
       <UInput v-model="form.name" icon="i-lucide-type" placeholder="名称" />
       <UInput v-model="form.slug" icon="i-lucide-link" placeholder="别名，留空自动生成" />
       <UButton type="submit" icon="i-lucide-plus" :loading="pending">新增</UButton>
@@ -23,26 +25,35 @@
         <table class="w-full min-w-[40rem] text-left text-sm">
           <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
-            <th class="px-5 py-3 font-medium">名称</th>
-            <th class="px-5 py-3 font-medium">别名</th>
-            <th class="px-5 py-3 font-medium">文章数</th>
-            <th class="px-5 py-3"></th>
+            <th class="px-4 py-2.5 font-medium">名称</th>
+            <th class="px-4 py-2.5 font-medium">别名</th>
+            <th class="px-4 py-2.5 font-medium">文章数</th>
+            <th class="px-4 py-2.5"></th>
           </tr>
         </thead>
           <tbody class="divide-y divide-slate-100">
           <tr v-for="item in items" :key="item.id" class="transition hover:bg-slate-50">
-            <td class="px-5 py-3">
+            <td class="px-4 py-2.5">
               <UInput v-model="item.name" size="sm" />
             </td>
-            <td class="px-5 py-3">
+            <td class="px-4 py-2.5">
               <UInput v-model="item.slug" size="sm" />
             </td>
-            <td class="px-5 py-3 text-slate-500">
+            <td class="px-4 py-2.5 text-slate-500">
               <UBadge color="neutral" variant="soft">{{ item._count?.posts || 0 }}</UBadge>
             </td>
-            <td class="px-5 py-3 text-right">
+            <td class="px-4 py-2.5 text-right">
               <UButton size="sm" variant="ghost" icon="i-lucide-save" @click="updateItem(item)">保存</UButton>
-              <UButton size="sm" color="error" variant="ghost" icon="i-lucide-trash-2" @click="deleteItem(item.id)">删除</UButton>
+              <UButton
+                size="sm"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                :disabled="isCategoryManager && Boolean(item._count?.posts)"
+                @click="deleteItem(item)"
+              >
+                删除
+              </UButton>
             </td>
           </tr>
         </tbody>
@@ -73,7 +84,9 @@ const props = defineProps<{
   endpoint: string
 }>()
 
+const toast = useToast()
 const pending = ref(false)
+const isCategoryManager = computed(() => props.title.includes('分类'))
 const form = reactive({
   name: '',
   slug: ''
@@ -91,26 +104,68 @@ async function createItem() {
     form.name = ''
     form.slug = ''
     await refresh()
+    toast.add({ title: '已新增', color: 'success' })
+  } catch (error: any) {
+    toast.add({
+      title: '新增失败',
+      description: getErrorMessage(error),
+      color: 'error'
+    })
   } finally {
     pending.value = false
   }
 }
 
 async function updateItem(item: TaxonomyItem) {
-  await $fetch(`${props.endpoint}/${item.id}`, {
-    method: 'PUT',
-    body: {
-      name: item.name,
-      slug: item.slug
-    }
-  })
-  await refresh()
+  try {
+    await $fetch(`${props.endpoint}/${item.id}`, {
+      method: 'PUT',
+      body: {
+        name: item.name,
+        slug: item.slug
+      }
+    })
+    await refresh()
+    toast.add({ title: '已保存', color: 'success' })
+  } catch (error: any) {
+    toast.add({
+      title: '保存失败',
+      description: getErrorMessage(error),
+      color: 'error'
+    })
+  }
 }
 
-async function deleteItem(id: number) {
-  await $fetch(`${props.endpoint}/${id}`, {
-    method: 'DELETE'
-  })
-  await refresh()
+async function deleteItem(item: TaxonomyItem) {
+  if (isCategoryManager.value && item._count?.posts) {
+    toast.add({
+      title: '无法删除',
+      description: '该分类下仍有文章，请先移动或删除相关文章。',
+      color: 'warning'
+    })
+    return
+  }
+
+  if (!window.confirm(`确定删除“${item.name}”吗？`)) {
+    return
+  }
+
+  try {
+    await $fetch(`${props.endpoint}/${item.id}`, {
+      method: 'DELETE'
+    })
+    await refresh()
+    toast.add({ title: '已删除', color: 'success' })
+  } catch (error: any) {
+    toast.add({
+      title: '删除失败',
+      description: getErrorMessage(error),
+      color: 'error'
+    })
+  }
+}
+
+function getErrorMessage(error: any) {
+  return error?.data?.message || error?.statusMessage || error?.message || '操作失败，请稍后重试。'
 }
 </script>

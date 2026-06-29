@@ -1,11 +1,13 @@
 <template>
-  <div class="grid gap-6">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div>
-        <p class="text-sm font-medium text-slate-500">Posts</p>
-        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">文章管理</h1>
+  <div class="admin-page">
+    <div class="admin-page-header">
+      <div class="admin-page-title">
+        <p>Posts</p>
+        <h1>文章管理</h1>
       </div>
+      <div class="admin-page-actions">
       <UButton icon="i-lucide-plus" to="/admin/posts/create">新建文章</UButton>
+      </div>
     </div>
 
     <section class="admin-panel">
@@ -17,7 +19,7 @@
       </div>
 
       <!-- 筛选区域 -->
-      <div class="flex flex-col gap-3 px-5 py-4 border-b border-slate-100">
+      <div class="flex flex-col gap-2.5 border-b border-slate-100 px-4 py-3">
         <!-- 状态 Tab -->
         <div class="flex items-center gap-1.5 flex-wrap">
           <button
@@ -74,41 +76,41 @@
         <table class="w-full min-w-[45rem] text-left text-sm">
           <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
           <tr>
-            <th class="px-5 py-3 font-medium">标题</th>
-            <th class="px-5 py-3 font-medium">分类</th>
-            <th class="px-5 py-3 font-medium">标签</th>
-            <th class="px-5 py-3 font-medium">更新时间</th>
-            <th class="px-5 py-3 font-medium">状态</th>
-            <th class="px-5 py-3"></th>
+            <th class="px-4 py-2.5 font-medium">标题</th>
+            <th class="px-4 py-2.5 font-medium">分类</th>
+            <th class="px-4 py-2.5 font-medium">标签</th>
+            <th class="px-4 py-2.5 font-medium">更新时间</th>
+            <th class="px-4 py-2.5 font-medium">状态</th>
+            <th class="px-4 py-2.5"></th>
           </tr>
         </thead>
           <tbody class="divide-y divide-slate-100">
           <tr v-for="post in posts" :key="post.id" class="transition hover:bg-slate-50">
-            <td class="px-5 py-4">
+            <td class="px-4 py-3">
               <div class="font-medium text-slate-950">{{ post.title }}</div>
               <div class="mt-1 text-xs text-slate-500">{{ postPath(post.slug) }}</div>
             </td>
-            <td class="px-5 py-4 text-slate-500">{{ post.category?.name || '-' }}</td>
-            <td class="px-5 py-4">
+            <td class="px-4 py-3 text-slate-500">{{ post.category?.name || '-' }}</td>
+            <td class="px-4 py-3">
               <div class="flex items-center gap-1 flex-wrap">
                 <UBadge v-for="tag in post.tags" :key="tag.id" variant="soft" color="primary" size="xs">{{ tag.name }}</UBadge>
                 <span v-if="!post.tags?.length" class="text-slate-400">-</span>
               </div>
             </td>
-            <td class="px-5 py-4 text-slate-500">{{ formatDate(post.updatedAt) }}</td>
-            <td class="px-5 py-4">
+            <td class="px-4 py-3 text-slate-500">{{ formatDate(post.updatedAt) }}</td>
+            <td class="px-4 py-3">
               <UBadge :color="post.status === 'PUBLISHED' ? 'success' : 'neutral'" variant="soft">
                 {{ statusText(post.status) }}
               </UBadge>
             </td>
-            <td class="px-5 py-4 text-right">
+            <td class="px-4 py-3 text-right">
               <UButton size="sm" variant="ghost" icon="i-lucide-square-pen" :to="`/admin/posts/${post.id}`">编辑</UButton>
             </td>
           </tr>
         </tbody>
       </table>
 
-        <div v-if="totalPages > 1" class="flex items-center justify-between px-5 py-4 border-t border-slate-200">
+        <div v-if="totalPages > 1" class="flex items-center justify-between border-t border-slate-200 px-4 py-3">
           <p class="text-sm text-slate-500">第 {{ page }} / {{ totalPages }} 页</p>
           <div class="flex items-center gap-2">
             <UButton size="xs" variant="outline" :disabled="page <= 1" @click="goPage(page - 1)">上一页</UButton>

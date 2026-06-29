@@ -69,7 +69,7 @@
         </nav>
       </header>
 
-      <main class="mx-auto w-full max-w-7xl p-4 md:p-8">
+      <main class="w-full px-3 py-3 md:px-4 md:py-4">
         <slot />
       </main>
     </div>
@@ -87,6 +87,7 @@ const navItems = [
   { label: '文章', to: '/admin/posts', icon: 'i-lucide-newspaper' },
   { label: '分类', to: '/admin/categories', icon: 'i-lucide-folder-tree' },
   { label: '标签', to: '/admin/tags', icon: 'i-lucide-tags' },
+  { label: '菜单', to: '/admin/menus', icon: 'i-lucide-menu' },
   { label: '设置', to: '/admin/settings', icon: 'i-lucide-settings' }
 ]
 

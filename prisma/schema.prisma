@@ -73,6 +73,46 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+model Menu {
+  id          Int          @id @default(autoincrement())
+  name        String
+  slug        String       @unique
+  description String?
+  location    MenuLocation @default(CUSTOM)
+  isActive    Boolean      @default(true)
+  items       MenuItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([location])
+  @@index([isActive])
+}
+
+model MenuItem {
+  id          Int          @id @default(autoincrement())
+  menuId      Int
+  parentId    Int?
+  title       String
+  url         String?
+  type        MenuItemType @default(CUSTOM)
+  targetId    Int?
+  targetSlug  String?
+  targetBlank Boolean      @default(false)
+  badge       String?
+  icon        String?
+  sort        Int          @default(0)
+  isVisible   Boolean      @default(true)
+  menu        Menu         @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent      MenuItem?    @relation("MenuItemTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    MenuItem[]   @relation("MenuItemTree")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([menuId, sort])
+  @@index([parentId])
+  @@index([type, targetId])
+}
+
 enum PostStatus {
   DRAFT
   PUBLISHED
@@ -81,4 +121,21 @@ enum PostStatus {
 
 enum Role {
   ADMIN
+}
+
+enum MenuLocation {
+  PRIMARY
+  FOOTER
+  MOBILE
+  CUSTOM
+}
+
+enum MenuItemType {
+  CUSTOM
+  POST
+  CATEGORY
+  TAG
+  PAGE
+  ARCHIVE
+  HOME
 }

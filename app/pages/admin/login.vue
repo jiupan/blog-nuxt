@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-[#f7f8fa] px-4 text-slate-950">
     <main class="mx-auto flex min-h-screen w-full max-w-[460px] flex-col items-center justify-center pb-18">
-      <form class="w-full" @submit.prevent="login">
+      <form class="mt-[60px] w-full" @submit.prevent="login">
         <!-- Logo -->
         <div class="mb-14 flex items-center justify-center gap-4">
           <div class="grid size-10.5 place-items-center overflow-hidden rounded-full bg-cyan-400 shadow-sm">
@@ -77,6 +77,11 @@ definePageMeta({
 
 const config = useRuntimeConfig()
 const siteName = config.public.siteName
+const { data: sessionData } = await useFetch('/api/auth/me')
+
+if (sessionData.value?.data.user) {
+  await navigateTo('/admin', { replace: true })
+}
 
 const form = reactive({
   username: 'admin',

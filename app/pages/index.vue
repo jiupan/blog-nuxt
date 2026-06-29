@@ -92,7 +92,7 @@
             <div class="profile-bottom">
               <NuxtLink to="/about" class="profile-info">
                 <div class="profile-name">{{ siteName }}</div>
-                <div class="profile-desc">{{ siteSettings.site_subtitle }}</div>
+                <div class="profile-desc">{{ siteSettings.sidebar_description }}</div>
               </NuxtLink>
               <div class="profile-socials">
                 <a href="https://github.com" target="_blank" rel="noopener" title="GitHub" class="social-icon">
@@ -186,6 +186,10 @@ const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 const latest = computed(() => posts.value[0])
+const homeSeoTitle = computed(() => {
+  const subtitle = siteSettings.value.site_subtitle?.trim()
+  return subtitle ? `${siteName.value} - ${subtitle}` : siteName.value
+})
 function goToPage(p: number) {
   currentPage.value = p
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -253,8 +257,8 @@ const topicTabs = computed(() => [
 const cloudTags = computed(() => tags.value.slice(0, 12))
 
 useSeoMeta({
-  title: siteName,
-  description: '一个基于 Nuxt 4 的全栈动态博客'
+  title: homeSeoTitle,
+  description: () => siteSettings.value.seo_description || '一个基于 Nuxt 4 的全栈动态博客'
 })
 
 function formatDate(value?: string | Date | null) {

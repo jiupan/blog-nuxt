@@ -1,17 +1,17 @@
 <template>
-  <div class="grid gap-6">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div>
-        <p class="text-sm font-medium text-slate-500">Admin Console</p>
-        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">仪表盘</h1>
+  <div class="admin-page">
+    <div class="admin-page-header">
+      <div class="admin-page-title">
+        <p>Admin Console</p>
+        <h1>仪表盘</h1>
       </div>
-      <div class="flex gap-2">
+      <div class="admin-page-actions">
         <UButton color="neutral" variant="outline" icon="i-lucide-newspaper" to="/admin/posts">文章列表</UButton>
         <UButton icon="i-lucide-plus" to="/admin/posts/create">新建文章</UButton>
       </div>
     </div>
 
-    <div class="grid gap-4 md:grid-cols-3">
+    <div class="grid gap-3 md:grid-cols-3">
       <div v-for="card in statCards" :key="card.label" class="admin-stat-card">
         <div class="flex items-center justify-between">
           <div class="text-sm font-medium text-slate-500">{{ card.label }}</div>
@@ -37,7 +37,7 @@
           v-for="post in posts.slice(0, 8)"
           :key="post.id"
           :to="`/admin/posts/${post.id}`"
-          class="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-slate-50"
+          class="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-slate-50"
         >
           <span class="min-w-0">
             <span class="block truncate font-medium text-slate-900">{{ post.title }}</span>
@@ -48,7 +48,7 @@
           </UBadge>
         </NuxtLink>
       </div>
-      <div v-else class="grid place-items-center px-5 py-14 text-center">
+      <div v-else class="grid place-items-center px-4 py-10 text-center">
         <UIcon name="i-lucide-file-plus-2" class="size-10 text-slate-300" />
         <p class="mt-3 font-medium text-slate-900">还没有文章</p>
         <UButton class="mt-4" icon="i-lucide-plus" to="/admin/posts/create">创建第一篇文章</UButton>

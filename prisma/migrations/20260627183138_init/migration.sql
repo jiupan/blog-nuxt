@@ -1,0 +1,2 @@
+-- This migration was applied before the local environment was set up.
+-- All tables already exist in the database.

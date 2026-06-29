@@ -1,24 +1,24 @@
 <template>
-  <div class="grid gap-6">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div>
-        <p class="text-sm font-medium text-slate-500">Markdown Editor</p>
-        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{{ mode === 'create' ? '新建文章' : '编辑文章' }}</h1>
+  <div class="admin-page">
+    <div class="admin-page-header">
+      <div class="admin-page-title">
+        <p>Markdown Editor</p>
+        <h1>{{ mode === 'create' ? '新建文章' : '编辑文章' }}</h1>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div class="admin-page-actions">
         <UButton color="neutral" variant="outline" icon="i-lucide-arrow-left" to="/admin/posts">返回</UButton>
         <UButton color="neutral" variant="outline" icon="i-lucide-save" :loading="pending" @click="save('DRAFT')">保存草稿</UButton>
         <UButton icon="i-lucide-send" :loading="pending" @click="save('PUBLISHED')">发布文章</UButton>
       </div>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-      <section class="admin-panel self-start p-5">
-        <div class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-4">
+    <div class="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <section class="admin-panel self-start p-4">
+        <div class="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
           <UIcon name="i-lucide-settings-2" class="size-4 text-slate-500" />
           <h2 class="text-sm font-semibold text-slate-950">文章设置</h2>
         </div>
-        <div class="grid gap-4">
+        <div class="grid gap-3">
         <UFormField label="标题">
           <UInput v-model="form.title" placeholder="请输入文章标题" class="w-full" />
         </UFormField>

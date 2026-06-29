@@ -1,13 +1,22 @@
 ﻿import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
+import { z } from 'zod'
+
+const querySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(10),
+  keyword: z.string().optional().default(''),
+  category: z.string().optional().default(''),
+  tag: z.string().optional().default('')
+})
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  const page = Number(query.page || 1)
-  const pageSize = Math.min(Number(query.pageSize || 10), 50)
-  const keyword = String(query.keyword || '').trim()
-  const category = String(query.category || '').trim()
-  const tag = String(query.tag || '').trim()
+  const query = querySchema.parse(getQuery(event))
+  const page = query.page
+  const pageSize = query.pageSize
+  const keyword = query.keyword.trim()
+  const category = query.category.trim()
+  const tag = query.tag.trim()
   const now = new Date()
 
   const where = {

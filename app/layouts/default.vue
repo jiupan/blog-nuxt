@@ -12,24 +12,38 @@
         </button>
 
         <nav class="main-nav" aria-label="主导航">
-          <NuxtLink to="/posts">文库</NuxtLink>
-          <NuxtLink to="/archive">专栏</NuxtLink>
-          <NuxtLink to="/about">友链</NuxtLink>
-          <NuxtLink to="/admin">我的</NuxtLink>
+          <div v-for="item in primaryMenuItems" :key="item.id" class="nav-item" :class="{ 'has-children': item.children.length }">
+            <NuxtLink :to="item.url" :target="item.targetBlank ? '_blank' : undefined" :rel="item.targetBlank ? 'noopener noreferrer' : undefined">
+              {{ item.title }}
+              <Icon v-if="item.children.length" name="i-lucide-chevron-down" aria-hidden="true" />
+            </NuxtLink>
+            <div v-if="item.children.length" class="nav-dropdown">
+              <NuxtLink
+                v-for="child in item.children"
+                :key="child.id"
+                :to="child.url"
+                :target="child.targetBlank ? '_blank' : undefined"
+                :rel="child.targetBlank ? 'noopener noreferrer' : undefined"
+              >
+                <Icon v-if="child.icon" :name="child.icon" aria-hidden="true" />
+                <span>{{ child.title }}</span>
+              </NuxtLink>
+            </div>
+          </div>
         </nav>
 
         <div class="header-actions">
           <nav class="tool-nav" aria-label="快捷入口">
-            <NuxtLink to="/posts" aria-label="文库">
+            <NuxtLink to="/posts" aria-label="文库" data-tooltip="文库">
               <Icon name="i-lucide-library" aria-hidden="true" />
             </NuxtLink>
-            <NuxtLink to="/archive" aria-label="归档">
+            <NuxtLink to="/archive" aria-label="归档" data-tooltip="归档">
               <Icon name="i-lucide-archive" aria-hidden="true" />
             </NuxtLink>
-            <NuxtLink to="/posts" aria-label="搜索">
+            <NuxtLink to="/posts" aria-label="站内搜索" data-tooltip="站内搜索">
               <Icon name="i-lucide-search" aria-hidden="true" />
             </NuxtLink>
-            <NuxtLink to="/admin" aria-label="后台">
+            <NuxtLink to="/admin" aria-label="后台" data-tooltip="后台">
               <Icon name="i-lucide-layout-dashboard" aria-hidden="true" />
             </NuxtLink>
           </nav>
@@ -42,34 +56,34 @@
 
     <footer class="home-footer">
       <div class="footer-actions" aria-label="底部快捷入口">
-        <NuxtLink to="/posts" class="footer-action" aria-label="文章">
+        <NuxtLink to="/posts" class="footer-action" aria-label="文章" data-tooltip="文章">
           <Icon name="i-lucide-library" aria-hidden="true" />
         </NuxtLink>
-        <NuxtLink to="/archive" class="footer-action" aria-label="归档">
+        <NuxtLink to="/archive" class="footer-action" aria-label="归档" data-tooltip="归档">
           <Icon name="i-lucide-archive" aria-hidden="true" />
         </NuxtLink>
-        <NuxtLink to="/about" class="footer-action" aria-label="关于">
+        <NuxtLink to="/about" class="footer-action" aria-label="我的" data-tooltip="我的">
           <Icon name="i-lucide-user-round" aria-hidden="true" />
         </NuxtLink>
-        <NuxtLink to="/admin" class="footer-action" aria-label="后台">
+        <NuxtLink to="/admin" class="footer-action" aria-label="后台" data-tooltip="后台">
           <Icon name="i-lucide-settings" aria-hidden="true" />
         </NuxtLink>
-        <button class="back-top-button" type="button" aria-label="返回顶部" @click="scrollToTop">
+        <button class="back-top-button" type="button" aria-label="返回顶部" data-tooltip="返回顶部" @click="scrollToTop">
           <span class="footer-avatar" aria-hidden="true">
             <span class="footer-avatar-head"></span>
             <span class="footer-avatar-body"></span>
           </span>
         </button>
-        <NuxtLink to="/posts" class="footer-action" aria-label="全部文章">
+        <NuxtLink to="/posts" class="footer-action" aria-label="全部文章" data-tooltip="全部文章">
           <Icon name="i-lucide-newspaper" aria-hidden="true" />
         </NuxtLink>
-        <NuxtLink to="/archive" class="footer-action" aria-label="时间线">
+        <NuxtLink to="/archive" class="footer-action" aria-label="时间线" data-tooltip="时间线">
           <Icon name="i-lucide-clock-3" aria-hidden="true" />
         </NuxtLink>
-        <NuxtLink to="/about" class="footer-action" aria-label="联系">
+        <NuxtLink to="/link" class="footer-action" aria-label="友链" data-tooltip="友链">
           <Icon name="i-lucide-link" aria-hidden="true" />
         </NuxtLink>
-        <NuxtLink to="/admin/login" class="footer-action" aria-label="登录">
+        <NuxtLink to="/admin/login" class="footer-action" aria-label="登录" data-tooltip="登录">
           <Icon name="i-lucide-log-in" aria-hidden="true" />
         </NuxtLink>
       </div>
@@ -110,6 +124,16 @@ useHead({
       links.push({ rel: 'icon', href: siteSettings.value.site_favicon })
     }
     return links
+  }),
+  meta: computed(() => {
+    const meta: Array<Record<string, string>> = []
+    if (siteSettings.value.seo_noindex === 'true') {
+      meta.push({ name: 'robots', content: 'noindex' })
+    }
+    if (siteSettings.value.seo_keywords) {
+      meta.push({ name: 'keywords', content: siteSettings.value.seo_keywords })
+    }
+    return meta
   })
 })
 const footerLinkLimit = 4
@@ -123,13 +147,47 @@ type TaxonomyItem = {
   }
 }
 
-const [{ data: categoryData }, { data: tagData }] = await Promise.all([
+type MenuItem = {
+  id: number
+  parentId?: number | null
+  title: string
+  url: string
+  badge?: string
+  icon?: string
+  targetBlank?: boolean
+  sort: number
+}
+
+type MenuTreeItem = MenuItem & {
+  children: MenuItem[]
+}
+
+type MenuGroup = {
+  id: number
+  name: string
+  description?: string
+  location?: string
+  isActive?: boolean
+  items: MenuItem[]
+}
+
+const [{ data: categoryData }, { data: tagData }, { data: menuData }] = await Promise.all([
   useFetch<{ data: TaxonomyItem[] }>('/api/categories'),
-  useFetch<{ data: TaxonomyItem[] }>('/api/tags')
+  useFetch<{ data: TaxonomyItem[] }>('/api/tags'),
+  useFetch<{ data: MenuGroup | null }>('/api/menus')
 ])
 
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
+const primaryMenuItems = computed<MenuTreeItem[]>(() => {
+  const items = (menuData.value?.data?.items || []).slice().sort((a, b) => a.sort - b.sort)
+  return items
+    .filter((item) => !item.parentId)
+    .map((item) => ({
+      ...item,
+      children: items.filter((child) => child.parentId === item.id)
+    }))
+})
 
 const footerGroups = computed(() => {
   const groups = [
@@ -188,11 +246,11 @@ const scrollTitle = computed(() => {
     return '专栏'
   }
 
-  if (route.path.startsWith('/about')) {
+  if (route.path.startsWith('/link')) {
     return '友链'
   }
 
-  if (route.path.startsWith('/admin')) {
+  if (route.path.startsWith('/about')) {
     return '我的'
   }
 
@@ -273,13 +331,97 @@ onBeforeUnmount(() => {
   position: absolute;
   left: 50%;
   display: flex;
-  gap: 30px;
+  align-items: center;
+  gap: 9px;
   transform: translateX(-50%);
   color: #303137;
   font-size: 16px;
   font-weight: 900;
   opacity: 1;
   transition: opacity .18s ease, transform .18s ease;
+}
+
+.nav-item {
+  position: relative;
+}
+
+.nav-item > a {
+  display: inline-flex;
+  min-width: 58px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 0 16px;
+  color: inherit;
+  line-height: 1;
+  transition: background .18s ease, box-shadow .18s ease, color .18s ease, transform .18s ease;
+}
+
+.nav-item > a:hover,
+.nav-item > a:focus-visible,
+.nav-item:hover > a {
+  background: #4f67f5;
+  box-shadow: 0 14px 28px rgb(79 103 245 / 24%);
+  color: #fff;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.nav-item > a svg {
+  width: 14px;
+  height: 14px;
+}
+
+.nav-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  display: grid;
+  min-width: 180px;
+  gap: 4px;
+  border: 1px solid #dfe5f2;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 18px 36px rgb(31 43 68 / 14%);
+  padding: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+.nav-item:hover .nav-dropdown,
+.nav-item:focus-within .nav-dropdown {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.nav-dropdown a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: #303137;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.nav-dropdown a:hover,
+.nav-dropdown a:focus-visible {
+  background: #eef2ff;
+  color: #4f67f5;
+  outline: none;
+}
+
+.nav-dropdown svg {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
 }
 
 .scroll-title {
@@ -312,9 +454,9 @@ onBeforeUnmount(() => {
 .tool-nav {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 2px;
   min-height: 44px;
-  padding: 10px 18px;
+  padding: 6px 6px;
   border-radius: 999px;
   background: transparent;
   color: #2f3339;
@@ -324,10 +466,52 @@ onBeforeUnmount(() => {
 }
 
 .tool-nav a {
+  position: relative;
   display: grid;
-  width: 20px;
-  height: 24px;
+  width: 34px;
+  height: 34px;
   place-items: center;
+  border-radius: 999px;
+  color: inherit;
+  transition: background .18s ease, box-shadow .18s ease, color .18s ease, transform .18s ease;
+}
+
+.tool-nav a:hover,
+.tool-nav a:focus-visible {
+  background: #4f67f5;
+  box-shadow: 0 14px 28px rgb(79 103 245 / 24%);
+  color: #fff;
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.tool-nav a::after {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  z-index: 1;
+  min-width: max-content;
+  padding: 9px 14px;
+  border: 1px solid #dfe5f2;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 12px 28px rgb(31 43 68 / 12%);
+  color: #303137;
+  content: attr(data-tooltip);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+  transition: opacity .16s ease, transform .16s ease;
+  white-space: nowrap;
+}
+
+.tool-nav a:hover::after,
+.tool-nav a:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .tool-nav svg,
@@ -408,6 +592,7 @@ onBeforeUnmount(() => {
 
 .footer-action,
 .back-top-button {
+  position: relative;
   display: grid;
   width: 34px;
   height: 34px;
@@ -421,6 +606,49 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 900;
   line-height: 1;
+  transition: background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.footer-action:hover,
+.footer-action:focus-visible,
+.back-top-button:hover,
+.back-top-button:focus-visible {
+  background: #4f67f5;
+  box-shadow: 0 14px 28px rgb(79 103 245 / 22%);
+  outline: none;
+  transform: scale(1.12);
+}
+
+.footer-action::after,
+.back-top-button::after {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  z-index: 1;
+  min-width: max-content;
+  padding: 7px 11px;
+  border: 1px solid #dfe5f2;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 12px 28px rgb(31 43 68 / 12%);
+  color: #303137;
+  content: attr(data-tooltip);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 6px);
+  transition: opacity .16s ease, transform .16s ease;
+  white-space: nowrap;
+}
+
+.footer-action:hover::after,
+.footer-action:focus-visible::after,
+.back-top-button:hover::after,
+.back-top-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .footer-action :deep(svg),

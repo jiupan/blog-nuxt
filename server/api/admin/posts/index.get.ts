@@ -1,24 +1,35 @@
 import { prisma } from '~~/server/utils/prisma'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
-import type { Prisma } from '@prisma/client'
+import { PostStatus, type Prisma } from '@prisma/client'
+import { z } from 'zod'
+
+const querySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(8),
+  status: z.string().optional(),
+  search: z.string().optional(),
+  categoryId: z.coerce.number().int().min(1).optional(),
+  tagId: z.coerce.number().int().min(1).optional(),
+  sort: z.string().optional().default('updatedAt_desc')
+})
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  const query = getQuery(event)
+  const query = querySchema.parse(getQuery(event))
 
-  const page = Number(query.page || 1)
-  const pageSize = Math.min(Number(query.pageSize || 8), 100)
-  const status = query.status as string | undefined
-  const search = (query.search as string)?.trim()
-  const categoryId = query.categoryId ? Number(query.categoryId) : undefined
-  const tagId = query.tagId ? Number(query.tagId) : undefined
-  const sort = (query.sort as string) || 'updatedAt_desc'
+  const page = query.page
+  const pageSize = query.pageSize
+  const status = query.status
+  const search = query.search?.trim()
+  const categoryId = query.categoryId
+  const tagId = query.tagId
+  const sort = query.sort
 
   const where: Prisma.PostWhereInput = {}
 
-  if (status && ['DRAFT', 'PUBLISHED', 'ARCHIVED'].includes(status)) {
-    where.status = status
+  if (status && Object.values(PostStatus).includes(status as PostStatus)) {
+    where.status = status as PostStatus
   }
 
   if (search) {
