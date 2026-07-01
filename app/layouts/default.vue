@@ -43,9 +43,18 @@
             <NuxtLink to="/posts" aria-label="站内搜索" data-tooltip="站内搜索">
               <Icon name="i-lucide-search" aria-hidden="true" />
             </NuxtLink>
-            <NuxtLink to="/admin" aria-label="后台" data-tooltip="后台">
+            <NuxtLink to="/admin" aria-label="后台" data-tooltip="后台" class="desktop-admin-link">
               <Icon name="i-lucide-layout-dashboard" aria-hidden="true" />
             </NuxtLink>
+            <button
+              type="button"
+              class="mobile-menu-button"
+              aria-label="打开侧边菜单"
+              :aria-expanded="mobilePanelOpen"
+              @click="mobilePanelOpen = true"
+            >
+              <Icon name="i-lucide-menu" aria-hidden="true" />
+            </button>
           </nav>
         </div>
       </div>
@@ -115,6 +124,7 @@ const config = useRuntimeConfig()
 const route = useRoute()
 const isScrolled = ref(false)
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
+const mobilePanelOpen = useState<boolean>('mobilePanelOpen', () => false)
 const siteSettings = useSiteSettings()
 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'HEO')
@@ -555,8 +565,14 @@ onBeforeUnmount(() => {
   transition: background .18s ease, box-shadow .18s ease, color .18s ease, transform .18s ease;
 }
 
+.mobile-menu-button {
+  display: none;
+}
+
 .tool-nav a:hover,
-.tool-nav a:focus-visible {
+.tool-nav a:focus-visible,
+.mobile-menu-button:hover,
+.mobile-menu-button:focus-visible {
   background: #4f67f5;
   box-shadow: 0 14px 28px rgb(79 103 245 / 24%);
   color: #fff;
@@ -564,7 +580,8 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
-.tool-nav a::after {
+.tool-nav a::after,
+.mobile-menu-button::after {
   position: absolute;
   top: calc(100% + 10px);
   left: 50%;
@@ -588,13 +605,17 @@ onBeforeUnmount(() => {
 }
 
 .tool-nav a:hover::after,
-.tool-nav a:focus-visible::after {
+.tool-nav a:focus-visible::after,
+.mobile-menu-button:hover::after,
+.mobile-menu-button:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
 }
 
 .tool-nav svg,
-.tool-nav span {
+.tool-nav span,
+.mobile-menu-button svg,
+.mobile-menu-button span {
   width: 20px;
   height: 20px;
 }
@@ -629,26 +650,141 @@ onBeforeUnmount(() => {
 
 @media (max-width: 760px) {
   .header-inner {
-    width: min(100% - 20px, 1290px);
+    width: min(100% - 32px, 1290px);
+    height: 58px;
   }
 
   .brand {
-    font-size: 20px;
+    min-height: 38px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #303137;
+    font-size: 26px;
+    font-weight: 950;
+  }
+
+  .brand-mark {
+    display: none;
   }
 
   .main-nav {
-    position: static;
-    gap: 16px;
-    transform: none;
-    font-size: 14px;
+    display: none;
   }
 
   .scroll-title {
     display: none;
   }
 
+  .header-actions {
+    gap: 0;
+  }
+
   .tool-nav {
+    display: flex;
+    min-height: 38px;
+    gap: 16px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #303137;
+  }
+
+  .site-header.is-scrolled .tool-nav {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .site-header.is-scrolled .brand {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .site-header.is-article-route:not(.is-scrolled) .brand,
+  .site-header.is-article-route:not(.is-scrolled) .tool-nav {
+    color: #303137;
+  }
+
+  .tool-nav a {
+    width: 30px;
+    height: 38px;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .tool-nav a:hover,
+  .tool-nav a:focus-visible,
+  .mobile-menu-button:hover,
+  .mobile-menu-button:focus-visible {
+    background: transparent;
+    box-shadow: none;
+    color: #303137;
+    transform: none;
+  }
+
+  .tool-nav .desktop-admin-link {
+    display: none !important;
+  }
+
+  .mobile-menu-button {
+    position: relative;
+    display: grid;
+    width: 30px;
+    height: 38px;
+    place-items: center;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+  }
+
+  .tool-nav a::after,
+  .mobile-menu-button::after {
     display: none;
+  }
+
+  .tool-nav svg,
+  .tool-nav span,
+  .mobile-menu-button svg,
+  .mobile-menu-button span {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+@media (max-width: 420px) {
+  .header-inner {
+    width: min(100% - 28px, 1290px);
+  }
+
+  .brand {
+    font-size: 24px;
+  }
+
+  .tool-nav {
+    gap: 12px;
+  }
+
+  .tool-nav a {
+    width: 27px;
+  }
+
+  .mobile-menu-button {
+    width: 27px;
+  }
+
+  .tool-nav svg,
+  .tool-nav span,
+  .mobile-menu-button svg,
+  .mobile-menu-button span {
+    width: 22px;
+    height: 22px;
   }
 }
 
@@ -661,10 +797,10 @@ onBeforeUnmount(() => {
 
 .footer-actions {
   display: flex;
-  width: min(100% - 32px, 780px);
+  width: min(100% - 32px, 860px);
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: 46px;
   margin: 0 auto;
   padding: 10px 0 54px;
 }
@@ -673,7 +809,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex: 1 1 0;
   align-items: center;
-  gap: 34px;
+  gap: 46px;
 }
 
 .footer-action-side.is-left {
@@ -755,7 +891,7 @@ onBeforeUnmount(() => {
   position: relative;
   width: 48px;
   height: 48px;
-  margin: 0 6px;
+  margin: 0;
   background: linear-gradient(135deg, #ff777c, #f23842);
   box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
   cursor: pointer;
@@ -828,17 +964,30 @@ onBeforeUnmount(() => {
 }
 
 .footer-links h3 {
-  margin: 0 0 20px;
+  margin: 0 0 12px;
   color: #383a40;
   font-size: 16px;
   font-weight: 900;
 }
 
 .footer-links a {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-top: 14px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
   color: #626873;
-  font-weight: 700;
+  font-weight: 500;
+  transition: background .18s ease, color .18s ease;
+}
+
+.footer-links a:hover,
+.footer-links a:focus-visible {
+  background: #e9edff;
+  color: #4f67f5;
+  outline: none;
 }
 
 .footer-bottom {
@@ -875,8 +1024,44 @@ onBeforeUnmount(() => {
 
 @media (max-width: 760px) {
   .footer-actions {
-    gap: 16px;
-    flex-wrap: wrap;
+    display: grid;
+    width: min(100% - 96px, 360px);
+    grid-template-columns: repeat(4, 36px);
+    justify-content: space-between;
+    gap: 24px 18px;
+    padding: 8px 0 44px;
+  }
+
+  .footer-action-side {
+    display: contents;
+  }
+
+  .back-top-button {
+    display: none;
+  }
+
+  .footer-action {
+    width: 36px;
+    height: 36px;
+    background: #303137;
+    box-shadow: 0 10px 22px rgb(34 38 46 / 10%);
+  }
+
+  .footer-action:hover,
+  .footer-action:focus-visible {
+    background: #303137;
+    box-shadow: 0 10px 22px rgb(34 38 46 / 10%);
+    transform: none;
+  }
+
+  .footer-action::after {
+    display: none;
+  }
+
+  .footer-action :deep(svg),
+  .footer-action :deep(span) {
+    width: 19px;
+    height: 19px;
   }
 
   .footer-links {
@@ -886,12 +1071,33 @@ onBeforeUnmount(() => {
 
   .footer-bottom {
     display: grid;
+    height: auto;
+    align-items: center;
+    justify-content: center;
+    justify-items: center;
     gap: 16px;
+    padding: 28px 16px 30px;
+    color: #303137;
+    text-align: center;
+  }
+
+  .footer-bottom p {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .footer-bottom p strong {
+    font-weight: 900;
   }
 
   .footer-bottom nav {
+    justify-content: center;
     flex-wrap: wrap;
-    gap: 14px;
+    gap: 16px 24px;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.2;
   }
 }
 </style>

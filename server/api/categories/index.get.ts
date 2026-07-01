@@ -4,7 +4,7 @@ import { ok } from '~~/server/utils/response'
 export default defineEventHandler(async () => {
   const now = new Date()
   const items = await prisma.category.findMany({
-    orderBy: { name: 'asc' },
+    orderBy: { id: 'asc' },
     include: {
       _count: {
         select: {

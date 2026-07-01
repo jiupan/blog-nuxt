@@ -6,7 +6,8 @@ import { normalizeSlug } from '~~/server/utils/slug'
 
 const categorySchema = z.object({
   name: z.string().min(1),
-  slug: z.string().optional()
+  slug: z.string().optional(),
+  icon: z.string().regex(/^i-lucide-[a-z0-9-]+$/).optional().or(z.literal(''))
 })
 
 export default defineEventHandler(async (event) => {
@@ -15,7 +16,8 @@ export default defineEventHandler(async (event) => {
   const item = await prisma.category.create({
     data: {
       name: body.name,
-      slug: normalizeSlug(body.slug || body.name)
+      slug: normalizeSlug(body.slug || body.name),
+      icon: body.icon || null
     }
   })
   return ok(item, '已创建')

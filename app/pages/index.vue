@@ -1,6 +1,19 @@
 <template>
   <div class="home-page">
     <section class="home-shell pt-2">
+      <div v-if="mobileHeroPosts.length" class="mobile-hero-carousel" aria-label="精选文章">
+        <NuxtLink
+          v-for="item in mobileHeroPosts"
+          :key="`mobile-hero-${item.id}`"
+          :to="item.to"
+          class="mobile-hero-slide"
+        >
+          <img :src="item.cover || '/images/home-hero-ai.png'" :alt="item.title" class="mobile-hero-image">
+          <span class="mobile-hero-shade" aria-hidden="true"></span>
+          <span class="mobile-hero-title">{{ item.title }}</span>
+        </NuxtLink>
+      </div>
+
       <div class="hero-board" :class="{ 'has-no-posts': !latest }" :style="heroBoardStyle">
         <NuxtLink :to="activeHeroPost ? postPath(activeHeroPost.slug) : (latest ? postPath(latest.slug) : '/posts')" class="hero-main">
           <img :src="heroImage" :alt="heroImageAlt" class="hero-image">
@@ -34,12 +47,25 @@
           type="button"
           class="topic-tab"
           :class="{ 'is-active': tab.active }"
+          :aria-label="tab.label"
+          @mouseenter="showTopicTooltip($event, tab.tooltip)"
+          @mouseleave="hideTopicTooltip"
+          @focus="showTopicTooltip($event, tab.tooltip)"
+          @blur="hideTopicTooltip"
           @click="selectCategory(tab.slug)"
         >
           <Icon v-if="tab.icon" :name="tab.icon" aria-hidden="true" />
           {{ tab.label }}
         </button>
       </nav>
+      <div
+        v-if="topicTooltip.visible"
+        class="topic-tooltip"
+        :style="{ left: `${topicTooltip.x}px`, top: `${topicTooltip.y}px` }"
+        role="tooltip"
+      >
+        {{ topicTooltip.label }}
+      </div>
 
       <div class="content-layout">
         <main>
@@ -103,7 +129,7 @@
             </div>
           </section>
 
-          <NuxtLink to="/posts" class="wechat-card">
+          <NuxtLink to="/archive" class="wechat-card">
             <strong>文章</strong>
             <span>查看全部已发布内容 ▶</span>
           </NuxtLink>
@@ -130,6 +156,64 @@
       </div>
     </section>
 
+    <Teleport to="body">
+      <Transition name="mobile-panel">
+        <div v-if="mobilePanelOpen" class="mobile-sidebar-overlay" @click.self="closeMobilePanel">
+          <aside class="mobile-sidebar-panel" aria-label="侧边信息">
+            <section class="mobile-stats-card">
+              <div>
+                <span>文章</span>
+                <strong>{{ totalPosts }}</strong>
+              </div>
+              <div>
+                <span>标签</span>
+                <strong>{{ tags.length }}</strong>
+              </div>
+              <div>
+                <span>分类</span>
+                <strong>{{ categories.length }}</strong>
+              </div>
+            </section>
+
+            <NuxtLink to="/archive" class="mobile-green-card" @click="closeMobilePanel">
+              <strong>文章</strong>
+              <span>查看全部已发布内容 ▶</span>
+            </NuxtLink>
+
+            <div class="mobile-panel-group">
+              <h3>博客</h3>
+              <div class="mobile-panel-grid">
+                <NuxtLink to="/" class="mobile-panel-row" @click="closeMobilePanel">
+                  <Icon name="i-lucide-home" class="mobile-row-icon" aria-hidden="true" />
+                  <span>首页</span>
+                </NuxtLink>
+                <NuxtLink to="/posts" class="mobile-panel-row" @click="closeMobilePanel">
+                  <Icon name="i-lucide-library" class="mobile-row-icon" aria-hidden="true" />
+                  <span>文章</span>
+                </NuxtLink>
+                <NuxtLink to="/archive" class="mobile-panel-row" @click="closeMobilePanel">
+                  <Icon name="i-lucide-archive" class="mobile-row-icon" aria-hidden="true" />
+                  <span>归档</span>
+                </NuxtLink>
+                <NuxtLink to="/about" class="mobile-panel-row" @click="closeMobilePanel">
+                  <Icon name="i-lucide-user-round" class="mobile-row-icon" aria-hidden="true" />
+                  <span>关于</span>
+                </NuxtLink>
+              </div>
+            </div>
+
+            <div v-if="cloudTags.length" class="mobile-panel-group">
+              <h3>热门标签</h3>
+              <div class="mobile-tag-grid">
+                <NuxtLink v-for="tag in cloudTags" :key="tag.name" :to="`/tags/${tag.slug}`" @click="closeMobilePanel">
+                  # {{ tag.name }}
+                </NuxtLink>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -137,6 +221,7 @@
 type CategoryLite = {
   name: string
   slug: string
+  icon?: string | null
 }
 
 type TagLite = {
@@ -148,6 +233,7 @@ type TaxonomyItem = {
   id: number
   name: string
   slug: string
+  icon?: string | null
   _count?: {
     posts: number
   }
@@ -176,6 +262,7 @@ const siteName = computed(() => siteSettings.value.site_title || config.public.s
 const pageSize = 8
 const currentPage = ref(1)
 const categorySlug = ref('')
+const mobilePanelOpen = useState<boolean>('mobilePanelOpen', () => false)
 const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }] = await Promise.all([
   useFetch<{ data: PostsPayload }>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
   useFetch<{ data: PostsPayload }>('/api/posts', { query: { page: 1, pageSize: 6 } }),
@@ -248,14 +335,33 @@ const heroPosts = computed(() => {
     }
   })
 })
+const mobileHeroPosts = computed(() => {
+  if (heroPosts.value.length) return heroPosts.value
+  if (!latest.value) return []
+  return [{
+    id: latest.value.id,
+    title: latest.value.title,
+    slug: latest.value.slug,
+    cover: latest.value.cover,
+    to: postPath(latest.value.slug),
+    icon: 'i-lucide-file-text'
+  }]
+})
 
 const activeHeroPost = ref<HomePost | null>(null)
+const topicTooltip = reactive({
+  visible: false,
+  label: '',
+  x: 0,
+  y: 0
+})
 
 const topicTabs = computed(() => [
-  { label: '全部文章', icon: 'i-lucide-layout-list', slug: '', active: categorySlug.value === '' },
+  { label: '全部文章', tooltip: '全部文章', icon: 'i-lucide-layout-list', slug: '', active: categorySlug.value === '' },
   ...categories.value.map((category) => ({
     label: category.name,
-    icon: 'i-lucide-folder',
+    tooltip: `查看 ${category.name} 分类的文章`,
+    icon: category.icon || 'i-lucide-folder',
     slug: category.slug,
     active: categorySlug.value === category.slug
   }))
@@ -264,6 +370,27 @@ const topicTabs = computed(() => [
 function selectCategory(slug: string) {
   categorySlug.value = slug
   currentPage.value = 1
+}
+
+function showTopicTooltip(event: MouseEvent | FocusEvent, label: string) {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) {
+    return
+  }
+
+  const rect = target.getBoundingClientRect()
+  topicTooltip.label = label
+  topicTooltip.x = rect.left + rect.width / 2
+  topicTooltip.y = rect.top - 10
+  topicTooltip.visible = true
+}
+
+function hideTopicTooltip() {
+  topicTooltip.visible = false
+}
+
+function closeMobilePanel() {
+  mobilePanelOpen.value = false
 }
 
 const cloudTags = computed(() => tags.value.slice(0, 12))
@@ -308,6 +435,10 @@ function formatDate(value?: string | Date | null) {
   background-position: center;
   background-size: cover;
   box-shadow: 0 16px 44px rgb(28 35 48 / 16%);
+}
+
+.mobile-hero-carousel {
+  display: none;
 }
 
 .hero-board::before {
@@ -421,6 +552,7 @@ function formatDate(value?: string | Date | null) {
 }
 
 .topic-tab {
+  appearance: none;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
@@ -434,6 +566,7 @@ function formatDate(value?: string | Date | null) {
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, color .16s ease;
 }
 
 .topic-tab :deep(svg),
@@ -447,6 +580,52 @@ function formatDate(value?: string | Date | null) {
   border-color: #4964f4;
   background: #4964f4;
   color: white;
+}
+
+.topic-tab:hover {
+  border-color: #d8deea;
+  background: #f8fafc;
+  box-shadow: 0 10px 24px rgb(31 43 68 / 8%);
+  outline: none;
+}
+
+.topic-tab:focus-visible {
+  border-color: #8da0ff;
+  background: white;
+  box-shadow: 0 0 0 3px rgb(73 100 244 / 14%);
+  outline: none;
+}
+
+.topic-tab.is-active:hover {
+  border-color: #435be3;
+  background: #435be3;
+  color: white;
+}
+
+.topic-tab.is-active:focus-visible {
+  border-color: #435be3;
+  background: #4964f4;
+  color: white;
+  box-shadow: 0 0 0 3px rgb(73 100 244 / 18%);
+}
+
+.topic-tooltip {
+  position: fixed;
+  z-index: 80;
+  min-width: max-content;
+  padding: 10px 14px;
+  border: 1px solid #dfe5f2;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 88%);
+  backdrop-filter: blur(12px) saturate(1.15);
+  box-shadow: 0 16px 34px rgb(31 43 68 / 14%);
+  color: #303137;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
 }
 
 .content-layout {
@@ -801,6 +980,10 @@ function formatDate(value?: string | Date | null) {
   color: #777d89;
 }
 
+.mobile-sidebar-overlay {
+  display: none;
+}
+
 @media (max-width: 1100px) {
   .hero-board,
   .content-layout {
@@ -818,11 +1001,71 @@ function formatDate(value?: string | Date | null) {
 
 @media (max-width: 760px) {
   .home-shell {
-    width: min(100% - 20px, 1290px);
+    width: min(100% - 24px, 1290px);
+  }
+
+  .mobile-hero-carousel {
+    display: flex;
+    gap: 12px;
+    margin: 0 -12px 12px;
+    overflow-x: auto;
+    padding: 0 12px 2px;
+    scroll-padding-inline: 12px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .mobile-hero-carousel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-hero-slide {
+    position: relative;
+    display: block;
+    width: calc(100vw - 56px);
+    min-width: calc(100vw - 56px);
+    height: 188px;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #20252d;
+    box-shadow: 0 12px 30px rgb(28 35 48 / 14%);
+    scroll-snap-align: center;
+  }
+
+  .mobile-hero-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .mobile-hero-shade {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgb(91 103 255 / 32%), rgb(91 103 255 / 10%)),
+      linear-gradient(0deg, rgb(38 45 65 / 68%), rgb(38 45 65 / 4%) 62%, transparent);
+  }
+
+  .mobile-hero-title {
+    position: absolute;
+    left: 22px;
+    right: 20px;
+    bottom: 28px;
+    display: -webkit-box;
+    overflow: hidden;
+    color: #fff;
+    font-size: 23px;
+    font-weight: 900;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.22;
+    text-shadow: 0 2px 10px rgb(0 0 0 / 20%);
   }
 
   .hero-board {
-    min-height: auto;
+    display: none;
   }
 
   .hero-main {
@@ -836,7 +1079,156 @@ function formatDate(value?: string | Date | null) {
   }
 
   .sidebar {
-    position: static;
+    display: none;
+  }
+
+  .mobile-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: block;
+    background: transparent;
+  }
+
+  .mobile-sidebar-panel {
+    position: fixed;
+    top: 20px;
+    right: 12px;
+    width: min(76vw, 438px);
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+    border: 1px solid #dfe5f2;
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 38% 18%, rgb(99 102 241 / 12%), transparent 34%),
+      linear-gradient(180deg, #f8f9ff 0%, #fff4ee 58%, #f8fbff 100%);
+    box-shadow: 0 22px 46px rgb(30 41 59 / 14%);
+    padding: 18px 16px 20px;
+    transform-origin: top right;
+  }
+
+  .mobile-panel-enter-active,
+  .mobile-panel-leave-active {
+    transition: opacity .18s ease;
+  }
+
+  .mobile-panel-enter-active .mobile-sidebar-panel,
+  .mobile-panel-leave-active .mobile-sidebar-panel {
+    transition: opacity .22s ease, transform .22s ease;
+  }
+
+  .mobile-panel-enter-from,
+  .mobile-panel-leave-to {
+    opacity: 0;
+  }
+
+  .mobile-panel-enter-from .mobile-sidebar-panel,
+  .mobile-panel-leave-to .mobile-sidebar-panel {
+    opacity: 0;
+    transform: translateX(18px) scale(.985);
+  }
+
+  .mobile-stats-card {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    border: 1px solid #dfe5f2;
+    border-radius: 12px;
+    background: rgb(255 255 255 / 88%);
+    box-shadow: 0 12px 26px rgb(40 58 90 / 8%);
+    padding: 12px 10px;
+  }
+
+  .mobile-stats-card div {
+    display: grid;
+    gap: 3px;
+    justify-items: center;
+    min-width: 0;
+  }
+
+  .mobile-stats-card span {
+    color: #69717e;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .mobile-stats-card strong {
+    color: #303137;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .mobile-green-card {
+    display: grid;
+    gap: 8px;
+    min-height: 118px;
+    align-content: center;
+    margin-top: 18px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #91d855, #54b93d);
+    box-shadow: 0 16px 28px rgb(74 170 54 / 18%);
+    color: #fff;
+    padding: 20px 32px;
+  }
+
+  .mobile-green-card strong {
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .mobile-green-card span {
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .mobile-panel-group {
+    margin-top: 18px;
+  }
+
+  .mobile-panel-group h3 {
+    margin: 0 0 12px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .mobile-panel-grid,
+  .mobile-tag-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .mobile-panel-row,
+  .mobile-tag-grid a {
+    display: flex;
+    min-width: 0;
+    min-height: 54px;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #dfe5f2;
+    border-radius: 10px;
+    background: rgb(255 255 255 / 88%);
+    color: #303137;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0 12px;
+  }
+
+  .mobile-panel-row span,
+  .mobile-tag-grid a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-row-icon {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 auto;
   }
 
   .hero-copy {

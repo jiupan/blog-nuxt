@@ -28,7 +28,7 @@
                 <span class="category-expand-spacer">
                   <UIcon name="i-lucide-chevron-right" class="size-3.5" />
                 </span>
-                <UIcon name="i-lucide-folder" class="category-node-icon size-4" />
+                <UIcon :name="item.icon || defaultCategoryIcon" class="category-node-icon size-4" />
                 <span class="category-node-name">{{ item.name }}</span>
               </span>
               <span class="category-node-actions">
@@ -57,11 +57,11 @@
           <form class="category-form" @submit.prevent="saveItem">
             <div class="category-form-intro">
               <span class="category-form-icon">
-                <UIcon :name="isEditing ? 'i-lucide-folder-pen' : 'i-lucide-folder-plus'" class="size-6" />
+                <UIcon :name="form.icon || defaultCategoryIcon" class="size-6" />
               </span>
               <div>
                 <h2>{{ form.name || (isEditing ? '未命名分类' : '新分类') }}</h2>
-                <p>{{ isEditing ? '编辑分类名称和访问路径。' : '创建一个新的文章分类。' }}</p>
+                <p>{{ isEditing ? '编辑分类名称、图标和访问路径。' : '创建一个新的文章分类。' }}</p>
               </div>
             </div>
 
@@ -75,6 +75,26 @@
                 <input v-model="form.slug" type="text" placeholder="frontend" />
               </div>
               <p class="category-help">作为 URL 路径，建议使用英文字母、数字和横杠组合。新建时留空会按名称自动生成。</p>
+            </UFormField>
+
+            <UFormField label="分类图标">
+              <div class="icon-picker" role="radiogroup" aria-label="分类图标">
+                <button
+                  v-for="option in iconOptions"
+                  :key="option.name"
+                  type="button"
+                  class="icon-option"
+                  :class="{ 'is-active': form.icon === option.name }"
+                  :title="option.label"
+                  role="radio"
+                  :aria-checked="form.icon === option.name"
+                  @click="form.icon = option.name"
+                >
+                  <UIcon :name="option.name" class="size-5" />
+                  <span>{{ option.label }}</span>
+                </button>
+              </div>
+              <p class="category-help">首页分类胶囊会使用这里选择的图标，未选择时使用默认文件夹图标。</p>
             </UFormField>
 
             <div class="category-readonly-grid">
@@ -118,10 +138,39 @@ type CategoryItem = {
   id: number
   name: string
   slug: string
+  icon?: string | null
   _count?: {
     posts: number
   }
 }
+
+const defaultCategoryIcon = 'i-lucide-folder'
+const iconOptions = [
+  { name: 'i-lucide-folder', label: '文件夹' },
+  { name: 'i-lucide-code-2', label: '代码' },
+  { name: 'i-lucide-terminal', label: '终端' },
+  { name: 'i-lucide-cpu', label: '系统' },
+  { name: 'i-lucide-brain-circuit', label: '思考' },
+  { name: 'i-lucide-sparkles', label: '灵感' },
+  { name: 'i-lucide-book-open', label: '阅读' },
+  { name: 'i-lucide-newspaper', label: '资讯' },
+  { name: 'i-lucide-pen-tool', label: '写作' },
+  { name: 'i-lucide-image', label: '图片' },
+  { name: 'i-lucide-camera', label: '摄影' },
+  { name: 'i-lucide-palette', label: '设计' },
+  { name: 'i-lucide-music', label: '音乐' },
+  { name: 'i-lucide-gamepad-2', label: '游戏' },
+  { name: 'i-lucide-coffee', label: '生活' },
+  { name: 'i-lucide-leaf', label: '自然' },
+  { name: 'i-lucide-heart', label: '随笔' },
+  { name: 'i-lucide-flame', label: '热门' },
+  { name: 'i-lucide-rocket', label: '项目' },
+  { name: 'i-lucide-globe-2', label: '网络' },
+  { name: 'i-lucide-database', label: '数据' },
+  { name: 'i-lucide-lock-keyhole', label: '安全' },
+  { name: 'i-lucide-wrench', label: '工具' },
+  { name: 'i-lucide-archive', label: '归档' }
+]
 
 const toast = useToast()
 const searchQuery = ref('')
@@ -129,7 +178,8 @@ const activeId = ref<number | null>(null)
 const pending = ref(false)
 const form = reactive({
   name: '',
-  slug: ''
+  slug: '',
+  icon: defaultCategoryIcon
 })
 
 const { data, refresh } = await useFetch<{ data: CategoryItem[] }>('/api/admin/categories')
@@ -166,12 +216,14 @@ function editItem(item: CategoryItem) {
   activeId.value = item.id
   form.name = item.name
   form.slug = item.slug
+  form.icon = item.icon || defaultCategoryIcon
 }
 
 function startCreate() {
   activeId.value = null
   form.name = ''
   form.slug = ''
+  form.icon = defaultCategoryIcon
 }
 
 async function saveItem() {
@@ -184,7 +236,8 @@ async function saveItem() {
         method: 'PUT',
         body: {
           name: form.name.trim(),
-          slug: form.slug.trim()
+          slug: form.slug.trim(),
+          icon: form.icon
         }
       })
       toast.add({ title: '分类已保存', color: 'success' })
@@ -193,7 +246,8 @@ async function saveItem() {
         method: 'POST',
         body: {
           name: form.name.trim(),
-          slug: form.slug.trim()
+          slug: form.slug.trim(),
+          icon: form.icon
         }
       })
       activeId.value = created.data.id
@@ -393,16 +447,23 @@ function getErrorMessage(error: any) {
 }
 
 .category-node-actions button {
-  display: none;
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
   border: 0;
   border-radius: 0.35rem;
   background: transparent;
   color: #94a3b8;
+  opacity: 0;
   padding: 0.25rem;
+  pointer-events: none;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
 }
 
 .category-node:hover .category-node-actions button {
-  display: grid;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .category-node-actions button:hover {
@@ -531,6 +592,52 @@ function getErrorMessage(error: any) {
   font-size: 0.9rem;
   outline: none;
   padding: 0.55rem 0.75rem;
+}
+
+.icon-picker {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr));
+}
+
+.icon-option {
+  display: inline-flex;
+  min-width: 0;
+  height: 2.65rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 0.55rem;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 750;
+  padding: 0 0.65rem;
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.icon-option:hover,
+.icon-option.is-active {
+  border-color: #818cf8;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.icon-option.is-active {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.icon-option svg {
+  flex: 0 0 auto;
+}
+
+.icon-option span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .category-readonly-grid {
