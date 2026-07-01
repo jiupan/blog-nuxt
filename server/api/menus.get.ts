@@ -1,6 +1,6 @@
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
-import { defaultPrimaryMenu, menuLocations } from '~~/server/utils/menus'
+import { defaultFooterMenu, defaultPrimaryMenu, menuLocations } from '~~/server/utils/menus'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -26,5 +26,5 @@ export default defineEventHandler(async (event) => {
     orderBy: { id: 'asc' }
   })
 
-  return ok(menu || (location === 'PRIMARY' ? defaultPrimaryMenu() : null))
+  return ok(menu || (location === 'PRIMARY' ? defaultPrimaryMenu() : location === 'FOOTER' ? defaultFooterMenu() : null))
 })

@@ -1,22 +1,22 @@
 <template>
   <div class="home-page">
     <section class="home-shell pt-2">
-      <div class="hero-board" :class="{ 'has-no-posts': !latest }">
+      <div class="hero-board" :class="{ 'has-no-posts': !latest }" :style="heroBoardStyle">
         <NuxtLink :to="activeHeroPost ? postPath(activeHeroPost.slug) : (latest ? postPath(latest.slug) : '/posts')" class="hero-main">
-          <img src="/images/home-hero-ai.png" alt="" class="hero-image">
+          <img :src="heroImage" :alt="heroImageAlt" class="hero-image">
           <div class="hero-copy">
             <h1>{{ activeHeroPost?.title || latest?.title || siteName }}</h1>
             <p>{{ activeHeroPost ? '最新发布' : (latest ? '最新发布' : '暂无已发布文章') }}</p>
           </div>
         </NuxtLink>
 
-        <div v-if="heroPosts.length" class="hero-list" @mouseleave="resetHeroPost">
+        <div v-if="heroPosts.length" class="hero-list">
           <NuxtLink
             v-for="item in heroPosts"
             :key="item.id"
             :to="item.to"
             class="hero-link"
-            :class="{ 'is-active': item.id === activeHeroPost?.id }"
+            :class="{ 'is-active': item.id === (activeHeroPost?.id || heroPosts[0]?.id) }"
             @mouseenter.prevent="activeHeroPost = item"
           >
             <span class="hero-link-icon">
@@ -28,16 +28,17 @@
       </div>
 
       <nav v-if="topicTabs.length" class="topic-tabs" aria-label="文章分类">
-        <NuxtLink
+        <button
           v-for="tab in topicTabs"
           :key="tab.label"
-          :to="tab.to"
+          type="button"
           class="topic-tab"
           :class="{ 'is-active': tab.active }"
+          @click="selectCategory(tab.slug)"
         >
           <Icon v-if="tab.icon" :name="tab.icon" aria-hidden="true" />
           {{ tab.label }}
-        </NuxtLink>
+        </button>
       </nav>
 
       <div class="content-layout">
@@ -174,18 +175,27 @@ const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
 const pageSize = 8
 const currentPage = ref(1)
-const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
-  useFetch<{ data: PostsPayload }>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize })) }),
+const categorySlug = ref('')
+const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }] = await Promise.all([
+  useFetch<{ data: PostsPayload }>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
+  useFetch<{ data: PostsPayload }>('/api/posts', { query: { page: 1, pageSize: 6 } }),
   useFetch<{ data: TaxonomyItem[] }>('/api/categories'),
   useFetch<{ data: TaxonomyItem[] }>('/api/tags')
 ])
 
 const posts = computed(() => data.value?.data.items || [])
+const heroAll = computed(() => heroData.value?.data.items || [])
 const totalPosts = computed(() => data.value?.data.total || posts.value.length)
 const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
-const latest = computed(() => posts.value[0])
+const latest = computed(() => heroAll.value[0])
+const currentHeroPost = computed(() => activeHeroPost.value || latest.value)
+const heroImage = computed(() => currentHeroPost.value?.cover || '/images/home-hero-ai.png')
+const heroImageAlt = computed(() => currentHeroPost.value?.title || '')
+const heroBoardStyle = computed(() => ({
+  backgroundImage: `url("${heroImage.value}")`
+}))
 const homeSeoTitle = computed(() => {
   const subtitle = siteSettings.value.site_subtitle?.trim()
   return subtitle ? `${siteName.value} - ${subtitle}` : siteName.value
@@ -227,11 +237,12 @@ const displayPosts = computed(() => {
 const heroIconLabels = ['i-lucide-command', 'i-lucide-mail', 'i-lucide-bot', 'i-lucide-newspaper', 'i-lucide-history', 'i-lucide-zap']
 
 const heroPosts = computed(() => {
-  return posts.value.slice(1, 6).map((post, index) => {
+  return heroAll.value.slice(0, 5).map((post, index) => {
     return {
       id: post.id,
       title: post.title,
       slug: post.slug,
+      cover: post.cover,
       to: postPath(post.slug),
       icon: heroIconLabels[index] || 'i-lucide-file-text'
     }
@@ -240,19 +251,20 @@ const heroPosts = computed(() => {
 
 const activeHeroPost = ref<HomePost | null>(null)
 
-function resetHeroPost() {
-  activeHeroPost.value = null
-}
-
 const topicTabs = computed(() => [
-  { label: '全部文章', icon: 'i-lucide-layout-list', to: '/posts', active: true },
+  { label: '全部文章', icon: 'i-lucide-layout-list', slug: '', active: categorySlug.value === '' },
   ...categories.value.map((category) => ({
     label: category.name,
     icon: 'i-lucide-folder',
-    to: `/categories/${category.slug}`,
-    active: false
+    slug: category.slug,
+    active: categorySlug.value === category.slug
   }))
 ])
+
+function selectCategory(slug: string) {
+  categorySlug.value = slug
+  currentPage.value = 1
+}
 
 const cloudTags = computed(() => tags.value.slice(0, 12))
 
@@ -286,13 +298,24 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-board {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 386px;
   min-height: 324px;
   overflow: hidden;
   border-radius: 8px;
-  background: #1199ee;
-  box-shadow: 0 16px 44px rgb(47 105 190 / 12%);
+  background-color: #20252d;
+  background-position: center;
+  background-size: cover;
+  box-shadow: 0 16px 44px rgb(28 35 48 / 16%);
+}
+
+.hero-board::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: rgb(0 0 0 / 12%);
+  pointer-events: none;
 }
 
 .hero-board.has-no-posts {
@@ -321,7 +344,7 @@ function formatDate(value?: string | Date | null) {
   z-index: -1;
   height: 58%;
   content: "";
-  background: linear-gradient(0deg, rgb(0 126 224 / 80%), transparent);
+  background: linear-gradient(0deg, rgb(0 0 0 / 68%), rgb(0 0 0 / 6%), transparent);
 }
 
 .hero-copy {
@@ -347,8 +370,12 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-list {
+  position: relative;
+  z-index: 1;
   display: grid;
-  background: linear-gradient(180deg, #0b77bf, #218fde);
+  background: rgb(12 16 22 / 38%);
+  backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: inset 1px 0 0 rgb(255 255 255 / 14%);
 }
 
 .hero-link {
@@ -364,7 +391,7 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-link.is-active {
-  background: #109bf2;
+  background: rgb(255 255 255 / 18%);
   color: white;
 }
 
@@ -406,6 +433,7 @@ function formatDate(value?: string | Date | null) {
   color: #3a3b44;
   font-size: 14px;
   font-weight: 800;
+  cursor: pointer;
 }
 
 .topic-tab :deep(svg),

@@ -2,8 +2,13 @@
   <div class="admin-page">
     <div class="admin-page-header">
       <div class="admin-page-title">
-        <p>Markdown Editor</p>
-        <h1>{{ mode === 'create' ? '新建文章' : '编辑文章' }}</h1>
+        <span class="admin-page-title-icon">
+          <UIcon name="i-lucide-file-pen-line" class="size-5" />
+        </span>
+        <div class="admin-page-title-text">
+          <p>Markdown Editor</p>
+          <h1>{{ mode === 'create' ? '新建文章' : '编辑文章' }}</h1>
+        </div>
       </div>
       <div class="admin-page-actions">
         <UButton color="neutral" variant="outline" icon="i-lucide-arrow-left" to="/admin/posts">返回</UButton>
@@ -12,13 +17,18 @@
       </div>
     </div>
 
-    <div class="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-      <section class="admin-panel self-start p-4">
-        <div class="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-          <UIcon name="i-lucide-settings-2" class="size-4 text-slate-500" />
-          <h2 class="text-sm font-semibold text-slate-950">文章设置</h2>
+    <div class="post-editor-layout">
+      <section class="admin-panel post-settings-panel">
+        <div class="post-panel-title">
+          <span>
+            <UIcon name="i-lucide-settings-2" class="size-4" />
+          </span>
+          <div>
+            <h2>文章设置</h2>
+            <p>标题、分类、封面和 SEO 信息</p>
+          </div>
         </div>
-        <div class="grid gap-3">
+        <div class="post-settings-form">
         <UFormField label="标题">
           <UInput v-model="form.title" placeholder="请输入文章标题" class="w-full" />
         </UFormField>
@@ -29,7 +39,7 @@
           <UTextarea v-model="form.summary" :rows="4" class="w-full" />
         </UFormField>
         <UFormField label="封面 URL">
-          <div class="flex gap-2">
+          <div class="post-upload-row">
             <UInput v-model="form.cover" placeholder="/uploads/..." class="flex-1" />
             <input ref="coverInputRef" type="file" accept="image/*" class="hidden" @change="uploadCover" />
             <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploadingCover" @click="coverInputRef?.click()">上传</UButton>
@@ -44,7 +54,7 @@
           </select>
         </UFormField>
         <UFormField label="标签">
-          <div class="flex flex-wrap gap-2" :class="{ 'rounded-lg border border-dashed border-slate-200 p-3': !tags.length }">
+          <div class="post-tag-picker" :class="{ 'is-empty': !tags.length }">
             <label v-for="item in tags" :key="item.id" class="admin-check-pill">
               <input v-model="form.tagIds" type="checkbox" :value="item.id" class="accent-slate-950" />
               {{ item.name }}
@@ -61,7 +71,16 @@
         </div>
       </section>
 
-      <section class="admin-panel min-w-0 overflow-hidden p-2">
+      <section class="admin-panel post-editor-panel">
+        <div class="post-panel-title post-editor-title">
+          <span>
+            <UIcon name="i-lucide-file-pen-line" class="size-4" />
+          </span>
+          <div>
+            <h2>Markdown 工作区</h2>
+            <p>编辑正文内容，支持图片上传</p>
+          </div>
+        </div>
         <ClientOnly>
           <MdEditor
             v-model="form.content"
@@ -291,3 +310,111 @@ async function uploadCover(event: Event) {
   }
 }
 </script>
+
+<style scoped>
+.post-editor-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 21rem minmax(0, 1fr);
+  align-items: start;
+}
+
+.post-settings-panel,
+.post-editor-panel {
+  min-width: 0;
+}
+
+.post-settings-panel {
+  position: sticky;
+  top: 4.75rem;
+  align-self: start;
+}
+
+.post-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-bottom: 1px solid #eef2f7;
+  background: rgba(248, 250, 252, 0.72);
+  padding: 0.85rem 1rem;
+}
+
+.post-panel-title span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.6rem;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.post-panel-title h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+.post-panel-title p {
+  margin: 0.15rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.post-settings-form {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.post-upload-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.post-tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.post-tag-picker.is-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 0.85rem;
+}
+
+.post-editor-panel {
+  overflow: hidden;
+}
+
+.post-editor-title {
+  justify-content: space-between;
+}
+
+.post-editor-panel :deep(.admin-md-editor) {
+  min-height: calc(100vh - 12.25rem);
+  border-radius: 0;
+}
+
+@media (max-width: 1180px) {
+  .post-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .post-settings-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .post-upload-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+</style>

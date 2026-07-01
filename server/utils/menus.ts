@@ -65,3 +65,23 @@ export function defaultPrimaryMenu() {
     ]
   }
 }
+
+export function defaultFooterMenu() {
+  return {
+    id: -2,
+    name: '底部菜单',
+    slug: 'footer',
+    description: '站点底部链接分组',
+    location: 'FOOTER',
+    isActive: true,
+    items: [
+      { id: -21, parentId: null, title: '导航', url: null, type: 'CUSTOM', targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 0, isVisible: true },
+      { id: -22, parentId: -21, title: '首页', url: '/', type: 'HOME', targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 0, isVisible: true },
+      { id: -23, parentId: -21, title: '文章', url: '/posts', type: 'CUSTOM', targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 1, isVisible: true },
+      { id: -24, parentId: -21, title: '归档', url: '/archive', type: 'ARCHIVE', targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 2, isVisible: true },
+      { id: -25, parentId: -21, title: '关于', url: '/about', type: 'PAGE', targetId: null, targetSlug: 'about', targetBlank: false, badge: '', icon: '', sort: 3, isVisible: true },
+      { id: -26, parentId: null, title: '分类', url: null, type: 'CATEGORY', targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 1, isVisible: true },
+      { id: -27, parentId: null, title: '标签', url: null, type: 'TAG', targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 2, isVisible: true }
+    ]
+  }
+}

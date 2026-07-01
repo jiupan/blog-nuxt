@@ -2,8 +2,13 @@
   <div class="admin-page">
     <div class="admin-page-header">
       <div class="admin-page-title">
-        <p>{{ title.includes('分类') ? 'Categories' : 'Tags' }}</p>
-        <h1>{{ title }}</h1>
+        <span class="admin-page-title-icon">
+          <UIcon :name="title.includes('分类') ? 'i-lucide-folder-tree' : 'i-lucide-tags'" class="size-5" />
+        </span>
+        <div class="admin-page-title-text">
+          <p>{{ title.includes('分类') ? 'Categories' : 'Tags' }}</p>
+          <h1>{{ title }}</h1>
+        </div>
       </div>
     </div>
 

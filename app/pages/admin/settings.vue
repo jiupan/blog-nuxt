@@ -2,8 +2,13 @@
   <div class="admin-page">
     <div class="admin-page-header">
       <div class="admin-page-title">
-        <p>Settings</p>
-        <h1>站点设置</h1>
+        <span class="admin-page-title-icon">
+          <UIcon name="i-lucide-settings" class="size-5" />
+        </span>
+        <div class="admin-page-title-text">
+          <p>Settings</p>
+          <h1>站点设置</h1>
+        </div>
       </div>
     </div>
 
@@ -65,7 +70,7 @@
         </div>
       </div>
 
-      <div v-else class="settings-form">
+      <div v-else-if="activeTab === 'seo'" class="settings-form">
         <div class="settings-row">
           <label class="settings-checkbox">
             <input
@@ -88,6 +93,65 @@
           <label class="settings-label">站点描述</label>
           <UTextarea v-model="form.seo_description" :rows="2" placeholder="请输入站点描述" class="settings-control" />
           <p class="text-sm text-slate-500">仅对首页生效，其他页面会优先使用页面自身描述。</p>
+        </div>
+      </div>
+
+      <div v-else-if="activeTab === 'footer'" class="settings-form">
+        <div class="settings-row">
+          <label class="settings-label">版权信息</label>
+          <UInput v-model="form.footer_copyright" icon="i-lucide-copyright" placeholder="©2026 {siteName}" class="settings-control" />
+          <p class="text-sm text-slate-500">显示在 footer-bottom 左侧，使用 <code>{siteName}</code> 代表当前站点标题。</p>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">底部右侧链接</label>
+          <UTextarea v-model="form.footer_bottom_links" :rows="5" placeholder="文章|/posts&#10;归档|/archive&#10;关于|/about&#10;后台|/admin" class="settings-control" />
+          <p class="text-sm text-slate-500">每行一个链接，格式为 <code>显示名称|路径或 URL</code>。</p>
+        </div>
+      </div>
+
+      <div v-else class="settings-form">
+        <div class="settings-row">
+          <div class="settings-row-head">
+            <div>
+              <label class="settings-label">底部快捷入口</label>
+              <p class="text-sm text-slate-500">返回顶部按钮始终在中间，这里配置的入口会自动均分在左右两侧。</p>
+            </div>
+            <UButton size="sm" icon="i-lucide-plus" @click="addFooterAction">添加入口</UButton>
+          </div>
+
+          <div class="footer-action-editor">
+            <article v-for="(item, index) in footerActionItems" :key="item.id" class="footer-action-item">
+              <div class="footer-action-item-main">
+                <div class="footer-action-preview">
+                  <UIcon :name="item.icon || 'i-lucide-link'" class="size-5" />
+                </div>
+                <UInput v-model="item.label" icon="i-lucide-type" placeholder="显示名称" />
+                <UInput v-model="item.to" icon="i-lucide-link" placeholder="/posts 或 https://..." />
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  :disabled="footerActionItems.length <= 1"
+                  @click="removeFooterAction(index)"
+                />
+              </div>
+
+              <div class="footer-icon-grid" aria-label="图标库">
+                <button
+                  v-for="icon in footerActionIconOptions"
+                  :key="icon.name"
+                  type="button"
+                  class="footer-icon-option"
+                  :class="{ 'is-active': item.icon === icon.name }"
+                  :title="icon.label"
+                  @click="item.icon = icon.name"
+                >
+                  <UIcon :name="icon.name" class="size-4" />
+                </button>
+              </div>
+            </article>
+          </div>
         </div>
       </div>
 
@@ -120,6 +184,16 @@ type SettingsForm = {
   seo_noindex: string
   seo_keywords: string
   seo_description: string
+  footer_copyright: string
+  footer_bottom_links: string
+  footer_actions: string
+}
+
+type FooterActionItem = {
+  id: number
+  label: string
+  to: string
+  icon: string
 }
 
 const defaultValue = (key: string) => {
@@ -131,18 +205,45 @@ const defaultValue = (key: string) => {
     site_favicon: '',
     seo_noindex: 'false',
     seo_keywords: '',
-    seo_description: ''
+    seo_description: '',
+    footer_copyright: '©2026 {siteName}',
+    footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about\n后台|/admin',
+    footer_actions: defaultFooterActions
   }
   return map[key] || ''
 }
 
 const settingTabs = [
   { label: '基本设置', value: 'basic' },
-  { label: 'SEO 设置', value: 'seo' }
+  { label: 'SEO 设置', value: 'seo' },
+  { label: '底部信息', value: 'footer' },
+  { label: '底部快捷入口', value: 'footerActions' }
 ] as const
+
+const defaultFooterActions = '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
+
+const footerActionIconOptions = [
+  { label: '文库', name: 'i-lucide-library' },
+  { label: '归档', name: 'i-lucide-archive' },
+  { label: '用户', name: 'i-lucide-user-round' },
+  { label: '设置', name: 'i-lucide-settings' },
+  { label: '文章', name: 'i-lucide-newspaper' },
+  { label: '时间', name: 'i-lucide-clock-3' },
+  { label: '链接', name: 'i-lucide-link' },
+  { label: '登录', name: 'i-lucide-log-in' },
+  { label: '首页', name: 'i-lucide-house' },
+  { label: '搜索', name: 'i-lucide-search' },
+  { label: '标签', name: 'i-lucide-tag' },
+  { label: '分类', name: 'i-lucide-folder' },
+  { label: '仪表盘', name: 'i-lucide-layout-dashboard' },
+  { label: '外链', name: 'i-lucide-external-link' },
+  { label: '邮件', name: 'i-lucide-mail' },
+  { label: '星标', name: 'i-lucide-star' }
+]
 
 const activeTab = ref<(typeof settingTabs)[number]['value']>('basic')
 const form = ref<SettingsForm | null>(null)
+const footerActionItems = ref<FooterActionItem[]>([])
 const saving = ref(false)
 const saved = ref(false)
 const uploading = ref<string | null>(null)
@@ -165,13 +266,22 @@ watch(data, (val) => {
       site_favicon: val.data.site_favicon || defaultValue('site_favicon'),
       seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),
       seo_keywords: val.data.seo_keywords || defaultValue('seo_keywords'),
-      seo_description: val.data.seo_description || defaultValue('seo_description')
+      seo_description: val.data.seo_description || defaultValue('seo_description'),
+      footer_copyright: val.data.footer_copyright || defaultValue('footer_copyright'),
+      footer_bottom_links: val.data.footer_bottom_links || defaultValue('footer_bottom_links'),
+      footer_actions: val.data.footer_actions || defaultValue('footer_actions')
     }
+    footerActionItems.value = parseFooterActionItems(form.value.footer_actions)
   }
 }, { immediate: true })
 
 async function save() {
   if (!form.value) return
+  form.value.footer_actions = JSON.stringify(footerActionItems.value.map(({ label, to, icon }) => ({
+    label: label.trim(),
+    to: to.trim() || '/',
+    icon: icon.trim() || 'i-lucide-link'
+  })).filter((item) => item.label))
   saving.value = true
   saved.value = false
   try {
@@ -187,6 +297,36 @@ function toggleNoindex(event: Event) {
   if (!form.value) return
   const input = event.target as HTMLInputElement
   form.value.seo_noindex = input.checked ? 'true' : 'false'
+}
+
+function parseFooterActionItems(value: string) {
+  try {
+    const parsed = JSON.parse(value || '[]')
+    if (!Array.isArray(parsed)) return parseFooterActionItems(defaultFooterActions)
+    const items = parsed.map((item, index) => ({
+      id: Date.now() + index,
+      label: String(item?.label || '').trim(),
+      to: String(item?.to || '/').trim() || '/',
+      icon: String(item?.icon || 'i-lucide-link').trim() || 'i-lucide-link'
+    })).filter((item) => item.label)
+    return items.length ? items : parseFooterActionItems(defaultFooterActions)
+  } catch {
+    return parseFooterActionItems(defaultFooterActions)
+  }
+}
+
+function addFooterAction() {
+  footerActionItems.value.push({
+    id: Date.now(),
+    label: '新入口',
+    to: '/',
+    icon: 'i-lucide-link'
+  })
+}
+
+function removeFooterAction(index: number) {
+  if (footerActionItems.value.length <= 1) return
+  footerActionItems.value.splice(index, 1)
 }
 
 async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
@@ -226,59 +366,56 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 
 <style scoped>
 .settings-admin-panel {
-  border-color: rgba(203, 213, 225, 0.78);
-  border-radius: 12px;
+  min-height: calc(100vh - 6.5rem);
   background: #ffffff;
 }
 
 .settings-tabs {
   display: flex;
-  min-height: 52px;
+  min-height: 3.25rem;
   align-items: center;
-  gap: 4px;
+  gap: 0.35rem;
   overflow-x: auto;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.92);
-  background: linear-gradient(180deg, #f8fafc 0%, #f3f6fa 100%);
-  padding: 0 14px;
+  border-bottom: 1px solid #eef2f7;
+  background: rgba(248, 250, 252, 0.72);
+  padding: 0 0.75rem;
   scrollbar-width: thin;
 }
 
 .settings-tab {
   position: relative;
-  min-width: 128px;
-  min-height: 34px;
+  min-width: 7.5rem;
+  min-height: 2.15rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0.6rem;
   background: transparent;
-  color: #4b5563;
+  color: #64748b;
   cursor: pointer;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 750;
   outline: none;
   transition: background-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
 }
 
 .settings-tab:hover {
-  background: rgba(255, 255, 255, 0.72);
-  color: #111827;
+  background: rgba(255, 255, 255, 0.86);
+  color: #4338ca;
 }
 
 .settings-tab.is-active {
   background: #ffffff;
-  color: #111827;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 8px 18px rgba(15, 23, 42, 0.06);
+  color: #4f46e5;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.08);
 }
 
 .settings-tab.is-active::after {
   position: absolute;
-  right: 18px;
-  bottom: -9px;
-  left: 18px;
+  right: 1rem;
+  bottom: -0.57rem;
+  left: 1rem;
   height: 2px;
   border-radius: 999px;
-  background: #0f172a;
+  background: #4f46e5;
   content: "";
 }
 
@@ -295,20 +432,28 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 
 .settings-row {
   display: grid;
-  gap: 8px;
-  padding: 13px 20px;
-  border-bottom: 1px solid rgba(241, 245, 249, 0.96);
+  gap: 0.45rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
   transition: background-color 160ms ease;
 }
 
 .settings-row:hover {
-  background: #fbfdff;
+  background: rgba(248, 250, 252, 0.62);
 }
 
 .settings-label {
   color: #334155;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.settings-row-head {
+  display: flex;
+  width: min(100%, 760px);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .settings-control {
@@ -318,10 +463,10 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 .settings-checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
   color: #334155;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 0.86rem;
+  font-weight: 750;
 }
 
 .settings-checkbox input {
@@ -333,26 +478,89 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 .settings-upload {
   display: flex;
   width: min(100%, 760px);
-  gap: 8px;
+  gap: 0.5rem;
+}
+
+.footer-action-editor {
+  display: grid;
+  width: min(100%, 860px);
+  gap: 0.75rem;
+}
+
+.footer-action-item {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.875rem;
+}
+
+.footer-action-item-main {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(8rem, 0.7fr) minmax(12rem, 1fr) auto;
+  gap: 0.625rem;
+  align-items: center;
+}
+
+.footer-action-preview {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff;
+}
+
+.footer-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr));
+  gap: 0.45rem;
+}
+
+.footer-icon-option {
+  display: grid;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  color: #64748b;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.footer-icon-option:hover,
+.footer-icon-option.is-active {
+  border-color: #818cf8;
+  background: #eef2ff;
+  color: #4f46e5;
 }
 
 .settings-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: #ffffff;
-  padding: 14px 20px;
-}
-
-.settings-actions :deep(button) {
-  background: #020617;
+  gap: 0.75rem;
+  border-top: 1px solid #eef2f7;
+  background: rgba(248, 250, 252, 0.72);
+  padding: 0.9rem 1rem;
 }
 
 @media (max-width: 640px) {
+  .settings-row-head,
   .settings-upload,
   .settings-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .footer-action-item-main {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  }
+
+  .footer-action-item-main > :deep(.u-input):nth-of-type(2) {
+    grid-column: 1 / -1;
   }
 }
 </style>

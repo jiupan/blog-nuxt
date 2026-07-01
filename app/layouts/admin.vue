@@ -1,17 +1,17 @@
 <template>
-  <div class="min-h-screen bg-slate-100 text-slate-950">
-    <aside class="fixed inset-y-0 left-0 hidden w-[17rem] border-r border-slate-200 bg-white/90 px-4 py-5 backdrop-blur md:block">
-      <NuxtLink to="/admin" class="flex items-center gap-3 rounded-lg px-2 py-1.5">
-        <span class="grid size-10 place-items-center rounded-lg bg-slate-950 text-white">
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <NuxtLink to="/admin" class="admin-brand">
+        <span class="admin-brand-mark">
           <UIcon name="i-lucide-feather" class="size-5" />
         </span>
         <span class="min-w-0">
-          <span class="block truncate text-base font-semibold">{{ siteName }}</span>
-          <span class="block text-xs text-slate-500">内容管理后台</span>
+          <span class="admin-brand-name">{{ siteName }}</span>
+          <span class="admin-brand-subtitle">内容管理后台</span>
         </span>
       </NuxtLink>
 
-      <nav class="mt-8 grid gap-1.5 text-sm">
+      <nav class="admin-side-nav">
         <NuxtLink
           v-for="item in navItems"
           :key="item.to"
@@ -24,18 +24,18 @@
         </NuxtLink>
       </nav>
 
-      <div class="absolute inset-x-4 bottom-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div class="admin-session-card">
         <div class="flex items-center gap-2 text-sm font-medium text-slate-900">
           <UIcon name="i-lucide-shield-check" class="size-4 text-emerald-600" />
           已登录
         </div>
-        <p class="mt-1 text-xs leading-5 text-slate-500">后台页面仅在客户端渲染，文章保存后前台 SSR 实时读取。</p>
+        <p>保存后前台会实时读取最新内容。</p>
       </div>
     </aside>
 
-    <div class="md:pl-[17rem]">
-      <header class="sticky top-0 z-20 border-b border-slate-200 bg-white/85 px-4 backdrop-blur md:px-8">
-        <div class="flex h-16 items-center justify-between gap-4">
+    <div class="admin-main-shell">
+      <header class="admin-topbar">
+        <div class="admin-topbar-inner">
           <NuxtLink to="/admin" class="flex items-center gap-2 font-semibold md:hidden">
             <UIcon name="i-lucide-feather" class="size-5" />
             {{ siteName }}
@@ -69,7 +69,7 @@
         </nav>
       </header>
 
-      <main class="w-full px-3 py-3 md:px-4 md:py-4">
+      <main class="admin-content">
         <slot />
       </main>
     </div>
@@ -88,6 +88,7 @@ const navItems = [
   { label: '分类', to: '/admin/categories', icon: 'i-lucide-folder-tree' },
   { label: '标签', to: '/admin/tags', icon: 'i-lucide-tags' },
   { label: '菜单', to: '/admin/menus', icon: 'i-lucide-menu' },
+  { label: '图库', to: '/admin/gallery', icon: 'i-lucide-images' },
   { label: '设置', to: '/admin/settings', icon: 'i-lucide-settings' }
 ]
 

@@ -13,7 +13,7 @@
 
         <nav class="main-nav" aria-label="主导航">
           <div v-for="item in primaryMenuItems" :key="item.id" class="nav-item" :class="{ 'has-children': item.children.length }">
-            <NuxtLink :to="item.url" :target="item.targetBlank ? '_blank' : undefined" :rel="item.targetBlank ? 'noopener noreferrer' : undefined">
+            <NuxtLink :to="item.url || '/'" :target="item.targetBlank ? '_blank' : undefined" :rel="item.targetBlank ? 'noopener noreferrer' : undefined">
               {{ item.title }}
               <Icon v-if="item.children.length" name="i-lucide-chevron-down" aria-hidden="true" />
             </NuxtLink>
@@ -21,7 +21,7 @@
               <NuxtLink
                 v-for="child in item.children"
                 :key="child.id"
-                :to="child.url"
+                :to="child.url || '/'"
                 :target="child.targetBlank ? '_blank' : undefined"
                 :rel="child.targetBlank ? 'noopener noreferrer' : undefined"
               >
@@ -56,36 +56,36 @@
 
     <footer class="home-footer">
       <div class="footer-actions" aria-label="底部快捷入口">
-        <NuxtLink to="/posts" class="footer-action" aria-label="文章" data-tooltip="文章">
-          <Icon name="i-lucide-library" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/archive" class="footer-action" aria-label="归档" data-tooltip="归档">
-          <Icon name="i-lucide-archive" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/about" class="footer-action" aria-label="我的" data-tooltip="我的">
-          <Icon name="i-lucide-user-round" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/admin" class="footer-action" aria-label="后台" data-tooltip="后台">
-          <Icon name="i-lucide-settings" aria-hidden="true" />
-        </NuxtLink>
+        <div class="footer-action-side is-left">
+          <NuxtLink
+            v-for="link in footerActionLeft"
+            :key="`${link.label}-${link.to}`"
+            :to="link.to"
+            class="footer-action"
+            :aria-label="link.label"
+            :data-tooltip="link.label"
+          >
+            <Icon :name="link.icon" aria-hidden="true" />
+          </NuxtLink>
+        </div>
         <button class="back-top-button" type="button" aria-label="返回顶部" data-tooltip="返回顶部" @click="scrollToTop">
           <span class="footer-avatar" aria-hidden="true">
             <span class="footer-avatar-head"></span>
             <span class="footer-avatar-body"></span>
           </span>
         </button>
-        <NuxtLink to="/posts" class="footer-action" aria-label="全部文章" data-tooltip="全部文章">
-          <Icon name="i-lucide-newspaper" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/archive" class="footer-action" aria-label="时间线" data-tooltip="时间线">
-          <Icon name="i-lucide-clock-3" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/link" class="footer-action" aria-label="友链" data-tooltip="友链">
-          <Icon name="i-lucide-link" aria-hidden="true" />
-        </NuxtLink>
-        <NuxtLink to="/admin/login" class="footer-action" aria-label="登录" data-tooltip="登录">
-          <Icon name="i-lucide-log-in" aria-hidden="true" />
-        </NuxtLink>
+        <div class="footer-action-side is-right">
+          <NuxtLink
+            v-for="link in footerActionRight"
+            :key="`${link.label}-${link.to}`"
+            :to="link.to"
+            class="footer-action"
+            :aria-label="link.label"
+            :data-tooltip="link.label"
+          >
+            <Icon :name="link.icon" aria-hidden="true" />
+          </NuxtLink>
+        </div>
       </div>
 
       <div class="footer-links">
@@ -96,12 +96,14 @@
       </div>
 
       <div class="footer-bottom">
-        <p>©2026 <strong>{{ siteName }}</strong></p>
+        <p>
+          <template v-for="(part, index) in footerCopyrightParts" :key="`${part.type}-${index}`">
+            <strong v-if="part.type === 'siteName'">{{ siteName }}</strong>
+            <span v-else>{{ part.text }}</span>
+          </template>
+        </p>
         <nav>
-          <NuxtLink to="/posts">文章</NuxtLink>
-          <NuxtLink to="/archive">归档</NuxtLink>
-          <NuxtLink to="/about">关于</NuxtLink>
-          <NuxtLink to="/admin">后台</NuxtLink>
+          <NuxtLink v-for="link in footerBottomLinks" :key="`${link.label}-${link.to}`" :to="link.to">{{ link.label }}</NuxtLink>
         </nav>
       </div>
     </footer>
@@ -116,6 +118,13 @@ const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const siteSettings = useSiteSettings()
 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'HEO')
+const footerCopyrightParts = computed(() => parseFooterCopyright(siteSettings.value.footer_copyright))
+const footerBottomLinks = computed(() => {
+  return parseFooterBottomLinks(siteSettings.value.footer_bottom_links)
+})
+const footerActionLinks = computed(() => parseFooterActions(siteSettings.value.footer_actions))
+const footerActionLeft = computed(() => footerActionLinks.value.slice(0, Math.ceil(footerActionLinks.value.length / 2)))
+const footerActionRight = computed(() => footerActionLinks.value.slice(Math.ceil(footerActionLinks.value.length / 2)))
 
 useHead({
   link: computed(() => {
@@ -151,7 +160,9 @@ type MenuItem = {
   id: number
   parentId?: number | null
   title: string
-  url: string
+  url?: string | null
+  type?: string
+  targetSlug?: string | null
   badge?: string
   icon?: string
   targetBlank?: boolean
@@ -171,10 +182,11 @@ type MenuGroup = {
   items: MenuItem[]
 }
 
-const [{ data: categoryData }, { data: tagData }, { data: menuData }] = await Promise.all([
+const [{ data: categoryData }, { data: tagData }, { data: menuData }, { data: footerMenuData }] = await Promise.all([
   useFetch<{ data: TaxonomyItem[] }>('/api/categories'),
   useFetch<{ data: TaxonomyItem[] }>('/api/tags'),
-  useFetch<{ data: MenuGroup | null }>('/api/menus')
+  useFetch<{ data: MenuGroup | null }>('/api/menus'),
+  useFetch<{ data: MenuGroup | null }>('/api/menus/FOOTER')
 ])
 
 const categories = computed(() => categoryData.value?.data || [])
@@ -190,40 +202,107 @@ const primaryMenuItems = computed<MenuTreeItem[]>(() => {
 })
 
 const footerGroups = computed(() => {
-  const groups = [
-    {
-      title: '导航',
-      links: [
-        { label: '首页', to: '/' },
-        { label: '文章', to: '/posts' },
-        { label: '归档', to: '/archive' },
-        { label: '关于', to: '/about' }
-      ]
-    }
+  const items = (footerMenuData.value?.data?.items || []).slice().sort((a, b) => a.sort - b.sort)
+  const roots = items.filter((item) => !item.parentId)
+  return roots
+    .map((root) => {
+      const children = items.filter((item) => item.parentId === root.id)
+      return {
+        title: root.title,
+        links: footerLinksFor(root, children)
+      }
+    })
+    .filter((group) => group.links.length)
+})
+
+function footerLinksFor(root: MenuItem, children: MenuItem[]) {
+  const sourceItems = children.length ? children : [root]
+  const links = sourceItems.flatMap((item) => expandedFooterLinks(item))
+  return children.length ? links : links.slice(0, footerLinkLimit)
+}
+
+function expandedFooterLinks(item: MenuItem) {
+  if (item.type === 'CATEGORY' && !item.targetSlug && !item.url) {
+    return categories.value.slice(0, footerLinkLimit).map((category) => ({
+      label: category.name,
+      to: `/categories/${category.slug}`
+    }))
+  }
+
+  if (item.type === 'TAG' && !item.targetSlug && !item.url) {
+    return tags.value.slice(0, footerLinkLimit).map((tag) => ({
+      label: tag.name,
+      to: `/tags/${tag.slug}`
+    }))
+  }
+
+  return [{
+    label: item.title,
+    to: item.url || resolveFooterItemPath(item)
+  }]
+}
+
+function resolveFooterItemPath(item: MenuItem) {
+  if (item.type === 'HOME') return '/'
+  if (item.type === 'ARCHIVE') return '/archive'
+  if (item.type === 'CATEGORY' && item.targetSlug) return `/categories/${item.targetSlug}`
+  if (item.type === 'TAG' && item.targetSlug) return `/tags/${item.targetSlug}`
+  if ((item.type === 'POST' || item.type === 'PAGE') && item.targetSlug) return `/${item.targetSlug}`
+  return '/'
+}
+
+function parseFooterBottomLinks(value: string) {
+  const fallback = '文章|/posts\n归档|/archive\n关于|/about\n后台|/admin'
+  return (value || fallback)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label, to] = line.split('|').map((part) => part?.trim())
+      return {
+        label: label || '',
+        to: to || '/'
+      }
+    })
+    .filter((link) => link.label)
+}
+
+function parseFooterActions(value: string) {
+  const fallback = [
+    { label: '文章', to: '/posts', icon: 'i-lucide-library' },
+    { label: '归档', to: '/archive', icon: 'i-lucide-archive' },
+    { label: '我的', to: '/about', icon: 'i-lucide-user-round' },
+    { label: '后台', to: '/admin', icon: 'i-lucide-settings' },
+    { label: '全部文章', to: '/posts', icon: 'i-lucide-newspaper' },
+    { label: '时间线', to: '/archive', icon: 'i-lucide-clock-3' },
+    { label: '友链', to: '/link', icon: 'i-lucide-link' },
+    { label: '登录', to: '/admin/login', icon: 'i-lucide-log-in' }
   ]
 
-  if (categories.value.length) {
-    groups.push({
-      title: '分类',
-      links: categories.value.slice(0, footerLinkLimit).map((category) => ({
-        label: category.name,
-        to: `/categories/${category.slug}`
+  try {
+    const parsed = JSON.parse(value || '[]')
+    if (!Array.isArray(parsed)) return fallback
+    const links = parsed
+      .map((item) => ({
+        label: String(item?.label || '').trim(),
+        to: String(item?.to || '/').trim() || '/',
+        icon: String(item?.icon || 'i-lucide-link').trim() || 'i-lucide-link'
       }))
-    })
+      .filter((item) => item.label)
+    return links.length ? links : fallback
+  } catch {
+    return fallback
   }
+}
 
-  if (tags.value.length) {
-    groups.push({
-      title: '标签',
-      links: tags.value.slice(0, footerLinkLimit).map((tag) => ({
-        label: tag.name,
-        to: `/tags/${tag.slug}`
-      }))
-    })
-  }
-
-  return groups
-})
+function parseFooterCopyright(value: string) {
+  const text = value || '©2026 {siteName}'
+  const chunks = text.split('{siteName}')
+  return chunks.flatMap((chunk, index) => [
+    ...(chunk ? [{ type: 'text', text: chunk }] : []),
+    ...(index < chunks.length - 1 ? [{ type: 'siteName', text: '' }] : [])
+  ])
+}
 
 function scrollToTop() {
   window.scrollTo({
@@ -585,9 +664,24 @@ onBeforeUnmount(() => {
   width: min(100% - 32px, 780px);
   align-items: center;
   justify-content: center;
-  gap: 34px;
+  gap: 24px;
   margin: 0 auto;
   padding: 10px 0 54px;
+}
+
+.footer-action-side {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 34px;
+}
+
+.footer-action-side.is-left {
+  justify-content: flex-end;
+}
+
+.footer-action-side.is-right {
+  justify-content: flex-start;
 }
 
 .footer-action,
@@ -661,9 +755,16 @@ onBeforeUnmount(() => {
   position: relative;
   width: 48px;
   height: 48px;
+  margin: 0 6px;
   background: linear-gradient(135deg, #ff777c, #f23842);
   box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
   cursor: pointer;
+}
+
+.back-top-button:hover,
+.back-top-button:focus-visible {
+  background: linear-gradient(135deg, #ff777c, #f23842);
+  box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
 }
 
 .back-top-button::before {

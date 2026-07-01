@@ -1,7 +1,7 @@
 import { prisma } from '~~/server/utils/prisma'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
-import { defaultPrimaryMenu } from '~~/server/utils/menus'
+import { defaultFooterMenu, defaultPrimaryMenu } from '~~/server/utils/menus'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -20,5 +20,13 @@ export default defineEventHandler(async (event) => {
     ]
   })
 
-  return ok(menus.length ? menus : [defaultPrimaryMenu()])
+  const data = menus.length ? menus : []
+  if (!data.some((menu) => menu.location === 'PRIMARY')) {
+    data.push(defaultPrimaryMenu() as any)
+  }
+  if (!data.some((menu) => menu.location === 'FOOTER')) {
+    data.push(defaultFooterMenu() as any)
+  }
+
+  return ok(data)
 })
