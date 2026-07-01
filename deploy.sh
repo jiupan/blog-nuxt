@@ -1,20 +1,16 @@
 #!/bin/bash
 set -e
 
-echo "=== 停止旧容器 ==="
-docker compose -f docker-compose.server.yml down
+cd "$(dirname "$0")"
 
-echo "=== 加载新镜像 ==="
-docker load -i blog-app.tar
+echo "=== 拉取新镜像 ==="
+docker compose -f docker-compose.server.yml pull app
 
-echo "=== 启动容器 ==="
-docker compose -f docker-compose.server.yml up -d
+echo "=== 启动/更新应用容器 ==="
+docker compose -f docker-compose.server.yml up -d app
 
-echo "=== 等待数据库就绪 ==="
-sleep 3
-
-echo "=== 初始化/同步数据库 ==="
-docker compose -f docker-compose.server.yml exec app npx --package prisma@6 prisma db push
+echo "=== 执行数据库迁移 ==="
+docker compose -f docker-compose.server.yml exec app npx --package prisma@6 prisma migrate deploy
 
 echo "=== 部署完成 ==="
 docker compose -f docker-compose.server.yml ps

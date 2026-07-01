@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: nuxt_blog
-      POSTGRES_USER: blog
-      POSTGRES_PASSWORD: blog_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     # 如果不需要外部访问数据库，可以注释掉下面这行
@@ -13,18 +13,14 @@ services:
     #   - "5432:5432"
 
   app:
-    image: blog-app:latest
+    image: ${APP_IMAGE}
     restart: unless-stopped
     depends_on:
       - postgres
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://blog:blog_password@postgres:5432/nuxt_blog?schema=public
-      NUXT_SESSION_PASSWORD: replace-with-at-least-32-characters-secret
       UPLOAD_DIR: /app/uploads
-      SITE_URL: https://blog.ittx.cn
-      SITE_NAME: Jiupan Blog
-      ADMIN_USERNAME: admin
-      ADMIN_PASSWORD: change-me-now
     volumes:
       - uploads:/app/uploads
     ports:
