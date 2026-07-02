@@ -35,16 +35,16 @@
         <div class="header-actions">
           <nav class="tool-nav" aria-label="快捷入口">
             <NuxtLink to="/posts" aria-label="文库" data-tooltip="文库">
-              <Icon name="i-lucide-library" aria-hidden="true" />
+              <LibraryIcon aria-hidden="true" />
             </NuxtLink>
             <NuxtLink to="/archive" aria-label="归档" data-tooltip="归档">
-              <Icon name="i-lucide-archive" aria-hidden="true" />
+              <ArchiveIcon aria-hidden="true" />
             </NuxtLink>
             <NuxtLink to="/posts" aria-label="站内搜索" data-tooltip="站内搜索">
-              <Icon name="i-lucide-search" aria-hidden="true" />
+              <SearchIcon aria-hidden="true" />
             </NuxtLink>
             <NuxtLink to="/admin" aria-label="后台" data-tooltip="后台" class="desktop-admin-link">
-              <Icon name="i-lucide-layout-dashboard" aria-hidden="true" />
+              <LayoutDashboardIcon aria-hidden="true" />
             </NuxtLink>
             <button
               type="button"
@@ -53,7 +53,7 @@
               :aria-expanded="mobilePanelOpen"
               @click="mobilePanelOpen = true"
             >
-              <Icon name="i-lucide-menu" aria-hidden="true" />
+              <MenuIcon aria-hidden="true" />
             </button>
           </nav>
         </div>
@@ -74,7 +74,7 @@
             :aria-label="link.label"
             :data-tooltip="link.label"
           >
-            <Icon :name="link.icon" aria-hidden="true" />
+            <component :is="footerActionIcon(link.icon)" aria-hidden="true" />
           </NuxtLink>
         </div>
         <button class="back-top-button" type="button" aria-label="返回顶部" data-tooltip="返回顶部" @click="scrollToTop">
@@ -92,7 +92,7 @@
             :aria-label="link.label"
             :data-tooltip="link.label"
           >
-            <Icon :name="link.icon" aria-hidden="true" />
+            <component :is="footerActionIcon(link.icon)" aria-hidden="true" />
           </NuxtLink>
         </div>
       </div>
@@ -120,6 +120,27 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
+import {
+  Archive as ArchiveIcon,
+  Clock3 as Clock3Icon,
+  ExternalLink as ExternalLinkIcon,
+  Folder as FolderIcon,
+  House as HouseIcon,
+  LayoutDashboard as LayoutDashboardIcon,
+  Library as LibraryIcon,
+  Link as LinkIcon,
+  LogIn as LogInIcon,
+  Mail as MailIcon,
+  Menu as MenuIcon,
+  Newspaper as NewspaperIcon,
+  Search as SearchIcon,
+  Settings as SettingsIcon,
+  Star as StarIcon,
+  Tag as TagIcon,
+  UserRound as UserRoundIcon
+} from '@lucide/vue'
+
 const config = useRuntimeConfig()
 const route = useRoute()
 const isScrolled = ref(false)
@@ -135,6 +156,29 @@ const footerBottomLinks = computed(() => {
 const footerActionLinks = computed(() => parseFooterActions(siteSettings.value.footer_actions))
 const footerActionLeft = computed(() => footerActionLinks.value.slice(0, Math.ceil(footerActionLinks.value.length / 2)))
 const footerActionRight = computed(() => footerActionLinks.value.slice(Math.ceil(footerActionLinks.value.length / 2)))
+
+const footerActionIconMap: Record<string, Component> = {
+  'i-lucide-library': LibraryIcon,
+  'i-lucide-archive': ArchiveIcon,
+  'i-lucide-user-round': UserRoundIcon,
+  'i-lucide-settings': SettingsIcon,
+  'i-lucide-newspaper': NewspaperIcon,
+  'i-lucide-clock-3': Clock3Icon,
+  'i-lucide-link': LinkIcon,
+  'i-lucide-log-in': LogInIcon,
+  'i-lucide-house': HouseIcon,
+  'i-lucide-search': SearchIcon,
+  'i-lucide-tag': TagIcon,
+  'i-lucide-folder': FolderIcon,
+  'i-lucide-layout-dashboard': LayoutDashboardIcon,
+  'i-lucide-external-link': ExternalLinkIcon,
+  'i-lucide-mail': MailIcon,
+  'i-lucide-star': StarIcon
+}
+
+function footerActionIcon(icon?: string) {
+  return footerActionIconMap[icon || ''] || LinkIcon
+}
 
 useHead({
   link: computed(() => {

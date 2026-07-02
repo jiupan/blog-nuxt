@@ -43,8 +43,16 @@
             <UInput v-model="form.cover" placeholder="/uploads/..." class="flex-1" />
             <input ref="coverInputRef" type="file" accept="image/*" class="hidden" @change="uploadCover" />
             <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploadingCover" @click="coverInputRef?.click()">上传</UButton>
+            <UButton color="neutral" variant="outline" icon="i-lucide-images" @click="openGalleryPicker('cover')">图库</UButton>
             <span v-if="coverUploaded" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><UIcon name="i-lucide-check" class="size-4" />已上传</span>
             <span v-if="coverUploadError" class="inline-flex items-center gap-1 text-sm font-medium text-red-500"><UIcon name="i-lucide-alert-circle" class="size-4" />上传失败</span>
+          </div>
+          <div v-if="form.cover" class="cover-preview">
+            <img :src="form.cover" :alt="form.title || '文章封面预览'" loading="lazy" />
+            <div class="cover-preview-meta">
+              <span>{{ form.cover }}</span>
+              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-x" @click="form.cover = ''">移除</UButton>
+            </div>
           </div>
         </UFormField>
         <UFormField label="分类">
@@ -73,13 +81,16 @@
 
       <section class="admin-panel post-editor-panel">
         <div class="post-panel-title post-editor-title">
-          <span>
-            <UIcon name="i-lucide-file-pen-line" class="size-4" />
-          </span>
-          <div>
-            <h2>Markdown 工作区</h2>
-            <p>编辑正文内容，支持图片上传</p>
+          <div class="post-panel-title-main">
+            <span>
+              <UIcon name="i-lucide-file-pen-line" class="size-4" />
+            </span>
+            <div>
+              <h2>Markdown 工作区</h2>
+              <p>编辑正文内容，支持图片上传</p>
+            </div>
           </div>
+          <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-images" @click="openGalleryPicker('content')">插入图库图片</UButton>
         </div>
         <ClientOnly>
           <MdEditor
@@ -91,6 +102,39 @@
         </ClientOnly>
       </section>
     </div>
+
+    <UModal v-model:open="galleryPickerOpen" :title="galleryPickerTitle" :description="galleryPickerDescription" :ui="{ content: 'max-w-5xl' }">
+      <template #body>
+        <div class="gallery-picker">
+          <div class="gallery-picker-toolbar">
+            <UInput v-model="gallerySearchQuery" icon="i-lucide-search" placeholder="搜索文件名或路径..." size="sm" class="gallery-picker-search" />
+            <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-refresh-cw" :loading="galleryPending" @click="refreshGallery()">刷新</UButton>
+          </div>
+
+          <div v-if="galleryPending" class="gallery-picker-state">
+            <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
+            <span>正在加载图库...</span>
+          </div>
+
+          <div v-else-if="filteredGalleryImages.length" class="gallery-picker-grid">
+            <button v-for="image in filteredGalleryImages" :key="image.path" type="button" class="gallery-picker-card" @click="selectGalleryImage(image)">
+              <span class="gallery-picker-thumb">
+                <img :src="image.url" :alt="image.name" loading="lazy" />
+              </span>
+              <span class="gallery-picker-info">
+                <strong :title="image.name">{{ image.name }}</strong>
+                <small>{{ formatSize(image.size) }} · {{ formatDate(image.updatedAt) }}</small>
+              </span>
+            </button>
+          </div>
+
+          <div v-else class="gallery-picker-state">
+            <UIcon name="i-lucide-image-off" class="size-8" />
+            <strong>{{ gallerySearchQuery ? '没有匹配的图片' : '图库暂无图片' }}</strong>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -108,6 +152,9 @@ const uploadingCover = ref(false)
 const coverUploaded = ref(false)
 const coverUploadError = ref(false)
 const coverInputRef = ref<HTMLInputElement | null>(null)
+const galleryPickerOpen = ref(false)
+const galleryPickerMode = ref<'cover' | 'content'>('cover')
+const gallerySearchQuery = ref('')
 const form = reactive({
   title: '',
   slug: '',
@@ -123,8 +170,28 @@ const form = reactive({
 
 const { data: categoryData } = await useFetch('/api/admin/categories')
 const { data: tagData } = await useFetch('/api/admin/tags')
+const { data: galleryData, pending: galleryPending, refresh: refreshGallery } = await useFetch<{ data: GalleryImage[] }>('/api/admin/gallery')
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
+const galleryImages = computed(() => galleryData.value?.data || [])
+const filteredGalleryImages = computed(() => {
+  const query = gallerySearchQuery.value.trim().toLowerCase()
+  if (!query) return galleryImages.value
+  return galleryImages.value.filter((image) => {
+    return image.name.toLowerCase().includes(query) || image.url.toLowerCase().includes(query)
+  })
+})
+const galleryPickerTitle = computed(() => galleryPickerMode.value === 'cover' ? '选择封面图' : '插入正文图片')
+const galleryPickerDescription = computed(() => galleryPickerMode.value === 'cover' ? '从已上传图片中选择一张作为文章封面。' : '从已上传图片中选择一张插入到正文末尾。')
+
+type GalleryImage = {
+  name: string
+  path: string
+  url: string
+  size: number
+  type: string
+  updatedAt: string
+}
 
 if (props.mode === 'edit' && props.postId) {
   const { data } = await useFetch(`/api/admin/posts/${props.postId}`)
@@ -275,16 +342,25 @@ function parseZodMessage(message: string) {
 
 async function uploadImages(files: File[], callback: (urls: string[]) => void) {
   const urls: string[] = []
-  for (const file of files) {
-    const data = new FormData()
-    data.append('file', file)
-    const result = await $fetch('/api/admin/upload', {
-      method: 'POST',
-      body: data
+  try {
+    for (const file of files) {
+      const data = new FormData()
+      data.append('file', file)
+      const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', {
+        method: 'POST',
+        body: data
+      })
+      urls.push(result.data.url)
+    }
+    callback(urls)
+    await refreshGallery()
+  } catch (error: any) {
+    toast.add({
+      title: '图片上传失败',
+      description: getUploadErrorMessage(error),
+      color: 'error'
     })
-    urls.push(result.data.url)
   }
-  callback(urls)
 }
 
 async function uploadCover(event: Event) {
@@ -299,6 +375,7 @@ async function uploadCover(event: Event) {
     body.append('file', file)
     const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', { method: 'POST', body })
     form.cover = result.data.url
+    await refreshGallery()
     coverUploaded.value = true
     setTimeout(() => { coverUploaded.value = false }, 2000)
   } catch {
@@ -308,6 +385,42 @@ async function uploadCover(event: Event) {
     uploadingCover.value = false
     input.value = ''
   }
+}
+
+function openGalleryPicker(mode: 'cover' | 'content') {
+  galleryPickerMode.value = mode
+  gallerySearchQuery.value = ''
+  galleryPickerOpen.value = true
+  refreshGallery()
+}
+
+function selectGalleryImage(image: GalleryImage) {
+  if (galleryPickerMode.value === 'cover') {
+    form.cover = image.url
+  } else {
+    const imageMarkdown = `\n\n![${image.name}](${image.url})\n`
+    form.content = `${form.content.trimEnd()}${imageMarkdown}`
+  }
+
+  galleryPickerOpen.value = false
+}
+
+function formatSize(size: number) {
+  if (size >= 1024 * 1024) return `${(size / 1024 / 1024).toFixed(1)} MB`
+  if (size >= 1024) return `${Math.round(size / 1024)} KB`
+  return `${size} B`
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+function getUploadErrorMessage(error: any) {
+  return error?.data?.message || error?.statusMessage || error?.message || '图片处理失败，请稍后重试。'
 }
 </script>
 
@@ -339,7 +452,15 @@ async function uploadCover(event: Event) {
   padding: 0.85rem 1rem;
 }
 
-.post-panel-title span {
+.post-panel-title-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.post-panel-title > span,
+.post-panel-title-main > span {
   display: grid;
   width: 2rem;
   height: 2rem;
@@ -375,6 +496,42 @@ async function uploadCover(event: Event) {
   align-items: center;
 }
 
+.cover-preview {
+  display: grid;
+  overflow: hidden;
+  margin-top: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.cover-preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.cover-preview-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+  padding: 0.45rem 0.55rem;
+}
+
+.cover-preview-meta span {
+  min-width: 0;
+  overflow: hidden;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .post-tag-picker {
   display: flex;
   flex-wrap: wrap;
@@ -396,6 +553,108 @@ async function uploadCover(event: Event) {
   justify-content: space-between;
 }
 
+.gallery-picker {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.gallery-picker-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.gallery-picker-search {
+  width: min(28rem, 100%);
+}
+
+.gallery-picker-grid {
+  display: grid;
+  max-height: min(62vh, 42rem);
+  overflow-y: auto;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  padding-right: 0.15rem;
+}
+
+.gallery-picker-card {
+  display: grid;
+  overflow: hidden;
+  grid-template-rows: auto minmax(3.75rem, auto);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.gallery-picker-card:hover {
+  border-color: #a5b4fc;
+  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.12);
+  transform: translateY(-1px);
+}
+
+.gallery-picker-thumb {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  background: #f8fafc;
+}
+
+.gallery-picker-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-picker-info {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 -1px 0 rgba(15, 23, 42, 0.02);
+}
+
+.gallery-picker-info strong,
+.gallery-picker-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-picker-info strong {
+  color: #020617;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.gallery-picker-info small {
+  color: #475569;
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.gallery-picker-state {
+  display: grid;
+  min-height: 18rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.5rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.gallery-picker-state strong {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
 .post-editor-panel :deep(.admin-md-editor) {
   min-height: calc(100vh - 12.25rem);
   border-radius: 0;
@@ -415,6 +674,16 @@ async function uploadCover(event: Event) {
   .post-upload-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .post-editor-title,
+  .gallery-picker-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .gallery-picker-search {
+    width: 100%;
   }
 }
 </style>

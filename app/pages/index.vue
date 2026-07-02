@@ -33,7 +33,7 @@
             @mouseenter.prevent="activeHeroPost = item"
           >
             <span class="hero-link-icon">
-              <Icon :name="item.icon" aria-hidden="true" />
+              <component :is="homeIcon(item.icon, FileTextIcon)" aria-hidden="true" />
             </span>
             <span>{{ item.title }}</span>
           </NuxtLink>
@@ -54,7 +54,7 @@
           @blur="hideTopicTooltip"
           @click="selectCategory(tab.slug)"
         >
-          <Icon v-if="tab.icon" :name="tab.icon" aria-hidden="true" />
+          <component :is="homeIcon(tab.icon, FolderIcon)" aria-hidden="true" />
           {{ tab.label }}
         </button>
       </nav>
@@ -76,7 +76,7 @@
                 <span v-if="post.cover" class="cover-overlay"></span>
                 <span class="cover-word">{{ post.coverWord }}</span>
                 <span class="cover-icon">
-                  <Icon :name="post.icon" aria-hidden="true" />
+                  <component :is="homeIcon(post.icon, FileTextIcon)" aria-hidden="true" />
                 </span>
               </NuxtLink>
               <div class="post-body">
@@ -184,19 +184,19 @@
               <h3>博客</h3>
               <div class="mobile-panel-grid">
                 <NuxtLink to="/" class="mobile-panel-row" @click="closeMobilePanel">
-                  <Icon name="i-lucide-home" class="mobile-row-icon" aria-hidden="true" />
+                  <HouseIcon class="mobile-row-icon" aria-hidden="true" />
                   <span>首页</span>
                 </NuxtLink>
                 <NuxtLink to="/posts" class="mobile-panel-row" @click="closeMobilePanel">
-                  <Icon name="i-lucide-library" class="mobile-row-icon" aria-hidden="true" />
+                  <LibraryIcon class="mobile-row-icon" aria-hidden="true" />
                   <span>文章</span>
                 </NuxtLink>
                 <NuxtLink to="/archive" class="mobile-panel-row" @click="closeMobilePanel">
-                  <Icon name="i-lucide-archive" class="mobile-row-icon" aria-hidden="true" />
+                  <ArchiveIcon class="mobile-row-icon" aria-hidden="true" />
                   <span>归档</span>
                 </NuxtLink>
                 <NuxtLink to="/about" class="mobile-panel-row" @click="closeMobilePanel">
-                  <Icon name="i-lucide-user-round" class="mobile-row-icon" aria-hidden="true" />
+                  <UserRoundIcon class="mobile-row-icon" aria-hidden="true" />
                   <span>关于</span>
                 </NuxtLink>
               </div>
@@ -218,6 +218,45 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
+import {
+  Archive as ArchiveIcon,
+  BadgeCheck as BadgeCheckIcon,
+  BookOpen as BookOpenIcon,
+  Bot as BotIcon,
+  BrainCircuit as BrainCircuitIcon,
+  Camera as CameraIcon,
+  Code2 as Code2Icon,
+  Coffee as CoffeeIcon,
+  Command as CommandIcon,
+  Cpu as CpuIcon,
+  Database as DatabaseIcon,
+  FileText as FileTextIcon,
+  Flame as FlameIcon,
+  Folder as FolderIcon,
+  Gamepad2 as Gamepad2Icon,
+  Globe2 as Globe2Icon,
+  Heart as HeartIcon,
+  History as HistoryIcon,
+  House as HouseIcon,
+  Image as ImageIcon,
+  LayoutList as LayoutListIcon,
+  Leaf as LeafIcon,
+  Library as LibraryIcon,
+  LockKeyhole as LockKeyholeIcon,
+  Mail as MailIcon,
+  Music as MusicIcon,
+  Newspaper as NewspaperIcon,
+  Palette as PaletteIcon,
+  PenTool as PenToolIcon,
+  Rocket as RocketIcon,
+  SmilePlus as SmilePlusIcon,
+  Sparkles as SparklesIcon,
+  Terminal as TerminalIcon,
+  UserRound as UserRoundIcon,
+  Zap as ZapIcon
+} from '@lucide/vue'
+
 type CategoryLite = {
   name: string
   slug: string
@@ -248,6 +287,48 @@ type HomePost = {
   publishedAt?: string | Date | null
   category?: CategoryLite | null
   tags?: TagLite[]
+}
+
+const homeIconMap: Record<string, Component> = {
+  'i-lucide-archive': ArchiveIcon,
+  'i-lucide-badge-check': BadgeCheckIcon,
+  'i-lucide-book-open': BookOpenIcon,
+  'i-lucide-bot': BotIcon,
+  'i-lucide-brain-circuit': BrainCircuitIcon,
+  'i-lucide-camera': CameraIcon,
+  'i-lucide-code-2': Code2Icon,
+  'i-lucide-coffee': CoffeeIcon,
+  'i-lucide-command': CommandIcon,
+  'i-lucide-cpu': CpuIcon,
+  'i-lucide-database': DatabaseIcon,
+  'i-lucide-file-text': FileTextIcon,
+  'i-lucide-flame': FlameIcon,
+  'i-lucide-folder': FolderIcon,
+  'i-lucide-gamepad-2': Gamepad2Icon,
+  'i-lucide-globe-2': Globe2Icon,
+  'i-lucide-heart': HeartIcon,
+  'i-lucide-history': HistoryIcon,
+  'i-lucide-home': HouseIcon,
+  'i-lucide-image': ImageIcon,
+  'i-lucide-layout-list': LayoutListIcon,
+  'i-lucide-leaf': LeafIcon,
+  'i-lucide-library': LibraryIcon,
+  'i-lucide-lock-keyhole': LockKeyholeIcon,
+  'i-lucide-mail': MailIcon,
+  'i-lucide-music': MusicIcon,
+  'i-lucide-newspaper': NewspaperIcon,
+  'i-lucide-palette': PaletteIcon,
+  'i-lucide-pen-tool': PenToolIcon,
+  'i-lucide-rocket': RocketIcon,
+  'i-lucide-smile-plus': SmilePlusIcon,
+  'i-lucide-sparkles': SparklesIcon,
+  'i-lucide-terminal': TerminalIcon,
+  'i-lucide-user-round': UserRoundIcon,
+  'i-lucide-zap': ZapIcon
+}
+
+function homeIcon(icon: string | null | undefined, fallback: Component) {
+  return homeIconMap[icon || ''] || fallback
 }
 
 type PostsPayload = {
@@ -560,7 +641,7 @@ function formatDate(value?: string | Date | null) {
   height: 38px;
   padding: 0 18px;
   border: 1px solid #e1e7f2;
-  border-radius: 999px;
+  border-radius: 18px;
   background: white;
   color: #3a3b44;
   font-size: 14px;
