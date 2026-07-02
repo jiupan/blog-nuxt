@@ -558,7 +558,7 @@ function formatDate(value?: string | Date | null) {
 
 .hero-copy h1 {
   margin: 0;
-  font-size: clamp(28px, 3vw, 38px);
+  font-size: 28px;
   font-weight: 800;
   line-height: 1.18;
 }
@@ -588,7 +588,7 @@ function formatDate(value?: string | Date | null) {
   padding: 0 18px;
   color: rgb(255 255 255 / 82%);
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .hero-link.is-active {
