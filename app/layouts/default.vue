@@ -745,9 +745,8 @@ onBeforeUnmount(() => {
     box-shadow: none;
   }
 
-  .site-header.is-article-route:not(.is-scrolled) .brand,
-  .site-header.is-article-route:not(.is-scrolled) .tool-nav {
-    color: #303137;
+  .site-header.is-article-route:not(.is-scrolled) {
+    background: rgb(247 249 253 / 86%);
   }
 
   .tool-nav a {
