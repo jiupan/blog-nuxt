@@ -101,7 +101,9 @@
           </div>
 
           <div v-if="totalPages > 1" class="pager">
-            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">‹</button>
+            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">
+              <ChevronLeftIcon aria-hidden="true" />
+            </button>
             <button
               v-for="p in totalPages"
               :key="p"
@@ -109,7 +111,9 @@
               :class="{ 'is-active': p === currentPage }"
               @click="goToPage(p)"
             >{{ p }}</button>
-            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">›</button>
+            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">
+              <ChevronRightIcon aria-hidden="true" />
+            </button>
           </div>
         </main>
 
@@ -190,6 +194,8 @@ import type { Component } from 'vue'
 import {
   Archive as ArchiveIcon,
   BadgeCheck as BadgeCheckIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
   BookOpen as BookOpenIcon,
   Bot as BotIcon,
   BrainCircuit as BrainCircuitIcon,
@@ -991,7 +997,6 @@ function formatDate(value?: string | Date | null) {
   border: 1px solid #e1e7f2;
   border-radius: 999px;
   background: white;
-  box-shadow: 0 6px 18px rgb(40 58 90 / 7%);
   font-weight: 800;
 }
 
@@ -1000,6 +1005,11 @@ function formatDate(value?: string | Date | null) {
   height: 38px;
   color: #3a3b44;
   cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.page-dot:hover:not(:disabled):not(.is-active) {
+  border-color: #4964f4;
 }
 
 .page-dot:disabled {

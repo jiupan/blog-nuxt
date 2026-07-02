@@ -183,7 +183,7 @@ function submitSearch() {
 }
 
 .sidebar-search {
-  padding: 8px;
+  padding: 5px;
   border: 1px solid #eef1f5;
   border-radius: 8px;
   background: #fff;
@@ -201,7 +201,7 @@ function submitSearch() {
   grid-template-columns: 20px minmax(0, 1fr) 34px;
   align-items: center;
   gap: 10px;
-  min-height: 42px;
+  min-height: 36px;
   padding-left: 10px;
 }
 
