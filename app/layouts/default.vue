@@ -499,7 +499,6 @@ onBeforeUnmount(() => {
   box-shadow: 0 14px 28px rgb(79 103 245 / 24%);
   color: #fff;
   outline: none;
-  transform: translateY(-1px);
 }
 
 .nav-item > a svg {

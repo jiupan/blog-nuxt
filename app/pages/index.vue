@@ -16,7 +16,9 @@
 
       <div class="hero-board" :class="{ 'has-no-posts': !latest }" :style="heroBoardStyle">
         <NuxtLink :to="activeHeroPost ? postPath(activeHeroPost.slug) : (latest ? postPath(latest.slug) : '/posts')" class="hero-main">
-          <img :src="heroImage" :alt="heroImageAlt" class="hero-image">
+          <Transition name="hero-fade">
+            <img :key="heroImage" :src="heroImage" :alt="heroImageAlt" class="hero-image">
+          </Transition>
           <div class="hero-copy">
             <h1>{{ activeHeroPost?.title || latest?.title || siteName }}</h1>
             <p>{{ activeHeroPost ? '最新发布' : (latest ? '最新发布' : '暂无已发布文章') }}</p>
@@ -111,48 +113,14 @@
           </div>
         </main>
 
-        <aside class="sidebar">
-          <section class="profile-card">
-            <div class="profile-avatar">
-              <Icon name="i-simple-icons-nuxtdotjs" aria-hidden="true" />
-            </div>
-            <div class="profile-bottom">
-              <NuxtLink to="/about" class="profile-info">
-                <div class="profile-name">{{ siteName }}</div>
-                <div class="profile-desc">{{ siteSettings.sidebar_description }}</div>
-              </NuxtLink>
-              <div class="profile-socials">
-                <a href="https://github.com" target="_blank" rel="noopener" title="GitHub" class="social-icon">
-                  <Icon name="i-simple-icons-github" aria-hidden="true" />
-                </a>
-              </div>
-            </div>
-          </section>
-
-          <NuxtLink to="/archive" class="wechat-card">
-            <strong>文章</strong>
-            <span>查看全部已发布内容 ▶</span>
-          </NuxtLink>
-
-          <NuxtLink to="/admin" class="tool-card">
-            <span>进入</span>
-            <strong>后台管理</strong>
-          </NuxtLink>
-
-          <section v-if="cloudTags.length" class="tag-cloud">
-            <h3>热门标签</h3>
-            <div>
-              <NuxtLink v-for="tag in cloudTags" :key="tag.name" :to="`/tags/${tag.slug}`">{{ tag.name }}</NuxtLink>
-            </div>
-            <NuxtLink class="all-tags" to="/posts">查看全部文章</NuxtLink>
-          </section>
-
-          <section class="site-stats">
-            <p><span>文章总数：</span><strong>{{ totalPosts }}</strong></p>
-            <p><span>分类总数：</span><strong>{{ categories.length }}</strong></p>
-            <p><span>标签总数：</span><strong>{{ tags.length }}</strong></p>
-          </section>
-        </aside>
+        <PublicSidebar
+          class="sidebar"
+          :site-name="siteName"
+          :description="siteSettings.sidebar_description"
+          :categories="categories"
+          :tags="cloudTags"
+          :posts="heroAll"
+        />
       </div>
     </section>
 
@@ -550,6 +518,21 @@ function formatDate(value?: string | Date | null) {
   object-fit: cover;
 }
 
+.hero-fade-enter-active,
+.hero-fade-leave-active {
+  transition: opacity .32s ease;
+}
+
+.hero-fade-enter-from,
+.hero-fade-leave-to {
+  opacity: 0;
+}
+
+.hero-fade-enter-to,
+.hero-fade-leave-from {
+  opacity: 1;
+}
+
 .hero-main::after {
   position: absolute;
   inset: auto 0 0;
@@ -783,12 +766,12 @@ function formatDate(value?: string | Date | null) {
   height: 54px;
 }
 
-.cover-pink { background: linear-gradient(135deg, #e06abc, #d73d9f); }
-.cover-blue { background: linear-gradient(135deg, #80cfff, #35aaf6); }
-.cover-green { background: linear-gradient(135deg, #a7d64a, #7dbf31); }
-.cover-orange { background: linear-gradient(135deg, #ffe27b, #ff9c25); }
-.cover-gray { background: linear-gradient(135deg, #d5d5d5, #bfc1c4); }
-.cover-coral { background: linear-gradient(135deg, #ffb5ad, #ff827a); }
+.cover-pink { background: linear-gradient(135deg, #5c2348, #8b2f6a); }
+.cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
+.cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
+.cover-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
+.cover-gray { background: linear-gradient(135deg, #343941, #5d6470); }
+.cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
 
 .post-body {
   padding: 20px 30px 22px;

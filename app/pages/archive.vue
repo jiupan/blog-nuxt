@@ -1,60 +1,58 @@
 <template>
   <div class="archive-page">
     <section class="archive-shell">
-      <nav class="archive-tabs" aria-label="文章筛选">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          type="button"
-          :class="{ 'is-active': activeTab === tab.key }"
-          @click="activeTab = tab.key"
-        >
-          <Icon :name="tab.icon" aria-hidden="true" />
-          {{ tab.label }}
-        </button>
-      </nav>
-
       <div class="archive-layout">
         <main class="archive-main">
-          <nav class="year-tabs" aria-label="年份筛选">
+          <header class="archive-heading">
+            <h1>文字档案</h1>
+            <p>记录思考的轨迹，分享代码与生活的温度。</p>
+          </header>
+
+          <nav class="archive-tabs" aria-label="文章筛选">
             <button
-              v-for="year in yearTabs"
-              :key="year.key"
+              v-for="tab in tabs"
+              :key="tab.key"
               type="button"
-              :class="{ 'is-active': activeYear === year.key }"
-              @click="activeYear = year.key"
+              :class="{ 'is-active': activeTab === tab.key }"
+              @click="activeTab = tab.key"
             >
-              {{ year.label }}
+              {{ tab.label }}
             </button>
           </nav>
 
           <div class="archive-list">
             <NuxtLink v-for="post in pagedPosts" :key="post.id" :to="postPath(post.slug)" class="archive-item">
-              <div class="archive-cover" :class="coverClass(post.id)">
-                <span>{{ coverWord(post) }}</span>
+              <div class="archive-date-col">
+                <time>{{ formatArchiveDate(post.publishedAt) }}</time>
+                <span class="archive-thumb" :class="!post.cover && coverFallbackClass(post.id)">
+                  <img v-if="post.cover" :src="post.cover" :alt="post.title">
+                  <span v-else>{{ coverWord(post) }}</span>
+                </span>
               </div>
               <div class="archive-copy">
                 <h2>{{ post.title }}</h2>
-                <p>
-                  <span>{{ post.category?.name || '未分类' }}</span>
-                  <span>/</span>
-                  <time>{{ formatDate(post.publishedAt) }}</time>
-                </p>
+                <p>{{ post.summary || '这篇文章暂时没有摘要，点击阅读全文。' }}</p>
+                <div class="archive-meta">
+                  <span class="meta-left">
+                    <span>{{ post.category?.name || '未分类' }}</span>
+                    <span class="read-time">
+                      <BookOpenIcon aria-hidden="true" />
+                      {{ readMinutes(post) }} min read
+                    </span>
+                  </span>
+                  <span class="read-more">
+                    阅读全文
+                    <ArrowRightIcon aria-hidden="true" />
+                  </span>
+                </div>
               </div>
-              <span class="archive-arrow" aria-hidden="true"></span>
             </NuxtLink>
           </div>
 
           <div v-if="totalPages > 1" class="pager">
-            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">‹</button>
-            <button
-              v-for="p in totalPages"
-              :key="p"
-              class="page-dot"
-              :class="{ 'is-active': p === currentPage }"
-              @click="goToPage(p)"
-            >{{ p }}</button>
-            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">›</button>
+            <button :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">← 上一页</button>
+            <span>{{ currentPage }} / {{ totalPages }}</span>
+            <button :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">下一页 →</button>
           </div>
 
           <div v-if="!filteredPosts.length" class="archive-empty">
@@ -62,45 +60,31 @@
           </div>
         </main>
 
-        <aside class="archive-sidebar">
-          <section class="archive-author">
-            <div class="author-avatar">{{ siteInitial }}</div>
-            <h2>{{ siteName }}</h2>
-            <p>个人博客</p>
-            <div>
-              <NuxtLink to="/about">关于</NuxtLink>
-              <NuxtLink to="/admin">后台</NuxtLink>
-            </div>
-          </section>
-
-          <section class="stats-card">
-            <h2>站点统计</h2>
-            <p><span>文章总数</span><strong>{{ posts.length }}</strong></p>
-            <p><span>分类总数</span><strong>{{ categories.length }}</strong></p>
-            <p><span>标签总数</span><strong>{{ tags.length }}</strong></p>
-          </section>
-
-          <section class="hot-card">
-            <div class="card-title">
-              <h2>今日热门</h2>
-              <NuxtLink to="/posts">更多</NuxtLink>
-            </div>
-            <NuxtLink v-for="(post, index) in hotPosts" :key="post.id" :to="postPath(post.slug)">
-              <span>{{ index + 1 }}</span>
-              <strong>{{ post.title }}</strong>
-            </NuxtLink>
-          </section>
-        </aside>
+        <PublicSidebar
+          class="archive-sidebar"
+          :site-name="siteName"
+          :description="siteSettings.sidebar_description"
+          :categories="categories"
+          :tags="tags"
+          :posts="hotPosts"
+        />
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import {
+  ArrowRight as ArrowRightIcon,
+  BookOpen as BookOpenIcon
+} from '@lucide/vue'
+
 type ArchivePost = {
   id: number
   title: string
   slug: string
+  summary?: string | null
+  cover?: string | null
   publishedAt?: string | Date | null
   viewCount?: number
   category?: {
@@ -112,8 +96,7 @@ type ArchivePost = {
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
 const activeTab = ref('all')
-const activeYear = ref('all')
-const pageSize = 10
+const pageSize = 6
 const currentPage = ref(1)
 
 const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
@@ -129,26 +112,13 @@ const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 
 const tabs = computed(() => [
-  { key: 'all', label: '全部文章', icon: 'i-lucide-library' },
-  { key: 'featured', label: '精选', icon: 'i-lucide-archive' },
-  { key: 'hot', label: '热门', icon: 'i-lucide-search' },
+  { key: 'all', label: '全部文章' },
+  { key: 'featured', label: '精选' },
+  { key: 'hot', label: '热门' },
   ...categories.value.slice(0, 6).map((category: any) => ({
     key: `category:${category.slug}`,
-    label: category.name,
-    icon: 'i-lucide-folder'
+    label: category.name
   }))
-])
-
-const years = computed(() => {
-  const list = posts.value
-    .map((post) => post.publishedAt ? new Date(post.publishedAt).getFullYear() : null)
-    .filter((year): year is number => typeof year === 'number')
-  return [...new Set(list)].sort((a, b) => b - a)
-})
-
-const yearTabs = computed(() => [
-  { key: 'all', label: '全部' },
-  ...years.value.map((year) => ({ key: String(year), label: String(year) }))
 ])
 
 const tabFilteredPosts = computed(() => {
@@ -165,16 +135,7 @@ const tabFilteredPosts = computed(() => {
 })
 
 const filteredPosts = computed(() => {
-  if (activeYear.value === 'all') {
-    return tabFilteredPosts.value
-  }
-
-  return tabFilteredPosts.value.filter((post) => {
-    if (!post.publishedAt) {
-      return false
-    }
-    return String(new Date(post.publishedAt).getFullYear()) === activeYear.value
-  })
+  return tabFilteredPosts.value
 })
 
 const totalPages = computed(() => Math.ceil(filteredPosts.value.length / pageSize))
@@ -188,7 +149,7 @@ function goToPage(p: number) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-watch([activeTab, activeYear], () => {
+watch(activeTab, () => {
   currentPage.value = 1
 })
 
@@ -198,95 +159,58 @@ const hotPosts = computed(() => {
     .slice(0, 5)
 })
 
-const coverClasses = ['cover-pink', 'cover-blue', 'cover-green', 'cover-yellow', 'cover-purple', 'cover-slate']
-
 useSeoMeta({
   title: '归档',
   description: '博客文章归档'
 })
 
-function coverClass(id: number) {
-  return coverClasses[id % coverClasses.length]
+function formatArchiveDate(value?: string | Date | null) {
+  if (!value) {
+    return '未设置'
+  }
+
+  const date = new Date(value)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}.${month}.${day}`
+}
+
+function readMinutes(post: ArchivePost) {
+  const base = post.summary?.length || post.title.length
+  return Math.max(3, Math.ceil(base / 18))
+}
+
+const coverFallbackClasses = ['cover-pink', 'cover-blue', 'cover-green', 'cover-orange', 'cover-gray', 'cover-coral']
+
+function coverFallbackClass(id: number) {
+  return coverFallbackClasses[id % coverFallbackClasses.length]
 }
 
 function coverWord(post: ArchivePost) {
-  return post.category?.name || post.title.slice(0, 4)
-}
-
-function formatDate(value?: string | Date | null) {
-  if (!value) {
-    return ''
-  }
-
-  return new Date(value).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  return (post.category?.name || post.title).slice(0, 4)
 }
 </script>
 
 <style scoped>
 .archive-page {
   min-height: 100vh;
-  background: #f3f6fc;
   color: #303137;
 }
 
 .archive-shell {
   width: min(100% - 32px, 1290px);
   margin: 0 auto;
-  padding: 22px 0 72px;
-}
-
-.archive-tabs {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 10px;
-}
-
-.archive-tabs button,
-.year-tabs button {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 16px;
-  border: 1px solid #dfe6f3;
-  border-radius: 999px;
-  background: white;
-  color: #303743;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.archive-tabs button.is-active,
-.year-tabs button.is-active {
-  border-color: #4964f4;
-  background: #4964f4;
-  color: white;
-}
-
-.archive-tabs button :deep(svg),
-.archive-tabs button :deep(span) {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
+  padding: 56px 0 88px;
 }
 
 .archive-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 10px;
+  gap: 36px;
   align-items: start;
-  margin-top: 8px;
 }
 
-.archive-main,
 .archive-author,
 .stats-card,
 .hot-card {
@@ -295,87 +219,317 @@ function formatDate(value?: string | Date | null) {
   background: white;
 }
 
-.year-tabs {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding: 14px 18px;
-  border-bottom: 1px solid #e4eaf4;
+.archive-main {
+  min-width: 0;
+  padding-right: 8px;
 }
 
-.year-tabs button {
-  height: 26px;
-  padding: 0 18px;
+.archive-heading {
+  margin-bottom: 52px;
+}
+
+.archive-heading h1 {
+  margin: 0;
+  color: #24313d;
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
+  font-size: clamp(42px, 7vw, 56px);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.archive-heading p {
+  margin: 16px 0 0;
+  color: #697583;
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.archive-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 34px;
+  margin-bottom: 54px;
+  border-bottom: 1px solid #dbe2ea;
+  padding-bottom: 0;
+}
+
+.archive-tabs button {
+  position: relative;
+  flex: 0 0 auto;
   border: 0;
-  background: #f2f4f8;
-  font-size: 12px;
+  background: transparent;
+  padding: 0 0 18px;
+  color: #9aa4ae;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.archive-tabs button::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: transparent;
+  content: "";
+}
+
+.archive-tabs button:hover,
+.archive-tabs button.is-active {
+  color: #24313d;
+}
+
+.archive-tabs button.is-active::after {
+  background: #24313d;
 }
 
 .archive-list {
   display: grid;
+  gap: 0;
 }
 
 .archive-item {
   display: grid;
-  grid-template-columns: 128px minmax(0, 1fr) 20px;
-  gap: 22px;
-  align-items: center;
-  min-height: 104px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e4eaf4;
+  position: relative;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 36px;
+  align-items: start;
+  padding: 30px 30px 34px;
+  border: 1px solid transparent;
+  border-radius: 28px;
+  transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
 }
 
-.archive-item:last-child {
-  border-bottom: 0;
+.archive-item::after {
+  position: absolute;
+  right: 30px;
+  bottom: -1px;
+  left: 158px;
+  height: 1px;
+  background: rgba(219, 226, 234, 0.75);
+  content: "";
+  pointer-events: none;
 }
 
-.archive-cover {
+.archive-item:last-child::after {
+  display: none;
+}
+
+.archive-item:hover {
+  border-color: rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 22px 44px rgba(38, 50, 56, 0.06);
+  transform: translateY(-3px);
+}
+
+.archive-item:hover::after {
+  opacity: 0;
+}
+
+.archive-date-col {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+
+.archive-date-col time {
+  padding-top: 7px;
+  color: #9aa4ae;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  transition: color 180ms ease;
+}
+
+.archive-item:hover .archive-date-col time {
+  color: #738392;
+}
+
+.archive-thumb {
   display: grid;
   width: 128px;
-  height: 68px;
+  aspect-ratio: 16 / 9;
   place-items: center;
   overflow: hidden;
   border-radius: 8px;
-  color: rgb(255 255 255 / 70%);
-  font-size: 24px;
+  background: #343941;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 18px;
   font-weight: 900;
+  letter-spacing: 0;
+  box-shadow: 0 10px 24px rgba(38, 50, 56, 0.08);
 }
 
-.cover-pink { background: linear-gradient(135deg, #f879c8, #d957ad); }
-.cover-blue { background: linear-gradient(135deg, #7fcbff, #4aaef3); }
-.cover-green { background: linear-gradient(135deg, #a9d94a, #7ec63a); }
-.cover-yellow { background: linear-gradient(135deg, #ffe078, #ffb841); }
-.cover-purple { background: linear-gradient(135deg, #d184ff, #a65cf0); }
-.cover-slate { background: linear-gradient(135deg, #516a79, #263d4d); }
+.archive-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 420ms ease;
+}
+
+.archive-item:hover .archive-thumb img {
+  transform: scale(1.05);
+}
+
+.cover-pink { background: linear-gradient(135deg, #5c2348, #8b2f6a); }
+.cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
+.cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
+.cover-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
+.cover-gray { background: linear-gradient(135deg, #343941, #5d6470); }
+.cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
 
 .archive-copy h2 {
   margin: 0;
-  color: #34373f;
-  font-size: 20px;
-  font-weight: 900;
+  color: #24313d;
+  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
+  font-size: clamp(24px, 3vw, 30px);
+  font-weight: 650;
+  letter-spacing: 0;
   line-height: 1.45;
+  transition: color 180ms ease;
 }
 
 .archive-copy p {
-  display: flex;
-  gap: 8px;
-  margin: 10px 0 0;
-  color: #737b87;
-  font-size: 13px;
-  font-weight: 700;
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 16px 0 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #697583;
+  font-size: 15px;
+  line-height: 1.9;
+  transition: color 180ms ease;
 }
 
-.archive-arrow {
-  width: 9px;
-  height: 9px;
-  border-top: 2px solid #5f6670;
-  border-right: 2px solid #5f6670;
-  transform: rotate(45deg);
+.archive-item:hover .archive-copy p {
+  color: #53606d;
+}
+
+.archive-meta {
+  display: flex;
+  position: relative;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin-top: 20px;
+  color: #9aa4ae;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.meta-left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  padding-right: 112px;
+}
+
+.meta-left > span:first-child {
+  border-radius: 999px;
+  background: rgba(244, 246, 248, 0.9);
+  padding: 6px 10px;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.archive-item:hover .meta-left > span:first-child {
+  background: #eef4f0;
+  color: #647e73;
+}
+
+.read-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.read-time svg {
+  width: 14px;
+  height: 14px;
+}
+
+.read-more {
+  position: absolute;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #738392;
+  font-size: 13px;
+  font-weight: 850;
+  opacity: 0;
+  transform: translateX(-12px);
+  transition: opacity 220ms ease, transform 220ms ease, color 160ms ease;
+}
+
+.read-more svg {
+  width: 16px;
+  height: 16px;
+}
+
+.archive-item:hover .read-more {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.read-more:hover {
+  color: #24313d;
+}
+
+.pager {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 18px;
+  margin-top: 62px;
+  border-top: 1px solid #dbe2ea;
+  padding-top: 28px;
+  color: #9aa4ae;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.pager button {
+  border: 0;
+  background: transparent;
+  color: #5f6874;
+  font: inherit;
+  cursor: pointer;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.pager button:first-child {
+  justify-self: start;
+}
+
+.pager button:last-child {
+  justify-self: end;
+}
+
+.pager button:hover:not(:disabled) {
+  color: #24313d;
+  transform: translateY(-1px);
+}
+
+.pager button:disabled {
+  opacity: 0.42;
+  cursor: default;
 }
 
 .archive-empty {
-  padding: 40px;
-  color: #7d8490;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+  padding: 44px;
+  color: #7d8792;
   text-align: center;
 }
 
@@ -498,38 +652,6 @@ function formatDate(value?: string | Date | null) {
   line-height: 1.5;
 }
 
-.pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 10px 20px;
-}
-
-.page-dot {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid #e1e7f2;
-  border-radius: 999px;
-  background: white;
-  box-shadow: 0 6px 18px rgb(40 58 90 / 7%);
-  color: #3a3b44;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.page-dot:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.page-dot.is-active {
-  background: #4964f4;
-  color: white;
-}
-
 @media (max-width: 900px) {
   .archive-layout {
     grid-template-columns: 1fr;
@@ -543,22 +665,61 @@ function formatDate(value?: string | Date | null) {
 @media (max-width: 640px) {
   .archive-shell {
     width: min(100% - 20px, 1290px);
+    padding-top: 42px;
+  }
+
+  .archive-heading {
+    margin-bottom: 36px;
+  }
+
+  .archive-tabs {
+    gap: 0 22px;
+    margin-bottom: 34px;
   }
 
   .archive-item {
-    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 22px 18px 26px;
+    border-radius: 18px;
+  }
+
+  .archive-item::after {
+    right: 18px;
+    left: 18px;
+  }
+
+  .archive-date-col {
+    grid-template-columns: auto minmax(96px, 128px);
+    align-items: center;
+    justify-content: space-between;
     gap: 14px;
-    padding: 14px;
   }
 
-  .archive-cover {
-    width: 96px;
-    height: 58px;
-    font-size: 18px;
+  .archive-date-col time {
+    padding-top: 0;
   }
 
-  .archive-arrow {
-    display: none;
+  .archive-thumb {
+    width: min(128px, 36vw);
+  }
+
+  .archive-meta {
+    gap: 10px;
+  }
+
+  .meta-left {
+    padding-right: 0;
+  }
+
+  .read-more {
+    position: static;
+    opacity: 1;
+    transform: none;
+  }
+
+  .pager {
+    margin-top: 42px;
   }
 }
 </style>

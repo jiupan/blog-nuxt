@@ -8,29 +8,15 @@
       <UInput v-model="keyword" icon="i-lucide-search" placeholder="搜索文章" class="md:w-72" @keyup.enter="refresh" />
     </div>
 
-    <div class="mt-6 grid gap-6 md:grid-cols-[220px_1fr]">
-      <aside class="space-y-6">
-        <div>
-          <h2 class="text-sm font-semibold text-gray-900">分类</h2>
-          <div class="mt-3 grid gap-2 text-sm text-gray-600">
-            <NuxtLink to="/posts">全部</NuxtLink>
-            <NuxtLink v-for="item in categories" :key="item.id" :to="`/categories/${item.slug}`">{{ item.name }}</NuxtLink>
-          </div>
-        </div>
-        <div>
-          <h2 class="text-sm font-semibold text-gray-900">标签</h2>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <NuxtLink
-              v-for="item in tags"
-              :key="item.id"
-              :to="`/tags/${item.slug}`"
-              class="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs"
-            >
-              {{ item.name }}
-            </NuxtLink>
-          </div>
-        </div>
-      </aside>
+    <div class="mt-6 grid gap-8 md:grid-cols-[260px_1fr]">
+      <PublicSidebar
+        class="posts-sidebar"
+        :site-name="siteName"
+        :description="siteSettings.sidebar_description"
+        :categories="categories"
+        :tags="tags"
+        :posts="posts"
+      />
 
       <div class="grid gap-4">
         <article v-for="post in posts" :key="post.id" class="rounded-lg border border-gray-200 bg-white p-5">
@@ -48,7 +34,11 @@
 </template>
 
 <script setup lang="ts">
-const keyword = ref('')
+const route = useRoute()
+const config = useRuntimeConfig()
+const siteSettings = useSiteSettings()
+const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
+const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
 const { data, refresh } = await useFetch('/api/posts', {
   query: computed(() => ({ keyword: keyword.value || undefined }))
 })
@@ -57,6 +47,10 @@ const { data: tagData } = await useFetch('/api/tags')
 const posts = computed(() => data.value?.data.items || [])
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
+
+watch(() => route.query.keyword, (value) => {
+  keyword.value = typeof value === 'string' ? value : ''
+})
 
 useSeoMeta({
   title: '文章',
@@ -67,3 +61,17 @@ function formatDate(value?: string | Date | null) {
   return value ? new Date(value).toLocaleDateString('zh-CN') : ''
 }
 </script>
+
+<style scoped>
+.posts-sidebar {
+  position: sticky;
+  top: 84px;
+  align-self: start;
+}
+
+@media (max-width: 768px) {
+  .posts-sidebar {
+    position: static;
+  }
+}
+</style>

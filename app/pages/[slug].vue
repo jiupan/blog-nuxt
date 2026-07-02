@@ -61,43 +61,38 @@
         </nav>
       </main>
 
-      <aside class="post-sidebar">
-        <section class="author-card">
-          <div class="author-avatar">
-            <span>{{ authorInitial }}</span>
-          </div>
-          <h2>{{ siteName }}</h2>
-          <p>个人博客</p>
-          <div class="author-actions">
-            <NuxtLink to="/archive">归档</NuxtLink>
-            <NuxtLink to="/about">关于</NuxtLink>
-          </div>
-        </section>
+      <PublicSidebar
+        class="post-sidebar"
+        :site-name="siteName"
+        :description="siteSettings.sidebar_description"
+        :categories="sidebarCategories"
+        :tags="sidebarTags"
+        :posts="sidebarPosts"
+      >
+        <template #after-tags>
+          <section class="toc-card">
+            <h2>文章目录</h2>
+            <div v-if="post.rendered.toc.length" class="toc-list">
+              <a
+                v-for="item in post.rendered.toc"
+                :key="item.id"
+                :href="`#${item.id}`"
+                :class="{ 'is-child': item.level === 3 }"
+              >
+                {{ item.text }}
+              </a>
+            </div>
+            <p v-else>暂无目录</p>
+          </section>
 
-        <section class="toc-card">
-          <h2>文章目录</h2>
-          <div v-if="post.rendered.toc.length" class="toc-list">
-            <a
-              v-for="item in post.rendered.toc"
-              :key="item.id"
-              :href="`#${item.id}`"
-              :class="{ 'is-child': item.level === 3 }"
-            >
-              {{ item.text }}
-            </a>
-          </div>
-          <p v-else>暂无目录</p>
-        </section>
-
-        <section class="info-card">
-          <h2>文章信息</h2>
-          <p><span>发布于</span><strong>{{ formatDate(post.publishedAt) }}</strong></p>
-          <p><span>阅读量</span><strong>{{ post.viewCount }}</strong></p>
-          <p><span>分类</span><strong>{{ post.category?.name || '未分类' }}</strong></p>
-        </section>
-
-        <NuxtLink to="/posts" class="return-card">返回文章列表</NuxtLink>
-      </aside>
+          <section class="info-card">
+            <h2>文章信息</h2>
+            <p><span>发布于</span><strong>{{ formatDate(post.publishedAt) }}</strong></p>
+            <p><span>阅读量</span><strong>{{ post.viewCount }}</strong></p>
+            <p><span>分类</span><strong>{{ post.category?.name || '未分类' }}</strong></p>
+          </section>
+        </template>
+      </PublicSidebar>
     </section>
   </div>
 </template>
@@ -105,7 +100,12 @@
 <script setup lang="ts">
 const route = useRoute()
 const config = useRuntimeConfig()
-const { data, error } = await useFetch(`/api/posts/${route.params.slug}`)
+const [{ data, error }, { data: categoryData }, { data: tagData }, { data: relatedData }] = await Promise.all([
+  useFetch(`/api/posts/${route.params.slug}`),
+  useFetch('/api/categories'),
+  useFetch('/api/tags'),
+  useFetch('/api/posts', { query: { page: 1, pageSize: 5 } })
+])
 
 if (error.value || !data.value?.data) {
   throw createError({ statusCode: 404, statusMessage: '文章不存在' })
@@ -115,18 +115,22 @@ const post = computed(() => data.value!.data)
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
+const sidebarCategories = computed(() => categoryData.value?.data || [])
+const sidebarTags = computed(() => tagData.value?.data || [])
+const sidebarPosts = computed(() => {
+  return (relatedData.value?.data?.items || []).filter((item: any) => item.slug !== post.value.slug)
+})
 const coverWord = computed(() => {
   return post.value.category?.name || post.value.title.slice(0, 4)
 })
-const authorInitial = computed(() => siteName.value.slice(0, 1).toUpperCase())
 
 const heroGradients = [
-  'linear-gradient(135deg, #e06abc, #d73d9f)',
-  'linear-gradient(135deg, #80cfff, #35aaf6)',
-  'linear-gradient(135deg, #a7d64a, #7dbf31)',
-  'linear-gradient(135deg, #ffe27b, #ff9c25)',
-  'linear-gradient(135deg, #d5d5d5, #bfc1c4)',
-  'linear-gradient(135deg, #ffb5ad, #ff827a)'
+  'linear-gradient(135deg, #5c2348, #8b2f6a)',
+  'linear-gradient(135deg, #18345f, #1f5d91)',
+  'linear-gradient(135deg, #29462c, #4e7433)',
+  'linear-gradient(135deg, #5a3517, #9a5a1d)',
+  'linear-gradient(135deg, #343941, #5d6470)',
+  'linear-gradient(135deg, #68312e, #a9463e)'
 ]
 const heroGradient = computed(() => heroGradients[post.value.id % heroGradients.length])
 
