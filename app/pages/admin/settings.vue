@@ -340,7 +340,8 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   try {
     const body = new FormData()
     body.append('file', file)
-    const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', { method: 'POST', body })
+    const url = field === 'site_favicon' ? '/api/admin/upload?purpose=favicon' : '/api/admin/upload'
+    const result = await $fetch<{ data: { url: string } }>(url, { method: 'POST', body })
     form.value[field] = result.data.url
     if (field === 'site_logo') {
       logoUploaded.value = true
