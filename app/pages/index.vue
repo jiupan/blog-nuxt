@@ -127,65 +127,6 @@
         />
       </div>
     </section>
-
-    <Teleport to="body">
-      <Transition name="mobile-panel">
-        <div v-if="mobilePanelOpen" class="mobile-sidebar-overlay" @click.self="closeMobilePanel">
-          <aside class="mobile-sidebar-panel" aria-label="侧边信息">
-            <section class="mobile-stats-card">
-              <div>
-                <span>文章</span>
-                <strong>{{ totalPosts }}</strong>
-              </div>
-              <div>
-                <span>标签</span>
-                <strong>{{ tags.length }}</strong>
-              </div>
-              <div>
-                <span>分类</span>
-                <strong>{{ categories.length }}</strong>
-              </div>
-            </section>
-
-            <NuxtLink to="/archive" class="mobile-green-card" @click="closeMobilePanel">
-              <strong>文章</strong>
-              <span>查看全部已发布内容 ▶</span>
-            </NuxtLink>
-
-            <div class="mobile-panel-group">
-              <h3>博客</h3>
-              <div class="mobile-panel-grid">
-                <NuxtLink to="/" class="mobile-panel-row" @click="closeMobilePanel">
-                  <HouseIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>首页</span>
-                </NuxtLink>
-                <NuxtLink to="/posts" class="mobile-panel-row" @click="closeMobilePanel">
-                  <LibraryIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>文章</span>
-                </NuxtLink>
-                <NuxtLink to="/archive" class="mobile-panel-row" @click="closeMobilePanel">
-                  <ArchiveIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>归档</span>
-                </NuxtLink>
-                <NuxtLink to="/about" class="mobile-panel-row" @click="closeMobilePanel">
-                  <UserRoundIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>关于</span>
-                </NuxtLink>
-              </div>
-            </div>
-
-            <div v-if="cloudTags.length" class="mobile-panel-group">
-              <h3>热门标签</h3>
-              <div class="mobile-tag-grid">
-                <NuxtLink v-for="tag in cloudTags" :key="tag.name" :to="`/tags/${tag.slug}`" @click="closeMobilePanel">
-                  # {{ tag.name }}
-                </NuxtLink>
-              </div>
-            </div>
-          </aside>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
@@ -317,7 +258,6 @@ const siteName = computed(() => siteSettings.value.site_title || config.public.s
 const pageSize = 8
 const currentPage = ref(1)
 const categorySlug = ref('')
-const mobilePanelOpen = useState<boolean>('mobilePanelOpen', () => false)
 const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }] = await Promise.all([
   useFetch<{ data: PostsPayload }>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
   useFetch<{ data: PostsPayload }>('/api/posts', { query: { page: 1, pageSize: 6 } }),
@@ -442,10 +382,6 @@ function showTopicTooltip(event: MouseEvent | FocusEvent, label: string) {
 
 function hideTopicTooltip() {
   topicTooltip.visible = false
-}
-
-function closeMobilePanel() {
-  mobilePanelOpen.value = false
 }
 
 const cloudTags = computed(() => tags.value.slice(0, 12))
@@ -1054,10 +990,6 @@ function formatDate(value?: string | Date | null) {
   color: #777d89;
 }
 
-.mobile-sidebar-overlay {
-  display: none;
-}
-
 @media (max-width: 1100px) {
   .hero-board,
   .content-layout {
@@ -1154,155 +1086,6 @@ function formatDate(value?: string | Date | null) {
 
   .sidebar {
     display: none;
-  }
-
-  .mobile-sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 70;
-    display: block;
-    background: transparent;
-  }
-
-  .mobile-sidebar-panel {
-    position: fixed;
-    top: 20px;
-    right: 12px;
-    width: min(76vw, 438px);
-    max-height: calc(100dvh - 40px);
-    overflow-y: auto;
-    border: 1px solid #dfe5f2;
-    border-radius: 14px;
-    background:
-      radial-gradient(circle at 38% 18%, rgb(99 102 241 / 12%), transparent 34%),
-      linear-gradient(180deg, #f8f9ff 0%, #fff4ee 58%, #f8fbff 100%);
-    box-shadow: 0 22px 46px rgb(30 41 59 / 14%);
-    padding: 18px 16px 20px;
-    transform-origin: top right;
-  }
-
-  .mobile-panel-enter-active,
-  .mobile-panel-leave-active {
-    transition: opacity .18s ease;
-  }
-
-  .mobile-panel-enter-active .mobile-sidebar-panel,
-  .mobile-panel-leave-active .mobile-sidebar-panel {
-    transition: opacity .22s ease, transform .22s ease;
-  }
-
-  .mobile-panel-enter-from,
-  .mobile-panel-leave-to {
-    opacity: 0;
-  }
-
-  .mobile-panel-enter-from .mobile-sidebar-panel,
-  .mobile-panel-leave-to .mobile-sidebar-panel {
-    opacity: 0;
-    transform: translateX(18px) scale(.985);
-  }
-
-  .mobile-stats-card {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    border: 1px solid #dfe5f2;
-    border-radius: 12px;
-    background: rgb(255 255 255 / 88%);
-    box-shadow: 0 12px 26px rgb(40 58 90 / 8%);
-    padding: 12px 10px;
-  }
-
-  .mobile-stats-card div {
-    display: grid;
-    gap: 3px;
-    justify-items: center;
-    min-width: 0;
-  }
-
-  .mobile-stats-card span {
-    color: #69717e;
-    font-size: 12px;
-    line-height: 1;
-  }
-
-  .mobile-stats-card strong {
-    color: #303137;
-    font-size: 22px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .mobile-green-card {
-    display: grid;
-    gap: 8px;
-    min-height: 118px;
-    align-content: center;
-    margin-top: 18px;
-    overflow: hidden;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #91d855, #54b93d);
-    box-shadow: 0 16px 28px rgb(74 170 54 / 18%);
-    color: #fff;
-    padding: 20px 32px;
-  }
-
-  .mobile-green-card strong {
-    font-size: 24px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .mobile-green-card span {
-    font-size: 13px;
-    font-weight: 800;
-  }
-
-  .mobile-panel-group {
-    margin-top: 18px;
-  }
-
-  .mobile-panel-group h3 {
-    margin: 0 0 12px;
-    color: #6b7280;
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .mobile-panel-grid,
-  .mobile-tag-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .mobile-panel-row,
-  .mobile-tag-grid a {
-    display: flex;
-    min-width: 0;
-    min-height: 54px;
-    align-items: center;
-    gap: 10px;
-    border: 1px solid #dfe5f2;
-    border-radius: 10px;
-    background: rgb(255 255 255 / 88%);
-    color: #303137;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 0 12px;
-  }
-
-  .mobile-panel-row span,
-  .mobile-tag-grid a {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .mobile-row-icon {
-    width: 24px;
-    height: 24px;
-    flex: 0 0 auto;
   }
 
   .hero-copy {
