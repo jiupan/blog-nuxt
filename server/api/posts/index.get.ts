@@ -42,7 +42,10 @@ export default defineEventHandler(async (event) => {
         category: true,
         tags: { include: { tag: true } }
       },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: [
+        { createdAt: 'desc' },
+        { id: 'desc' }
+      ],
       skip: (page - 1) * pageSize,
       take: pageSize
     }),

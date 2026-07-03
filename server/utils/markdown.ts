@@ -16,18 +16,82 @@ export type RenderedMarkdown = {
   readingTime: number
 }
 
-const md: MarkdownIt = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-  highlight(code: string, lang: string): string {
-    return `<pre data-lang="${lang || 'text'}"><code>${md.utils.escapeHtml(code)}</code></pre>`
-  }
-})
-
 export async function renderMarkdown(content: string): Promise<RenderedMarkdown> {
   const slugger = new Slugger()
   const toc: RenderedMarkdown['toc'] = []
+  const md = createMarkdownRenderer(slugger, toc)
+
+  let html = md.render(content)
+  html = await highlightCodeBlocks(html)
+  html = sanitizeHtml(html, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+      'caption',
+      'code',
+      'del',
+      'figcaption',
+      'figure',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'hr',
+      'img',
+      'pre',
+      'span',
+      'table',
+      'tbody',
+      'td',
+      'tfoot',
+      'th',
+      'thead',
+      'tr'
+    ]),
+    allowedAttributes: {
+      a: ['href', 'name', 'target', 'rel'],
+      code: ['class', 'style'],
+      h1: ['id'],
+      h2: ['id'],
+      h3: ['id'],
+      h4: ['id'],
+      h5: ['id'],
+      h6: ['id'],
+      img: ['src', 'alt', 'title', 'loading'],
+      pre: ['class', 'data-lang', 'style', 'tabindex'],
+      span: ['class', 'style'],
+      td: ['align', 'colspan', 'rowspan'],
+      th: ['align', 'colspan', 'rowspan']
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    transformTags: {
+      a: sanitizeHtml.simpleTransform('a', { rel: 'nofollow noopener noreferrer', target: '_blank' }),
+      img: sanitizeHtml.simpleTransform('img', { loading: 'lazy' })
+    }
+  })
+
+  const words = content.replace(/```[\s\S]*?```/g, '').trim()
+  const wordCount = words ? words.length : 0
+
+  return {
+    html,
+    toc,
+    wordCount,
+    readingTime: Math.max(1, Math.ceil(wordCount / 500))
+  }
+}
+
+function createMarkdownRenderer(slugger: Slugger, toc: RenderedMarkdown['toc']) {
+  const md: MarkdownIt = new MarkdownIt({
+    html: false,
+    linkify: true,
+    breaks: true,
+    typographer: true,
+    highlight(code: string, lang: string): string {
+      const normalizedLang = normalizeCodeLanguage(lang)
+      return `<pre data-lang="${normalizedLang}"><code>${md.utils.escapeHtml(code)}</code></pre>`
+    }
+  })
 
   const defaultHeadingOpen = md.renderer.rules.heading_open
   md.renderer.rules.heading_open = (
@@ -56,37 +120,7 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
       : self.renderToken(tokens, idx, options)
   }
 
-  let html = md.render(content)
-  html = await highlightCodeBlocks(html)
-  html = sanitizeHtml(html, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3', 'h4', 'pre', 'code', 'span']),
-    allowedAttributes: {
-      a: ['href', 'name', 'target', 'rel'],
-      img: ['src', 'alt', 'title', 'loading'],
-      h1: ['id'],
-      h2: ['id'],
-      h3: ['id'],
-      h4: ['id'],
-      pre: ['class', 'data-lang'],
-      code: ['class', 'style'],
-      span: ['class', 'style']
-    },
-    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-    transformTags: {
-      a: sanitizeHtml.simpleTransform('a', { rel: 'nofollow noopener noreferrer', target: '_blank' }),
-      img: sanitizeHtml.simpleTransform('img', { loading: 'lazy' })
-    }
-  })
-
-  const words = content.replace(/```[\s\S]*?```/g, '').trim()
-  const wordCount = words ? words.length : 0
-
-  return {
-    html,
-    toc,
-    wordCount,
-    readingTime: Math.max(1, Math.ceil(wordCount / 500))
-  }
+  return md
 }
 
 async function highlightCodeBlocks(html: string) {
@@ -95,7 +129,7 @@ async function highlightCodeBlocks(html: string) {
 
   let highlighted = html
   for (const block of blocks) {
-    const lang = block[1] || 'text'
+    const lang = normalizeCodeLanguage(block[1])
     const decoded = decodeEntities(block[2] || '')
     const rendered = await codeToHtml(decoded, {
       lang,
@@ -106,6 +140,11 @@ async function highlightCodeBlocks(html: string) {
   }
 
   return highlighted
+}
+
+function normalizeCodeLanguage(value?: string) {
+  const lang = (value || 'text').trim().split(/\s+/)[0] || 'text'
+  return /^[\w#+.-]+$/.test(lang) ? lang : 'text'
 }
 
 function decodeEntities(value: string) {

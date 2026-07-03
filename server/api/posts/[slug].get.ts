@@ -32,17 +32,37 @@ export default defineEventHandler(async (event) => {
     prisma.post.findFirst({
       where: {
         status: 'PUBLISHED',
-        publishedAt: { lt: post.publishedAt || now }
+        publishedAt: { lte: now },
+        OR: [
+          { createdAt: { gt: post.createdAt } },
+          {
+            createdAt: post.createdAt,
+            id: { gt: post.id }
+          }
+        ]
       },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: [
+        { createdAt: 'asc' },
+        { id: 'asc' }
+      ],
       select: { title: true, slug: true }
     }),
     prisma.post.findFirst({
       where: {
         status: 'PUBLISHED',
-        publishedAt: { gt: post.publishedAt || now }
+        publishedAt: { lte: now },
+        OR: [
+          { createdAt: { lt: post.createdAt } },
+          {
+            createdAt: post.createdAt,
+            id: { lt: post.id }
+          }
+        ]
       },
-      orderBy: { publishedAt: 'asc' },
+      orderBy: [
+        { createdAt: 'desc' },
+        { id: 'desc' }
+      ],
       select: { title: true, slug: true }
     }),
     renderMarkdown(post.content)

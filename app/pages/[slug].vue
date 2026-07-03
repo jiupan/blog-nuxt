@@ -50,11 +50,11 @@
         </div>
 
         <nav v-if="post.previous || post.next" class="post-pager">
-          <NuxtLink v-if="post.previous" :to="postPath(post.previous.slug)">
+          <NuxtLink v-if="post.previous" :to="postPath(post.previous.slug)" class="post-pager-prev">
             <span>上一篇</span>
             <strong>{{ post.previous.title }}</strong>
           </NuxtLink>
-          <NuxtLink v-if="post.next" :to="postPath(post.next.slug)">
+          <NuxtLink v-if="post.next" :to="postPath(post.next.slug)" class="post-pager-next">
             <span>下一篇</span>
             <strong>{{ post.next.title }}</strong>
           </NuxtLink>
@@ -329,7 +329,7 @@ function formatDate(value?: string | Date | null) {
 
 .content-card {
   margin-top: 14px;
-  padding: 28px 34px;
+  padding: 40px 36px;
 }
 
 .post-main > .content-card:first-child {
@@ -346,6 +346,15 @@ function formatDate(value?: string | Date | null) {
 .post-pager a {
   display: block;
   padding: 18px;
+}
+
+.post-pager-prev {
+  grid-column: 1;
+}
+
+.post-pager-next {
+  grid-column: 2;
+  text-align: right;
 }
 
 .post-pager span {
@@ -509,6 +518,12 @@ function formatDate(value?: string | Date | null) {
   .summary-body,
   .post-pager {
     grid-template-columns: 1fr;
+  }
+
+  .post-pager-prev,
+  .post-pager-next {
+    grid-column: auto;
+    text-align: left;
   }
 
   .content-card {

@@ -745,10 +745,6 @@ onBeforeUnmount(() => {
     box-shadow: none;
   }
 
-  .site-header.is-article-route:not(.is-scrolled) {
-    background: rgb(247 249 253 / 86%);
-  }
-
   .tool-nav a {
     width: 30px;
     height: 38px;

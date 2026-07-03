@@ -11,7 +11,7 @@ const querySchema = z.object({
   search: z.string().optional(),
   categoryId: z.coerce.number().int().min(1).optional(),
   tagId: z.coerce.number().int().min(1).optional(),
-  sort: z.string().optional().default('updatedAt_desc')
+  sort: z.string().optional().default('createdAt_desc')
 })
 
 export default defineEventHandler(async (event) => {
@@ -53,6 +53,10 @@ export default defineEventHandler(async (event) => {
         return { createdAt: 'asc' }
       case 'createdAt_desc':
         return { createdAt: 'desc' }
+      case 'updatedAt_asc':
+        return { updatedAt: 'asc' }
+      case 'updatedAt_desc':
+        return { updatedAt: 'desc' }
       case 'title_asc':
         return { title: 'asc' }
       case 'title_desc':
