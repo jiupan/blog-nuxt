@@ -90,21 +90,18 @@
             <div class="mobile-panel-group">
               <h3>博客</h3>
               <div class="mobile-panel-grid">
-                <NuxtLink to="/" class="mobile-panel-row" @click="closeMobilePanel">
-                  <HouseIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>首页</span>
-                </NuxtLink>
-                <NuxtLink to="/posts" class="mobile-panel-row" @click="closeMobilePanel">
-                  <LibraryIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>文章</span>
-                </NuxtLink>
-                <NuxtLink to="/archive" class="mobile-panel-row" @click="closeMobilePanel">
-                  <ArchiveIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>归档</span>
-                </NuxtLink>
-                <NuxtLink to="/about" class="mobile-panel-row" @click="closeMobilePanel">
-                  <UserRoundIcon class="mobile-row-icon" aria-hidden="true" />
-                  <span>关于</span>
+                <NuxtLink
+                  v-for="item in mobileMenuItems"
+                  :key="item.key"
+                  :to="item.to"
+                  :target="item.targetBlank ? '_blank' : undefined"
+                  :rel="item.targetBlank ? 'noopener noreferrer' : undefined"
+                  class="mobile-panel-row"
+                  @click="closeMobilePanel"
+                >
+                  <Icon v-if="item.icon" :name="item.icon" class="mobile-row-icon" aria-hidden="true" />
+                  <component v-else :is="footerActionIcon(item.fallbackIcon)" class="mobile-row-icon" aria-hidden="true" />
+                  <span>{{ item.title }}</span>
                 </NuxtLink>
               </div>
             </div>
@@ -322,6 +319,29 @@ const primaryMenuItems = computed<MenuTreeItem[]>(() => {
       children: items.filter((child) => child.parentId === item.id)
     }))
 })
+const mobileMenuItems = computed(() => {
+  return primaryMenuItems.value.flatMap((item) => {
+    const root = {
+      key: `root-${item.id}`,
+      title: item.title,
+      to: item.url || resolveMenuItemPath(item),
+      icon: item.icon,
+      fallbackIcon: iconForMenuItem(item),
+      targetBlank: item.targetBlank
+    }
+
+    const children = item.children.map((child) => ({
+      key: `child-${child.id}`,
+      title: child.title,
+      to: child.url || resolveMenuItemPath(child),
+      icon: child.icon,
+      fallbackIcon: iconForMenuItem(child),
+      targetBlank: child.targetBlank
+    }))
+
+    return [root, ...children]
+  })
+})
 
 const footerGroups = computed(() => {
   const items = (footerMenuData.value?.data?.items || []).slice().sort((a, b) => a.sort - b.sort)
@@ -371,6 +391,23 @@ function resolveFooterItemPath(item: MenuItem) {
   if (item.type === 'TAG' && item.targetSlug) return `/tags/${item.targetSlug}`
   if ((item.type === 'POST' || item.type === 'PAGE') && item.targetSlug) return `/${item.targetSlug}`
   return '/'
+}
+
+function resolveMenuItemPath(item: MenuItem) {
+  return resolveFooterItemPath(item)
+}
+
+function iconForMenuItem(item: MenuItem) {
+  if (item.type === 'HOME') return 'i-lucide-house'
+  if (item.type === 'ARCHIVE') return 'i-lucide-archive'
+  if (item.type === 'CATEGORY') return 'i-lucide-folder'
+  if (item.type === 'TAG') return 'i-lucide-tag'
+  if (item.type === 'POST') return 'i-lucide-newspaper'
+  if (item.type === 'PAGE') return 'i-lucide-link'
+  if (item.url?.startsWith('/posts')) return 'i-lucide-library'
+  if (item.url?.startsWith('/archive')) return 'i-lucide-archive'
+  if (item.url === '/') return 'i-lucide-house'
+  return 'i-lucide-link'
 }
 
 function parseFooterBottomLinks(value: string) {

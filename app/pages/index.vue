@@ -365,9 +365,15 @@ const topicTabs = computed(() => [
 function selectCategory(slug: string) {
   categorySlug.value = slug
   currentPage.value = 1
+  hideTopicTooltip()
 }
 
 function showTopicTooltip(event: MouseEvent | FocusEvent, label: string) {
+  if (window.matchMedia('(max-width: 760px)').matches) {
+    hideTopicTooltip()
+    return
+  }
+
   const target = event.currentTarget
   if (!(target instanceof HTMLElement)) {
     return
@@ -1085,6 +1091,10 @@ function formatDate(value?: string | Date | null) {
   }
 
   .sidebar {
+    display: none;
+  }
+
+  .topic-tooltip {
     display: none;
   }
 
