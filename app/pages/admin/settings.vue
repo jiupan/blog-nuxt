@@ -185,8 +185,55 @@
 
             <div class="settings-row">
               <label class="settings-label">Embedding 维度</label>
-              <UInput v-model="form.ai_embedding_dimensions" icon="i-lucide-ruler" placeholder="1536" class="settings-control" />
-              <p class="text-sm text-slate-500">第一版固定使用 1536 维；如果要换维度，需要同步数据库向量列和索引。</p>
+              <UInput v-model="form.ai_embedding_dimensions" icon="i-lucide-ruler" placeholder="1536" disabled class="settings-control" />
+              <p class="text-sm text-slate-500">当前数据库向量列固定为 1536 维；如需更换维度，需要先迁移 pgvector 列和索引。</p>
+            </div>
+          </div>
+        </section>
+
+        <section v-else-if="activeAiTab === 'rerank'" class="ai-settings-card">
+          <div class="ai-settings-card-head">
+            <span class="ai-settings-icon is-rerank"><UIcon name="i-lucide-list-filter" class="size-5" /></span>
+            <div>
+              <h2>Rerank 精排</h2>
+              <p>对混合检索候选结果二次排序，减少进入问答上下文的噪声。</p>
+            </div>
+          </div>
+
+          <div class="ai-settings-fields">
+            <div class="settings-row">
+              <label class="settings-checkbox">
+                <input
+                  type="checkbox"
+                  :checked="form.ai_rerank_enabled === 'true'"
+                  @change="toggleRerank"
+                />
+                <span>启用 Rerank</span>
+              </label>
+              <p class="text-sm text-slate-500">默认关闭；未配置 API Key 或模型时会自动跳过精排。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">Rerank API Key</label>
+              <UInput v-model="form.ai_rerank_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
+              <p class="text-sm text-slate-500">若服务器环境变量已配置 <code>AI_RERANK_API_KEY</code> 或 <code>DASHSCOPE_API_KEY</code>，会优先使用环境变量。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">Rerank Base URL</label>
+              <UInput v-model="form.ai_rerank_base_url" icon="i-lucide-globe-2" placeholder="https://api.cohere.com/v2" class="settings-control" />
+              <p class="text-sm text-slate-500">可填兼容模式 base URL，或 DashScope 原生完整 endpoint，例如 <code>https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank</code>。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">Rerank 模型</label>
+              <UInput v-model="form.ai_rerank_model" icon="i-lucide-cpu" placeholder="rerank-v3.5" class="settings-control" />
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">输出 Top N</label>
+              <UInput v-model="form.ai_rerank_top_n" icon="i-lucide-list-ordered" placeholder="8" class="settings-control" />
+              <p class="text-sm text-slate-500">建议 5-10；数值越大，问答上下文覆盖更广但延迟更高。</p>
             </div>
           </div>
         </section>
@@ -206,6 +253,13 @@
             <span><strong>{{ aiIndexStatus?.chunks ?? 0 }}</strong>Chunk</span>
             <span><strong>{{ aiIndexStatus?.staleChunks ?? 0 }}</strong>失效 Chunk</span>
             <span><strong>{{ formatIndexDate(aiIndexStatus?.lastIndexedAt) }}</strong>最后索引</span>
+          </div>
+
+          <div v-if="aiIndexStatus?.models.length" class="ai-index-models">
+            <div v-for="item in aiIndexStatus.models" :key="`${item.model}-${item.dimensions}`" class="ai-index-model">
+              <span>{{ item.model }}</span>
+              <strong>{{ item.dimensions }} 维 · {{ item.chunks }} chunks</strong>
+            </div>
           </div>
         </section>
       </div>
@@ -294,6 +348,11 @@ type SettingsForm = {
   ai_embedding_base_url: string
   ai_embedding_model: string
   ai_embedding_dimensions: string
+  ai_rerank_enabled: string
+  ai_rerank_api_key: string
+  ai_rerank_base_url: string
+  ai_rerank_model: string
+  ai_rerank_top_n: string
 }
 
 type AiIndexStatus = {
@@ -334,7 +393,12 @@ const defaultValue = (key: string) => {
     ai_embedding_api_key: '',
     ai_embedding_base_url: 'https://api.openai.com/v1',
     ai_embedding_model: 'text-embedding-3-small',
-    ai_embedding_dimensions: '1536'
+    ai_embedding_dimensions: '1536',
+    ai_rerank_enabled: 'false',
+    ai_rerank_api_key: '',
+    ai_rerank_base_url: 'https://api.cohere.com/v2',
+    ai_rerank_model: 'rerank-v3.5',
+    ai_rerank_top_n: '8'
   }
   return map[key] || ''
 }
@@ -350,6 +414,7 @@ const settingTabs = [
 const aiSettingTabs = [
   { label: '对话模型', value: 'chat', icon: 'i-lucide-message-square-text' },
   { label: 'Embedding', value: 'embedding', icon: 'i-lucide-brain-circuit' },
+  { label: 'Rerank', value: 'rerank', icon: 'i-lucide-list-filter' },
   { label: '索引管理', value: 'index', icon: 'i-lucide-database-zap' }
 ] as const
 
@@ -413,7 +478,12 @@ watch(data, (val) => {
       ai_embedding_api_key: val.data.ai_embedding_api_key || defaultValue('ai_embedding_api_key'),
       ai_embedding_base_url: val.data.ai_embedding_base_url || defaultValue('ai_embedding_base_url'),
       ai_embedding_model: val.data.ai_embedding_model || defaultValue('ai_embedding_model'),
-      ai_embedding_dimensions: val.data.ai_embedding_dimensions || defaultValue('ai_embedding_dimensions')
+      ai_embedding_dimensions: val.data.ai_embedding_dimensions || defaultValue('ai_embedding_dimensions'),
+      ai_rerank_enabled: val.data.ai_rerank_enabled || defaultValue('ai_rerank_enabled'),
+      ai_rerank_api_key: val.data.ai_rerank_api_key || defaultValue('ai_rerank_api_key'),
+      ai_rerank_base_url: val.data.ai_rerank_base_url || defaultValue('ai_rerank_base_url'),
+      ai_rerank_model: val.data.ai_rerank_model || defaultValue('ai_rerank_model'),
+      ai_rerank_top_n: val.data.ai_rerank_top_n || defaultValue('ai_rerank_top_n')
     }
     footerActionItems.value = parseFooterActionItems(form.value.footer_actions)
   }
@@ -455,6 +525,12 @@ function toggleNoindex(event: Event) {
   if (!form.value) return
   const input = event.target as HTMLInputElement
   form.value.seo_noindex = input.checked ? 'true' : 'false'
+}
+
+function toggleRerank(event: Event) {
+  if (!form.value) return
+  const input = event.target as HTMLInputElement
+  form.value.ai_rerank_enabled = input.checked ? 'true' : 'false'
 }
 
 function parseFooterActionItems(value: string): FooterActionItem[] {
@@ -691,6 +767,11 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   color: #ea580c;
 }
 
+.ai-settings-icon.is-rerank {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
 .ai-settings-fields {
   display: grid;
 }
@@ -783,6 +864,41 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   font-weight: 950;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ai-index-models {
+  display: grid;
+  gap: 0.5rem;
+  border-top: 1px solid #eef2f7;
+  padding: 0 1rem 1rem;
+}
+
+.ai-index-model {
+  display: flex;
+  width: min(100%, 760px);
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+  background: #fff;
+  color: #475569;
+  font-size: 0.82rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.ai-index-model span {
+  overflow: hidden;
+  color: #0f172a;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-index-model strong {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-weight: 800;
 }
 
 .footer-action-editor {

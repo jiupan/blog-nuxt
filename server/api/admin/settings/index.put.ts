@@ -21,7 +21,12 @@ const allowedSettingKeys = [
   'ai_embedding_api_key',
   'ai_embedding_base_url',
   'ai_embedding_model',
-  'ai_embedding_dimensions'
+  'ai_embedding_dimensions',
+  'ai_rerank_enabled',
+  'ai_rerank_api_key',
+  'ai_rerank_base_url',
+  'ai_rerank_model',
+  'ai_rerank_top_n'
 ] as const
 
 const bodySchema = z.object({
@@ -42,7 +47,12 @@ const bodySchema = z.object({
   ai_embedding_api_key: z.string().optional(),
   ai_embedding_base_url: z.string().url().or(z.literal('')).optional(),
   ai_embedding_model: z.string().optional(),
-  ai_embedding_dimensions: z.string().optional()
+  ai_embedding_dimensions: z.string().optional(),
+  ai_rerank_enabled: z.enum(['true', 'false']).optional(),
+  ai_rerank_api_key: z.string().optional(),
+  ai_rerank_base_url: z.string().url().or(z.literal('')).optional(),
+  ai_rerank_model: z.string().optional(),
+  ai_rerank_top_n: z.string().optional()
 }).strict()
 
 export default defineEventHandler(async (event) => {

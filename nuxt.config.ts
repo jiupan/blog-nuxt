@@ -37,10 +37,15 @@ export default defineNuxtConfig({
     aiApiKey: process.env.AI_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || '',
     aiBaseUrl: process.env.AI_BASE_URL || 'https://api.deepseek.com',
     aiModel: process.env.AI_MODEL || 'deepseek-v4-flash',
-    aiEmbeddingApiKey: process.env.AI_EMBEDDING_API_KEY || process.env.OPENAI_API_KEY || '',
+    aiEmbeddingApiKey: process.env.AI_EMBEDDING_API_KEY || process.env.DASHSCOPE_API_KEY || process.env.OPENAI_API_KEY || '',
     aiEmbeddingBaseUrl: process.env.AI_EMBEDDING_BASE_URL || 'https://api.openai.com/v1',
     aiEmbeddingModel: process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small',
     aiEmbeddingDimensions: process.env.AI_EMBEDDING_DIMENSIONS || '1536',
+    aiRerankEnabled: process.env.AI_RERANK_ENABLED || 'false',
+    aiRerankApiKey: process.env.AI_RERANK_API_KEY || process.env.DASHSCOPE_API_KEY || '',
+    aiRerankBaseUrl: process.env.AI_RERANK_BASE_URL || 'https://api.cohere.com/v2',
+    aiRerankModel: process.env.AI_RERANK_MODEL || 'rerank-v3.5',
+    aiRerankTopN: process.env.AI_RERANK_TOP_N || '8',
     public: {
       siteUrl: process.env.SITE_URL || 'http://localhost:3000',
       siteName: process.env.SITE_NAME || 'Jiupan Blog'
