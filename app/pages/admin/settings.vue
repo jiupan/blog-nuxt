@@ -110,64 +110,104 @@
         </div>
       </div>
 
-      <div v-else-if="activeTab === 'ai'" class="settings-form">
-        <div class="settings-row">
-          <label class="settings-label">AI API Key</label>
-          <UInput v-model="form.ai_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
-          <p class="text-sm text-slate-500">用于服务端调用 AI 接口。若服务器环境变量已配置 <code>AI_API_KEY</code> 或 <code>DEEPSEEK_API_KEY</code>，会优先使用环境变量。</p>
-        </div>
+      <div v-else-if="activeTab === 'ai'" class="ai-settings-grid">
+        <nav class="ai-settings-switcher" aria-label="AI 设置分类">
+          <button
+            v-for="tab in aiSettingTabs"
+            :key="tab.value"
+            type="button"
+            class="ai-settings-switch"
+            :class="{ 'is-active': activeAiTab === tab.value }"
+            @click="activeAiTab = tab.value"
+          >
+            <UIcon :name="tab.icon" class="size-4" />
+            <span>{{ tab.label }}</span>
+          </button>
+        </nav>
 
-        <div class="settings-row">
-          <label class="settings-label">AI Base URL</label>
-          <UInput v-model="form.ai_base_url" icon="i-lucide-globe-2" placeholder="https://api.deepseek.com" class="settings-control" />
-          <p class="text-sm text-slate-500">DeepSeek OpenAI 兼容接口地址，默认 <code>https://api.deepseek.com</code>。</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">AI 模型</label>
-          <UInput v-model="form.ai_model" icon="i-lucide-cpu" placeholder="deepseek-v4-flash" class="settings-control" />
-          <p class="text-sm text-slate-500">文章总结器当前默认使用 <code>deepseek-v4-flash</code>。</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">Embedding API Key</label>
-          <UInput v-model="form.ai_embedding_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
-          <p class="text-sm text-slate-500">用于生成向量索引。若服务器环境变量已配置 <code>AI_EMBEDDING_API_KEY</code> 或 <code>OPENAI_API_KEY</code>，会优先使用环境变量。</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">Embedding Base URL</label>
-          <UInput v-model="form.ai_embedding_base_url" icon="i-lucide-globe-2" placeholder="https://api.openai.com/v1" class="settings-control" />
-          <p class="text-sm text-slate-500">OpenAI 兼容 embedding 接口地址，默认 <code>https://api.openai.com/v1</code>。</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">Embedding 模型</label>
-          <UInput v-model="form.ai_embedding_model" icon="i-lucide-cpu" placeholder="text-embedding-3-small" class="settings-control" />
-          <p class="text-sm text-slate-500">当前 pgvector 表固定为 1536 维，默认使用 <code>text-embedding-3-small</code>。</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">Embedding 维度</label>
-          <UInput v-model="form.ai_embedding_dimensions" icon="i-lucide-ruler" placeholder="1536" class="settings-control" />
-          <p class="text-sm text-slate-500">第一版固定使用 1536 维；如果要换维度，需要同步数据库向量列和索引。</p>
-        </div>
-
-        <div class="settings-row">
-          <div class="settings-row-head">
+        <section v-if="activeAiTab === 'chat'" class="ai-settings-card">
+          <div class="ai-settings-card-head">
+            <span class="ai-settings-icon is-chat"><UIcon name="i-lucide-message-square-text" class="size-5" /></span>
             <div>
-              <label class="settings-label">AI 索引管理</label>
-              <p class="text-sm text-slate-500">重建已发布文章的语义检索索引，供语义搜索和问问博客使用。</p>
+              <h2>对话模型</h2>
+              <p>用于摘要、SEO、写作助手、关联推荐等生成类能力。</p>
             </div>
-            <UButton size="sm" icon="i-lucide-refresh-cw" :loading="rebuildingIndex" @click="rebuildAiIndex">重建索引</UButton>
           </div>
+
+          <div class="ai-settings-fields">
+            <div class="settings-row">
+              <label class="settings-label">AI API Key</label>
+              <UInput v-model="form.ai_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
+              <p class="text-sm text-slate-500">若服务器环境变量已配置 <code>AI_API_KEY</code> 或 <code>DEEPSEEK_API_KEY</code>，会优先使用环境变量。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">AI Base URL</label>
+              <UInput v-model="form.ai_base_url" icon="i-lucide-globe-2" placeholder="https://api.deepseek.com" class="settings-control" />
+              <p class="text-sm text-slate-500">DeepSeek OpenAI 兼容接口地址，默认 <code>https://api.deepseek.com</code>。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">AI 模型</label>
+              <UInput v-model="form.ai_model" icon="i-lucide-cpu" placeholder="deepseek-v4-flash" class="settings-control" />
+              <p class="text-sm text-slate-500">当前默认使用 <code>deepseek-v4-flash</code>。</p>
+            </div>
+          </div>
+        </section>
+
+        <section v-else-if="activeAiTab === 'embedding'" class="ai-settings-card">
+          <div class="ai-settings-card-head">
+            <span class="ai-settings-icon is-vector"><UIcon name="i-lucide-brain-circuit" class="size-5" /></span>
+            <div>
+              <h2>Embedding 向量模型</h2>
+              <p>用于文章分块向量化，支撑语义搜索和后续问问博客。</p>
+            </div>
+          </div>
+
+          <div class="ai-settings-fields">
+            <div class="settings-row">
+              <label class="settings-label">Embedding API Key</label>
+              <UInput v-model="form.ai_embedding_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
+              <p class="text-sm text-slate-500">若服务器环境变量已配置 <code>AI_EMBEDDING_API_KEY</code> 或 <code>OPENAI_API_KEY</code>，会优先使用环境变量。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">Embedding Base URL</label>
+              <UInput v-model="form.ai_embedding_base_url" icon="i-lucide-globe-2" placeholder="https://api.openai.com/v1" class="settings-control" />
+              <p class="text-sm text-slate-500">OpenAI 兼容 embedding 接口地址，默认 <code>https://api.openai.com/v1</code>。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">Embedding 模型</label>
+              <UInput v-model="form.ai_embedding_model" icon="i-lucide-cpu" placeholder="text-embedding-3-small" class="settings-control" />
+              <p class="text-sm text-slate-500">当前 pgvector 表固定为 1536 维，默认使用 <code>text-embedding-3-small</code>。</p>
+            </div>
+
+            <div class="settings-row">
+              <label class="settings-label">Embedding 维度</label>
+              <UInput v-model="form.ai_embedding_dimensions" icon="i-lucide-ruler" placeholder="1536" class="settings-control" />
+              <p class="text-sm text-slate-500">第一版固定使用 1536 维；如果要换维度，需要同步数据库向量列和索引。</p>
+            </div>
+          </div>
+        </section>
+
+        <section v-else class="ai-settings-card">
+          <div class="ai-settings-card-head">
+            <span class="ai-settings-icon is-index"><UIcon name="i-lucide-database-zap" class="size-5" /></span>
+            <div>
+              <h2>向量索引管理</h2>
+              <p>重建已发布文章的语义检索索引，索引完成后 Lab 的语义搜索才会有结果。</p>
+            </div>
+            <UButton class="ai-index-action" size="sm" icon="i-lucide-refresh-cw" :loading="rebuildingIndex" @click="rebuildAiIndex">重建索引</UButton>
+          </div>
+
           <div class="ai-index-status">
-            <span>已索引文章：{{ aiIndexStatus?.indexedPosts ?? 0 }}</span>
-            <span>Chunk：{{ aiIndexStatus?.chunks ?? 0 }}</span>
-            <span>失效 Chunk：{{ aiIndexStatus?.staleChunks ?? 0 }}</span>
-            <span>最后索引：{{ formatIndexDate(aiIndexStatus?.lastIndexedAt) }}</span>
+            <span><strong>{{ aiIndexStatus?.indexedPosts ?? 0 }}</strong>已索引文章</span>
+            <span><strong>{{ aiIndexStatus?.chunks ?? 0 }}</strong>Chunk</span>
+            <span><strong>{{ aiIndexStatus?.staleChunks ?? 0 }}</strong>失效 Chunk</span>
+            <span><strong>{{ formatIndexDate(aiIndexStatus?.lastIndexedAt) }}</strong>最后索引</span>
           </div>
-        </div>
+        </section>
       </div>
 
       <div v-else class="settings-form">
@@ -307,6 +347,12 @@ const settingTabs = [
   { label: 'AI 设置', value: 'ai' }
 ] as const
 
+const aiSettingTabs = [
+  { label: '对话模型', value: 'chat', icon: 'i-lucide-message-square-text' },
+  { label: 'Embedding', value: 'embedding', icon: 'i-lucide-brain-circuit' },
+  { label: '索引管理', value: 'index', icon: 'i-lucide-database-zap' }
+] as const
+
 const defaultFooterActions = '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
 
 const footerActionIconOptions = [
@@ -329,6 +375,7 @@ const footerActionIconOptions = [
 ]
 
 const activeTab = ref<(typeof settingTabs)[number]['value']>('basic')
+const activeAiTab = ref<(typeof aiSettingTabs)[number]['value']>('chat')
 const form = ref<SettingsForm | null>(null)
 const footerActionItems = ref<FooterActionItem[]>([])
 const saving = ref(false)
@@ -542,6 +589,120 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   display: grid;
 }
 
+.ai-settings-grid {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.ai-settings-switcher {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.3rem;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.8rem;
+  background: #f8fafc;
+  padding: 0.3rem;
+  scrollbar-width: thin;
+}
+
+.ai-settings-switch {
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  padding: 0 0.75rem;
+  white-space: nowrap;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ai-settings-switch:hover {
+  background: white;
+  color: #334155;
+}
+
+.ai-settings-switch.is-active {
+  background: white;
+  color: #4f46e5;
+  box-shadow: 0 8px 18px rgb(15 23 42 / 8%);
+}
+
+.ai-settings-card {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #ffffff;
+}
+
+.ai-settings-card-head {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  border-bottom: 1px solid #eef2f7;
+  background: #f8fafc;
+  padding: 1rem;
+}
+
+.ai-settings-card-head h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ai-settings-card-head p {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.ai-settings-icon {
+  display: grid;
+  width: 2.4rem;
+  height: 2.4rem;
+  place-items: center;
+  border-radius: 0.75rem;
+}
+
+.ai-settings-icon.is-chat {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.ai-settings-icon.is-vector {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.ai-settings-icon.is-index {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.ai-settings-fields {
+  display: grid;
+}
+
+.ai-settings-fields .settings-row:last-child {
+  border-bottom: 0;
+}
+
+.ai-index-action {
+  align-self: center;
+}
+
 .settings-row {
   display: grid;
   gap: 0.45rem;
@@ -594,20 +755,34 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 }
 
 .ai-index-status {
-  display: flex;
-  width: min(100%, 760px);
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 1rem;
 }
 
 .ai-index-status span {
-  border: 1px solid #e2e8f0;
-  border-radius: 999px;
+  display: grid;
+  gap: 0.2rem;
+  min-height: 4.2rem;
+  align-content: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
   background: #f8fafc;
   color: #475569;
   font-size: 0.78rem;
   font-weight: 750;
-  padding: 0.35rem 0.6rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.ai-index-status strong {
+  display: block;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .footer-action-editor {
@@ -690,6 +865,23 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 
   .footer-action-item-main > :deep(.u-input):nth-of-type(2) {
     grid-column: 1 / -1;
+  }
+
+  .ai-settings-card-head {
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+  }
+
+  .ai-settings-switcher {
+    width: 100%;
+  }
+
+  .ai-index-action {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .ai-index-status {
+    grid-template-columns: 1fr;
   }
 }
 </style>

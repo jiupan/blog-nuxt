@@ -131,7 +131,50 @@
             <div class="modal-body">
               <p>{{ selectedFeature.description }}</p>
 
-              <div v-if="selectedFeature.id === 'article-summary'" class="summary-tool">
+              <div v-if="selectedFeature.id === 'ask-blog'" class="summary-tool">
+                <div class="summary-field">
+                  <span>提问内容</span>
+                  <textarea
+                    v-model="askQuestion"
+                    class="semantic-input ask-input"
+                    rows="4"
+                    maxlength="300"
+                    placeholder="例如：这个博客里提到过哪些 Nuxt SEO 优化方法？"
+                    :disabled="askLoading"
+                    @keydown.ctrl.enter.prevent="askBlogQuestion"
+                    @keydown.meta.enter.prevent="askBlogQuestion"
+                  />
+                  <small class="field-hint">{{ askQuestionLength }}/300，至少 5 个字</small>
+                </div>
+
+                <div v-if="askError" class="summary-alert">
+                  {{ askError }}
+                </div>
+
+                <div v-if="askResult" class="ask-result">
+                  <section class="ask-answer">
+                    <h3>回答</h3>
+                    <p>{{ askResult.answer }}</p>
+                  </section>
+
+                  <section v-if="askResult.citations.length" class="ask-citations">
+                    <h3>参考来源</h3>
+                    <NuxtLink v-for="item in askResult.citations" :key="`${item.postId}-${item.headingPath || item.title}`" :to="postPath(item.slug)">
+                      <span>{{ item.headingPath || '文章片段' }}</span>
+                      <strong>{{ item.title }}</strong>
+                      <p>{{ item.excerpt }}</p>
+                    </NuxtLink>
+                  </section>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="askLoading" class="summary-spinner" aria-hidden="true" />
+                  <MessageSquareTextIcon v-else aria-hidden="true" />
+                  <span>{{ askLoading ? '正在检索站内内容并生成回答...' : '输入问题后，AI 会基于已发布文章回答并附来源。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'article-summary'" class="summary-tool">
                 <div class="summary-field">
                   <span>选择文章</span>
                   <div ref="summarySelectRef" class="summary-select" :class="{ 'is-open': summarySelectOpen }">
@@ -433,6 +476,312 @@
                 </div>
               </div>
 
+              <div v-else-if="selectedFeature.id === 'site-insights'" class="summary-tool">
+                <div v-if="siteInsightsError" class="summary-alert">
+                  {{ siteInsightsError }}
+                </div>
+
+                <div v-if="siteInsightsResult" class="site-insights-result">
+                  <section class="site-metric-grid">
+                    <article>
+                      <span>已发布</span>
+                      <strong>{{ siteInsightsResult.summary.publishedPosts }}</strong>
+                    </article>
+                    <article>
+                      <span>草稿</span>
+                      <strong>{{ siteInsightsResult.summary.draftPosts }}</strong>
+                    </article>
+                    <article>
+                      <span>总浏览</span>
+                      <strong>{{ siteInsightsResult.summary.totalViews }}</strong>
+                    </article>
+                    <article>
+                      <span>近 30 天</span>
+                      <strong>{{ siteInsightsResult.summary.recent30Published }}</strong>
+                    </article>
+                  </section>
+
+                  <section class="site-panel">
+                    <h3>发布趋势</h3>
+                    <div class="trend-bars">
+                      <div v-for="item in siteInsightsResult.publishingTrend" :key="item.label">
+                        <span>{{ item.label }}</span>
+                        <i :style="{ height: `${trendBarHeight(item.count)}%` }"></i>
+                        <strong>{{ item.count }}</strong>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section v-if="siteInsightsResult.categories.length" class="site-panel">
+                    <h3>分类分布</h3>
+                    <div class="category-bars">
+                      <div v-for="item in siteInsightsResult.categories.slice(0, 6)" :key="item.id">
+                        <span>{{ item.name }}</span>
+                        <b><i :style="{ width: `${item.percentage}%` }"></i></b>
+                        <strong>{{ item.count }}</strong>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section v-if="siteInsightsResult.tags.length" class="site-panel">
+                    <h3>高频标签</h3>
+                    <div class="insight-tags">
+                      <span v-for="item in siteInsightsResult.tags" :key="item.id">{{ item.name }} · {{ item.count }}</span>
+                    </div>
+                  </section>
+
+                  <section class="site-panel site-post-columns">
+                    <div>
+                      <h3>热门文章</h3>
+                      <NuxtLink v-for="item in siteInsightsResult.popularPosts" :key="item.id" :to="postPath(item.slug)">
+                        <span>{{ item.viewCount }} views</span>
+                        <strong>{{ item.title }}</strong>
+                      </NuxtLink>
+                      <p v-if="!siteInsightsResult.popularPosts.length" class="inline-empty">暂无已发布文章。</p>
+                    </div>
+                    <div>
+                      <h3>低浏览文章</h3>
+                      <NuxtLink v-for="item in siteInsightsResult.lowViewPosts" :key="item.id" :to="postPath(item.slug)">
+                        <span>{{ item.viewCount }} views</span>
+                        <strong>{{ item.title }}</strong>
+                      </NuxtLink>
+                      <p v-if="!siteInsightsResult.lowViewPosts.length" class="inline-empty">暂无可分析文章。</p>
+                    </div>
+                  </section>
+
+                  <section class="site-panel">
+                    <h3>内容洞察</h3>
+                    <ul>
+                      <li v-for="item in siteInsightsResult.insights" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+
+                  <section class="site-panel">
+                    <h3>选题建议</h3>
+                    <ul>
+                      <li v-for="item in siteInsightsResult.topicSuggestions" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="siteInsightsLoading" class="summary-spinner" aria-hidden="true" />
+                  <ActivityIcon v-else aria-hidden="true" />
+                  <span>{{ siteInsightsLoading ? '正在分析站点内容...' : '分析文章结构、发布节奏、分类标签和后续选题。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'dead-link-checker'" class="summary-tool">
+                <div class="summary-field">
+                  <span>选择文章</span>
+                  <div ref="summarySelectRef" class="summary-select" :class="{ 'is-open': summarySelectOpen }">
+                    <button
+                      type="button"
+                      class="summary-select-button"
+                      :disabled="linkCheckLoading"
+                      :aria-expanded="summarySelectOpen"
+                      @click="summarySelectOpen = !summarySelectOpen"
+                    >
+                      <span>{{ selectedSummaryPost?.title || '请选择一篇文章' }}</span>
+                      <ChevronRightIcon aria-hidden="true" />
+                    </button>
+
+                    <div v-if="summarySelectOpen" class="summary-select-menu">
+                      <button
+                        v-for="post in summaryPosts"
+                        :key="post.id"
+                        type="button"
+                        class="summary-select-option"
+                        :class="{ 'is-active': summaryPostId === String(post.id) }"
+                        @click="selectSummaryPost(post)"
+                      >
+                        {{ post.title }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="linkCheckError" class="summary-alert">
+                  {{ linkCheckError }}
+                </div>
+
+                <div v-if="linkCheckResult" class="link-check-result">
+                  <section class="link-check-summary">
+                    <article>
+                      <span>总链接</span>
+                      <strong>{{ linkCheckResult.summary.total }}</strong>
+                    </article>
+                    <article>
+                      <span>正常</span>
+                      <strong>{{ linkCheckResult.summary.ok }}</strong>
+                    </article>
+                    <article>
+                      <span>异常</span>
+                      <strong>{{ linkCheckResult.summary.broken + linkCheckResult.summary.timeout + linkCheckResult.summary.unknown }}</strong>
+                    </article>
+                    <article>
+                      <span>跳转</span>
+                      <strong>{{ linkCheckResult.summary.redirect }}</strong>
+                    </article>
+                  </section>
+
+                  <section v-if="linkCheckResult.items.length" class="link-check-list">
+                    <article v-for="item in linkCheckResult.items" :key="`${item.url}-${item.line}`">
+                      <div>
+                        <span :class="`status-${item.status.toLowerCase()}`">{{ linkStatusLabel(item.status) }}</span>
+                        <small>第 {{ item.line }} 行</small>
+                      </div>
+                      <strong>{{ item.text || item.url }}</strong>
+                      <a :href="item.url" target="_blank" rel="noopener noreferrer">{{ item.url }}</a>
+                      <p v-if="item.finalUrl">跳转到：{{ item.finalUrl }}</p>
+                      <p v-else-if="item.error">{{ item.error }}</p>
+                    </article>
+                  </section>
+
+                  <div v-else class="summary-empty">
+                    <Link2OffIcon aria-hidden="true" />
+                    <span>这篇文章没有检测到外部链接。</span>
+                  </div>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="linkCheckLoading" class="summary-spinner" aria-hidden="true" />
+                  <Link2OffIcon v-else aria-hidden="true" />
+                  <span>{{ linkCheckLoading ? '正在检查外部链接...' : '选择文章后扫描外链状态、跳转和超时。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'draft-organizer'" class="summary-tool">
+                <div v-if="draftOrganizerError" class="summary-alert">
+                  {{ draftOrganizerError }}
+                </div>
+
+                <div v-if="draftOrganizerResult" class="draft-result">
+                  <section class="draft-summary">
+                    <article>
+                      <span>草稿</span>
+                      <strong>{{ draftOrganizerResult.summary.total }}</strong>
+                    </article>
+                    <article>
+                      <span>快完成</span>
+                      <strong>{{ draftOrganizerResult.summary.ready }}</strong>
+                    </article>
+                    <article>
+                      <span>补信息</span>
+                      <strong>{{ draftOrganizerResult.summary.needsMetadata }}</strong>
+                    </article>
+                    <article>
+                      <span>补结构</span>
+                      <strong>{{ draftOrganizerResult.summary.needsStructure + draftOrganizerResult.summary.earlyIdea }}</strong>
+                    </article>
+                  </section>
+
+                  <section v-if="draftOrganizerResult.items.length" class="draft-list">
+                    <article v-for="item in draftOrganizerResult.items" :key="item.id">
+                      <div class="draft-item-head">
+                        <span :class="`priority-${item.priority.toLowerCase().replaceAll('_', '-')}`">{{ draftPriorityLabel(item.priority) }}</span>
+                        <strong>{{ item.completionScore }}</strong>
+                      </div>
+                      <h3>{{ item.title }}</h3>
+                      <p>{{ item.wordCount }} 字 · {{ item.category || '未分类' }} · {{ item.tags.length ? item.tags.join(' / ') : '无标签' }}</p>
+                      <ul v-if="item.missing.length">
+                        <li v-for="missing in item.missing" :key="missing">{{ missing }}</li>
+                      </ul>
+                      <div v-if="item.suggestions.length" class="draft-suggestions">
+                        <span v-for="suggestion in item.suggestions" :key="suggestion">{{ suggestion }}</span>
+                      </div>
+                      <NuxtLink :to="`/admin/posts/${item.id}`" class="recommend-admin-link">
+                        继续编辑
+                        <ChevronRightIcon aria-hidden="true" />
+                      </NuxtLink>
+                    </article>
+                  </section>
+
+                  <div v-else class="summary-empty">
+                    <ArchiveIcon aria-hidden="true" />
+                    <span>当前没有草稿。</span>
+                  </div>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="draftOrganizerLoading" class="summary-spinner" aria-hidden="true" />
+                  <ArchiveIcon v-else aria-hidden="true" />
+                  <span>{{ draftOrganizerLoading ? '正在整理草稿...' : '扫描后台草稿，判断完成度和下一步处理顺序。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'monthly-review'" class="summary-tool">
+                <div class="summary-field">
+                  <span>选择月份</span>
+                  <input
+                    v-model="monthlyReviewMonth"
+                    class="semantic-input month-input"
+                    type="month"
+                    :disabled="monthlyReviewLoading"
+                  />
+                </div>
+
+                <div v-if="monthlyReviewError" class="summary-alert">
+                  {{ monthlyReviewError }}
+                </div>
+
+                <div v-if="monthlyReviewResult" class="monthly-result">
+                  <section class="monthly-summary">
+                    <article>
+                      <span>文章</span>
+                      <strong>{{ monthlyReviewResult.summary.postCount }}</strong>
+                    </article>
+                    <article>
+                      <span>浏览</span>
+                      <strong>{{ monthlyReviewResult.summary.totalViews }}</strong>
+                    </article>
+                    <article>
+                      <span>主分类</span>
+                      <strong>{{ monthlyReviewResult.summary.topCategory || '-' }}</strong>
+                    </article>
+                  </section>
+
+                  <section v-if="monthlyReviewResult.summary.topTags.length" class="site-panel">
+                    <h3>本月标签</h3>
+                    <div class="insight-tags">
+                      <span v-for="tag in monthlyReviewResult.summary.topTags" :key="tag">{{ tag }}</span>
+                    </div>
+                  </section>
+
+                  <section class="site-panel">
+                    <h3>本月亮点</h3>
+                    <ul>
+                      <li v-for="item in monthlyReviewResult.highlights" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+
+                  <section v-if="monthlyReviewResult.posts.length" class="monthly-posts">
+                    <NuxtLink v-for="item in monthlyReviewResult.posts" :key="item.id" :to="postPath(item.slug)">
+                      <span>{{ formatMonthDate(item.publishedAt) }} · {{ item.viewCount }} views</span>
+                      <strong>{{ item.title }}</strong>
+                      <p>{{ item.summary || item.category || '未填写摘要' }}</p>
+                    </NuxtLink>
+                  </section>
+
+                  <section class="site-panel monthly-markdown">
+                    <div>
+                      <h3>月报 Markdown</h3>
+                      <button type="button" @click="copyMonthlyMarkdown">
+                        {{ monthlyCopied ? '已复制' : '复制' }}
+                      </button>
+                    </div>
+                    <p v-if="monthlyCopyError" class="inline-error">{{ monthlyCopyError }}</p>
+                    <pre>{{ monthlyReviewResult.markdown }}</pre>
+                  </section>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="monthlyReviewLoading" class="summary-spinner" aria-hidden="true" />
+                  <CalendarDaysIcon v-else aria-hidden="true" />
+                  <span>{{ monthlyReviewLoading ? '正在生成月度回顾...' : '选择月份后生成文章月报和 Markdown 草稿。' }}</span>
+                </div>
+              </div>
+
               <div v-else class="lab-console">
                 <div v-if="modalLoading" class="console-loading">
                   <Loader2Icon aria-hidden="true" />
@@ -549,6 +898,135 @@ type SemanticSearchResult = {
   excerpt: string
   headingPath?: string | null
   score: number
+}
+
+type AskResult = {
+  answer: string
+  citations: Array<{
+    postId: number
+    title: string
+    slug: string
+    headingPath?: string | null
+    excerpt: string
+  }>
+  relatedPosts: Array<{
+    id: number
+    title: string
+    slug: string
+    summary?: string | null
+  }>
+}
+
+type LinkCheckStatus = 'OK' | 'REDIRECT' | 'BROKEN' | 'TIMEOUT' | 'BLOCKED' | 'UNKNOWN'
+
+type LinkCheckResult = {
+  summary: {
+    total: number
+    ok: number
+    redirect: number
+    broken: number
+    timeout: number
+    blocked: number
+    unknown: number
+  }
+  items: Array<{
+    url: string
+    text?: string
+    line: number
+    status: LinkCheckStatus
+    statusCode?: number
+    finalUrl?: string
+    error?: string
+    checkedAt: string
+  }>
+}
+
+type DraftPriority = 'READY_TO_POLISH' | 'NEEDS_METADATA' | 'NEEDS_STRUCTURE' | 'EARLY_IDEA'
+
+type DraftOrganizerResult = {
+  summary: {
+    total: number
+    ready: number
+    needsMetadata: number
+    needsStructure: number
+    earlyIdea: number
+  }
+  items: Array<{
+    id: number
+    title: string
+    slug: string
+    updatedAt: string
+    createdAt: string
+    wordCount: number
+    completionScore: number
+    priority: DraftPriority
+    missing: string[]
+    suggestions: string[]
+    category?: string | null
+    tags: string[]
+  }>
+}
+
+type SiteInsightsResult = {
+  summary: {
+    totalPosts: number
+    publishedPosts: number
+    draftPosts: number
+    archivedPosts: number
+    totalViews: number
+    recent30Published: number
+  }
+  categories: Array<{
+    id: number
+    name: string
+    count: number
+    percentage: number
+  }>
+  tags: Array<{
+    id: number
+    name: string
+    count: number
+  }>
+  popularPosts: Array<{
+    id: number
+    title: string
+    slug: string
+    viewCount: number
+  }>
+  lowViewPosts: Array<{
+    id: number
+    title: string
+    slug: string
+    viewCount: number
+  }>
+  publishingTrend: Array<{
+    label: string
+    count: number
+  }>
+  insights: string[]
+  topicSuggestions: string[]
+}
+
+type MonthlyReviewResult = {
+  month: string
+  summary: {
+    postCount: number
+    totalViews: number
+    topCategory?: string | null
+    topTags: string[]
+  }
+  posts: Array<{
+    id: number
+    title: string
+    slug: string
+    summary?: string | null
+    viewCount: number
+    publishedAt: string
+    category?: string | null
+    tags: string[]
+  }>
+  highlights: string[]
+  markdown: string
 }
 
 type SeoCheckIssue = {
@@ -692,6 +1170,25 @@ const writingResult = ref<WritingAssistantResult | null>(null)
 const seoCheckLoading = ref(false)
 const seoCheckError = ref('')
 const seoCheckResult = ref<SeoCheckResult | null>(null)
+const askQuestion = ref('')
+const askLoading = ref(false)
+const askError = ref('')
+const askResult = ref<AskResult | null>(null)
+const linkCheckLoading = ref(false)
+const linkCheckError = ref('')
+const linkCheckResult = ref<LinkCheckResult | null>(null)
+const draftOrganizerLoading = ref(false)
+const draftOrganizerError = ref('')
+const draftOrganizerResult = ref<DraftOrganizerResult | null>(null)
+const siteInsightsLoading = ref(false)
+const siteInsightsError = ref('')
+const siteInsightsResult = ref<SiteInsightsResult | null>(null)
+const monthlyReviewMonth = ref(currentMonthValue())
+const monthlyReviewLoading = ref(false)
+const monthlyReviewError = ref('')
+const monthlyReviewResult = ref<MonthlyReviewResult | null>(null)
+const monthlyCopied = ref(false)
+const monthlyCopyError = ref('')
 const semanticQuery = ref('')
 const semanticLoading = ref(false)
 const semanticError = ref('')
@@ -709,15 +1206,30 @@ const selectedSummaryPost = computed(() => {
   return summaryPosts.value.find((post) => String(post.id) === summaryPostId.value)
 })
 const seoCheckProblems = computed(() => seoCheckResult.value?.issues.filter((issue) => issue.type !== 'success') || [])
+const askQuestionLength = computed(() => askQuestion.value.trim().length)
 const primaryActionLabel = computed(() => {
+  if (selectedFeature.value?.id === 'ask-blog' && askLoading.value) return '正在回答'
+  if (selectedFeature.value?.id === 'ask-blog') return '开始提问'
   if (selectedFeature.value?.id === 'semantic-search') return '开始搜索'
   if (selectedFeature.value?.id === 'article-summary') return '生成摘要'
   if (selectedFeature.value?.id === 'writing-assistant') return '开始分析'
   if (selectedFeature.value?.id === 'article-recommend') return '生成推荐'
   if (selectedFeature.value?.id === 'seo-checker') return '开始检查'
+  if (selectedFeature.value?.id === 'dead-link-checker' && linkCheckLoading.value) return '正在检查'
+  if (selectedFeature.value?.id === 'dead-link-checker') return '检查外链'
+  if (selectedFeature.value?.id === 'draft-organizer' && draftOrganizerLoading.value) return '正在整理'
+  if (selectedFeature.value?.id === 'draft-organizer') return '整理草稿'
+  if (selectedFeature.value?.id === 'site-insights' && siteInsightsLoading.value) return '正在分析'
+  if (selectedFeature.value?.id === 'site-insights') return '生成洞察'
+  if (selectedFeature.value?.id === 'monthly-review' && monthlyReviewLoading.value) return '正在生成'
+  if (selectedFeature.value?.id === 'monthly-review') return '生成月报'
   return '启动功能'
 })
 const isPrimaryActionDisabled = computed(() => {
+  if (selectedFeature.value?.id === 'ask-blog') {
+    return askQuestionLength.value < 5 || askQuestionLength.value > 300 || askLoading.value
+  }
+
   if (selectedFeature.value?.id === 'article-summary') {
     return !summaryPostId.value || summaryLoading.value
   }
@@ -732,6 +1244,22 @@ const isPrimaryActionDisabled = computed(() => {
 
   if (selectedFeature.value?.id === 'seo-checker') {
     return !summaryPostId.value || seoCheckLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'dead-link-checker') {
+    return !summaryPostId.value || linkCheckLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'draft-organizer') {
+    return draftOrganizerLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'site-insights') {
+    return siteInsightsLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'monthly-review') {
+    return !monthlyReviewMonth.value || monthlyReviewLoading.value
   }
 
   if (selectedFeature.value?.id === 'semantic-search') {
@@ -751,10 +1279,22 @@ function openFeature(feature: LabFeature) {
   writingResult.value = null
   seoCheckError.value = ''
   seoCheckResult.value = null
+  askError.value = ''
+  askResult.value = null
+  linkCheckError.value = ''
+  linkCheckResult.value = null
+  draftOrganizerError.value = ''
+  draftOrganizerResult.value = null
+  siteInsightsError.value = ''
+  siteInsightsResult.value = null
+  monthlyReviewError.value = ''
+  monthlyReviewResult.value = null
+  monthlyCopied.value = false
+  monthlyCopyError.value = ''
   semanticError.value = ''
   semanticResults.value = []
 
-  if (feature.id === 'semantic-search' || feature.id === 'article-summary' || feature.id === 'article-recommend' || feature.id === 'writing-assistant' || feature.id === 'seo-checker') {
+  if (feature.id === 'ask-blog' || feature.id === 'semantic-search' || feature.id === 'article-summary' || feature.id === 'article-recommend' || feature.id === 'writing-assistant' || feature.id === 'seo-checker' || feature.id === 'dead-link-checker' || feature.id === 'draft-organizer' || feature.id === 'site-insights' || feature.id === 'monthly-review') {
     modalLoading.value = false
     clearTimeout(modalTimer)
     return
@@ -782,6 +1322,23 @@ function closeFeature() {
   seoCheckLoading.value = false
   seoCheckError.value = ''
   seoCheckResult.value = null
+  askLoading.value = false
+  askError.value = ''
+  askResult.value = null
+  linkCheckLoading.value = false
+  linkCheckError.value = ''
+  linkCheckResult.value = null
+  draftOrganizerLoading.value = false
+  draftOrganizerError.value = ''
+  draftOrganizerResult.value = null
+  siteInsightsLoading.value = false
+  siteInsightsError.value = ''
+  siteInsightsResult.value = null
+  monthlyReviewLoading.value = false
+  monthlyReviewError.value = ''
+  monthlyReviewResult.value = null
+  monthlyCopied.value = false
+  monthlyCopyError.value = ''
   semanticLoading.value = false
   semanticError.value = ''
   semanticResults.value = []
@@ -799,11 +1356,15 @@ function selectSummaryPost(post: SummaryPost) {
   writingError.value = ''
   seoCheckResult.value = null
   seoCheckError.value = ''
+  linkCheckResult.value = null
+  linkCheckError.value = ''
   summarySelectOpen.value = false
 }
 
 function handlePrimaryAction() {
-  if (selectedFeature.value?.id === 'article-summary') {
+  if (selectedFeature.value?.id === 'ask-blog') {
+    askBlogQuestion()
+  } else if (selectedFeature.value?.id === 'article-summary') {
     generateSummary()
   } else if (selectedFeature.value?.id === 'semantic-search') {
     runSemanticSearch()
@@ -813,6 +1374,42 @@ function handlePrimaryAction() {
     generateWritingAnalysis()
   } else if (selectedFeature.value?.id === 'seo-checker') {
     generateSeoCheck()
+  } else if (selectedFeature.value?.id === 'dead-link-checker') {
+    checkExternalLinks()
+  } else if (selectedFeature.value?.id === 'draft-organizer') {
+    organizeDrafts()
+  } else if (selectedFeature.value?.id === 'site-insights') {
+    generateSiteInsights()
+  } else if (selectedFeature.value?.id === 'monthly-review') {
+    generateMonthlyReview()
+  }
+}
+
+async function askBlogQuestion() {
+  const question = askQuestion.value.trim()
+  if (question.length < 5 || question.length > 300 || askLoading.value) {
+    return
+  }
+
+  askLoading.value = true
+  askError.value = ''
+  askResult.value = null
+
+  try {
+    const response = await $fetch<{ data: AskResult }>('/api/ai/ask', {
+      method: 'POST',
+      body: {
+        question
+      }
+    })
+    askResult.value = response.data
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    askError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用问问博客'
+      : error?.data?.statusMessage || error?.statusMessage || '问答生成失败，请检查 AI 配置和索引状态'
+  } finally {
+    askLoading.value = false
   }
 }
 
@@ -995,6 +1592,123 @@ function handleSummaryOutsideClick(event: PointerEvent) {
   summarySelectOpen.value = false
 }
 
+async function checkExternalLinks() {
+  if (!summaryPostId.value || linkCheckLoading.value) {
+    return
+  }
+
+  linkCheckLoading.value = true
+  linkCheckError.value = ''
+  linkCheckResult.value = null
+
+  try {
+    const response = await $fetch<{ data: LinkCheckResult }>('/api/admin/ai/link-checker', {
+      method: 'POST',
+      body: {
+        postId: Number(summaryPostId.value)
+      }
+    })
+    linkCheckResult.value = response.data
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    linkCheckError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用外链检查助手'
+      : error?.data?.statusMessage || error?.statusMessage || '外链检查失败，请稍后重试'
+  } finally {
+    linkCheckLoading.value = false
+  }
+}
+
+async function organizeDrafts() {
+  if (draftOrganizerLoading.value) {
+    return
+  }
+
+  draftOrganizerLoading.value = true
+  draftOrganizerError.value = ''
+  draftOrganizerResult.value = null
+
+  try {
+    const response = await $fetch<{ data: DraftOrganizerResult }>('/api/admin/ai/draft-organizer')
+    draftOrganizerResult.value = response.data
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    draftOrganizerError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用草稿整理助手'
+      : error?.data?.statusMessage || error?.statusMessage || '草稿整理失败，请稍后重试'
+  } finally {
+    draftOrganizerLoading.value = false
+  }
+}
+
+async function generateSiteInsights() {
+  if (siteInsightsLoading.value) {
+    return
+  }
+
+  siteInsightsLoading.value = true
+  siteInsightsError.value = ''
+  siteInsightsResult.value = null
+
+  try {
+    const response = await $fetch<{ data: SiteInsightsResult }>('/api/admin/ai/site-insights')
+    siteInsightsResult.value = response.data
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    siteInsightsError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用站点洞察'
+      : error?.data?.statusMessage || error?.statusMessage || '站点洞察生成失败，请稍后重试'
+  } finally {
+    siteInsightsLoading.value = false
+  }
+}
+
+async function generateMonthlyReview() {
+  if (!monthlyReviewMonth.value || monthlyReviewLoading.value) {
+    return
+  }
+
+  monthlyReviewLoading.value = true
+  monthlyReviewError.value = ''
+  monthlyReviewResult.value = null
+  monthlyCopied.value = false
+  monthlyCopyError.value = ''
+
+  try {
+    const response = await $fetch<{ data: MonthlyReviewResult }>('/api/admin/ai/monthly-review', {
+      query: {
+        month: monthlyReviewMonth.value
+      }
+    })
+    monthlyReviewResult.value = response.data
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    monthlyReviewError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用月度内容回顾'
+      : error?.data?.statusMessage || error?.statusMessage || '月度内容回顾生成失败，请稍后重试'
+  } finally {
+    monthlyReviewLoading.value = false
+  }
+}
+
+async function copyMonthlyMarkdown() {
+  if (!monthlyReviewResult.value?.markdown) {
+    return
+  }
+
+  monthlyCopyError.value = ''
+
+  try {
+    await navigator.clipboard.writeText(monthlyReviewResult.value.markdown)
+    monthlyCopied.value = true
+    window.setTimeout(() => {
+      monthlyCopied.value = false
+    }, 1600)
+  } catch {
+    monthlyCopyError.value = '复制失败，请手动选中 Markdown 内容。'
+  }
+}
+
 function relationTypeLabel(type: string) {
   const labels: Record<string, string> = {
     PREREQUISITE: '前置阅读',
@@ -1005,6 +1719,47 @@ function relationTypeLabel(type: string) {
   }
 
   return labels[type] || '推荐'
+}
+
+function formatMonthDate(value: string) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return `${date.getMonth() + 1}.${date.getDate()}`
+}
+
+function currentMonthValue() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function trendBarHeight(count: number) {
+  const values = siteInsightsResult.value?.publishingTrend.map((item) => item.count) || []
+  const max = Math.max(1, ...values)
+  return Math.max(8, Math.round((count / max) * 100))
+}
+
+function draftPriorityLabel(priority: DraftPriority) {
+  const labels: Record<DraftPriority, string> = {
+    READY_TO_POLISH: '快完成',
+    NEEDS_METADATA: '补信息',
+    NEEDS_STRUCTURE: '补结构',
+    EARLY_IDEA: '早期想法'
+  }
+
+  return labels[priority]
+}
+
+function linkStatusLabel(status: LinkCheckStatus) {
+  const labels: Record<LinkCheckStatus, string> = {
+    OK: '正常',
+    REDIRECT: '跳转',
+    BROKEN: '失效',
+    TIMEOUT: '超时',
+    BLOCKED: '已跳过',
+    UNKNOWN: '未知'
+  }
+
+  return labels[status]
 }
 
 useSeoMeta({
@@ -1797,6 +2552,14 @@ useSeoMeta({
   font-weight: 900;
 }
 
+.field-hint {
+  width: min(100%, 520px);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+}
+
 .summary-select {
   position: relative;
   width: min(100%, 520px);
@@ -1954,6 +2717,89 @@ useSeoMeta({
   box-shadow: 0 0 0 4px rgb(99 102 241 / 12%), 0 12px 24px rgb(100 116 139 / 10%);
 }
 
+.ask-input {
+  min-height: 112px;
+}
+
+.ask-result {
+  display: grid;
+  gap: 12px;
+}
+
+.ask-answer,
+.ask-citations {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 14px 16px;
+}
+
+.ask-answer {
+  background: linear-gradient(135deg, #eff6ff, white 58%);
+}
+
+.ask-result h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.ask-answer p {
+  margin: 0;
+  white-space: pre-wrap;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.ask-citations a {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: rgb(248 250 252 / 74%);
+  color: inherit;
+  padding: 12px 14px;
+  text-decoration: none;
+  transition: border-color .16s ease, transform .16s ease;
+}
+
+.ask-citations a:hover {
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.ask-citations a span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ask-citations a strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.ask-citations a p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
 .semantic-result {
   display: grid;
   gap: 12px;
@@ -2090,6 +2936,559 @@ useSeoMeta({
 .recommend-admin-link svg {
   width: 15px;
   height: 15px;
+}
+
+.link-check-result {
+  display: grid;
+  gap: 12px;
+}
+
+.link-check-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.link-check-summary article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 13px 14px;
+}
+
+.link-check-summary span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.link-check-summary strong {
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.link-check-list {
+  display: grid;
+  gap: 12px;
+}
+
+.link-check-list article {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 14px 16px;
+}
+
+.link-check-list article > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.link-check-list span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.status-ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-redirect {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-broken,
+.status-timeout {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-blocked,
+.status-unknown {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.link-check-list small {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.link-check-list strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.link-check-list a,
+.link-check-list p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.link-check-list a {
+  text-decoration: none;
+}
+
+.link-check-list a:hover {
+  color: #dc2626;
+}
+
+.draft-result {
+  display: grid;
+  gap: 12px;
+}
+
+.draft-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.draft-summary article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 13px 14px;
+}
+
+.draft-summary span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.draft-summary strong {
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.draft-list {
+  display: grid;
+  gap: 12px;
+}
+
+.draft-list article {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 14px 16px;
+}
+
+.draft-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.draft-item-head span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.draft-item-head strong {
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.priority-ready-to-polish {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.priority-needs-metadata {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.priority-needs-structure {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.priority-early-idea {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.draft-list h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.draft-list p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.draft-list ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+  padding-left: 18px;
+}
+
+.draft-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.draft-suggestions span {
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+  padding: 6px 9px;
+}
+
+.site-insights-result {
+  display: grid;
+  gap: 12px;
+}
+
+.site-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.site-metric-grid article,
+.site-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+}
+
+.site-metric-grid article {
+  display: grid;
+  gap: 6px;
+  padding: 13px 14px;
+}
+
+.site-metric-grid span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.site-metric-grid strong {
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.site-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.site-panel h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.trend-bars {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  min-height: 132px;
+  align-items: end;
+  gap: 10px;
+}
+
+.trend-bars div {
+  display: grid;
+  min-height: 132px;
+  align-items: end;
+  gap: 7px;
+  text-align: center;
+}
+
+.trend-bars i {
+  display: block;
+  min-height: 8px;
+  border-radius: 999px 999px 4px 4px;
+  background: linear-gradient(180deg, #fb7185, #e11d48);
+}
+
+.trend-bars span,
+.trend-bars strong {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.category-bars {
+  display: grid;
+  gap: 10px;
+}
+
+.category-bars div {
+  display: grid;
+  grid-template-columns: minmax(70px, .42fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-bars span,
+.category-bars strong {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.category-bars b {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+.category-bars i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fb7185, #f97316);
+}
+
+.insight-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.insight-tags span {
+  border-radius: 999px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 9px;
+}
+
+.site-post-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.site-post-columns > div {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.site-post-columns a {
+  display: grid;
+  gap: 4px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: inherit;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.site-post-columns a span {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.site-post-columns a strong {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.inline-empty,
+.inline-error {
+  margin: 0;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.6;
+  padding: 10px 12px;
+}
+
+.inline-empty {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.inline-error {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.site-panel ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.65;
+  padding-left: 18px;
+}
+
+.month-input {
+  min-height: 46px;
+  resize: none;
+}
+
+.monthly-result {
+  display: grid;
+  gap: 12px;
+}
+
+.monthly-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.monthly-summary article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 13px 14px;
+}
+
+.monthly-summary span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.monthly-summary strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monthly-posts {
+  display: grid;
+  gap: 10px;
+}
+
+.monthly-posts a {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  color: inherit;
+  padding: 13px 15px;
+  text-decoration: none;
+}
+
+.monthly-posts span {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.monthly-posts strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.monthly-posts p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.monthly-markdown > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.monthly-markdown button {
+  border: 0;
+  border-radius: 999px;
+  background: #111827;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 7px 11px;
+}
+
+.monthly-markdown pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 13px;
+  white-space: pre-wrap;
 }
 
 .writing-result {
@@ -2512,6 +3911,38 @@ useSeoMeta({
   .lab-console {
     min-height: 230px;
     padding: 18px;
+  }
+
+  .link-check-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .draft-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .site-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .monthly-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .site-post-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .link-check-list article {
+    padding: 13px;
+  }
+
+  .draft-list article {
+    padding: 13px;
+  }
+
+  .site-panel {
+    padding: 13px;
   }
 
   .modal-actions {

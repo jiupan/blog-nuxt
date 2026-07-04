@@ -102,7 +102,12 @@ async function login() {
       body: form
     })
 
-    await navigateTo('/admin')
+    await $fetch('/api/auth/me', {
+      headers: {
+        'cache-control': 'no-cache'
+      }
+    })
+    await navigateTo('/admin', { replace: true })
   } catch (error: any) {
     errorMessage.value = error?.statusMessage || '登录失败'
   } finally {

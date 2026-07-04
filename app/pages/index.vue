@@ -77,8 +77,9 @@
                 <img v-if="post.cover" :src="post.cover" :alt="post.title" class="cover-image" />
                 <span v-if="post.cover" class="cover-overlay"></span>
                 <span class="cover-word">{{ post.coverWord }}</span>
-                <span class="cover-icon">
-                  <component :is="homeIcon(post.icon, FileTextIcon)" aria-hidden="true" />
+                <span class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
+                  <img v-if="post.memeIcon" :src="post.memeIcon" :alt="`${post.title} 表情包图标`" loading="lazy" />
+                  <component v-else :is="homeIcon(post.icon, FileTextIcon)" aria-hidden="true" />
                 </span>
               </NuxtLink>
               <div class="post-body">
@@ -252,17 +253,24 @@ type PostsPayload = {
   pageSize: number
 }
 
+type MemePayload = {
+  name: string
+  url: string
+  updatedAt: string
+}
+
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
 const pageSize = 8
 const currentPage = ref(1)
 const categorySlug = ref('')
-const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }] = await Promise.all([
+const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }] = await Promise.all([
   useFetch<{ data: PostsPayload }>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
   useFetch<{ data: PostsPayload }>('/api/posts', { query: { page: 1, pageSize: 6 } }),
   useFetch<{ data: TaxonomyItem[] }>('/api/categories'),
-  useFetch<{ data: TaxonomyItem[] }>('/api/tags')
+  useFetch<{ data: TaxonomyItem[] }>('/api/tags'),
+  useFetch<{ data: MemePayload[] }>('/api/gallery/memes')
 ])
 
 const posts = computed(() => data.value?.data.items || [])
@@ -271,6 +279,7 @@ const totalPosts = computed(() => data.value?.data.total || posts.value.length)
 const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
+const memeIcons = computed(() => memeData.value?.data.map((image) => image.url) || [])
 const latest = computed(() => heroAll.value[0])
 const currentHeroPost = computed(() => activeHeroPost.value || latest.value)
 const heroImage = computed(() => currentHeroPost.value?.cover || '/images/home-hero-ai.png')
@@ -285,6 +294,11 @@ const homeSeoTitle = computed(() => {
 function goToPage(p: number) {
   currentPage.value = p
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function memeIconForPost(id: number) {
+  if (!memeIcons.value.length) return ''
+  return memeIcons.value[id % memeIcons.value.length] || ''
 }
 
 const coverStyles = [
@@ -311,6 +325,7 @@ const displayPosts = computed(() => {
       date: formatDate(post.publishedAt),
       cover: post.cover || '',
       coverWord: category === '未分类' ? post.title.slice(0, 4) : category,
+      memeIcon: memeIconForPost(post.id),
       ...style
     }
   })
@@ -389,6 +404,22 @@ function showTopicTooltip(event: MouseEvent | FocusEvent, label: string) {
 function hideTopicTooltip() {
   topicTooltip.visible = false
 }
+
+function resetHomeState() {
+  categorySlug.value = ''
+  currentPage.value = 1
+  activeHeroPost.value = null
+  hideTopicTooltip()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+onMounted(() => {
+  window.addEventListener('home:reset', resetHomeState)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('home:reset', resetHomeState)
+})
 
 const cloudTags = computed(() => tags.value.slice(0, 12))
 
@@ -712,6 +743,20 @@ function formatDate(value?: string | Date | null) {
 .cover-icon :deep(span) {
   width: 54px;
   height: 54px;
+}
+
+.cover-icon.has-meme {
+  overflow: hidden;
+  border-color: rgb(255 255 255 / 38%);
+  background: rgb(255 255 255 / 64%);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+}
+
+.cover-icon.has-meme img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .cover-pink { background: linear-gradient(135deg, #5c2348, #8b2f6a); }

@@ -3,8 +3,8 @@
     return
   }
 
-  const { data } = await useFetch('/api/auth/me')
-  if (!data.value?.data.user) {
+  const session = await $fetch<{ data: { user: unknown | null } }>('/api/auth/me').catch(() => null)
+  if (!session?.data.user) {
     return navigateTo('/admin/login')
   }
 })

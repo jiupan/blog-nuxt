@@ -85,19 +85,38 @@
         :posts="sidebarPosts"
       >
         <template #after-author>
-          <section class="toc-card">
-            <h2>文章目录</h2>
-            <div v-if="post.rendered.toc.length" class="toc-list">
-              <a
-                v-for="item in post.rendered.toc"
-                :key="item.id"
-                :href="`#${item.id}`"
-                :class="{ 'is-child': item.level === 3 }"
-              >
-                {{ item.text }}
-              </a>
+          <section class="toc-card toc-card-elegant">
+            <div class="toc-card-inner">
+              <div class="toc-card-heading">
+                <span class="toc-icon" aria-hidden="true">
+                  <Icon name="i-lucide-list" />
+                </span>
+                <h2>文章目录</h2>
+              </div>
+
+              <div v-if="post.rendered.toc.length" class="toc-list-wrap">
+                <span class="toc-guide" aria-hidden="true"></span>
+                <span
+                  v-if="activeTocId"
+                  class="toc-active-line"
+                  :style="{ transform: `translateY(${activeTocOffset}px)` }"
+                  aria-hidden="true"
+                ></span>
+                <nav class="toc-list" aria-label="文章目录">
+                  <a
+                    v-for="item in post.rendered.toc"
+                    :key="item.id"
+                    :href="`#${item.id}`"
+                    :data-toc-id="item.id"
+                    :class="{ 'is-child': item.level === 3, 'is-active': item.id === activeTocId }"
+                    @click="activeTocId = item.id"
+                  >
+                    {{ item.text }}
+                  </a>
+                </nav>
+              </div>
+              <p v-else>暂无目录</p>
             </div>
-            <p v-else>暂无目录</p>
           </section>
         </template>
 
@@ -133,7 +152,10 @@ const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const postSidebarStickyTop = ref('84px')
+const activeTocId = ref('')
+const activeTocOffset = ref(0)
 let sidebarResizeObserver: ResizeObserver | undefined
+let tocObserver: IntersectionObserver | undefined
 const sidebarCategories = computed(() => categoryData.value?.data || [])
 const sidebarTags = computed(() => tagData.value?.data || [])
 const sidebarPosts = computed(() => {
@@ -172,10 +194,12 @@ onBeforeUnmount(() => {
   layoutScrollTitle.value = ''
   window.removeEventListener('resize', updatePostSidebarStickyTop)
   sidebarResizeObserver?.disconnect()
+  tocObserver?.disconnect()
 })
 
 onMounted(() => {
   updatePostSidebarStickyTop()
+  setupTocObserver()
   window.addEventListener('resize', updatePostSidebarStickyTop)
   const sidebar = document.querySelector<HTMLElement>('.post-sidebar')
 
@@ -183,6 +207,10 @@ onMounted(() => {
     sidebarResizeObserver = new ResizeObserver(() => updatePostSidebarStickyTop())
     sidebarResizeObserver.observe(sidebar)
   }
+})
+
+watch(activeTocId, () => {
+  nextTick(updateTocIndicatorPosition)
 })
 
 useSeoMeta({
@@ -226,6 +254,76 @@ function updatePostSidebarStickyTop() {
   }
 
   postSidebarStickyTop.value = `${baseTop - toc.offsetTop}px`
+}
+
+function setupTocObserver() {
+  const tocItems = post.value.rendered.toc || []
+  if (!tocItems.length || !('IntersectionObserver' in window)) {
+    activeTocId.value = tocItems[0]?.id || ''
+    return
+  }
+
+  const visibleHeadingIds = new Set<string>()
+  const headingMap = new Map<string, Element>()
+
+  tocObserver?.disconnect()
+  activeTocId.value = tocItems[0]?.id || ''
+
+  for (const item of tocItems) {
+    const heading = document.getElementById(item.id)
+    if (!heading) continue
+    headingMap.set(item.id, heading)
+  }
+
+  tocObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const id = entry.target.id
+      if (!id) continue
+
+      if (entry.isIntersecting) {
+        visibleHeadingIds.add(id)
+      } else {
+        visibleHeadingIds.delete(id)
+      }
+    }
+
+    const activeId = [...visibleHeadingIds].sort((a, b) => {
+      const headingA = headingMap.get(a)
+      const headingB = headingMap.get(b)
+      if (!headingA || !headingB) return 0
+      return headingA.compareDocumentPosition(headingB) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+    })[0]
+
+    if (activeId) {
+      activeTocId.value = activeId
+      return
+    }
+
+    const passedHeading = [...headingMap.entries()]
+      .filter(([, heading]) => heading.getBoundingClientRect().top <= 120)
+      .pop()
+    activeTocId.value = passedHeading?.[0] || tocItems[0]?.id || ''
+  }, {
+    rootMargin: '-12% 0px -58% 0px',
+    threshold: [0, 1]
+  })
+
+  for (const heading of headingMap.values()) {
+    tocObserver.observe(heading)
+  }
+
+  nextTick(updateTocIndicatorPosition)
+}
+
+function updateTocIndicatorPosition() {
+  if (!activeTocId.value) return
+
+  const links = document.querySelectorAll<HTMLElement>('.toc-card-elegant .toc-list a')
+  const activeLink = Array.from(links).find((link) => link.dataset.tocId === activeTocId.value)
+  if (!activeLink) return
+
+  const indicatorHeight = 20
+  activeTocOffset.value = activeLink.offsetTop + (activeLink.offsetHeight - indicatorHeight) / 2
 }
 </script>
 
@@ -583,12 +681,10 @@ function updatePostSidebarStickyTop() {
   font-weight: 800;
 }
 
-.toc-card,
 .info-card {
   padding: 16px;
 }
 
-.toc-card h2,
 .info-card h2 {
   margin: 0 0 12px;
   color: #303137;
@@ -596,21 +692,154 @@ function updatePostSidebarStickyTop() {
   font-weight: 900;
 }
 
-.toc-list {
-  display: grid;
-  gap: 10px;
+.toc-card.toc-card-elegant {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border-color: #eef1f5;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 8px 30px rgb(15 23 42 / 5%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
-.toc-list a,
-.toc-card p {
+.toc-card-elegant .toc-card-inner {
+  padding: 22px;
+}
+
+.toc-card-elegant .toc-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgb(226 232 240 / 80%);
+}
+
+.toc-card-elegant .toc-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: #fdf8f6;
+  color: #826561;
+}
+
+.toc-card-elegant .toc-icon :deep(svg) {
+  width: 16px;
+  height: 16px;
+}
+
+.toc-card-elegant .toc-card-heading h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.toc-card-elegant .toc-list-wrap {
+  position: relative;
+}
+
+.toc-card-elegant .toc-guide {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 7px;
+  width: 2px;
+  border-radius: 999px;
+  background: #edf1f6;
+}
+
+.toc-card-elegant .toc-active-line {
+  position: absolute;
+  top: 0;
+  left: 7px;
+  z-index: 2;
+  width: 2px;
+  height: 20px;
+  border-radius: 999px;
+  background: #9b7e7a;
+  transition: transform .24s cubic-bezier(.4, 0, .2, 1);
+}
+
+.toc-card-elegant .toc-list {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 7px;
+}
+
+.toc-card-elegant .toc-list a {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: 6px 12px 6px 26px;
+  border-radius: 0 10px 10px 0;
+  color: #667385;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  transition: background .18s ease, color .18s ease;
+  white-space: nowrap;
+}
+
+.toc-card-elegant .toc-list a::before {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #d8e0eb;
+  border-radius: 999px;
+  background: white;
+  content: "";
+  transform: translateY(-50%);
+  transition: border-color .18s ease, background .18s ease;
+}
+
+.toc-card-elegant .toc-list a:hover,
+.toc-card-elegant .toc-list a:focus-visible,
+.toc-card-elegant .toc-list a.is-active {
+  background: #f8fafc;
+  color: #826561;
+  outline: none;
+}
+
+.toc-card-elegant .toc-list a:hover::before,
+.toc-card-elegant .toc-list a:focus-visible::before,
+.toc-card-elegant .toc-list a.is-active::before {
+  border-color: #9b7e7a;
+  background: #9b7e7a;
+}
+
+.toc-card-elegant .toc-list a.is-active {
+  font-weight: 900;
+}
+
+.toc-card-elegant .toc-list a.is-child {
+  margin-left: 16px;
+  padding-left: 24px;
+  color: #7b8797;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.toc-card-elegant .toc-list a.is-child.is-active {
+  color: #826561;
+  font-weight: 800;
+}
+
+.toc-card-elegant p {
   margin: 0;
   color: #747b87;
   font-size: 13px;
   font-weight: 700;
-}
-
-.toc-list a.is-child {
-  padding-left: 14px;
 }
 
 .info-card p {

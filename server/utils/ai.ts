@@ -55,6 +55,19 @@ export type SeoCheckAdviceResult = {
   keywordSuggestions: string[]
 }
 
+export type BlogAnswerSource = {
+  sourceId: number
+  title: string
+  slug: string
+  headingPath?: string | null
+  excerpt: string
+}
+
+export type BlogAnswerResult = {
+  answer: string
+  citationIds: number[]
+}
+
 const maxContentLength = 12000
 
 export async function generatePostSummary(post: SummaryPost): Promise<PostSummaryResult> {
@@ -307,6 +320,60 @@ export async function generateSeoCheckAdvice(post: SummaryPost & { seoTitle?: st
   return parseSeoCheckAdviceResult(extractChatCompletionText(payload))
 }
 
+export async function generateBlogAnswer(question: string, sources: BlogAnswerSource[]): Promise<BlogAnswerResult> {
+  const aiConfig = await resolveAiConfig()
+
+  if (!aiConfig.apiKey) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: '未配置 AI API Key'
+    })
+  }
+
+  if (!sources.length) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: '没有可用于回答的站内内容'
+    })
+  }
+
+  const input = buildBlogAnswerPrompt(question, sources)
+  const response = await fetch(`${aiConfig.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${aiConfig.apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: aiConfig.model,
+      messages: [
+        {
+          role: 'system',
+          content: '你是个人博客的站内问答助手。你只能根据提供的博客片段回答，必须返回严格 JSON。'
+        },
+        {
+          role: 'user',
+          content: input
+        }
+      ],
+      temperature: 0.2,
+      response_format: { type: 'json_object' }
+    })
+  })
+
+  const payload = await response.json().catch(() => null)
+
+  if (!response.ok) {
+    const message = payload?.error?.message || 'AI 问答生成失败'
+    throw createError({
+      statusCode: response.status,
+      statusMessage: message
+    })
+  }
+
+  return parseBlogAnswerResult(extractChatCompletionText(payload), sources)
+}
+
 async function resolveAiConfig() {
   const config = useRuntimeConfig()
   const rows = await prisma.setting.findMany({
@@ -489,6 +556,35 @@ function buildSeoCheckPrompt(post: SummaryPost & { seoTitle?: string | null, seo
   ].join('\n')
 }
 
+function buildBlogAnswerPrompt(question: string, sources: BlogAnswerSource[]) {
+  const sourceText = sources.map((source) => {
+    return [
+      `[来源 ${source.sourceId}]`,
+      `title: ${source.title}`,
+      `slug: ${source.slug}`,
+      `heading: ${source.headingPath || '文章片段'}`,
+      `content: ${cleanMarkdown(source.excerpt).slice(0, 900)}`
+    ].join('\n')
+  }).join('\n\n---\n\n')
+
+  return [
+    '请基于下面提供的博客片段回答用户问题。',
+    '要求：',
+    '1. 只能使用提供的博客片段，不要使用外部知识补充。',
+    '2. 如果片段中没有足够依据，请明确说明“当前博客中没有找到足够依据”。',
+    '3. 不要编造文章标题、链接、来源编号或片段中没有的结论。',
+    '4. 回答用中文，结构清晰，控制在 600 字以内。',
+    '5. citationIds 只能填写用到的来源编号，最多 5 个。',
+    '6. 返回严格 JSON，不要包裹 Markdown 代码块。',
+    'JSON 结构必须是：{"answer":"回答内容","citationIds":[1,2]}',
+    '',
+    `用户问题：${question}`,
+    '',
+    '博客片段：',
+    sourceText
+  ].join('\n')
+}
+
 function cleanMarkdown(content: string) {
   return content
     .replace(/```[\s\S]*?```/g, ' ')
@@ -668,6 +764,36 @@ function parseSeoCheckAdviceResult(text: string): SeoCheckAdviceResult {
   }
 
   return { seoTitle, seoDescription, fixes, keywordSuggestions }
+}
+
+function parseBlogAnswerResult(text: string, sources: BlogAnswerSource[]): BlogAnswerResult {
+  const jsonText = stripJsonFence(text)
+
+  let parsed: any
+
+  try {
+    parsed = JSON.parse(jsonText)
+  } catch {
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'AI 返回格式不是有效 JSON'
+    })
+  }
+
+  const allowedIds = new Set(sources.map((source) => source.sourceId))
+  const answer = String(parsed.answer || '').trim()
+  const citationIds = normalizeNumberList(parsed.citationIds)
+    .filter((id) => allowedIds.has(id))
+    .slice(0, 5)
+
+  if (!answer) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'AI 返回问答内容为空'
+    })
+  }
+
+  return { answer, citationIds }
 }
 
 function stripJsonFence(text: string) {

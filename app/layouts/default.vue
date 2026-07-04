@@ -2,13 +2,13 @@
   <div>
     <header class="site-header" :class="{ 'is-scrolled': isScrolled, 'is-article-route': isArticleRoute }">
       <div class="header-inner">
-        <NuxtLink to="/" class="brand" aria-label="返回首页">
+        <NuxtLink to="/" class="brand" aria-label="返回博客主页" data-tooltip="返回博客主页" @click="handleBrandClick">
           <Icon name="i-simple-icons-nuxtdotjs" class="brand-mark" aria-hidden="true" />
           <span>DYU</span>
         </NuxtLink>
 
         <button class="scroll-title" aria-label="回到顶部" @click="scrollToTop">
-          {{ scrollTitle }}
+          <span class="scroll-title-text">{{ scrollTitle }}</span>
         </button>
 
         <nav class="main-nav" aria-label="主导航">
@@ -474,6 +474,12 @@ function closeMobilePanel() {
   mobilePanelOpen.value = false
 }
 
+function handleBrandClick() {
+  if (route.path === '/') {
+    window.dispatchEvent(new CustomEvent('home:reset'))
+  }
+}
+
 const isArticleRoute = computed(() => route.name === 'slug')
 
 const scrollTitle = computed(() => {
@@ -548,18 +554,27 @@ onBeforeUnmount(() => {
 }
 
 .brand {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 14px;
-  min-height: 48px;
-  padding: 10px 22px;
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: transparent;
   color: #303137;
   font-size: 22px;
   font-weight: 900;
   letter-spacing: 0;
-  transition: background .2s ease, box-shadow .2s ease, color .2s ease;
+  transition: background .18s ease, box-shadow .18s ease, color .18s ease;
+}
+
+.brand:hover,
+.brand:focus-visible {
+  background: #4f67f5;
+  box-shadow: 0 14px 28px rgb(79 103 245 / 24%);
+  color: #fff;
+  outline: none;
 }
 
 .brand-mark {
@@ -669,22 +684,54 @@ onBeforeUnmount(() => {
 .scroll-title {
   position: absolute;
   left: 50%;
+  display: inline-flex;
   max-width: min(520px, 42vw);
-  overflow: hidden;
-  padding: 10px 28px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 0 28px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 88%);
-  box-shadow: 0 12px 32px rgb(31 43 68 / 14%);
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
   color: #303137;
   font-size: 18px;
   font-weight: 900;
+  line-height: 1;
   opacity: 0;
-  text-overflow: ellipsis;
-  transform: translate(-50%, -8px);
-  transition: opacity .18s ease, transform .18s ease;
+  transform-origin: center;
+  translate: -50% -8px;
+  transition: opacity .18s ease, translate .18s ease, color .18s ease;
   white-space: nowrap;
   pointer-events: none;
+}
+
+.scroll-title::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 12px 32px rgb(31 43 68 / 14%);
+  content: "";
+  transform: scale(1);
+  transform-origin: center;
+  transition: box-shadow .18s ease, transform .18s ease;
+}
+
+.scroll-title-text {
+  position: relative;
+  z-index: 1;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scroll-title:hover,
+.scroll-title:focus-visible {
+  color: #4f67f5;
+  outline: none;
 }
 
 .header-actions {
@@ -733,6 +780,7 @@ onBeforeUnmount(() => {
   transform: translateY(-1px);
 }
 
+.brand::after,
 .tool-nav a::after,
 .mobile-menu-button::after {
   position: absolute;
@@ -757,6 +805,8 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.brand:hover::after,
+.brand:focus-visible::after,
 .tool-nav a:hover::after,
 .tool-nav a:focus-visible::after,
 .mobile-menu-button:hover::after,
@@ -784,6 +834,13 @@ onBeforeUnmount(() => {
   box-shadow: 0 12px 32px rgb(31 43 68 / 14%);
 }
 
+.site-header.is-scrolled .brand:hover,
+.site-header.is-scrolled .brand:focus-visible {
+  background: #4f67f5;
+  box-shadow: 0 14px 28px rgb(79 103 245 / 24%);
+  color: #fff;
+}
+
 .site-header.is-scrolled .main-nav {
   opacity: 0;
   transform: translate(-50%, -8px);
@@ -792,8 +849,19 @@ onBeforeUnmount(() => {
 
 .site-header.is-scrolled .scroll-title {
   opacity: 1;
-  transform: translate(-50%, 0);
+  translate: -50% 0;
   pointer-events: auto;
+}
+
+.site-header.is-scrolled .scroll-title:hover,
+.site-header.is-scrolled .scroll-title:focus-visible {
+  color: #4f67f5;
+}
+
+.site-header.is-scrolled .scroll-title:hover::before,
+.site-header.is-scrolled .scroll-title:focus-visible::before {
+  box-shadow: 0 16px 34px rgb(31 43 68 / 16%);
+  transform: scale(1.04);
 }
 
 .site-header.is-scrolled .tool-nav {
@@ -855,6 +923,14 @@ onBeforeUnmount(() => {
     box-shadow: none;
   }
 
+  .brand:hover,
+  .brand:focus-visible {
+    background: transparent;
+    box-shadow: none;
+    color: #303137;
+    transform: none;
+  }
+
   .tool-nav a {
     width: 30px;
     height: 38px;
@@ -892,6 +968,7 @@ onBeforeUnmount(() => {
     padding: 0;
   }
 
+  .brand::after,
   .tool-nav a::after,
   .mobile-menu-button::after {
     display: none;

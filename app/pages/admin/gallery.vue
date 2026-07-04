@@ -37,26 +37,34 @@
               <span>{{ filteredRegularImages.length }}/{{ regularImages.length }}</span>
             </div>
 
-            <div v-if="filteredRegularImages.length" class="gallery-grid">
-              <article v-for="image in filteredRegularImages" :key="image.path" class="gallery-card">
-                <a :href="image.url" target="_blank" class="gallery-thumb">
-                  <img :src="image.url" :alt="image.name" loading="lazy" />
-                </a>
-                <div class="gallery-card-body">
-                  <strong :title="image.name">{{ image.name }}</strong>
-                  <small :title="image.url">{{ image.url }}</small>
-                  <div class="gallery-meta">
-                    <span>{{ formatSize(image.size) }}</span>
-                    <span>{{ formatDate(image.updatedAt) }}</span>
+            <template v-if="filteredRegularImages.length">
+              <div class="gallery-grid">
+                <article v-for="image in paginatedRegularImages" :key="image.path" class="gallery-card">
+                  <a :href="image.url" target="_blank" class="gallery-thumb">
+                    <img :src="image.url" :alt="image.name" loading="lazy" />
+                  </a>
+                  <div class="gallery-card-body">
+                    <strong :title="image.name">{{ image.name }}</strong>
+                    <small :title="image.url">{{ image.url }}</small>
+                    <div class="gallery-meta">
+                      <span>{{ formatSize(image.size) }}</span>
+                      <span>{{ formatDate(image.updatedAt) }}</span>
+                    </div>
                   </div>
-                </div>
-                <div class="gallery-card-actions">
-                  <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
-                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
-                </div>
-              </article>
-            </div>
+                  <div class="gallery-card-actions">
+                    <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
+                    <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
+                    <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
+                  </div>
+                </article>
+              </div>
+
+              <div v-if="regularTotalPages > 1" class="gallery-pagination">
+                <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-chevron-left" :disabled="regularPage <= 1" @click="regularPage--">上一页</UButton>
+                <span>第 {{ regularPage }} / {{ regularTotalPages }} 页</span>
+                <UButton size="xs" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-right" :disabled="regularPage >= regularTotalPages" @click="regularPage++">下一页</UButton>
+              </div>
+            </template>
 
             <div v-else class="gallery-empty">
               <UIcon name="i-lucide-image-off" class="size-10" />
@@ -74,26 +82,34 @@
               <span>{{ filteredMemeImages.length }}/{{ memeImages.length }}</span>
             </div>
 
-            <div v-if="filteredMemeImages.length" class="gallery-grid">
-              <article v-for="image in filteredMemeImages" :key="image.path" class="gallery-card">
-                <a :href="image.url" target="_blank" class="gallery-thumb gallery-thumb-meme">
-                  <img :src="image.url" :alt="image.name" loading="lazy" />
-                </a>
-                <div class="gallery-card-body">
-                  <strong :title="image.name">{{ image.name }}</strong>
-                  <small :title="image.url">{{ image.url }}</small>
-                  <div class="gallery-meta">
-                    <span>{{ formatSize(image.size) }}</span>
-                    <span>{{ formatDate(image.updatedAt) }}</span>
+            <template v-if="filteredMemeImages.length">
+              <div class="gallery-grid">
+                <article v-for="image in paginatedMemeImages" :key="image.path" class="gallery-card">
+                  <a :href="image.url" target="_blank" class="gallery-thumb gallery-thumb-meme">
+                    <img :src="image.url" :alt="image.name" loading="lazy" />
+                  </a>
+                  <div class="gallery-card-body">
+                    <strong :title="image.name">{{ image.name }}</strong>
+                    <small :title="image.url">{{ image.url }}</small>
+                    <div class="gallery-meta">
+                      <span>{{ formatSize(image.size) }}</span>
+                      <span>{{ formatDate(image.updatedAt) }}</span>
+                    </div>
                   </div>
-                </div>
-                <div class="gallery-card-actions">
-                  <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
-                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
-                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
-                </div>
-              </article>
-            </div>
+                  <div class="gallery-card-actions">
+                    <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
+                    <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
+                    <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
+                  </div>
+                </article>
+              </div>
+
+              <div v-if="memeTotalPages > 1" class="gallery-pagination">
+                <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-chevron-left" :disabled="memePage <= 1" @click="memePage--">上一页</UButton>
+                <span>第 {{ memePage }} / {{ memeTotalPages }} 页</span>
+                <UButton size="xs" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-right" :disabled="memePage >= memeTotalPages" @click="memePage++">下一页</UButton>
+              </div>
+            </template>
 
             <div v-else class="gallery-empty">
               <UIcon name="i-lucide-smile" class="size-10" />
@@ -129,6 +145,9 @@ const uploadingCollection = ref<'images' | 'memes' | null>(null)
 const deletingPath = ref<string | null>(null)
 const imageInputRef = ref<HTMLInputElement | null>(null)
 const memeInputRef = ref<HTMLInputElement | null>(null)
+const pageSize = 12
+const regularPage = ref(1)
+const memePage = ref(1)
 
 const { data, refresh } = await useFetch<{ data: GalleryImage[] }>('/api/admin/gallery')
 
@@ -144,6 +163,23 @@ const filteredImages = computed(() => {
 })
 const filteredRegularImages = computed(() => filterImages(regularImages.value))
 const filteredMemeImages = computed(() => filterImages(memeImages.value))
+const regularTotalPages = computed(() => totalPages(filteredRegularImages.value.length))
+const memeTotalPages = computed(() => totalPages(filteredMemeImages.value.length))
+const paginatedRegularImages = computed(() => paginateImages(filteredRegularImages.value, regularPage.value))
+const paginatedMemeImages = computed(() => paginateImages(filteredMemeImages.value, memePage.value))
+
+watch(searchQuery, () => {
+  regularPage.value = 1
+  memePage.value = 1
+})
+
+watch(regularTotalPages, (value) => {
+  regularPage.value = clampPage(regularPage.value, value)
+})
+
+watch(memeTotalPages, (value) => {
+  memePage.value = clampPage(memePage.value, value)
+})
 
 async function uploadFiles(event: Event, collection: 'images' | 'memes') {
   const input = event.target as HTMLInputElement
@@ -159,6 +195,11 @@ async function uploadFiles(event: Event, collection: 'images' | 'memes') {
       await $fetch(url, { method: 'POST', body })
     }
     await refresh()
+    if (collection === 'memes') {
+      memePage.value = 1
+    } else {
+      regularPage.value = 1
+    }
     toast.add({ title: collection === 'memes' ? '表情包已上传' : '图片已上传', description: `已上传 ${files.length} 张${collection === 'memes' ? '表情包' : '图片'}`, color: 'success' })
   } catch (error: any) {
     toast.add({ title: '上传失败', description: getErrorMessage(error), color: 'error' })
@@ -174,6 +215,19 @@ function filterImages(source: GalleryImage[]) {
   return source.filter((image) => {
     return image.name.toLowerCase().includes(query) || image.url.toLowerCase().includes(query)
   })
+}
+
+function totalPages(total: number) {
+  return Math.max(1, Math.ceil(total / pageSize))
+}
+
+function clampPage(page: number, total: number) {
+  return Math.min(Math.max(page, 1), total)
+}
+
+function paginateImages(source: GalleryImage[], page: number) {
+  const start = (clampPage(page, totalPages(source.length)) - 1) * pageSize
+  return source.slice(start, start + pageSize)
 }
 
 async function copyUrl(url: string) {
@@ -459,6 +513,26 @@ function getErrorMessage(error: any) {
   padding: 0.55rem 0.65rem;
 }
 
+.gallery-pagination {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border: 1px solid #eef2f7;
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.45rem 0.6rem;
+}
+
+.gallery-pagination span {
+  min-width: 5.5rem;
+  text-align: center;
+}
+
 .gallery-empty {
   display: grid;
   min-height: 22rem;
@@ -492,6 +566,10 @@ function getErrorMessage(error: any) {
 
   .gallery-search {
     width: 100%;
+  }
+
+  .gallery-pagination {
+    justify-content: space-between;
   }
 }
 </style>
