@@ -19,6 +19,7 @@ type GalleryImage = {
   url: string
   size: number
   type: string
+  collection: 'images' | 'memes'
   updatedAt: string
 }
 
@@ -49,12 +50,14 @@ export default defineEventHandler(async (event) => {
       if (!fileStat?.isFile()) continue
 
       const relativePath = relative(uploadRoot, filepath).split(sep).join('/')
+      const collection = relativePath === 'memes' || relativePath.startsWith('memes/') ? 'memes' : 'images'
       images.push({
         name: entry.name,
         path: relativePath,
         url: `/uploads/${relativePath}`,
         size: fileStat.size,
         type,
+        collection,
         updatedAt: fileStat.mtime.toISOString()
       })
     }

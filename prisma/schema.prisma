@@ -30,6 +30,9 @@ model Post {
   tags           PostTag[]
   seoTitle       String?
   seoDescription String?
+  relations      PostRelation[] @relation("PostRelations")
+  relatedBy      PostRelation[] @relation("RelatedPostRelations")
+  chunks         PostChunk[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   publishedAt    DateTime?
@@ -66,6 +69,54 @@ model PostTag {
   tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([postId, tagId])
+}
+
+model PostRelation {
+  id            Int                @id @default(autoincrement())
+  postId        Int
+  relatedPostId Int
+  reason        String?
+  type          PostRelationType
+  source        PostRelationSource @default(AI)
+  sort          Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  post          Post               @relation("PostRelations", fields: [postId], references: [id], onDelete: Cascade)
+  relatedPost   Post               @relation("RelatedPostRelations", fields: [relatedPostId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, relatedPostId])
+  @@index([postId, sort])
+  @@index([relatedPostId])
+}
+
+model PostChunk {
+  id             Int             @id @default(autoincrement())
+  postId         Int
+  chunkIndex     Int
+  title          String
+  slug           String
+  summary        String?
+  content        String
+  headingPath    String?
+  contentHash    String
+  tokenCount     Int             @default(0)
+  categoryId     Int?
+  tagIds         String          @default("[]")
+  embeddingModel String
+  embeddingDim   Int
+  embedding      Unsupported("vector")?
+  status         PostChunkStatus @default(ACTIVE)
+  indexedAt      DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  post           Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, chunkIndex])
+  @@index([postId])
+  @@index([categoryId])
+  @@index([contentHash])
+  @@index([embeddingModel])
+  @@index([status])
 }
 
 model Setting {
@@ -118,6 +169,24 @@ enum PostStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum PostChunkStatus {
+  ACTIVE
+  STALE
+}
+
+enum PostRelationType {
+  PREREQUISITE
+  EXTENSION
+  SAME_TOPIC
+  PRACTICE
+  BACKGROUND
+}
+
+enum PostRelationSource {
+  AI
+  MANUAL
 }
 
 enum Role {

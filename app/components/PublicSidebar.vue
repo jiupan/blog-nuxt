@@ -35,6 +35,8 @@
       </div>
     </section>
 
+    <slot name="after-author" />
+
     <section v-if="visiblePosts.length" class="sidebar-section featured-section">
       <div class="section-title">
         <h3>精选阅读</h3>

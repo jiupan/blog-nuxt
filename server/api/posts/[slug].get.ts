@@ -2,6 +2,7 @@
 import { renderMarkdown } from '~~/server/utils/markdown'
 import { ok } from '~~/server/utils/response'
 import { normalizePostSlug } from '~~/server/utils/slug'
+import { getPostRelations } from '~~/server/services/related-posts/relation.service'
 
 export default defineEventHandler(async (event) => {
   const slug = normalizePostSlug(getRouterParam(event, 'slug') || '')
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
     data: { viewCount: { increment: 1 } }
   })
 
-  const [previous, next, rendered] = await Promise.all([
+  const [previous, next, rendered, relations] = await Promise.all([
     prisma.post.findFirst({
       where: {
         status: 'PUBLISHED',
@@ -65,7 +66,8 @@ export default defineEventHandler(async (event) => {
       ],
       select: { title: true, slug: true }
     }),
-    renderMarkdown(post.content)
+    renderMarkdown(post.content),
+    getPostRelations(post.id)
   ])
 
   return ok({
@@ -73,6 +75,7 @@ export default defineEventHandler(async (event) => {
     tags: post.tags.map((item) => item.tag),
     rendered,
     previous,
-    next
+    next,
+    relations
   })
 })

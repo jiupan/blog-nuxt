@@ -13,42 +13,94 @@
         </div>
         <div class="gallery-actions">
           <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="搜索文件名或路径..." size="sm" class="gallery-search" />
-          <input ref="fileInputRef" type="file" accept="image/*" multiple class="hidden" @change="uploadFiles" />
-          <UButton icon="i-lucide-upload" :loading="uploading" @click="fileInputRef?.click()">上传图片</UButton>
+          <input ref="imageInputRef" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" @change="uploadFiles($event, 'images')" />
+          <input ref="memeInputRef" type="file" accept="image/*,.gif" multiple class="hidden" @change="uploadFiles($event, 'memes')" />
+          <UButton icon="i-lucide-upload" :loading="uploadingCollection === 'images'" @click="imageInputRef?.click()">上传图片</UButton>
+          <UButton color="neutral" variant="outline" icon="i-lucide-smile-plus" :loading="uploadingCollection === 'memes'" @click="memeInputRef?.click()">上传表情包</UButton>
         </div>
       </header>
 
       <div class="gallery-toolbar">
-        <span>共 {{ images.length }} 张图片</span>
+        <span>普通图片 {{ regularImages.length }} 张</span>
+        <span>表情包 {{ memeImages.length }} 张</span>
         <span v-if="filteredImages.length !== images.length">当前显示 {{ filteredImages.length }} 张</span>
       </div>
 
       <div class="gallery-scroll">
-        <div v-if="filteredImages.length" class="gallery-grid">
-          <article v-for="image in filteredImages" :key="image.path" class="gallery-card">
-            <a :href="image.url" target="_blank" class="gallery-thumb">
-              <img :src="image.url" :alt="image.name" loading="lazy" />
-            </a>
-            <div class="gallery-card-body">
-              <strong :title="image.name">{{ image.name }}</strong>
-              <small :title="image.url">{{ image.url }}</small>
-              <div class="gallery-meta">
-                <span>{{ formatSize(image.size) }}</span>
-                <span>{{ formatDate(image.updatedAt) }}</span>
+        <div class="gallery-columns">
+          <section class="gallery-column">
+            <div class="gallery-column-head">
+              <div>
+                <h2>普通图片</h2>
+                <p>文章封面和正文插图</p>
               </div>
+              <span>{{ filteredRegularImages.length }}/{{ regularImages.length }}</span>
             </div>
-            <div class="gallery-card-actions">
-              <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
-              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
-              <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
-            </div>
-          </article>
-        </div>
 
-        <div v-else class="gallery-empty">
-          <UIcon name="i-lucide-image-off" class="size-12" />
-          <strong>{{ searchQuery ? '没有匹配的图片' : '暂无上传图片' }}</strong>
-          <span>{{ searchQuery ? '换个关键词试试。' : '上传图片后可在文章里复用图片地址。' }}</span>
+            <div v-if="filteredRegularImages.length" class="gallery-grid">
+              <article v-for="image in filteredRegularImages" :key="image.path" class="gallery-card">
+                <a :href="image.url" target="_blank" class="gallery-thumb">
+                  <img :src="image.url" :alt="image.name" loading="lazy" />
+                </a>
+                <div class="gallery-card-body">
+                  <strong :title="image.name">{{ image.name }}</strong>
+                  <small :title="image.url">{{ image.url }}</small>
+                  <div class="gallery-meta">
+                    <span>{{ formatSize(image.size) }}</span>
+                    <span>{{ formatDate(image.updatedAt) }}</span>
+                  </div>
+                </div>
+                <div class="gallery-card-actions">
+                  <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
+                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
+                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
+                </div>
+              </article>
+            </div>
+
+            <div v-else class="gallery-empty">
+              <UIcon name="i-lucide-image-off" class="size-10" />
+              <strong>{{ searchQuery ? '没有匹配的普通图片' : '暂无普通图片' }}</strong>
+              <span>{{ searchQuery ? '换个关键词试试。' : '上传后可作为封面或正文插图。' }}</span>
+            </div>
+          </section>
+
+          <section class="gallery-column gallery-column-memes">
+            <div class="gallery-column-head">
+              <div>
+                <h2>表情包</h2>
+                <p>单独存放聊天、评论和文章里的表情图片</p>
+              </div>
+              <span>{{ filteredMemeImages.length }}/{{ memeImages.length }}</span>
+            </div>
+
+            <div v-if="filteredMemeImages.length" class="gallery-grid">
+              <article v-for="image in filteredMemeImages" :key="image.path" class="gallery-card">
+                <a :href="image.url" target="_blank" class="gallery-thumb gallery-thumb-meme">
+                  <img :src="image.url" :alt="image.name" loading="lazy" />
+                </a>
+                <div class="gallery-card-body">
+                  <strong :title="image.name">{{ image.name }}</strong>
+                  <small :title="image.url">{{ image.url }}</small>
+                  <div class="gallery-meta">
+                    <span>{{ formatSize(image.size) }}</span>
+                    <span>{{ formatDate(image.updatedAt) }}</span>
+                  </div>
+                </div>
+                <div class="gallery-card-actions">
+                  <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
+                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
+                  <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
+                </div>
+              </article>
+            </div>
+
+            <div v-else class="gallery-empty">
+              <UIcon name="i-lucide-smile" class="size-10" />
+              <strong>{{ searchQuery ? '没有匹配的表情包' : '暂无表情包' }}</strong>
+              <span>{{ searchQuery ? '换个关键词试试。' : '上传后会存到 /uploads/memes/ 目录。' }}</span>
+            </div>
+          </section>
         </div>
       </div>
     </section>
@@ -67,18 +119,22 @@ type GalleryImage = {
   url: string
   size: number
   type: string
+  collection?: 'images' | 'memes'
   updatedAt: string
 }
 
 const toast = useToast()
 const searchQuery = ref('')
-const uploading = ref(false)
+const uploadingCollection = ref<'images' | 'memes' | null>(null)
 const deletingPath = ref<string | null>(null)
-const fileInputRef = ref<HTMLInputElement | null>(null)
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const memeInputRef = ref<HTMLInputElement | null>(null)
 
 const { data, refresh } = await useFetch<{ data: GalleryImage[] }>('/api/admin/gallery')
 
 const images = computed(() => data.value?.data || [])
+const regularImages = computed(() => images.value.filter((image) => image.collection !== 'memes'))
+const memeImages = computed(() => images.value.filter((image) => image.collection === 'memes'))
 const filteredImages = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query) return images.value
@@ -86,27 +142,38 @@ const filteredImages = computed(() => {
     return image.name.toLowerCase().includes(query) || image.url.toLowerCase().includes(query)
   })
 })
+const filteredRegularImages = computed(() => filterImages(regularImages.value))
+const filteredMemeImages = computed(() => filterImages(memeImages.value))
 
-async function uploadFiles(event: Event) {
+async function uploadFiles(event: Event, collection: 'images' | 'memes') {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
   if (!files.length) return
 
-  uploading.value = true
+  uploadingCollection.value = collection
   try {
     for (const file of files) {
       const body = new FormData()
       body.append('file', file)
-      await $fetch('/api/admin/upload', { method: 'POST', body })
+      const url = collection === 'memes' ? '/api/admin/upload?purpose=meme' : '/api/admin/upload'
+      await $fetch(url, { method: 'POST', body })
     }
     await refresh()
-    toast.add({ title: '图片已上传', description: `已上传 ${files.length} 张图片`, color: 'success' })
+    toast.add({ title: collection === 'memes' ? '表情包已上传' : '图片已上传', description: `已上传 ${files.length} 张${collection === 'memes' ? '表情包' : '图片'}`, color: 'success' })
   } catch (error: any) {
     toast.add({ title: '上传失败', description: getErrorMessage(error), color: 'error' })
   } finally {
-    uploading.value = false
+    uploadingCollection.value = null
     input.value = ''
   }
+}
+
+function filterImages(source: GalleryImage[]) {
+  const query = searchQuery.value.trim().toLowerCase()
+  if (!query) return source
+  return source.filter((image) => {
+    return image.name.toLowerCase().includes(query) || image.url.toLowerCase().includes(query)
+  })
 }
 
 async function copyUrl(url: string) {
@@ -246,10 +313,67 @@ function getErrorMessage(error: any) {
   padding: 1rem;
 }
 
+.gallery-columns {
+  display: grid;
+  align-items: start;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gallery-column {
+  display: grid;
+  min-width: 0;
+  gap: 0.875rem;
+}
+
+.gallery-column-head {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid #eef2f7;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+  padding: 0.75rem 0.85rem;
+}
+
+.gallery-column-head h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+.gallery-column-head p {
+  margin: 0.15rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.gallery-column-head > span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.gallery-column-memes .gallery-column-head {
+  background: #fff7ed;
+}
+
+.gallery-column-memes .gallery-column-head > span {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
 .gallery-grid {
   display: grid;
   gap: 0.875rem;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
 }
 
 .gallery-card {
@@ -278,6 +402,21 @@ function getErrorMessage(error: any) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.gallery-thumb-meme {
+  background:
+    linear-gradient(45deg, #f8fafc 25%, transparent 25%),
+    linear-gradient(-45deg, #f8fafc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f8fafc 75%),
+    linear-gradient(-45deg, transparent 75%, #f8fafc 75%);
+  background-color: #fff;
+  background-position: 0 0, 0 0.5rem, 0.5rem -0.5rem, -0.5rem 0;
+  background-size: 1rem 1rem;
+}
+
+.gallery-thumb-meme img {
+  object-fit: contain;
 }
 
 .gallery-card-body {
@@ -322,7 +461,7 @@ function getErrorMessage(error: any) {
 
 .gallery-empty {
   display: grid;
-  min-height: 28rem;
+  min-height: 22rem;
   place-items: center;
   align-content: center;
   gap: 0.5rem;
@@ -341,6 +480,10 @@ function getErrorMessage(error: any) {
 }
 
 @media (max-width: 760px) {
+  .gallery-columns {
+    grid-template-columns: 1fr;
+  }
+
   .gallery-head,
   .gallery-actions {
     align-items: stretch;

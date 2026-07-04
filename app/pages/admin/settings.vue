@@ -110,6 +110,66 @@
         </div>
       </div>
 
+      <div v-else-if="activeTab === 'ai'" class="settings-form">
+        <div class="settings-row">
+          <label class="settings-label">AI API Key</label>
+          <UInput v-model="form.ai_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
+          <p class="text-sm text-slate-500">用于服务端调用 AI 接口。若服务器环境变量已配置 <code>AI_API_KEY</code> 或 <code>DEEPSEEK_API_KEY</code>，会优先使用环境变量。</p>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">AI Base URL</label>
+          <UInput v-model="form.ai_base_url" icon="i-lucide-globe-2" placeholder="https://api.deepseek.com" class="settings-control" />
+          <p class="text-sm text-slate-500">DeepSeek OpenAI 兼容接口地址，默认 <code>https://api.deepseek.com</code>。</p>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">AI 模型</label>
+          <UInput v-model="form.ai_model" icon="i-lucide-cpu" placeholder="deepseek-v4-flash" class="settings-control" />
+          <p class="text-sm text-slate-500">文章总结器当前默认使用 <code>deepseek-v4-flash</code>。</p>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">Embedding API Key</label>
+          <UInput v-model="form.ai_embedding_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
+          <p class="text-sm text-slate-500">用于生成向量索引。若服务器环境变量已配置 <code>AI_EMBEDDING_API_KEY</code> 或 <code>OPENAI_API_KEY</code>，会优先使用环境变量。</p>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">Embedding Base URL</label>
+          <UInput v-model="form.ai_embedding_base_url" icon="i-lucide-globe-2" placeholder="https://api.openai.com/v1" class="settings-control" />
+          <p class="text-sm text-slate-500">OpenAI 兼容 embedding 接口地址，默认 <code>https://api.openai.com/v1</code>。</p>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">Embedding 模型</label>
+          <UInput v-model="form.ai_embedding_model" icon="i-lucide-cpu" placeholder="text-embedding-3-small" class="settings-control" />
+          <p class="text-sm text-slate-500">当前 pgvector 表固定为 1536 维，默认使用 <code>text-embedding-3-small</code>。</p>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">Embedding 维度</label>
+          <UInput v-model="form.ai_embedding_dimensions" icon="i-lucide-ruler" placeholder="1536" class="settings-control" />
+          <p class="text-sm text-slate-500">第一版固定使用 1536 维；如果要换维度，需要同步数据库向量列和索引。</p>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-head">
+            <div>
+              <label class="settings-label">AI 索引管理</label>
+              <p class="text-sm text-slate-500">重建已发布文章的语义检索索引，供语义搜索和问问博客使用。</p>
+            </div>
+            <UButton size="sm" icon="i-lucide-refresh-cw" :loading="rebuildingIndex" @click="rebuildAiIndex">重建索引</UButton>
+          </div>
+          <div class="ai-index-status">
+            <span>已索引文章：{{ aiIndexStatus?.indexedPosts ?? 0 }}</span>
+            <span>Chunk：{{ aiIndexStatus?.chunks ?? 0 }}</span>
+            <span>失效 Chunk：{{ aiIndexStatus?.staleChunks ?? 0 }}</span>
+            <span>最后索引：{{ formatIndexDate(aiIndexStatus?.lastIndexedAt) }}</span>
+          </div>
+        </div>
+      </div>
+
       <div v-else class="settings-form">
         <div class="settings-row">
           <div class="settings-row-head">
@@ -187,6 +247,25 @@ type SettingsForm = {
   footer_copyright: string
   footer_bottom_links: string
   footer_actions: string
+  ai_api_key: string
+  ai_base_url: string
+  ai_model: string
+  ai_embedding_api_key: string
+  ai_embedding_base_url: string
+  ai_embedding_model: string
+  ai_embedding_dimensions: string
+}
+
+type AiIndexStatus = {
+  indexedPosts: number
+  chunks: number
+  staleChunks: number
+  lastIndexedAt?: string | null
+  models: Array<{
+    model: string
+    dimensions: number
+    chunks: number
+  }>
 }
 
 type FooterActionItem = {
@@ -208,7 +287,14 @@ const defaultValue = (key: string) => {
     seo_description: '',
     footer_copyright: '©2026 {siteName}',
     footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about\n后台|/admin',
-    footer_actions: defaultFooterActions
+    footer_actions: defaultFooterActions,
+    ai_api_key: '',
+    ai_base_url: 'https://api.deepseek.com',
+    ai_model: 'deepseek-v4-flash',
+    ai_embedding_api_key: '',
+    ai_embedding_base_url: 'https://api.openai.com/v1',
+    ai_embedding_model: 'text-embedding-3-small',
+    ai_embedding_dimensions: '1536'
   }
   return map[key] || ''
 }
@@ -217,7 +303,8 @@ const settingTabs = [
   { label: '基本设置', value: 'basic' },
   { label: 'SEO 设置', value: 'seo' },
   { label: '底部信息', value: 'footer' },
-  { label: '底部快捷入口', value: 'footerActions' }
+  { label: '底部快捷入口', value: 'footerActions' },
+  { label: 'AI 设置', value: 'ai' }
 ] as const
 
 const defaultFooterActions = '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
@@ -246,6 +333,7 @@ const form = ref<SettingsForm | null>(null)
 const footerActionItems = ref<FooterActionItem[]>([])
 const saving = ref(false)
 const saved = ref(false)
+const rebuildingIndex = ref(false)
 const uploading = ref<string | null>(null)
 const logoUploaded = ref(false)
 const faviconUploaded = ref(false)
@@ -255,6 +343,8 @@ const logoInputRef = ref<HTMLInputElement | null>(null)
 const faviconInputRef = ref<HTMLInputElement | null>(null)
 
 const { data } = await useFetch<{ data: Record<string, string> }>('/api/admin/settings')
+const { data: aiIndexData, refresh: refreshAiIndexStatus } = await useFetch<{ data: AiIndexStatus }>('/api/admin/ai/index/status')
+const aiIndexStatus = computed(() => aiIndexData.value?.data || null)
 
 watch(data, (val) => {
   if (val?.data && !form.value) {
@@ -269,7 +359,14 @@ watch(data, (val) => {
       seo_description: val.data.seo_description || defaultValue('seo_description'),
       footer_copyright: val.data.footer_copyright || defaultValue('footer_copyright'),
       footer_bottom_links: val.data.footer_bottom_links || defaultValue('footer_bottom_links'),
-      footer_actions: val.data.footer_actions || defaultValue('footer_actions')
+      footer_actions: val.data.footer_actions || defaultValue('footer_actions'),
+      ai_api_key: val.data.ai_api_key || defaultValue('ai_api_key'),
+      ai_base_url: val.data.ai_base_url || defaultValue('ai_base_url'),
+      ai_model: val.data.ai_model || defaultValue('ai_model'),
+      ai_embedding_api_key: val.data.ai_embedding_api_key || defaultValue('ai_embedding_api_key'),
+      ai_embedding_base_url: val.data.ai_embedding_base_url || defaultValue('ai_embedding_base_url'),
+      ai_embedding_model: val.data.ai_embedding_model || defaultValue('ai_embedding_model'),
+      ai_embedding_dimensions: val.data.ai_embedding_dimensions || defaultValue('ai_embedding_dimensions')
     }
     footerActionItems.value = parseFooterActionItems(form.value.footer_actions)
   }
@@ -293,13 +390,27 @@ async function save() {
   }
 }
 
+async function rebuildAiIndex() {
+  rebuildingIndex.value = true
+  try {
+    await $fetch('/api/admin/ai/index/rebuild', { method: 'POST' })
+    await refreshAiIndexStatus()
+  } finally {
+    rebuildingIndex.value = false
+  }
+}
+
+function formatIndexDate(value?: string | null) {
+  return value ? new Date(value).toLocaleString('zh-CN') : '暂无'
+}
+
 function toggleNoindex(event: Event) {
   if (!form.value) return
   const input = event.target as HTMLInputElement
   form.value.seo_noindex = input.checked ? 'true' : 'false'
 }
 
-function parseFooterActionItems(value: string) {
+function parseFooterActionItems(value: string): FooterActionItem[] {
   try {
     const parsed = JSON.parse(value || '[]')
     if (!Array.isArray(parsed)) return parseFooterActionItems(defaultFooterActions)
@@ -480,6 +591,23 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   display: flex;
   width: min(100%, 760px);
   gap: 0.5rem;
+}
+
+.ai-index-status {
+  display: flex;
+  width: min(100%, 760px);
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.ai-index-status span {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 750;
+  padding: 0.35rem 0.6rem;
 }
 
 .footer-action-editor {

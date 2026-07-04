@@ -1,5 +1,5 @@
 <template>
-  <div class="lab-page">
+  <div class="lab-page" :class="{ 'has-modal-open': selectedFeature }">
     <div class="lab-grid-bg" aria-hidden="true"></div>
 
     <main class="lab-shell">
@@ -131,7 +131,309 @@
             <div class="modal-body">
               <p>{{ selectedFeature.description }}</p>
 
-              <div class="lab-console">
+              <div v-if="selectedFeature.id === 'article-summary'" class="summary-tool">
+                <div class="summary-field">
+                  <span>选择文章</span>
+                  <div ref="summarySelectRef" class="summary-select" :class="{ 'is-open': summarySelectOpen }">
+                    <button
+                      type="button"
+                      class="summary-select-button"
+                      :disabled="summaryLoading"
+                      :aria-expanded="summarySelectOpen"
+                      @click="summarySelectOpen = !summarySelectOpen"
+                    >
+                      <span>{{ selectedSummaryPost?.title || '请选择一篇已发布文章' }}</span>
+                      <ChevronRightIcon aria-hidden="true" />
+                    </button>
+
+                    <div v-if="summarySelectOpen" class="summary-select-menu">
+                      <button
+                        v-for="post in summaryPosts"
+                        :key="post.id"
+                        type="button"
+                        class="summary-select-option"
+                        :class="{ 'is-active': summaryPostId === String(post.id) }"
+                        @click="selectSummaryPost(post)"
+                      >
+                        {{ post.title }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="summaryError" class="summary-alert">
+                  {{ summaryError }}
+                </div>
+
+                <div v-if="summaryResult" class="summary-result">
+                  <section>
+                    <h3>摘要</h3>
+                    <p>{{ summaryResult.summary }}</p>
+                  </section>
+
+                  <section>
+                    <h3>文章要点</h3>
+                    <ul>
+                      <li v-for="item in summaryResult.highlights" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+
+                  <section>
+                    <h3>适合读者</h3>
+                    <p>{{ summaryResult.audience }}</p>
+                  </section>
+
+                  <section>
+                    <h3>延伸问题</h3>
+                    <ul>
+                      <li v-for="item in summaryResult.questions" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="summaryLoading" class="summary-spinner" aria-hidden="true" />
+                  <SparklesIcon v-else aria-hidden="true" />
+                  <span>{{ summaryLoading ? '正在生成文章摘要...' : '选择文章后生成摘要、要点和延伸问题。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'semantic-search'" class="summary-tool">
+                <div class="summary-field">
+                  <span>搜索内容</span>
+                  <textarea
+                    v-model="semanticQuery"
+                    class="semantic-input"
+                    rows="3"
+                    placeholder="例如：Nuxt 图片加载怎么优化？"
+                    :disabled="semanticLoading"
+                  />
+                </div>
+
+                <div v-if="semanticError" class="summary-alert">
+                  {{ semanticError }}
+                </div>
+
+                <div v-if="semanticResults.length" class="semantic-result">
+                  <NuxtLink v-for="item in semanticResults" :key="item.chunkId" :to="postPath(item.slug)">
+                    <span>{{ item.headingPath || '文章片段' }}</span>
+                    <strong>{{ item.title }}</strong>
+                    <p>{{ item.excerpt }}</p>
+                  </NuxtLink>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="semanticLoading" class="summary-spinner" aria-hidden="true" />
+                  <BrainCircuitIcon v-else aria-hidden="true" />
+                  <span>{{ semanticLoading ? '正在语义检索...' : '输入自然语言问题，搜索站内相关文章片段。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'writing-assistant'" class="summary-tool">
+                <div class="summary-field">
+                  <span>选择文章</span>
+                  <div ref="summarySelectRef" class="summary-select" :class="{ 'is-open': summarySelectOpen }">
+                    <button
+                      type="button"
+                      class="summary-select-button"
+                      :disabled="writingLoading"
+                      :aria-expanded="summarySelectOpen"
+                      @click="summarySelectOpen = !summarySelectOpen"
+                    >
+                      <span>{{ selectedSummaryPost?.title || '请选择一篇已发布文章' }}</span>
+                      <ChevronRightIcon aria-hidden="true" />
+                    </button>
+
+                    <div v-if="summarySelectOpen" class="summary-select-menu">
+                      <button
+                        v-for="post in summaryPosts"
+                        :key="post.id"
+                        type="button"
+                        class="summary-select-option"
+                        :class="{ 'is-active': summaryPostId === String(post.id) }"
+                        @click="selectSummaryPost(post)"
+                      >
+                        {{ post.title }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="writingError" class="summary-alert">
+                  {{ writingError }}
+                </div>
+
+                <div v-if="writingResult" class="writing-result">
+                  <section class="writing-score-card">
+                    <span>完成度</span>
+                    <strong>{{ writingResult.completionScore }}</strong>
+                  </section>
+
+                  <section>
+                    <h3>摘要建议</h3>
+                    <p>{{ writingResult.summary }}</p>
+                  </section>
+
+                  <section>
+                    <h3>SEO 建议</h3>
+                    <p>{{ writingResult.seoTitle }}</p>
+                    <p>{{ writingResult.seoDescription }}</p>
+                  </section>
+
+                  <section>
+                    <h3>还可以补充</h3>
+                    <ul>
+                      <li v-for="item in writingResult.missingPoints" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+
+                  <section>
+                    <h3>标题建议</h3>
+                    <ul>
+                      <li v-for="item in writingResult.titleSuggestions" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+
+                  <NuxtLink v-if="summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
+                    去后台编辑页应用
+                    <ChevronRightIcon aria-hidden="true" />
+                  </NuxtLink>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="writingLoading" class="summary-spinner" aria-hidden="true" />
+                  <PenToolIcon v-else aria-hidden="true" />
+                  <span>{{ writingLoading ? '正在分析文章...' : '选择文章后分析摘要、SEO、标题和内容完整度。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'article-recommend'" class="summary-tool">
+                <div class="summary-field">
+                  <span>选择文章</span>
+                  <div ref="summarySelectRef" class="summary-select" :class="{ 'is-open': summarySelectOpen }">
+                    <button
+                      type="button"
+                      class="summary-select-button"
+                      :disabled="recommendLoading"
+                      :aria-expanded="summarySelectOpen"
+                      @click="summarySelectOpen = !summarySelectOpen"
+                    >
+                      <span>{{ selectedSummaryPost?.title || '请选择一篇已发布文章' }}</span>
+                      <ChevronRightIcon aria-hidden="true" />
+                    </button>
+
+                    <div v-if="summarySelectOpen" class="summary-select-menu">
+                      <button
+                        v-for="post in summaryPosts"
+                        :key="post.id"
+                        type="button"
+                        class="summary-select-option"
+                        :class="{ 'is-active': summaryPostId === String(post.id) }"
+                        @click="selectSummaryPost(post)"
+                      >
+                        {{ post.title }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="recommendError" class="summary-alert">
+                  {{ recommendError }}
+                </div>
+
+                <div v-if="recommendResult.length" class="recommend-result">
+                  <article v-for="item in recommendResult" :key="item.relatedPostId">
+                    <span>{{ relationTypeLabel(item.type) }}</span>
+                    <strong>{{ item.title }}</strong>
+                    <p>{{ item.reason }}</p>
+                  </article>
+                  <NuxtLink v-if="summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
+                    去后台编辑页保存
+                    <ChevronRightIcon aria-hidden="true" />
+                  </NuxtLink>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="recommendLoading" class="summary-spinner" aria-hidden="true" />
+                  <NetworkIcon v-else aria-hidden="true" />
+                  <span>{{ recommendLoading ? '正在生成关联推荐...' : '选择文章后生成继续阅读推荐。' }}</span>
+                </div>
+              </div>
+
+              <div v-else-if="selectedFeature.id === 'seo-checker'" class="summary-tool">
+                <div class="summary-field">
+                  <span>选择文章</span>
+                  <div ref="summarySelectRef" class="summary-select" :class="{ 'is-open': summarySelectOpen }">
+                    <button
+                      type="button"
+                      class="summary-select-button"
+                      :disabled="seoCheckLoading"
+                      :aria-expanded="summarySelectOpen"
+                      @click="summarySelectOpen = !summarySelectOpen"
+                    >
+                      <span>{{ selectedSummaryPost?.title || '请选择一篇已发布文章' }}</span>
+                      <ChevronRightIcon aria-hidden="true" />
+                    </button>
+
+                    <div v-if="summarySelectOpen" class="summary-select-menu">
+                      <button
+                        v-for="post in summaryPosts"
+                        :key="post.id"
+                        type="button"
+                        class="summary-select-option"
+                        :class="{ 'is-active': summaryPostId === String(post.id) }"
+                        @click="selectSummaryPost(post)"
+                      >
+                        {{ post.title }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="seoCheckError" class="summary-alert">
+                  {{ seoCheckError }}
+                </div>
+
+                <div v-if="seoCheckResult" class="writing-result">
+                  <section class="seo-score-card">
+                    <span>SEO 分数</span>
+                    <strong>{{ seoCheckResult.score }}</strong>
+                  </section>
+
+                  <section v-if="seoCheckProblems.length">
+                    <h3>待优化项</h3>
+                    <ul>
+                      <li v-for="item in seoCheckProblems" :key="item.key">{{ item.title }}：{{ item.description }}</li>
+                    </ul>
+                  </section>
+
+                  <section>
+                    <h3>AI 修复建议</h3>
+                    <ul>
+                      <li v-for="item in seoCheckResult.advice.fixes" :key="item">{{ item }}</li>
+                    </ul>
+                  </section>
+
+                  <section>
+                    <h3>SEO 标题和描述</h3>
+                    <p>{{ seoCheckResult.advice.seoTitle }}</p>
+                    <p>{{ seoCheckResult.advice.seoDescription }}</p>
+                  </section>
+
+                  <NuxtLink v-if="summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
+                    去后台编辑页应用
+                    <ChevronRightIcon aria-hidden="true" />
+                  </NuxtLink>
+                </div>
+
+                <div v-else class="summary-empty">
+                  <Loader2Icon v-if="seoCheckLoading" class="summary-spinner" aria-hidden="true" />
+                  <TargetIcon v-else aria-hidden="true" />
+                  <span>{{ seoCheckLoading ? '正在检查 SEO...' : '选择文章后检查标题、描述、结构、图片和链接。' }}</span>
+                </div>
+              </div>
+
+              <div v-else class="lab-console">
                 <div v-if="modalLoading" class="console-loading">
                   <Loader2Icon aria-hidden="true" />
                   <span>Initializing Neural Engine...</span>
@@ -157,8 +459,13 @@
 
             <footer class="modal-actions">
               <button type="button" class="ghost-button" @click="closeFeature">取消关闭</button>
-              <button type="button" class="primary-button">
-                启动功能
+              <button
+                type="button"
+                class="primary-button"
+                :disabled="isPrimaryActionDisabled"
+                @click="handlePrimaryAction"
+              >
+                {{ primaryActionLabel }}
                 <ChevronRightIcon aria-hidden="true" />
               </button>
             </footer>
@@ -199,6 +506,75 @@ type LabFeature = {
   wide?: boolean
   tall?: boolean
   hasVisual?: boolean
+}
+
+type SummaryPost = {
+  id: number
+  title: string
+}
+
+type SummaryResult = {
+  summary: string
+  highlights: string[]
+  audience: string
+  questions: string[]
+}
+
+type RecommendResultItem = {
+  relatedPostId: number
+  title: string
+  slug: string
+  type: string
+  reason: string
+}
+
+type WritingAssistantResult = {
+  summary: string
+  seoTitle: string
+  seoDescription: string
+  suggestedCategoryIds: number[]
+  suggestedTagIds: number[]
+  completionScore: number
+  missingPoints: string[]
+  titleSuggestions: string[]
+  writingAdvice: string[]
+}
+
+type SemanticSearchResult = {
+  chunkId: number
+  postId: number
+  chunkIndex: number
+  title: string
+  slug: string
+  excerpt: string
+  headingPath?: string | null
+  score: number
+}
+
+type SeoCheckIssue = {
+  key: string
+  type: 'error' | 'warning' | 'success'
+  title: string
+  description: string
+}
+
+type SeoCheckResult = {
+  score: number
+  issues: SeoCheckIssue[]
+  stats: {
+    wordCount: number
+    h2Count: number
+    imageCount: number
+    missingAltCount: number
+    internalLinkCount: number
+    externalLinkCount: number
+  }
+  advice: {
+    seoTitle: string
+    seoDescription: string
+    fixes: string[]
+    keywordSuggestions: string[]
+  }
 }
 
 const features: LabFeature[] = [
@@ -303,10 +679,87 @@ const features: LabFeature[] = [
 
 const selectedFeature = ref<LabFeature | null>(null)
 const modalLoading = ref(false)
+const summaryPostId = ref('')
+const summaryLoading = ref(false)
+const summaryError = ref('')
+const summaryResult = ref<SummaryResult | null>(null)
+const recommendLoading = ref(false)
+const recommendError = ref('')
+const recommendResult = ref<RecommendResultItem[]>([])
+const writingLoading = ref(false)
+const writingError = ref('')
+const writingResult = ref<WritingAssistantResult | null>(null)
+const seoCheckLoading = ref(false)
+const seoCheckError = ref('')
+const seoCheckResult = ref<SeoCheckResult | null>(null)
+const semanticQuery = ref('')
+const semanticLoading = ref(false)
+const semanticError = ref('')
+const semanticResults = ref<SemanticSearchResult[]>([])
+const summarySelectOpen = ref(false)
+const summarySelectRef = ref<HTMLElement | null>(null)
 let modalTimer: ReturnType<typeof setTimeout> | undefined
+
+const { data: summaryPostData } = await useFetch<{ data: { items: SummaryPost[] } }>('/api/posts', {
+  query: { page: 1, pageSize: 50 }
+})
+
+const summaryPosts = computed(() => summaryPostData.value?.data.items || [])
+const selectedSummaryPost = computed(() => {
+  return summaryPosts.value.find((post) => String(post.id) === summaryPostId.value)
+})
+const seoCheckProblems = computed(() => seoCheckResult.value?.issues.filter((issue) => issue.type !== 'success') || [])
+const primaryActionLabel = computed(() => {
+  if (selectedFeature.value?.id === 'semantic-search') return '开始搜索'
+  if (selectedFeature.value?.id === 'article-summary') return '生成摘要'
+  if (selectedFeature.value?.id === 'writing-assistant') return '开始分析'
+  if (selectedFeature.value?.id === 'article-recommend') return '生成推荐'
+  if (selectedFeature.value?.id === 'seo-checker') return '开始检查'
+  return '启动功能'
+})
+const isPrimaryActionDisabled = computed(() => {
+  if (selectedFeature.value?.id === 'article-summary') {
+    return !summaryPostId.value || summaryLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'article-recommend') {
+    return !summaryPostId.value || recommendLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'writing-assistant') {
+    return !summaryPostId.value || writingLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'seo-checker') {
+    return !summaryPostId.value || seoCheckLoading.value
+  }
+
+  if (selectedFeature.value?.id === 'semantic-search') {
+    return !semanticQuery.value.trim() || semanticLoading.value
+  }
+
+  return false
+})
 
 function openFeature(feature: LabFeature) {
   selectedFeature.value = feature
+  summaryError.value = ''
+  summaryResult.value = null
+  recommendError.value = ''
+  recommendResult.value = []
+  writingError.value = ''
+  writingResult.value = null
+  seoCheckError.value = ''
+  seoCheckResult.value = null
+  semanticError.value = ''
+  semanticResults.value = []
+
+  if (feature.id === 'semantic-search' || feature.id === 'article-summary' || feature.id === 'article-recommend' || feature.id === 'writing-assistant' || feature.id === 'seo-checker') {
+    modalLoading.value = false
+    clearTimeout(modalTimer)
+    return
+  }
+
   modalLoading.value = true
   clearTimeout(modalTimer)
   modalTimer = setTimeout(() => {
@@ -317,12 +770,242 @@ function openFeature(feature: LabFeature) {
 function closeFeature() {
   selectedFeature.value = null
   modalLoading.value = false
+  summaryLoading.value = false
+  summaryError.value = ''
+  summaryResult.value = null
+  recommendLoading.value = false
+  recommendError.value = ''
+  recommendResult.value = []
+  writingLoading.value = false
+  writingError.value = ''
+  writingResult.value = null
+  seoCheckLoading.value = false
+  seoCheckError.value = ''
+  seoCheckResult.value = null
+  semanticLoading.value = false
+  semanticError.value = ''
+  semanticResults.value = []
+  summarySelectOpen.value = false
   clearTimeout(modalTimer)
+}
+
+function selectSummaryPost(post: SummaryPost) {
+  summaryPostId.value = String(post.id)
+  summaryResult.value = null
+  summaryError.value = ''
+  recommendResult.value = []
+  recommendError.value = ''
+  writingResult.value = null
+  writingError.value = ''
+  seoCheckResult.value = null
+  seoCheckError.value = ''
+  summarySelectOpen.value = false
+}
+
+function handlePrimaryAction() {
+  if (selectedFeature.value?.id === 'article-summary') {
+    generateSummary()
+  } else if (selectedFeature.value?.id === 'semantic-search') {
+    runSemanticSearch()
+  } else if (selectedFeature.value?.id === 'article-recommend') {
+    generateRecommendation()
+  } else if (selectedFeature.value?.id === 'writing-assistant') {
+    generateWritingAnalysis()
+  } else if (selectedFeature.value?.id === 'seo-checker') {
+    generateSeoCheck()
+  }
+}
+
+async function runSemanticSearch() {
+  const query = semanticQuery.value.trim()
+  if (!query || semanticLoading.value) {
+    return
+  }
+
+  semanticLoading.value = true
+  semanticError.value = ''
+  semanticResults.value = []
+
+  try {
+    const response = await $fetch<{ data: { items: SemanticSearchResult[] } }>('/api/ai/search', {
+      query: {
+        q: query,
+        limit: 8
+      }
+    })
+    semanticResults.value = response.data.items
+    if (!semanticResults.value.length) {
+      semanticError.value = '没有找到相关内容，请先确认已在后台重建 AI 索引。'
+    }
+  } catch (error: any) {
+    semanticError.value = error?.data?.statusMessage || error?.statusMessage || '语义搜索失败，请检查 Embedding 配置和索引状态'
+  } finally {
+    semanticLoading.value = false
+  }
+}
+
+async function generateSummary() {
+  if (!summaryPostId.value || summaryLoading.value) {
+    return
+  }
+
+  summaryLoading.value = true
+  summaryError.value = ''
+  summaryResult.value = null
+
+  try {
+    const response = await $fetch<{ data: { result: SummaryResult } }>('/api/ai/summarize', {
+      method: 'POST',
+      body: {
+        postId: Number(summaryPostId.value)
+      }
+    })
+    summaryResult.value = response.data.result
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    summaryError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用 AI 摘要功能'
+      : error?.data?.statusMessage || error?.statusMessage || '摘要生成失败，请稍后重试'
+  } finally {
+    summaryLoading.value = false
+  }
+}
+
+async function generateRecommendation() {
+  if (!summaryPostId.value || recommendLoading.value) {
+    return
+  }
+
+  recommendLoading.value = true
+  recommendError.value = ''
+  recommendResult.value = []
+
+  try {
+    const postResponse = await $fetch<{ data: { id: number, title: string, summary?: string | null, content: string, categoryId?: number | null, tagIds?: number[] } }>(`/api/admin/posts/${summaryPostId.value}`)
+    const post = postResponse.data
+    const response = await $fetch<{ data: { items: RecommendResultItem[] } }>('/api/admin/ai/related-posts', {
+      method: 'POST',
+      body: {
+        postId: post.id,
+        title: post.title,
+        summary: post.summary,
+        content: post.content,
+        categoryId: post.categoryId,
+        tagIds: post.tagIds || []
+      }
+    })
+    recommendResult.value = response.data.items
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    recommendError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用 AI 推荐功能'
+      : error?.data?.statusMessage || error?.statusMessage || '关联推荐生成失败，请稍后重试'
+  } finally {
+    recommendLoading.value = false
+  }
+}
+
+async function generateWritingAnalysis() {
+  if (!summaryPostId.value || writingLoading.value) {
+    return
+  }
+
+  writingLoading.value = true
+  writingError.value = ''
+  writingResult.value = null
+
+  try {
+    const postResponse = await $fetch<{ data: { id: number, title: string, summary?: string | null, content: string, categoryId?: number | null, tagIds?: number[] } }>(`/api/admin/posts/${summaryPostId.value}`)
+    const post = postResponse.data
+    const response = await $fetch<{ data: WritingAssistantResult }>('/api/admin/ai/writing-assistant', {
+      method: 'POST',
+      body: {
+        title: post.title,
+        summary: post.summary,
+        content: post.content,
+        categoryId: post.categoryId,
+        tagIds: post.tagIds || []
+      }
+    })
+    writingResult.value = response.data
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    writingError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用 AI 写作助手'
+      : error?.data?.statusMessage || error?.statusMessage || '写作分析失败，请稍后重试'
+  } finally {
+    writingLoading.value = false
+  }
+}
+
+async function generateSeoCheck() {
+  if (!summaryPostId.value || seoCheckLoading.value) {
+    return
+  }
+
+  seoCheckLoading.value = true
+  seoCheckError.value = ''
+  seoCheckResult.value = null
+
+  try {
+    const postResponse = await $fetch<{ data: { id: number, title: string, summary?: string | null, content: string, categoryId?: number | null, tagIds?: number[], seoTitle?: string | null, seoDescription?: string | null } }>(`/api/admin/posts/${summaryPostId.value}`)
+    const post = postResponse.data
+    const response = await $fetch<{ data: SeoCheckResult }>('/api/admin/ai/seo-check', {
+      method: 'POST',
+      body: {
+        title: post.title,
+        summary: post.summary,
+        content: post.content,
+        categoryId: post.categoryId,
+        tagIds: post.tagIds || [],
+        seoTitle: post.seoTitle,
+        seoDescription: post.seoDescription
+      }
+    })
+    seoCheckResult.value = response.data
+  } catch (error: any) {
+    const statusCode = error?.statusCode || error?.data?.statusCode
+    seoCheckError.value = statusCode === 401 || statusCode === 403
+      ? '请先登录后台账号后再使用 AI SEO 检查'
+      : error?.data?.statusMessage || error?.statusMessage || 'SEO 检查失败，请稍后重试'
+  } finally {
+    seoCheckLoading.value = false
+  }
 }
 
 onBeforeUnmount(() => {
   clearTimeout(modalTimer)
+  document.removeEventListener('pointerdown', handleSummaryOutsideClick)
 })
+
+onMounted(() => {
+  document.addEventListener('pointerdown', handleSummaryOutsideClick)
+})
+
+function handleSummaryOutsideClick(event: PointerEvent) {
+  if (!summarySelectOpen.value) {
+    return
+  }
+
+  const target = event.target
+  if (target instanceof Node && summarySelectRef.value?.contains(target)) {
+    return
+  }
+
+  summarySelectOpen.value = false
+}
+
+function relationTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    PREREQUISITE: '前置阅读',
+    EXTENSION: '延伸阅读',
+    SAME_TOPIC: '同主题',
+    PRACTICE: '实战补充',
+    BACKGROUND: '背景知识'
+  }
+
+  return labels[type] || '推荐'
+}
 
 useSeoMeta({
   title: 'AI 实验室',
@@ -957,6 +1640,12 @@ useSeoMeta({
   animation: status-pulse 1.2s infinite ease-in-out;
 }
 
+.has-modal-open .feature-status i,
+.has-modal-open .data-bar,
+.has-modal-open .typewriter {
+  animation-play-state: paused;
+}
+
 .feature-card:hover .feature-status span,
 .feature-card:focus-visible .feature-status span {
   color: #10b981;
@@ -975,11 +1664,14 @@ useSeoMeta({
   place-items: center;
   background: rgb(255 255 255 / 42%);
   padding: 20px;
-  backdrop-filter: blur(7px);
+  backdrop-filter: blur(3px);
 }
 
 .modal-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: min(100%, 672px);
+  max-height: min(86dvh, 760px);
   overflow: hidden;
   border: 1px solid rgb(255 255 255 / 100%);
   border-radius: 12px;
@@ -1064,6 +1756,7 @@ useSeoMeta({
 .modal-body {
   display: flex;
   min-height: 334px;
+  overflow-y: auto;
   flex-direction: column;
   background: rgb(248 250 252 / 72%);
   padding: 24px;
@@ -1086,6 +1779,396 @@ useSeoMeta({
   background: white;
   box-shadow: 0 12px 26px rgb(100 116 139 / 9%);
   padding: 24px;
+}
+
+.summary-tool {
+  display: grid;
+  gap: 16px;
+}
+
+.summary-field {
+  display: grid;
+  gap: 8px;
+}
+
+.summary-field span {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.summary-select {
+  position: relative;
+  width: min(100%, 520px);
+}
+
+.summary-select-button {
+  display: flex;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 22px rgb(100 116 139 / 8%);
+  color: #1e293b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 0 14px;
+  text-align: left;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.summary-select-button:hover,
+.summary-select-button:focus-visible,
+.summary-select.is-open .summary-select-button {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 4px rgb(245 158 11 / 12%), 0 12px 24px rgb(100 116 139 / 10%);
+  outline: none;
+}
+
+.summary-select-button:disabled {
+  cursor: not-allowed;
+  opacity: .72;
+}
+
+.summary-select-button span {
+  overflow: hidden;
+  color: #1e293b;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-select-button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: #94a3b8;
+  transform: rotate(90deg);
+  transition: transform .18s ease;
+}
+
+.summary-select.is-open .summary-select-button svg {
+  transform: rotate(-90deg);
+}
+
+.summary-select-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  display: grid;
+  width: 100%;
+  max-height: 238px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 20px 42px rgb(30 41 59 / 14%);
+  padding: 6px;
+}
+
+.summary-select-option {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 750;
+  overflow: hidden;
+  padding: 0 10px;
+  text-align: left;
+  text-overflow: ellipsis;
+  transition: background .16s ease, color .16s ease;
+  white-space: nowrap;
+}
+
+.summary-select-option:hover,
+.summary-select-option:focus-visible,
+.summary-select-option.is-active {
+  background: #fff7ed;
+  color: #c2410c;
+  outline: none;
+}
+
+.summary-alert {
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 14px;
+  font-weight: 750;
+  padding: 12px 14px;
+}
+
+.summary-empty {
+  display: flex;
+  min-height: 170px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px dashed #dbe3ef;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 72%);
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.summary-empty svg {
+  width: 18px;
+  height: 18px;
+  color: #f59e0b;
+}
+
+.summary-spinner {
+  animation: icon-spin 1s linear infinite;
+}
+
+.semantic-input {
+  width: min(100%, 520px);
+  resize: vertical;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 22px rgb(100 116 139 / 8%);
+  color: #1e293b;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+  outline: none;
+  padding: 12px 14px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.semantic-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgb(99 102 241 / 12%), 0 12px 24px rgb(100 116 139 / 10%);
+}
+
+.semantic-result {
+  display: grid;
+  gap: 12px;
+}
+
+.semantic-result a {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  color: inherit;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+.semantic-result a span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.semantic-result a strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.semantic-result a p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.summary-result {
+  display: grid;
+  gap: 12px;
+}
+
+.summary-result section {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 14px 16px;
+}
+
+.summary-result h3 {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.summary-result p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.summary-result ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.65;
+  padding-left: 18px;
+}
+
+.recommend-result {
+  display: grid;
+  gap: 12px;
+}
+
+.recommend-result article {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 14px 16px;
+}
+
+.recommend-result article span {
+  width: fit-content;
+  border-radius: 999px;
+  background: #f5f3ff;
+  color: #7c3aed;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.recommend-result article strong {
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.recommend-result article p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.recommend-admin-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  background: #111827;
+  color: white;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 10px 14px;
+  text-decoration: none;
+}
+
+.recommend-admin-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+.writing-result {
+  display: grid;
+  gap: 12px;
+}
+
+.writing-result section {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 10px 24px rgb(100 116 139 / 8%);
+  padding: 14px 16px;
+}
+
+.writing-score-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  background: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.writing-score-card span {
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.writing-score-card strong {
+  color: #166534;
+  font-size: 30px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.seo-score-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  background: #fff7ed !important;
+  border-color: #fed7aa !important;
+}
+
+.seo-score-card span {
+  color: #c2410c;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.seo-score-card strong {
+  color: #9a3412;
+  font-size: 30px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.writing-result h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.writing-result p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.writing-result ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.65;
+  padding-left: 18px;
 }
 
 .console-loading {
@@ -1224,6 +2307,14 @@ useSeoMeta({
   background: #020617;
   outline: none;
   transform: translateY(-1px);
+}
+
+.primary-button:disabled {
+  cursor: not-allowed;
+  background: #94a3b8;
+  box-shadow: none;
+  opacity: .72;
+  transform: none;
 }
 
 .primary-button svg {
@@ -1401,18 +2492,12 @@ useSeoMeta({
     min-height: 300px;
   }
 
-  .feature-card:not(.is-tall) .feature-copy p,
-  .feature-copy p {
-    -webkit-line-clamp: 2;
-  }
-
   .modal-layer {
     padding: 14px;
   }
 
   .modal-card {
     max-height: calc(100dvh - 28px);
-    overflow-y: auto;
   }
 
   .modal-header {

@@ -14,7 +14,14 @@ const allowedSettingKeys = [
   'seo_description',
   'footer_copyright',
   'footer_bottom_links',
-  'footer_actions'
+  'footer_actions',
+  'ai_api_key',
+  'ai_base_url',
+  'ai_model',
+  'ai_embedding_api_key',
+  'ai_embedding_base_url',
+  'ai_embedding_model',
+  'ai_embedding_dimensions'
 ] as const
 
 const bodySchema = z.object({
@@ -28,7 +35,14 @@ const bodySchema = z.object({
   seo_description: z.string().optional(),
   footer_copyright: z.string().optional(),
   footer_bottom_links: z.string().optional(),
-  footer_actions: z.string().optional()
+  footer_actions: z.string().optional(),
+  ai_api_key: z.string().optional(),
+  ai_base_url: z.string().url().or(z.literal('')).optional(),
+  ai_model: z.string().optional(),
+  ai_embedding_api_key: z.string().optional(),
+  ai_embedding_base_url: z.string().url().or(z.literal('')).optional(),
+  ai_embedding_model: z.string().optional(),
+  ai_embedding_dimensions: z.string().optional()
 }).strict()
 
 export default defineEventHandler(async (event) => {
