@@ -32,6 +32,19 @@
           ，赋予博客全方位的创作、分析与重组能力。点击各项机能，开启
           <em>自动化体验</em>。
         </p>
+
+        <div class="lab-auth-actions">
+          <template v-if="sessionData?.data.user">
+            <span>
+              <UserRoundIcon aria-hidden="true" />
+              {{ sessionData.data.user.username || '已登录用户' }}
+            </span>
+          </template>
+          <template v-else>
+            <NuxtLink to="/login?redirect=/lab">登录</NuxtLink>
+            <NuxtLink to="/register">注册</NuxtLink>
+          </template>
+        </div>
       </section>
 
       <section class="feature-grid" aria-label="AI 实验功能">
@@ -337,7 +350,7 @@
                     </ul>
                   </section>
 
-                  <NuxtLink v-if="summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
+                  <NuxtLink v-if="isAdmin && summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
                     去后台编辑页应用
                     <ChevronRightIcon aria-hidden="true" />
                   </NuxtLink>
@@ -390,7 +403,7 @@
                     <strong>{{ item.title }}</strong>
                     <p>{{ item.reason }}</p>
                   </article>
-                  <NuxtLink v-if="summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
+                  <NuxtLink v-if="isAdmin && summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
                     去后台编辑页保存
                     <ChevronRightIcon aria-hidden="true" />
                   </NuxtLink>
@@ -463,7 +476,7 @@
                     <p>{{ seoCheckResult.advice.seoDescription }}</p>
                   </section>
 
-                  <NuxtLink v-if="summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
+                  <NuxtLink v-if="isAdmin && summaryPostId" :to="`/admin/posts/${summaryPostId}`" class="recommend-admin-link">
                     去后台编辑页应用
                     <ChevronRightIcon aria-hidden="true" />
                   </NuxtLink>
@@ -841,6 +854,7 @@ import {
   PenTool as PenToolIcon,
   Sparkles as SparklesIcon,
   Target as TargetIcon,
+  UserRound as UserRoundIcon,
   X as XIcon
 } from '@lucide/vue'
 
@@ -1197,11 +1211,13 @@ const summarySelectOpen = ref(false)
 const summarySelectRef = ref<HTMLElement | null>(null)
 let modalTimer: ReturnType<typeof setTimeout> | undefined
 
+const { data: sessionData } = await useFetch<{ data: { user: { role?: string } | null } }>('/api/auth/me')
 const { data: summaryPostData } = await useFetch<{ data: { items: SummaryPost[] } }>('/api/posts', {
   query: { page: 1, pageSize: 50 }
 })
 
 const summaryPosts = computed(() => summaryPostData.value?.data.items || [])
+const isAdmin = computed(() => sessionData.value?.data.user?.role === 'ADMIN')
 const selectedSummaryPost = computed(() => {
   return summaryPosts.value.find((post) => String(post.id) === summaryPostId.value)
 })
@@ -1406,7 +1422,7 @@ async function askBlogQuestion() {
   } catch (error: any) {
     const statusCode = error?.statusCode || error?.data?.statusCode
     askError.value = statusCode === 401 || statusCode === 403
-      ? '请先登录后台账号后再使用问问博客'
+      ? '请先登录后再使用问问博客'
       : error?.data?.statusMessage || error?.statusMessage || '问答生成失败，请检查 AI 配置和索引状态'
   } finally {
     askLoading.value = false
@@ -1461,7 +1477,7 @@ async function generateSummary() {
   } catch (error: any) {
     const statusCode = error?.statusCode || error?.data?.statusCode
     summaryError.value = statusCode === 401 || statusCode === 403
-      ? '请先登录后台账号后再使用 AI 摘要功能'
+      ? '请先登录后再使用 AI 摘要功能'
       : error?.data?.statusMessage || error?.statusMessage || '摘要生成失败，请稍后重试'
   } finally {
     summaryLoading.value = false
@@ -1478,24 +1494,17 @@ async function generateRecommendation() {
   recommendResult.value = []
 
   try {
-    const postResponse = await $fetch<{ data: { id: number, title: string, summary?: string | null, content: string, categoryId?: number | null, tagIds?: number[] } }>(`/api/admin/posts/${summaryPostId.value}`)
-    const post = postResponse.data
-    const response = await $fetch<{ data: { items: RecommendResultItem[] } }>('/api/admin/ai/related-posts', {
+    const response = await $fetch<{ data: { items: RecommendResultItem[] } }>('/api/ai/related-posts', {
       method: 'POST',
       body: {
-        postId: post.id,
-        title: post.title,
-        summary: post.summary,
-        content: post.content,
-        categoryId: post.categoryId,
-        tagIds: post.tagIds || []
+        postId: Number(summaryPostId.value)
       }
     })
     recommendResult.value = response.data.items
   } catch (error: any) {
     const statusCode = error?.statusCode || error?.data?.statusCode
     recommendError.value = statusCode === 401 || statusCode === 403
-      ? '请先登录后台账号后再使用 AI 推荐功能'
+      ? '请先登录后再使用 AI 推荐功能'
       : error?.data?.statusMessage || error?.statusMessage || '关联推荐生成失败，请稍后重试'
   } finally {
     recommendLoading.value = false
@@ -1512,23 +1521,17 @@ async function generateWritingAnalysis() {
   writingResult.value = null
 
   try {
-    const postResponse = await $fetch<{ data: { id: number, title: string, summary?: string | null, content: string, categoryId?: number | null, tagIds?: number[] } }>(`/api/admin/posts/${summaryPostId.value}`)
-    const post = postResponse.data
-    const response = await $fetch<{ data: WritingAssistantResult }>('/api/admin/ai/writing-assistant', {
+    const response = await $fetch<{ data: WritingAssistantResult }>('/api/ai/writing-assistant', {
       method: 'POST',
       body: {
-        title: post.title,
-        summary: post.summary,
-        content: post.content,
-        categoryId: post.categoryId,
-        tagIds: post.tagIds || []
+        postId: Number(summaryPostId.value)
       }
     })
     writingResult.value = response.data
   } catch (error: any) {
     const statusCode = error?.statusCode || error?.data?.statusCode
     writingError.value = statusCode === 401 || statusCode === 403
-      ? '请先登录后台账号后再使用 AI 写作助手'
+      ? '请先登录后再使用 AI 写作助手'
       : error?.data?.statusMessage || error?.statusMessage || '写作分析失败，请稍后重试'
   } finally {
     writingLoading.value = false
@@ -1545,25 +1548,17 @@ async function generateSeoCheck() {
   seoCheckResult.value = null
 
   try {
-    const postResponse = await $fetch<{ data: { id: number, title: string, summary?: string | null, content: string, categoryId?: number | null, tagIds?: number[], seoTitle?: string | null, seoDescription?: string | null } }>(`/api/admin/posts/${summaryPostId.value}`)
-    const post = postResponse.data
-    const response = await $fetch<{ data: SeoCheckResult }>('/api/admin/ai/seo-check', {
+    const response = await $fetch<{ data: SeoCheckResult }>('/api/ai/seo-check', {
       method: 'POST',
       body: {
-        title: post.title,
-        summary: post.summary,
-        content: post.content,
-        categoryId: post.categoryId,
-        tagIds: post.tagIds || [],
-        seoTitle: post.seoTitle,
-        seoDescription: post.seoDescription
+        postId: Number(summaryPostId.value)
       }
     })
     seoCheckResult.value = response.data
   } catch (error: any) {
     const statusCode = error?.statusCode || error?.data?.statusCode
     seoCheckError.value = statusCode === 401 || statusCode === 403
-      ? '请先登录后台账号后再使用 AI SEO 检查'
+      ? '请先登录后再使用 AI SEO 检查'
       : error?.data?.statusMessage || error?.statusMessage || 'SEO 检查失败，请稍后重试'
   } finally {
     seoCheckLoading.value = false
@@ -1602,7 +1597,7 @@ async function checkExternalLinks() {
   linkCheckResult.value = null
 
   try {
-    const response = await $fetch<{ data: LinkCheckResult }>('/api/admin/ai/link-checker', {
+    const response = await $fetch<{ data: LinkCheckResult }>('/api/ai/link-checker', {
       method: 'POST',
       body: {
         postId: Number(summaryPostId.value)
@@ -1612,7 +1607,7 @@ async function checkExternalLinks() {
   } catch (error: any) {
     const statusCode = error?.statusCode || error?.data?.statusCode
     linkCheckError.value = statusCode === 401 || statusCode === 403
-      ? '请先登录后台账号后再使用外链检查助手'
+      ? '请先登录后再使用外链检查助手'
       : error?.data?.statusMessage || error?.statusMessage || '外链检查失败，请稍后重试'
   } finally {
     linkCheckLoading.value = false
@@ -1978,6 +1973,42 @@ useSeoMeta({
 
 .lab-hero em:hover::after {
   background: #2563eb;
+}
+
+.lab-auth-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.lab-auth-actions a,
+.lab-auth-actions span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 10px 16px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(16px);
+  transition: border-color .2s ease, color .2s ease, transform .2s ease;
+}
+
+.lab-auth-actions a:hover {
+  border-color: rgba(37, 99, 235, 0.35);
+  color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.lab-auth-actions svg {
+  width: 16px;
+  height: 16px;
 }
 
 .feature-grid {

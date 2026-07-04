@@ -4,6 +4,7 @@ import { ok } from '~~/server/utils/response'
 const publicSettingKeys = new Set([
   'site_title',
   'site_subtitle',
+  'site_brand',
   'sidebar_description',
   'site_logo',
   'site_favicon',

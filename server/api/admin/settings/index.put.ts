@@ -6,6 +6,7 @@ import { z } from 'zod'
 const allowedSettingKeys = [
   'site_title',
   'site_subtitle',
+  'site_brand',
   'sidebar_description',
   'site_logo',
   'site_favicon',
@@ -32,6 +33,7 @@ const allowedSettingKeys = [
 const bodySchema = z.object({
   site_title: z.string().optional(),
   site_subtitle: z.string().optional(),
+  site_brand: z.string().optional(),
   sidebar_description: z.string().optional(),
   site_logo: z.string().optional(),
   site_favicon: z.string().optional(),

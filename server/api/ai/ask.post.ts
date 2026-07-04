@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { requireAdmin } from '~~/server/utils/auth'
+import { withAiUsage } from '~~/server/utils/ai-usage'
 import { ok } from '~~/server/utils/response'
 import { askBlog } from '~~/server/services/rag/ask.service'
 
@@ -8,9 +8,8 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
   const body = bodySchema.parse(await readBody(event))
-  const result = await askBlog(body.question)
+  const result = await withAiUsage(event, 'ask-blog', () => askBlog(body.question))
 
   return ok(result)
 })

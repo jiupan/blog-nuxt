@@ -1,8 +1,15 @@
 ﻿import { createError, type H3Event } from 'h3'
 
-export async function requireAdmin(event: H3Event) {
+type SessionUser = {
+  id?: number
+  username?: string
+  email?: string | null
+  role?: string
+}
+
+export async function requireUser(event: H3Event) {
   const session = await requireUserSession(event)
-  const user = session.user as { id?: number } | undefined
+  const user = session.user as SessionUser | undefined
 
   if (!user?.id) {
     throw createError({
@@ -12,4 +19,17 @@ export async function requireAdmin(event: H3Event) {
   }
 
   return session.user
+}
+
+export async function requireAdmin(event: H3Event) {
+  const user = await requireUser(event) as SessionUser
+
+  if (user.role !== 'ADMIN') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: '没有后台访问权限'
+    })
+  }
+
+  return user
 }

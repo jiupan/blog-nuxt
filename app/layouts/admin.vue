@@ -51,6 +51,10 @@
             </NuxtLink>
           </nav>
           <div class="flex items-center gap-2">
+            <div v-if="username" class="admin-user-chip">
+              <UIcon name="i-lucide-user-round" class="size-4" />
+              <span>{{ username }}</span>
+            </div>
             <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-home" to="/" class="md:hidden" aria-label="查看前台" />
             <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-log-out" @click="logout">退出登录</UButton>
           </div>
@@ -81,6 +85,8 @@ const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
 const route = useRoute()
+const { data: sessionData } = await useFetch<{ data: { user: { username?: string } | null } }>('/api/auth/me')
+const username = computed(() => sessionData.value?.data.user?.username || '')
 
 const navItems = [
   { label: '仪表盘', to: '/admin', icon: 'i-lucide-layout-dashboard' },

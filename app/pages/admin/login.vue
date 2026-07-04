@@ -77,9 +77,9 @@ definePageMeta({
 
 const config = useRuntimeConfig()
 const siteName = config.public.siteName
-const { data: sessionData } = await useFetch('/api/auth/me')
+const { data: sessionData } = await useFetch<{ data: { user: { role?: string } | null } }>('/api/auth/me')
 
-if (sessionData.value?.data.user) {
+if (sessionData.value?.data.user?.role === 'ADMIN') {
   await navigateTo('/admin', { replace: true })
 }
 
@@ -102,11 +102,16 @@ async function login() {
       body: form
     })
 
-    await $fetch('/api/auth/me', {
+    const session = await $fetch<{ data: { user: { role?: string } | null } }>('/api/auth/me', {
       headers: {
         'cache-control': 'no-cache'
       }
     })
+    if (session.data.user?.role !== 'ADMIN') {
+      await $fetch('/api/auth/logout', { method: 'POST' })
+      errorMessage.value = '该账号没有后台访问权限'
+      return
+    }
     await navigateTo('/admin', { replace: true })
   } catch (error: any) {
     errorMessage.value = error?.statusMessage || '登录失败'

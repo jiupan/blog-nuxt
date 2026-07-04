@@ -10,8 +10,12 @@ datasource db {
 model User {
   id           Int      @id @default(autoincrement())
   username     String   @unique
+  email        String?  @unique
   passwordHash String
-  role         Role     @default(ADMIN)
+  role         Role     @default(USER)
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  aiUsageLogs  AiUsageLog[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -165,6 +169,21 @@ model MenuItem {
   @@index([type, targetId])
 }
 
+model AiUsageLog {
+  id         Int           @id @default(autoincrement())
+  userId     Int
+  feature    String
+  status     AiUsageStatus
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime      @default(now())
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([feature, createdAt])
+  @@index([ip, createdAt])
+}
+
 enum PostStatus {
   DRAFT
   PUBLISHED
@@ -191,6 +210,18 @@ enum PostRelationSource {
 
 enum Role {
   ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AiUsageStatus {
+  SUCCESS
+  FAILED
+  BLOCKED
 }
 
 enum MenuLocation {

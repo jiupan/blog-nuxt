@@ -3,8 +3,14 @@
     <header class="site-header" :class="{ 'is-scrolled': isScrolled, 'is-article-route': isArticleRoute }">
       <div class="header-inner">
         <NuxtLink to="/" class="brand" aria-label="返回博客主页" data-tooltip="返回博客主页" @click="handleBrandClick">
-          <Icon name="i-simple-icons-nuxtdotjs" class="brand-mark" aria-hidden="true" />
-          <span>DYU</span>
+          <span
+            v-if="siteSettings.site_favicon"
+            class="brand-mark brand-mark-mask"
+            :style="brandMarkStyle"
+            aria-hidden="true"
+          />
+          <Icon v-else-if="siteSettingsLoaded" name="i-simple-icons-nuxtdotjs" class="brand-mark" aria-hidden="true" />
+          <span>{{ brandText }}</span>
         </NuxtLink>
 
         <button class="scroll-title" aria-label="回到顶部" @click="scrollToTop">
@@ -203,8 +209,19 @@ const isScrolled = ref(false)
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const mobilePanelOpen = useState<boolean>('mobilePanelOpen', () => false)
 const siteSettings = useSiteSettings()
+const siteSettingsLoaded = useSiteSettingsLoaded()
 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'HEO')
+const brandText = computed(() => siteSettings.value.site_brand || 'DYU')
+const brandMarkStyle = computed(() => {
+  const url = siteSettings.value.site_favicon
+  return url
+    ? {
+        maskImage: `url("${url}")`,
+        WebkitMaskImage: `url("${url}")`
+      }
+    : undefined
+})
 const footerCopyrightParts = computed(() => parseFooterCopyright(siteSettings.value.footer_copyright))
 const footerBottomLinks = computed(() => {
   return parseFooterBottomLinks(siteSettings.value.footer_bottom_links)
@@ -583,6 +600,21 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   font-size: 22px;
   line-height: 1;
+}
+
+.brand-mark-mask {
+  background: currentColor;
+  filter:
+    drop-shadow(.45px 0 0 currentColor)
+    drop-shadow(-.45px 0 0 currentColor)
+    drop-shadow(0 .45px 0 currentColor)
+    drop-shadow(0 -.45px 0 currentColor);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
 }
 
 .main-nav {

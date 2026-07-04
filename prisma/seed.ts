@@ -13,8 +13,8 @@ async function main() {
 
   await prisma.user.upsert({
     where: { username },
-    update: { passwordHash },
-    create: { username, passwordHash }
+    update: { passwordHash, role: 'ADMIN', status: 'ACTIVE' },
+    create: { username, passwordHash, role: 'ADMIN', status: 'ACTIVE' }
   })
 
   const category = await prisma.category.upsert({

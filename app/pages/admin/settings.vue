@@ -40,6 +40,12 @@
         </div>
 
         <div class="settings-row">
+          <label class="settings-label">顶部品牌文字</label>
+          <UInput v-model="form.site_brand" icon="i-lucide-badge" placeholder="DYU" class="settings-control" />
+          <p class="text-xs text-slate-400">显示在顶部导航图标右侧，留空时默认显示 DYU</p>
+        </div>
+
+        <div class="settings-row">
           <label class="settings-label">侧边栏描述</label>
           <UInput v-model="form.sidebar_description" icon="i-lucide-panel-right" placeholder="首页侧边栏简介" class="settings-control" />
           <p class="text-xs text-slate-400">显示在首页侧边栏头像卡片下方</p>
@@ -61,7 +67,7 @@
           <label class="settings-label">Favicon URL</label>
           <div class="settings-upload">
             <UInput v-model="form.site_favicon" icon="i-lucide-globe" placeholder="https://example.com/favicon.ico" class="flex-1" />
-            <input ref="faviconInputRef" type="file" accept="image/*" class="hidden" @change="uploadFile($event, 'site_favicon')" />
+            <input ref="faviconInputRef" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" class="hidden" @change="uploadFile($event, 'site_favicon')" />
             <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploading === 'site_favicon'" @click="faviconInputRef?.click()">上传</UButton>
             <span v-if="faviconUploaded" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><UIcon name="i-lucide-check" class="size-4" />已上传</span>
             <span v-if="faviconUploadError" class="inline-flex items-center gap-1 text-sm font-medium text-red-500"><UIcon name="i-lucide-alert-circle" class="size-4" />上传失败</span>
@@ -332,6 +338,7 @@ definePageMeta({
 type SettingsForm = {
   site_title: string
   site_subtitle: string
+  site_brand: string
   sidebar_description: string
   site_logo: string
   site_favicon: string
@@ -378,6 +385,7 @@ const defaultValue = (key: string) => {
   const map: Record<string, string> = {
     site_title: 'Jiupan Blog',
     site_subtitle: '个人博客',
+    site_brand: 'DYU',
     sidebar_description: '个人博客',
     site_logo: '',
     site_favicon: '',
@@ -463,6 +471,7 @@ watch(data, (val) => {
     form.value = {
       site_title: val.data.site_title || defaultValue('site_title'),
       site_subtitle: val.data.site_subtitle || defaultValue('site_subtitle'),
+      site_brand: val.data.site_brand || defaultValue('site_brand'),
       sidebar_description: val.data.sidebar_description || defaultValue('sidebar_description'),
       site_logo: val.data.site_logo || defaultValue('site_logo'),
       site_favicon: val.data.site_favicon || defaultValue('site_favicon'),

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { requireLabUser } from '~~/server/utils/ai-usage'
 import { ok } from '~~/server/utils/response'
 import { searchPostChunks } from '~~/server/services/rag/retrieval.service'
 
@@ -10,6 +11,7 @@ const querySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  await requireLabUser(event)
   const query = querySchema.parse(getQuery(event))
   const items = await searchPostChunks({
     query: query.q,

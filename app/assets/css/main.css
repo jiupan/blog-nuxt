@@ -455,6 +455,28 @@ body[style*="padding-right"] {
   transition: background-color 160ms ease, color 160ms ease;
 }
 
+.admin-user-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 10rem;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0.4rem 0.7rem;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.admin-user-chip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-top-link:hover,
 .admin-mobile-link:hover,
 .admin-mobile-link-active {

@@ -33,6 +33,16 @@ export default defineNuxtConfig({
     '/api/admin/**': { cors: false }
   },
   runtimeConfig: {
+    session: {
+      name: '__Host-nuxt-session',
+      maxAge: 60 * 60 * 24 * 7,
+      cookie: {
+        sameSite: 'lax',
+        secure: true,
+        httpOnly: true,
+        path: '/'
+      }
+    },
     uploadDir: process.env.UPLOAD_DIR || './uploads',
     aiApiKey: process.env.AI_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || '',
     aiBaseUrl: process.env.AI_BASE_URL || 'https://api.deepseek.com',

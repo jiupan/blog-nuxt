@@ -9,6 +9,7 @@ const maxUploadSize = 10 * 1024 * 1024
 const maxInputPixels = 40_000_000
 const allowedFormats = new Set(['jpeg', 'png', 'webp'])
 const memeFormats = new Set(['jpeg', 'png', 'webp', 'gif'])
+const unsafeSvgPattern = /<\s*(?:script|foreignobject|iframe|object|embed|link|style)\b|(?:\s|<)on[a-z]+\s*=|javascript:/i
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
@@ -45,13 +46,25 @@ export default defineEventHandler(async (event) => {
 })
 
 async function optimizeImage(input: Buffer, options: { isFavicon: boolean, isMeme: boolean }) {
+  if (options.isFavicon && isSvg(input)) {
+    const svg = normalizeSvg(input.toString('utf8'))
+    if (unsafeSvgPattern.test(svg)) {
+      throw createError({ statusCode: 400, statusMessage: 'SVG 不能包含脚本、事件或外部可执行内容' })
+    }
+
+    return {
+      data: Buffer.from(svg.trim()),
+      extension: '.svg'
+    }
+  }
+
   const image = sharp(input, { limitInputPixels: maxInputPixels })
   const metadata = await image.metadata().catch(() => null)
   const format = metadata?.format || ''
   const allowed = options.isMeme ? memeFormats : allowedFormats
 
   if (!format || !allowed.has(format) || !metadata?.width || !metadata.height) {
-    throw createError({ statusCode: 400, statusMessage: options.isMeme ? '表情包只支持 jpg/png/webp/gif 图片' : '只支持 jpg/png/webp 图片' })
+    throw createError({ statusCode: 400, statusMessage: options.isMeme ? '表情包只支持 jpg/png/webp/gif 图片' : options.isFavicon ? 'Favicon 只支持 jpg/png/webp/svg 图片' : '只支持 jpg/png/webp 图片' })
   }
 
   if (options.isMeme && format === 'gif') {
@@ -89,4 +102,25 @@ async function optimizeImage(input: Buffer, options: { isFavicon: boolean, isMem
   } catch {
     throw createError({ statusCode: 400, statusMessage: '图片处理失败，请换一张图片重试' })
   }
+}
+
+function isSvg(input: Buffer) {
+  const head = input.subarray(0, 512).toString('utf8').trimStart()
+  return head.startsWith('<svg') || head.startsWith('<?xml') && head.includes('<svg')
+}
+
+function normalizeSvg(input: string) {
+  let svg = input.trim()
+  svg = svg.replace(/<path\b(?=[^>]*\bfill=(["'])#fff(?:fff)?\1)(?=[^>]*\btransform=(["'])translate\(0,0\)\2)[^>]*\/>\s*/gi, '')
+
+  const svgTag = svg.match(/<svg\b[^>]*>/i)?.[0]
+  if (svgTag && !/\bviewBox=/i.test(svgTag)) {
+    const width = Number(svgTag.match(/\bwidth=(["'])(\d+(?:\.\d+)?)\1/i)?.[2])
+    const height = Number(svgTag.match(/\bheight=(["'])(\d+(?:\.\d+)?)\1/i)?.[2])
+    if (width > 0 && height > 0) {
+      svg = svg.replace(svgTag, svgTag.replace(/>$/, ` viewBox="0 0 ${width} ${height}">`))
+    }
+  }
+
+  return svg
 }

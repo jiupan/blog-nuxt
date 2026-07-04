@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { generatePostSummary } from '~~/server/utils/ai'
-import { requireAdmin } from '~~/server/utils/auth'
+import { withAiUsage } from '~~/server/utils/ai-usage'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
 
@@ -9,7 +9,6 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  await requireAdmin(event)
   const body = bodySchema.parse(await readBody(event))
   const now = new Date()
 
@@ -32,13 +31,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const result = await generatePostSummary({
+  const result = await withAiUsage(event, 'article-summary', () => generatePostSummary({
     title: post.title,
     summary: post.summary,
     content: post.content,
     category: post.category,
     tags: post.tags.map((item) => item.tag)
-  })
+  }))
 
   return ok({
     post: {
