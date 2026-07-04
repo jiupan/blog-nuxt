@@ -698,7 +698,7 @@ onBeforeUnmount(() => {
   color: #303137;
   font-size: 18px;
   font-weight: 900;
-  line-height: 1;
+  line-height: 1.35;
   opacity: 0;
   transform-origin: center;
   translate: -50% -8px;
@@ -725,6 +725,7 @@ onBeforeUnmount(() => {
   display: block;
   max-width: 100%;
   overflow: hidden;
+  line-height: inherit;
   text-overflow: ellipsis;
 }
 
