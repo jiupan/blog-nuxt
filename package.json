@@ -31,6 +31,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.116",
     "@types/markdown-it": "14.1.2",
     "@types/node": "26.0.1",
     "@types/sanitize-html": "2.16.1",

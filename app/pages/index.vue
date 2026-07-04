@@ -87,7 +87,10 @@
                   <span>{{ post.category }}</span>
                   <span v-if="index < 2">最新</span>
                 </div>
-                <NuxtLink :to="post.to" class="post-title">{{ post.title }}</NuxtLink>
+                <NuxtLink :to="post.to" class="post-title">
+                  <span>{{ post.title }}</span>
+                  <span class="read-more-cue" aria-hidden="true">→</span>
+                </NuxtLink>
                 <div class="post-tags">
                   <span v-for="tag in post.tags" :key="tag"># {{ tag }}</span>
                   <time>{{ post.date }}</time>
@@ -690,6 +693,13 @@ function formatDate(value?: string | Date | null) {
   border-radius: 8px;
   background: white;
   box-shadow: 0 14px 34px rgb(42 59 91 / 7%);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.post-card:hover,
+.post-card:focus-within {
+  border-color: rgb(79 103 245 / 28%);
+  box-shadow: 0 18px 42px rgb(42 59 91 / 12%);
 }
 
 .post-cover {
@@ -698,6 +708,8 @@ function formatDate(value?: string | Date | null) {
   min-height: 202px;
   place-items: center;
   overflow: hidden;
+  isolation: isolate;
+  background: #e9eef8;
 }
 
 .cover-image {
@@ -706,6 +718,16 @@ function formatDate(value?: string | Date | null) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  backface-visibility: hidden;
+  transform: translateZ(0) scale(1.001);
+  transform-origin: center;
+  transition: transform .32s ease;
+  will-change: transform;
+}
+
+.post-card:hover .cover-image,
+.post-card:focus-within .cover-image {
+  transform: translateZ(0) scale(1.025);
 }
 
 .cover-overlay {
@@ -759,6 +781,11 @@ function formatDate(value?: string | Date | null) {
   object-fit: contain;
 }
 
+.post-card:hover .cover-icon,
+.post-card:focus-within .cover-icon {
+  box-shadow: 0 20px 38px rgb(0 0 0 / 22%);
+}
+
 .cover-pink { background: linear-gradient(135deg, #5c2348, #8b2f6a); }
 .cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
 .cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
@@ -779,13 +806,50 @@ function formatDate(value?: string | Date | null) {
 }
 
 .post-title {
-  display: block;
+  display: flex;
   min-height: 62px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 10px;
   color: #33343b;
   font-size: 20px;
   font-weight: 900;
   line-height: 1.45;
+  transition: color .18s ease;
+}
+
+.post-title:focus-visible {
+  outline: none;
+}
+
+.post-card:hover .post-title,
+.post-card:focus-within .post-title {
+  color: #4f67f5;
+}
+
+.post-title span:first-child {
+  min-width: 0;
+}
+
+.read-more-cue {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: rgb(79 103 245 / 10%);
+  color: #4f67f5;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity .18s ease, background .18s ease;
+}
+
+.post-card:hover .read-more-cue,
+.post-card:focus-within .read-more-cue {
+  opacity: 1;
 }
 
 .post-tags {
@@ -795,6 +859,14 @@ function formatDate(value?: string | Date | null) {
   margin-top: 18px;
   color: #777d89;
   font-size: 14px;
+}
+
+.post-tags span {
+  transition: color .18s ease;
+}
+
+.post-tags span:hover {
+  color: #4f67f5;
 }
 
 .post-tags time {
