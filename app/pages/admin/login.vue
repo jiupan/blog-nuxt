@@ -1,76 +1,85 @@
 <template>
-  <div class="min-h-screen bg-[#f7f8fa] px-4 text-slate-950">
-    <main class="mx-auto flex min-h-screen w-full max-w-[460px] flex-col items-center justify-center pb-18">
-      <form class="mt-[60px] w-full" @submit.prevent="login">
-        <!-- Logo -->
-        <div class="mb-14 flex items-center justify-center gap-4">
-          <div class="grid size-10.5 place-items-center overflow-hidden rounded-full bg-cyan-400 shadow-sm">
-            <div class="grid size-9 place-items-center rounded-full bg-cyan-300">
-              <UIcon name="i-lucide-user-round" class="size-5 text-slate-900" />
-            </div>
-          </div>
-          <h1 class="text-[24px] font-medium tracking-wide text-slate-950">
-            {{ siteName }}
-          </h1>
+  <main class="auth-page">
+    <section class="auth-card">
+      <div class="auth-art" aria-hidden="true">
+        <svg class="auth-blob" viewBox="0 0 200 200">
+          <path
+            fill="currentColor"
+            d="M47.7,-57.2C59.9,-46.8,66.8,-30.3,71.2,-13.2C75.5,3.9,77.3,21.6,69.5,35.1C61.6,48.6,44.1,57.9,26.6,62.8C9.1,67.7,-8.4,68.2,-23.7,62.5C-39,56.8,-52.1,44.9,-61.8,29.8C-71.5,14.7,-77.8,-3.6,-74.2,-19.9C-70.6,-36.2,-57.1,-50.5,-42.2,-60.1C-27.3,-69.7,-11,-74.6,3.6,-78.9C18.2,-83.2,35.5,-67.6,47.7,-57.2Z"
+            transform="translate(100 100)"
+          />
+        </svg>
+        <div class="auth-art-content">
+          <span class="auth-art-icon">
+            <UIcon name="i-lucide-layout-dashboard" />
+          </span>
+          <h2>管理内容之前，先确认访问权限。</h2>
+          <p>仅管理员账号可以进入后台，普通用户会被自动退出。</p>
+        </div>
+      </div>
+
+      <div class="auth-panel">
+        <NuxtLink to="/" class="auth-back">
+          <UIcon name="i-lucide-arrow-left" />
+          返回首页
+        </NuxtLink>
+
+        <div class="auth-heading">
+          <NuxtLink to="/" class="auth-brand">{{ siteName || 'Dyu' }}<span>.</span></NuxtLink>
+          <h1>后台登录</h1>
+          <p>使用管理员账号进入内容管理台。</p>
         </div>
 
-        <!-- 输入框 -->
-        <div class="space-y-6">
-          <div class="relative">
+        <form class="auth-form" @submit.prevent="login">
+          <label class="auth-field">
+            <span>账号</span>
             <input
               v-model="form.username"
               autocomplete="username"
               type="text"
               placeholder="请输入用户名"
-              class="h-[54px] w-full rounded-full border border-slate-200 bg-white px-8 text-[16px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:ring-3 focus:ring-slate-200/60"
-            />
-          </div>
-
-          <div class="relative">
-            <input
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              autocomplete="current-password"
-              placeholder="请输入密码"
-              class="h-[54px] w-full rounded-full border border-slate-200 bg-white px-8 pr-12 text-[16px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:ring-3 focus:ring-slate-200/60"
-            />
-            <button
-              type="button"
-              class="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
-              @click="showPassword = !showPassword"
             >
-              <UIcon
-                :name="showPassword ? 'i-lucide-eye' : 'i-lucide-eye-off'"
-                class="size-5"
-              />
-            </button>
-          </div>
-        </div>
+          </label>
 
-        <!-- 错误提示 -->
-        <UAlert
-          v-if="errorMessage"
-          class="mt-5"
-          color="error"
-          variant="soft"
-          :description="errorMessage"
-        />
+          <label class="auth-field">
+            <span>密码</span>
+            <div class="auth-password">
+              <input
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="current-password"
+                placeholder="请输入密码"
+              >
+              <button
+                type="button"
+                aria-label="切换密码显示"
+                @click="showPassword = !showPassword"
+              >
+                <UIcon :name="showPassword ? 'i-lucide-eye' : 'i-lucide-eye-off'" />
+              </button>
+            </div>
+          </label>
 
-        <!-- 登录按钮 -->
-        <button
-          type="submit"
-          :disabled="pending"
-          class="mt-6 flex h-[54px] w-full items-center justify-center rounded-full bg-[#111] text-[16px] font-semibold tracking-[0.2em] text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          <span v-if="!pending">登录</span>
-          <span v-else>登录中...</span>
-        </button>
-      </form>
-    </main>
-  </div>
+          <UAlert
+            v-if="errorMessage"
+            color="error"
+            variant="soft"
+            :description="errorMessage"
+          />
+
+          <button type="submit" class="auth-submit" :disabled="pending">
+            <span>{{ pending ? '登录中...' : '登录' }}</span>
+            <UIcon v-if="!pending" name="i-lucide-arrow-right" />
+            <UIcon v-else name="i-lucide-loader-2" class="auth-spin" />
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
 </template>
 
 <script setup lang="ts">
+import '~/assets/css/auth-page.css'
 import { getApiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({

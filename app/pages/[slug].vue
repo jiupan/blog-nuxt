@@ -33,8 +33,13 @@
       <main class="post-main">
         <section v-if="post.summary" class="summary-card">
           <div class="summary-heading">
-            <span>文章摘要</span>
-            <small>{{ siteName }}</small>
+            <div class="summary-title" tabindex="0" aria-describedby="summary-tooltip">
+              <Icon name="i-lucide-bot" class="summary-title-icon" />
+              <span>文章摘要</span>
+              <Icon name="i-lucide-chevron-right" class="summary-title-arrow" />
+              <span id="summary-tooltip" class="summary-tooltip" role="tooltip">通过AI生成文章摘要</span>
+            </div>
+            <small>DyuGPT</small>
           </div>
           <div class="summary-body">
             <div class="summary-thumb">
@@ -43,6 +48,13 @@
             </div>
             <p>{{ post.summary }}</p>
           </div>
+          <form class="summary-chat-form" @submit.prevent>
+            <input type="text" placeholder="针对这个文章有什么想问的？" aria-label="针对这篇文章提问" />
+            <button type="submit">
+              <span>发送</span>
+              <Icon name="i-lucide-corner-down-left" />
+            </button>
+          </form>
         </section>
 
         <div class="content-card">
@@ -454,29 +466,106 @@ function updateTocIndicatorPosition() {
 }
 
 .summary-card {
-  padding: 18px;
+  padding: 12px 16px;
+  background: #f8f9fc;
 }
 
 .summary-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #b32683;
-  font-size: 13px;
-  font-weight: 900;
+  gap: 16px;
 }
 
 .summary-heading small {
-  color: #7e8591;
-  font-weight: 700;
+  color: #6a6f7a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.summary-title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #a14b40;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 900;
+  outline: none;
+}
+
+.summary-title :deep(svg) {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+
+.summary-title-icon {
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+}
+
+.summary-title-arrow {
+  color: #d1aaa5;
+}
+
+.summary-title :deep(.summary-title-icon svg) {
+  width: 20px;
+  height: 20px;
+}
+
+.summary-tooltip {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  z-index: 4;
+  width: max-content;
+  max-width: 220px;
+  padding: 10px 18px;
+  border: 1px solid #dfe6f2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgb(15 23 42 / 10%);
+  color: #30333a;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.summary-tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-right: 1px solid #dfe6f2;
+  border-bottom: 1px solid #dfe6f2;
+  background: #fff;
+  content: "";
+  transform: translate(-50%, -6px) rotate(45deg);
+}
+
+.summary-title:hover .summary-tooltip,
+.summary-title:focus-visible .summary-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .summary-body {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 16px;
   align-items: center;
-  margin-top: 12px;
+  margin-top: 10px;
+  padding: 0 8px;
 }
 
 .summary-thumb {
@@ -485,8 +574,10 @@ function updateTocIndicatorPosition() {
   place-items: center;
   overflow: hidden;
   border-radius: 8px;
-  background: #f8e7f4;
-  color: #b32683;
+  border: 1px solid #e2e8f4;
+  background: #f2f5fa;
+  color: #a14b40;
+  font-size: 16px;
   font-weight: 900;
 }
 
@@ -498,13 +589,81 @@ function updateTocIndicatorPosition() {
 
 .summary-body p {
   margin: 0;
-  color: #454b55;
-  line-height: 1.7;
+  color: #3f424a;
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.summary-chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.summary-chat-form input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #dce5f4;
+  border-radius: 999px;
+  background: #fff;
+  color: #30333a;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  padding: 0 16px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.summary-chat-form input::placeholder {
+  color: #7d838d;
+}
+
+.summary-chat-form input:focus {
+  border-color: #b9c8dd;
+  box-shadow: 0 0 0 3px rgb(92 118 153 / 12%);
+}
+
+.summary-chat-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border: 1px solid #dce5f4;
+  border-radius: 999px;
+  background: #fff;
+  color: #30333a;
+  font: inherit;
+  font-size: 14px;
+  padding: 0 16px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.summary-chat-form button:hover,
+.summary-chat-form button:focus-visible {
+  border-color: #b9c8dd;
+  box-shadow: 0 0 0 3px rgb(92 118 153 / 12%);
+}
+
+.summary-chat-form button:active {
+  transform: translateY(1px);
+}
+
+.summary-chat-form button :deep(svg) {
+  width: 15px;
+  height: 15px;
 }
 
 .content-card {
   margin-top: 14px;
-  padding: 40px 36px;
+  padding: 40px 24px;
+}
+
+.content-card :deep(.prose-blog) {
+  max-width: 89ch;
 }
 
 .post-main > .content-card:first-child {
@@ -871,6 +1030,10 @@ function updateTocIndicatorPosition() {
     grid-template-columns: 1fr;
   }
 
+  .summary-body {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
   .post-cover-card {
     max-width: 320px;
   }
@@ -893,8 +1056,54 @@ function updateTocIndicatorPosition() {
   }
 
   .summary-body,
+  .summary-chat-form,
   .post-pager {
     grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    padding: 12px;
+  }
+
+  .summary-heading small {
+    font-size: 13px;
+  }
+
+  .summary-title {
+    gap: 5px;
+    font-size: 14px;
+  }
+
+  .summary-title :deep(svg) {
+    width: 17px;
+    height: 17px;
+  }
+
+  .summary-title-icon,
+  .summary-title :deep(.summary-title-icon svg) {
+    width: 19px;
+    height: 19px;
+    font-size: 19px;
+  }
+
+  .summary-body {
+    gap: 12px;
+    align-items: start;
+    padding: 0;
+  }
+
+  .summary-body p {
+    font-size: 16px;
+  }
+
+  .summary-chat-form {
+    gap: 8px;
+  }
+
+  .summary-chat-form input,
+  .summary-chat-form button {
+    height: 34px;
+    font-size: 13px;
   }
 
   .post-pager-prev,
@@ -904,7 +1113,7 @@ function updateTocIndicatorPosition() {
   }
 
   .content-card {
-    padding: 22px 18px;
+    padding: 22px 14px;
   }
 }
 </style>

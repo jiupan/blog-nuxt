@@ -13,7 +13,7 @@ export function buildSummaryPrompt(post: SummaryPost) {
     '你是博客文章摘要助手。请只根据给定文章内容总结，不要编造文章没有的信息。',
     '请用中文输出，并返回严格 JSON，不要包裹 Markdown 代码块。',
     'JSON 结构必须是：',
-    '{"summary":"不超过120字的摘要","highlights":["要点1","要点2","要点3"],"audience":"适合哪些读者","questions":["延伸问题1","延伸问题2","延伸问题3"]}',
+    '{"summary":"不超过180字的摘要","highlights":["要点1","要点2","要点3"],"audience":"适合哪些读者","questions":["延伸问题1","延伸问题2","延伸问题3"]}',
     '',
     `文章标题：${post.title}`,
     `已有摘要：${post.summary || '无'}`,
