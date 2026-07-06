@@ -125,6 +125,15 @@
 </template>
 
 <script setup lang="ts">
+import PostBasicFields from './PostBasicFields.vue'
+import PostCategoryCreateModal from './PostCategoryCreateModal.vue'
+import PostGalleryPicker from './PostGalleryPicker.vue'
+import PostMarkdownEditor from './PostMarkdownEditor.vue'
+import PostRelationsEditor from './PostRelationsEditor.vue'
+import PostSeoCheckPanel from './PostSeoCheckPanel.vue'
+import PostTagCreateModal from './PostTagCreateModal.vue'
+import PostWritingAssistantPanel from './PostWritingAssistantPanel.vue'
+
 const props = defineProps<{
   mode: 'create' | 'edit'
   postId?: number
@@ -188,7 +197,7 @@ const {
 } = await usePostForm(props)
 </script>
 
-<style scoped>
+<style>
 .post-editor-layout {
   display: grid;
   gap: 1rem;
