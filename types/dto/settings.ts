@@ -1,0 +1,43 @@
+export type SiteSettingsKey =
+  | 'site_title'
+  | 'site_subtitle'
+  | 'site_brand'
+  | 'sidebar_description'
+  | 'site_logo'
+  | 'site_favicon'
+  | 'seo_noindex'
+  | 'seo_keywords'
+  | 'seo_description'
+  | 'footer_copyright'
+  | 'footer_bottom_links'
+  | 'footer_actions'
+  | 'ai_api_key'
+  | 'ai_base_url'
+  | 'ai_model'
+  | 'ai_embedding_api_key'
+  | 'ai_embedding_base_url'
+  | 'ai_embedding_model'
+  | 'ai_embedding_dimensions'
+  | 'ai_rerank_enabled'
+  | 'ai_rerank_api_key'
+  | 'ai_rerank_base_url'
+  | 'ai_rerank_model'
+  | 'ai_rerank_top_n'
+
+export type PublicSiteSettingsKey =
+  | 'site_title'
+  | 'site_subtitle'
+  | 'site_brand'
+  | 'sidebar_description'
+  | 'site_logo'
+  | 'site_favicon'
+  | 'seo_noindex'
+  | 'seo_keywords'
+  | 'seo_description'
+  | 'footer_copyright'
+  | 'footer_bottom_links'
+  | 'footer_actions'
+
+export type SiteSettingsPayload = Record<PublicSiteSettingsKey, string>
+export type AdminSettingsPayload = Record<SiteSettingsKey, string>
+export type UpdateSettingsRequest = Partial<Record<SiteSettingsKey, string>>

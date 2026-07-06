@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
+import { badRequest } from '~~/server/utils/api-error'
 import { relationSources, relationTypes, savePostRelations } from '~~/server/services/related-posts/relation.service'
 
 const bodySchema = z.object({
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const postId = Number(getRouterParam(event, 'id'))
 
   if (!Number.isInteger(postId) || postId <= 0) {
-    throw createError({ statusCode: 400, statusMessage: '文章 ID 不正确' })
+    throw badRequest('文章 ID 不正确')
   }
 
   const body = bodySchema.parse(await readBody(event))

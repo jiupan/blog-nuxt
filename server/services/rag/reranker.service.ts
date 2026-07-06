@@ -1,13 +1,7 @@
-import { prisma } from '~~/server/utils/prisma'
+import { getRerankSettings, type RerankSettings } from '~~/server/services/settings/settings.service'
 import type { RagSearchResult } from './retrieval.service'
 
-type RerankConfig = {
-  enabled: boolean
-  apiKey: string
-  baseUrl: string
-  model: string
-  topN: number
-}
+type RerankConfig = RerankSettings
 
 type RerankResponseItem = {
   index?: number
@@ -16,27 +10,7 @@ type RerankResponseItem = {
 }
 
 export async function resolveRerankConfig(): Promise<RerankConfig> {
-  const config = useRuntimeConfig()
-  const rows = await prisma.setting.findMany({
-    where: {
-      key: {
-        in: ['ai_rerank_enabled', 'ai_rerank_api_key', 'ai_rerank_base_url', 'ai_rerank_model', 'ai_rerank_top_n']
-      }
-    }
-  })
-  const settings = Object.fromEntries(rows.map((row) => [row.key, row.value]))
-  const envEnabled = process.env.AI_RERANK_ENABLED
-  const envBaseUrl = process.env.AI_RERANK_BASE_URL
-  const envModel = process.env.AI_RERANK_MODEL
-  const envTopN = process.env.AI_RERANK_TOP_N
-
-  return {
-    enabled: parseEnabled(envEnabled ?? settings.ai_rerank_enabled ?? config.aiRerankEnabled),
-    apiKey: String(config.aiRerankApiKey || settings.ai_rerank_api_key || '').trim(),
-    baseUrl: normalizeBaseUrl(String(envBaseUrl ? config.aiRerankBaseUrl : (settings.ai_rerank_base_url || config.aiRerankBaseUrl)).trim()),
-    model: String(envModel ? config.aiRerankModel : (settings.ai_rerank_model || config.aiRerankModel)).trim(),
-    topN: normalizeTopN(envTopN ? config.aiRerankTopN : (settings.ai_rerank_top_n || config.aiRerankTopN))
-  }
+  return getRerankSettings()
 }
 
 export async function rerankSearchResults(query: string, results: RagSearchResult[]) {
@@ -100,20 +74,6 @@ function buildRerankDocument(item: RagSearchResult) {
     item.summary ? `摘要：${item.summary}` : '',
     `正文：${item.excerpt}`
   ].filter(Boolean).join('\n')
-}
-
-function parseEnabled(value: unknown) {
-  return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase())
-}
-
-function normalizeTopN(value: unknown) {
-  const topN = Number(value)
-  if (!Number.isFinite(topN)) return 8
-  return Math.min(Math.max(Math.floor(topN), 1), 20)
-}
-
-function normalizeBaseUrl(value: string) {
-  return (value || 'https://api.cohere.com/v2').replace(/\/+$/, '')
 }
 
 function resolveRerankEndpoint(baseUrl: string) {

@@ -1,50 +1,25 @@
-import { prisma } from '~~/server/utils/prisma'
+import { badRequest, fail } from '~~/server/utils/api-error'
+import { getEmbeddingSettings, type EmbeddingSettings } from '~~/server/services/settings/settings.service'
 
-export type EmbeddingConfig = {
-  apiKey: string
-  baseUrl: string
-  model: string
-  dimensions: number
-}
+export type EmbeddingConfig = EmbeddingSettings
 
 export async function resolveEmbeddingConfig(): Promise<EmbeddingConfig> {
-  const config = useRuntimeConfig()
-  const rows = await prisma.setting.findMany({
-    where: {
-      key: {
-        in: ['ai_embedding_api_key', 'ai_embedding_base_url', 'ai_embedding_model', 'ai_embedding_dimensions']
-      }
-    }
-  })
-  const settings = Object.fromEntries(rows.map((row) => [row.key, row.value]))
-  const envBaseUrl = process.env.AI_EMBEDDING_BASE_URL
-  const envModel = process.env.AI_EMBEDDING_MODEL
-  const envDimensions = process.env.AI_EMBEDDING_DIMENSIONS
-  const dimensions = Number(envDimensions ? config.aiEmbeddingDimensions : (settings.ai_embedding_dimensions || config.aiEmbeddingDimensions)) || 1536
-
-  return {
-    apiKey: String(config.aiEmbeddingApiKey || settings.ai_embedding_api_key || '').trim(),
-    baseUrl: normalizeBaseUrl(String(envBaseUrl ? config.aiEmbeddingBaseUrl : (settings.ai_embedding_base_url || config.aiEmbeddingBaseUrl)).trim()),
-    model: String(envModel ? config.aiEmbeddingModel : (settings.ai_embedding_model || config.aiEmbeddingModel)).trim(),
-    dimensions
-  }
+  return getEmbeddingSettings()
 }
 
 export async function embedTexts(texts: string[]) {
   const embeddingConfig = await resolveEmbeddingConfig()
 
   if (!embeddingConfig.apiKey) {
-    throw createError({
+    throw fail({
       statusCode: 500,
-      statusMessage: '未配置 Embedding API Key'
+      statusMessage: '未配置 Embedding API Key',
+      code: 'AI_CONFIG_MISSING_KEY'
     })
   }
 
   if (embeddingConfig.dimensions !== 1536) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: '当前 pgvector 表固定为 1536 维，请使用 1536 维 embedding 模型'
-    })
+    throw badRequest('当前 pgvector 表固定为 1536 维，请使用 1536 维 embedding 模型')
   }
 
   const response = await fetch(`${embeddingConfig.baseUrl}/embeddings`, {
@@ -63,9 +38,13 @@ export async function embedTexts(texts: string[]) {
 
   if (!response.ok) {
     const message = payload?.error?.message || 'Embedding 生成失败'
-    throw createError({
+    throw fail({
       statusCode: response.status,
-      statusMessage: message
+      statusMessage: message,
+      code: 'AI_PROVIDER_REQUEST_FAILED',
+      details: {
+        providerStatusCode: response.status
+      }
     })
   }
 
@@ -76,9 +55,10 @@ export async function embedTexts(texts: string[]) {
     : []
 
   if (embeddings.length !== texts.length || embeddings.some((item: unknown) => !Array.isArray(item))) {
-    throw createError({
+    throw fail({
       statusCode: 502,
-      statusMessage: 'Embedding 返回格式不正确'
+      statusMessage: 'Embedding 返回格式不正确',
+      code: 'AI_RESPONSE_INVALID_SCHEMA'
     })
   }
 
@@ -94,8 +74,4 @@ export async function embedText(text: string) {
     config: result.config,
     embedding: result.embeddings[0]
   }
-}
-
-function normalizeBaseUrl(value: string) {
-  return (value || 'https://api.openai.com/v1').replace(/\/+$/, '')
 }

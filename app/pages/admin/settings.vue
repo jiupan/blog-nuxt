@@ -330,6 +330,9 @@
 </template>
 
 <script setup lang="ts">
+import type { ApiResult } from '~~/types/api'
+import type { AdminSettingsPayload } from '~~/types/dto/settings'
+
 definePageMeta({
   layout: 'admin',
   middleware: 'admin-auth'
@@ -462,8 +465,8 @@ const faviconUploadError = ref(false)
 const logoInputRef = ref<HTMLInputElement | null>(null)
 const faviconInputRef = ref<HTMLInputElement | null>(null)
 
-const { data } = await useFetch<{ data: Record<string, string> }>('/api/admin/settings')
-const { data: aiIndexData, refresh: refreshAiIndexStatus } = await useFetch<{ data: AiIndexStatus }>('/api/admin/ai/index/status')
+const { data } = await useFetch<ApiResult<AdminSettingsPayload>>('/api/admin/settings')
+const { data: aiIndexData, refresh: refreshAiIndexStatus } = await useFetch<ApiResult<AiIndexStatus>>('/api/admin/ai/index/status')
 const aiIndexStatus = computed(() => aiIndexData.value?.data || null)
 
 watch(data, (val) => {

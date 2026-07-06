@@ -75,14 +75,9 @@
 </template>
 
 <script setup lang="ts">
-type TaxonomyItem = {
-  id: number
-  name: string
-  slug: string
-  _count?: {
-    posts: number
-  }
-}
+import type { ApiResult } from '~~/types/api'
+import type { TaxonomyItem } from '~~/types/dto/taxonomy'
+import { getApiErrorMessage } from '~/utils/api-error'
 
 const props = defineProps<{
   title: string
@@ -96,7 +91,7 @@ const form = reactive({
   name: '',
   slug: ''
 })
-const { data, refresh } = await useFetch<{ data: TaxonomyItem[] }>(props.endpoint)
+const { data, refresh } = await useFetch<ApiResult<TaxonomyItem[]>>(props.endpoint)
 const items = computed(() => data.value?.data || [])
 
 async function createItem() {
@@ -171,6 +166,6 @@ async function deleteItem(item: TaxonomyItem) {
 }
 
 function getErrorMessage(error: any) {
-  return error?.data?.message || error?.statusMessage || error?.message || '操作失败，请稍后重试。'
+  return getApiErrorMessage(error)
 }
 </script>

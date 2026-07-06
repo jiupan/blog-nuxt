@@ -114,7 +114,7 @@ type SidebarPost = {
   title: string
   slug: string
   cover?: string | null
-  viewCount?: number
+  viewCount?: number | null
   category?: {
     name: string
   } | null

@@ -45,7 +45,7 @@
             :class="{ 'is-active': selectedMenuId === menu.id }"
             @click="selectMenu(menu)"
           >
-            {{ menu.name || locationLabel(menu.location) }}
+            {{ menu.name || locationLabel(normalizeMenuLocation(menu.location)) }}
           </button>
         </div>
 
@@ -225,49 +225,19 @@
 
 <script setup lang="ts">
 import { defineComponent, h, resolveComponent } from 'vue'
+import type { ApiResult } from '~~/types/api'
+import type { MenuGroup, MenuItem, MenuItemType, MenuLocation } from '~~/types/dto/menu'
+import type { TaxonomyItem } from '~~/types/dto/taxonomy'
+import { getApiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({
   layout: 'admin',
   middleware: 'admin-auth'
 })
 
-type MenuLocation = 'PRIMARY' | 'FOOTER' | 'MOBILE' | 'CUSTOM'
-type MenuItemType = 'CUSTOM' | 'POST' | 'CATEGORY' | 'TAG' | 'PAGE' | 'ARCHIVE' | 'HOME'
-
-type MenuItem = {
-  id: number | null
-  parentId: number | null
-  title: string
-  url: string | null
-  type: MenuItemType
-  targetId: number | null
-  targetSlug: string
-  targetBlank: boolean
-  badge: string
-  icon: string
-  sort: number
-  isVisible: boolean
-}
-
-type MenuGroup = {
-  id: number | null
-  name: string
-  slug: string
-  description: string
-  location: MenuLocation
-  isActive: boolean
-  items: MenuItem[]
-}
-
 type TreeNode = {
   item: MenuItem
   children: MenuItem[]
-}
-
-type TaxonomyItem = {
-  id: number
-  name: string
-  slug: string
 }
 
 const MenuTreeItem = defineComponent({
@@ -429,9 +399,9 @@ const activeItemId = computed(() => activeItem.value?.id ?? null)
 const isDirty = computed(() => JSON.stringify(menus.value) !== snapshot.value)
 
 const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
-  useFetch<{ data: MenuGroup[] }>('/api/admin/menus'),
-  useFetch<{ data: TaxonomyItem[] }>('/api/admin/categories'),
-  useFetch<{ data: TaxonomyItem[] }>('/api/admin/tags')
+  useFetch<ApiResult<MenuGroup[]>>('/api/admin/menus'),
+  useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/categories'),
+  useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/tags')
 ])
 
 const categories = computed(() => categoryData.value?.data || [])
@@ -543,7 +513,7 @@ function sortMenus(value: MenuGroup[]) {
     CUSTOM: 3
   }
   return value.slice().sort((a, b) => {
-    const locationDiff = locationOrder[a.location] - locationOrder[b.location]
+    const locationDiff = locationOrder[normalizeMenuLocation(a.location)] - locationOrder[normalizeMenuLocation(b.location)]
     return locationDiff || (a.id || 0) - (b.id || 0)
   })
 }
@@ -661,7 +631,7 @@ function moveItem(item: MenuItem, direction: -1 | 1) {
   const currentSort = item.sort
   item.sort = target.sort
   target.sort = currentSort
-  normalizeSort(item.parentId)
+  normalizeSort(item.parentId ?? null)
 }
 
 function indentItem(item: MenuItem) {
@@ -690,7 +660,7 @@ function duplicateItem(item: MenuItem) {
     ...structuredClone(item),
     id: createTempId(),
     title: `${item.title} 副本`,
-    sort: nextSort(item.parentId)
+    sort: nextSort(item.parentId ?? null)
   }
   selectedMenu.value.items.push(copy)
   expandedItemId.value = copy.id
@@ -707,7 +677,7 @@ function deleteMenuItem(id: number | null) {
 async function saveMenus() {
   saving.value = true
   try {
-    const saved = await $fetch<{ data: MenuGroup[] }>('/api/admin/menus', {
+    const saved = await $fetch<ApiResult<MenuGroup[]>>('/api/admin/menus', {
       method: 'PUT',
       body: menus.value.map((menu) => ({
         ...menu,
@@ -735,7 +705,7 @@ async function saveMenus() {
   } catch (error: any) {
     toast.add({
       title: '保存失败',
-      description: error?.data?.message || error?.statusMessage || '请检查菜单名称和链接是否完整。',
+      description: getApiErrorMessage(error, { fallback: '请检查菜单名称和链接是否完整。' }),
       color: 'error'
     })
   } finally {
@@ -783,6 +753,12 @@ function normalizeItems(items: MenuItem[]) {
 
 function locationLabel(value: MenuLocation) {
   return locationOptions.find((option) => option.value === value)?.label || value
+}
+
+function normalizeMenuLocation(value?: string | null): MenuLocation {
+  return value === 'PRIMARY' || value === 'FOOTER' || value === 'MOBILE' || value === 'CUSTOM'
+    ? value
+    : 'CUSTOM'
 }
 
 function typeLabel(value: MenuItemType) {

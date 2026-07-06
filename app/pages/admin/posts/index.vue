@@ -198,38 +198,15 @@
 </template>
 
 <script setup lang="ts">
+import type { ApiResult, CountPayload } from '~~/types/api'
+import type { AdminPostListItem, AdminPostListPayload, PostStatus } from '~~/types/dto/post'
+import type { TaxonomyItem } from '~~/types/dto/taxonomy'
+import { getApiErrorMessage } from '~/utils/api-error'
+
 definePageMeta({
   layout: 'admin',
   middleware: 'admin-auth'
 })
-
-type PostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
-
-type Taxonomy = {
-  id: number
-  name: string
-  slug: string
-}
-
-type AdminPost = {
-  id: number
-  title: string
-  slug: string
-  summary?: string | null
-  content: string
-  cover?: string | null
-  status: PostStatus
-  viewCount?: number | null
-  categoryId?: number | null
-  category?: Taxonomy | null
-  tags: Taxonomy[]
-  tagIds?: number[]
-  seoTitle?: string | null
-  seoDescription?: string | null
-  createdAt: string
-  updatedAt: string
-  publishedAt?: string | null
-}
 
 const toast = useToast()
 const route = useRoute()
@@ -253,8 +230,8 @@ const selectedIds = ref<number[]>([])
 const batching = ref(false)
 const deletingId = ref<number | null>(null)
 
-const { data: categoryData } = await useFetch<{ data: Taxonomy[] }>('/api/admin/categories')
-const { data: tagData } = await useFetch<{ data: Taxonomy[] }>('/api/admin/tags')
+const { data: categoryData } = await useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/categories')
+const { data: tagData } = await useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/tags')
 
 const query = computed(() => ({
   page: page.value,
@@ -266,11 +243,11 @@ const query = computed(() => ({
   sort: sortValue.value
 }))
 
-const { data, refresh } = await useFetch<{ data: { items: AdminPost[], total: number, page: number, pageSize: number } }>('/api/admin/posts', { query })
-const { data: allCountData, refresh: refreshAllCount } = await useFetch<{ data: { total: number } }>('/api/admin/posts', { query: { page: 1, pageSize: 1 } })
-const { data: publishedCountData, refresh: refreshPublishedCount } = await useFetch<{ data: { total: number } }>('/api/admin/posts', { query: { page: 1, pageSize: 1, status: 'PUBLISHED' } })
-const { data: draftCountData, refresh: refreshDraftCount } = await useFetch<{ data: { total: number } }>('/api/admin/posts', { query: { page: 1, pageSize: 1, status: 'DRAFT' } })
-const { data: archivedCountData, refresh: refreshArchivedCount } = await useFetch<{ data: { total: number } }>('/api/admin/posts', { query: { page: 1, pageSize: 1, status: 'ARCHIVED' } })
+const { data, refresh } = await useFetch<ApiResult<AdminPostListPayload>>('/api/admin/posts', { query })
+const { data: allCountData, refresh: refreshAllCount } = await useFetch<ApiResult<CountPayload>>('/api/admin/posts', { query: { page: 1, pageSize: 1 } })
+const { data: publishedCountData, refresh: refreshPublishedCount } = await useFetch<ApiResult<CountPayload>>('/api/admin/posts', { query: { page: 1, pageSize: 1, status: 'PUBLISHED' } })
+const { data: draftCountData, refresh: refreshDraftCount } = await useFetch<ApiResult<CountPayload>>('/api/admin/posts', { query: { page: 1, pageSize: 1, status: 'DRAFT' } })
+const { data: archivedCountData, refresh: refreshArchivedCount } = await useFetch<ApiResult<CountPayload>>('/api/admin/posts', { query: { page: 1, pageSize: 1, status: 'ARCHIVED' } })
 
 const posts = computed(() => data.value?.data.items || [])
 const total = computed(() => data.value?.data.total || 0)
@@ -360,13 +337,13 @@ async function batchSetStatus(status: PostStatus) {
     clearSelection()
     await refreshAll()
   } catch (error: any) {
-    toast.add({ title: '批量操作失败', description: error?.data?.message || error?.statusMessage, color: 'error' })
+    toast.add({ title: '批量操作失败', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     batching.value = false
   }
 }
 
-async function deletePost(post: AdminPost) {
+async function deletePost(post: AdminPostListItem) {
   if (!window.confirm(`确定永久删除“${post.title}”吗？`)) return
   deletingId.value = post.id
   try {
@@ -374,13 +351,13 @@ async function deletePost(post: AdminPost) {
     toast.add({ title: '文章已删除', color: 'success' })
     await refreshAll()
   } catch (error: any) {
-    toast.add({ title: '删除失败', description: error?.data?.message || error?.statusMessage, color: 'error' })
+    toast.add({ title: '删除失败', description: getApiErrorMessage(error), color: 'error' })
   } finally {
     deletingId.value = null
   }
 }
 
-async function updatePostStatus(post: AdminPost, status: PostStatus) {
+async function updatePostStatus(post: AdminPostListItem, status: PostStatus) {
   await $fetch(`/api/admin/posts/${post.id}`, {
     method: 'PUT',
     body: {

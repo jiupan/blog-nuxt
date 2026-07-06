@@ -10,10 +10,10 @@ const bodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = bodySchema.parse(await readBody(event))
-  const post = await getPublishedPostById(body.postId)
-  const config = useRuntimeConfig()
 
   const result = await withAiUsage(event, 'dead-link-checker', async () => {
+    const post = await getPublishedPostById(body.postId)
+    const config = useRuntimeConfig()
     const checkResult = await checkExternalLinks(post.content, config.public.siteUrl)
     return {
       post: {

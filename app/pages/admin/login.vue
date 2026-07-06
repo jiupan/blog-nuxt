@@ -71,6 +71,8 @@
 </template>
 
 <script setup lang="ts">
+import { getApiErrorMessage } from '~/utils/api-error'
+
 definePageMeta({
   layout: false
 })
@@ -114,7 +116,7 @@ async function login() {
     }
     await navigateTo('/admin', { replace: true })
   } catch (error: any) {
-    errorMessage.value = error?.statusMessage || '登录失败'
+    errorMessage.value = getApiErrorMessage(error, { fallback: '登录失败' })
   } finally {
     pending.value = false
   }

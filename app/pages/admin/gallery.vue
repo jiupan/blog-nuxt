@@ -124,6 +124,8 @@
 </template>
 
 <script setup lang="ts">
+import { getApiErrorMessage } from '~/utils/api-error'
+
 definePageMeta({
   layout: 'admin',
   middleware: 'admin-auth'
@@ -272,7 +274,7 @@ function formatDate(value: string) {
 }
 
 function getErrorMessage(error: any) {
-  return error?.data?.message || error?.statusMessage || error?.message || '操作失败，请稍后重试。'
+  return getApiErrorMessage(error)
 }
 </script>
 

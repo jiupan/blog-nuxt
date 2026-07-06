@@ -1,21 +1,13 @@
-import { createError, getHeader, getRequestIP, type H3Event } from 'h3'
+import { getHeader, type H3Event } from 'h3'
 import { prisma } from '~~/server/utils/prisma'
-import { requireUser } from '~~/server/utils/auth'
+import { requireUser, type SessionUser } from '~~/server/utils/auth'
+import { unauthorized } from '~~/server/utils/api-error'
+import { createAiQuotaBlockedError, createAiRateLimitedError } from '~~/server/services/ai/errors'
+import { aiUsagePolicy } from '~~/server/services/security/security-policy'
+import { consumeFixedWindow, getClientIp, type FixedWindowStore } from '~~/server/services/security/rate-limit.service'
 
-const DAILY_USER_LIMIT = 20
-const USER_WINDOW_MS = 60 * 1000
-const USER_WINDOW_LIMIT = 5
-const IP_WINDOW_MS = 60 * 60 * 1000
-const IP_WINDOW_LIMIT = 60
-
-const userWindows = new Map<string, { count: number, resetAt: number }>()
-const ipWindows = new Map<string, { count: number, resetAt: number }>()
-
-type SessionUser = {
-  id?: number
-  username?: string
-  role?: string
-}
+const userWindows: FixedWindowStore = new Map()
+const ipWindows: FixedWindowStore = new Map()
 
 export async function requireLabUser(event: H3Event) {
   const user = await requireUser(event) as SessionUser
@@ -24,7 +16,7 @@ export async function requireLabUser(event: H3Event) {
 
 export async function withAiUsage<T>(event: H3Event, feature: string, handler: () => Promise<T>) {
   const user = await requireLabUser(event)
-  const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  const ip = getClientIp(event)
   const userAgent = getHeader(event, 'user-agent') || null
 
   await assertAiQuota(event, user, feature, ip, userAgent)
@@ -41,14 +33,15 @@ export async function withAiUsage<T>(event: H3Event, feature: string, handler: (
 
 async function assertAiQuota(event: H3Event, user: SessionUser, feature: string, ip: string, userAgent: string | null) {
   if (!user.id) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: '请先登录后再使用 AI 功能'
-    })
+    throw unauthorized('请先登录后再使用 AI 功能')
   }
 
-  assertWindow(`user:${user.id}`, userWindows, USER_WINDOW_MS, USER_WINDOW_LIMIT, '操作太频繁，请稍后再试')
-  assertWindow(`ip:${ip}`, ipWindows, IP_WINDOW_MS, IP_WINDOW_LIMIT, '当前网络请求过于频繁，请稍后再试')
+  consumeFixedWindow(userWindows, `user:${user.id}`, aiUsagePolicy.userWindowMs, aiUsagePolicy.userWindowLimit, () => {
+    throw createAiRateLimitedError('操作太频繁，请稍后再试')
+  })
+  consumeFixedWindow(ipWindows, `ip:${ip}`, aiUsagePolicy.ipWindowMs, aiUsagePolicy.ipWindowLimit, () => {
+    throw createAiRateLimitedError('当前网络请求过于频繁，请稍后再试')
+  })
 
   if (user.role === 'ADMIN') {
     return
@@ -65,41 +58,10 @@ async function assertAiQuota(event: H3Event, user: SessionUser, feature: string,
     }
   })
 
-  if (used >= DAILY_USER_LIMIT) {
+  if (used >= aiUsagePolicy.dailyUserLimit) {
     await recordAiUsage(user.id, feature, 'BLOCKED', ip, userAgent)
-    throw createError({
-      statusCode: 429,
-      statusMessage: `今日 AI 额度已用完，每天可使用 ${DAILY_USER_LIMIT} 次`
-    })
+    throw createAiQuotaBlockedError(`今日 AI 额度已用完，每天可使用 ${aiUsagePolicy.dailyUserLimit} 次`)
   }
-}
-
-function assertWindow(
-  key: string,
-  store: Map<string, { count: number, resetAt: number }>,
-  windowMs: number,
-  limit: number,
-  message: string
-) {
-  const now = Date.now()
-  const current = store.get(key)
-
-  if (!current || current.resetAt <= now) {
-    store.set(key, {
-      count: 1,
-      resetAt: now + windowMs
-    })
-    return
-  }
-
-  if (current.count >= limit) {
-    throw createError({
-      statusCode: 429,
-      statusMessage: message
-    })
-  }
-
-  current.count += 1
 }
 
 async function recordAiUsage(

@@ -1,10 +1,10 @@
-﻿import { prisma } from '~~/server/utils/prisma'
-import { requireAdmin } from '~~/server/utils/auth'
+﻿import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
+import { deletePost } from '~~/server/services/posts/post.service'
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
   const id = Number(getRouterParam(event, 'id'))
-  await prisma.post.delete({ where: { id } })
+  await deletePost(id)
   return ok(true)
 })

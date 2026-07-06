@@ -2,8 +2,9 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-06-28',
   srcDir: 'app',
   devtools: { enabled: true },
-  css: ['~/assets/css/main.css', 'md-editor-v3/lib/style.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/site-layout.css', '~/assets/css/lab.css', 'md-editor-v3/lib/style.css'],
   modules: [
+    '@nuxt/eslint',
     '@nuxt/ui',
     '@nuxt/image',
     '@nuxtjs/sitemap',
@@ -34,6 +35,7 @@ export default defineNuxtConfig({
   },
   runtimeConfig: {
     session: {
+      password: process.env.NUXT_SESSION_PASSWORD || '',
       name: '__Host-nuxt-session',
       maxAge: 60 * 60 * 24 * 7,
       cookie: {

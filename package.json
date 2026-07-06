@@ -6,7 +6,10 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "lint": "eslint .",
     "preview": "nuxt preview",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit",
     "postinstall": "nuxt prepare",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -32,12 +35,15 @@
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.116",
+    "@nuxt/eslint": "^1.16.0",
     "@types/markdown-it": "14.1.2",
     "@types/node": "26.0.1",
     "@types/sanitize-html": "2.16.1",
+    "eslint": "^10.6.0",
     "prisma": "^6.19.3",
     "tsx": "4.22.4",
     "typescript": "6.0.3",
+    "vitest": "^4.1.9",
     "vue-tsc": "3.3.5"
   },
   "prisma": {

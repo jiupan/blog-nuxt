@@ -1,13 +1,20 @@
-﻿import argon2 from 'argon2'
-import { getRequestIP, type H3Event } from 'h3'
+import argon2 from 'argon2'
+import type { H3Event } from 'h3'
 import { z } from 'zod'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
+import { forbidden, rateLimited, unauthorized } from '~~/server/utils/api-error'
+import { loginRateLimitPolicy } from '~~/server/services/security/security-policy'
+import {
+  assertFixedWindowAllowed,
+  clearFixedWindow,
+  getClientIp,
+  incrementFixedWindow,
+  retryAfterSeconds,
+  type FixedWindowStore
+} from '~~/server/services/security/rate-limit.service'
 
-const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000
-const LOGIN_ATTEMPT_LIMIT = 5
-
-const loginAttempts = new Map<string, { count: number, resetAt: number }>()
+const loginAttempts: FixedWindowStore = new Map()
 
 const loginSchema = z.object({
   username: z.string().trim().min(1),
@@ -15,41 +22,21 @@ const loginSchema = z.object({
 })
 
 function getLoginAttemptKey(event: H3Event, username: string) {
-  const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  const ip = getClientIp(event)
   return `${ip}:${username.trim().toLowerCase()}`
 }
 
 function assertLoginAllowed(key: string) {
-  const now = Date.now()
-  const attempt = loginAttempts.get(key)
-
-  if (!attempt || attempt.resetAt <= now) {
-    loginAttempts.delete(key)
-    return
-  }
-
-  if (attempt.count >= LOGIN_ATTEMPT_LIMIT) {
-    const retryAfterSeconds = Math.ceil((attempt.resetAt - now) / 1000)
-    throw createError({
-      statusCode: 429,
-      statusMessage: `登录尝试过多，请 ${Math.ceil(retryAfterSeconds / 60)} 分钟后再试`
+  assertFixedWindowAllowed(loginAttempts, key, loginRateLimitPolicy.limit, (state) => {
+    const retrySeconds = retryAfterSeconds(state.resetAt)
+    throw rateLimited(`登录尝试过多，请 ${Math.ceil(retrySeconds / 60)} 分钟后再试`, {
+      retryAfterSeconds: retrySeconds
     })
-  }
+  })
 }
 
 function recordFailedLogin(key: string) {
-  const now = Date.now()
-  const attempt = loginAttempts.get(key)
-
-  if (!attempt || attempt.resetAt <= now) {
-    loginAttempts.set(key, {
-      count: 1,
-      resetAt: now + LOGIN_ATTEMPT_WINDOW_MS
-    })
-    return
-  }
-
-  attempt.count += 1
+  incrementFixedWindow(loginAttempts, key, loginRateLimitPolicy.windowMs)
 }
 
 export default defineEventHandler(async (event) => {
@@ -69,17 +56,11 @@ export default defineEventHandler(async (event) => {
 
   if (!user || !(await argon2.verify(user.passwordHash, body.password))) {
     recordFailedLogin(attemptKey)
-    throw createError({
-      statusCode: 401,
-      statusMessage: '用户名或密码错误'
-    })
+    throw unauthorized('用户名或密码错误')
   }
 
   if (user.status !== 'ACTIVE') {
-    throw createError({
-      statusCode: 403,
-      statusMessage: '账号已被禁用'
-    })
+    throw forbidden('账号已被禁用')
   }
 
   await prisma.user.update({
@@ -96,7 +77,7 @@ export default defineEventHandler(async (event) => {
     }
   })
 
-  loginAttempts.delete(attemptKey)
+  clearFixedWindow(loginAttempts, attemptKey)
 
   return ok({
     id: user.id,

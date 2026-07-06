@@ -1,7 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
 import { chunkPost, type ChunkInputPost } from './chunker.service'
 import { embedTexts, resolveEmbeddingConfig } from '~~/server/services/embeddings/embedding.service'
-import { toVectorLiteral } from './vector-utils'
+import { buildPublishedPostWhere } from '~~/server/services/posts/post-query.service'
+import { deletePostChunksByPostId, getPostChunkIndexStats, insertPostChunk } from './post-chunk.repository'
 
 export type RebuildIndexResult = {
   indexedPosts: number
@@ -12,10 +13,7 @@ export type RebuildIndexResult = {
 
 export async function rebuildPublishedPostIndex(): Promise<RebuildIndexResult> {
   const posts = await prisma.post.findMany({
-    where: {
-      status: 'PUBLISHED',
-      publishedAt: { lte: new Date() }
-    },
+    where: buildPublishedPostWhere(),
     include: {
       category: true,
       tags: { include: { tag: true } }
@@ -48,7 +46,7 @@ export async function indexPost(post: ChunkInputPost): Promise<RebuildIndexResul
   const chunks = chunkPost(post)
   const embeddingConfig = await resolveEmbeddingConfig()
 
-  await prisma.postChunk.deleteMany({ where: { postId: post.id } })
+  await deletePostChunksByPostId(post.id)
 
   if (!chunks.length) {
     return {
@@ -69,7 +67,7 @@ export async function indexPost(post: ChunkInputPost): Promise<RebuildIndexResul
       const embedding = embeddings[index]
       if (!chunk || !embedding) continue
 
-      await insertChunk(chunk, embedding, config.model, config.dimensions)
+      await insertPostChunk(chunk, embedding, config.model, config.dimensions)
     }
   }
 
@@ -82,51 +80,13 @@ export async function indexPost(post: ChunkInputPost): Promise<RebuildIndexResul
 }
 
 export async function getIndexStatus() {
-  const [chunkCount, staleCount, indexedPostRows, latestChunk, modelRows] = await Promise.all([
-    prisma.postChunk.count(),
-    prisma.postChunk.count({ where: { status: 'STALE' } }),
-    prisma.postChunk.groupBy({ by: ['postId'], _count: { postId: true } }),
-    prisma.postChunk.findFirst({ orderBy: { indexedAt: 'desc' }, select: { indexedAt: true } }),
-    prisma.postChunk.groupBy({ by: ['embeddingModel', 'embeddingDim'], _count: { id: true } })
-  ])
+  const stats = await getPostChunkIndexStats()
 
   return {
-    indexedPosts: indexedPostRows.length,
-    chunks: chunkCount,
-    staleChunks: staleCount,
-    lastIndexedAt: latestChunk?.indexedAt || null,
-    models: modelRows.map((row) => ({
-      model: row.embeddingModel,
-      dimensions: row.embeddingDim,
-      chunks: row._count.id
-    }))
+    indexedPosts: stats.indexedPostCount,
+    chunks: stats.chunkCount,
+    staleChunks: stats.staleCount,
+    lastIndexedAt: stats.lastIndexedAt,
+    models: stats.models
   }
-}
-
-async function insertChunk(chunk: Awaited<ReturnType<typeof chunkPost>>[number], embedding: number[], embeddingModel: string, embeddingDim: number) {
-  await prisma.$executeRawUnsafe(
-    `INSERT INTO "PostChunk" (
-      "postId", "chunkIndex", "title", "slug", "summary", "content", "headingPath", "contentHash",
-      "tokenCount", "categoryId", "tagIds", "embeddingModel", "embeddingDim", "embedding", "status",
-      "indexedAt", "createdAt", "updatedAt"
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8,
-      $9, $10, $11, $12, $13, $14::vector, 'ACTIVE',
-      CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    )`,
-    chunk.postId,
-    chunk.chunkIndex,
-    chunk.title,
-    chunk.slug,
-    chunk.summary || null,
-    chunk.content,
-    chunk.headingPath || null,
-    chunk.contentHash,
-    chunk.tokenCount,
-    chunk.categoryId || null,
-    JSON.stringify(chunk.tagIds),
-    embeddingModel,
-    embeddingDim,
-    toVectorLiteral(embedding)
-  )
 }

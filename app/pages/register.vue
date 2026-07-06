@@ -71,6 +71,8 @@
 </template>
 
 <script setup lang="ts">
+import { getApiErrorMessage } from '~/utils/api-error'
+
 definePageMeta({
   layout: false
 })
@@ -102,7 +104,7 @@ async function register() {
     })
     await navigateTo('/lab', { replace: true })
   } catch (error: any) {
-    errorMessage.value = error?.data?.statusMessage || error?.statusMessage || '注册失败'
+    errorMessage.value = getApiErrorMessage(error, { fallback: '注册失败' })
   } finally {
     pending.value = false
   }

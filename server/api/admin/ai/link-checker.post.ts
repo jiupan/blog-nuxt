@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { requireAdmin } from '~~/server/utils/auth'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
+import { notFound } from '~~/server/utils/api-error'
 import { checkExternalLinks } from '~~/server/services/link-checker/link-checker.service'
 
 const bodySchema = z.object({
@@ -23,10 +24,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (!post) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: '文章不存在'
-    })
+    throw notFound('文章不存在')
   }
 
   const config = useRuntimeConfig()

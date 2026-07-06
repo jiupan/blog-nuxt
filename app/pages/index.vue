@@ -136,6 +136,9 @@
 
 <script setup lang="ts">
 import type { Component } from 'vue'
+import type { ApiResult, GalleryImagePayload } from '~~/types/api'
+import type { PostSummary, PublicPostListPayload } from '~~/types/dto/post'
+import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import {
   Archive as ArchiveIcon,
   BadgeCheck as BadgeCheckIcon,
@@ -175,38 +178,6 @@ import {
   UserRound as UserRoundIcon,
   Zap as ZapIcon
 } from '@lucide/vue'
-
-type CategoryLite = {
-  name: string
-  slug: string
-  icon?: string | null
-}
-
-type TagLite = {
-  name: string
-  slug: string
-}
-
-type TaxonomyItem = {
-  id: number
-  name: string
-  slug: string
-  icon?: string | null
-  _count?: {
-    posts: number
-  }
-}
-
-type HomePost = {
-  id: number
-  title: string
-  slug: string
-  summary?: string | null
-  cover?: string | null
-  publishedAt?: string | Date | null
-  category?: CategoryLite | null
-  tags?: TagLite[]
-}
 
 const homeIconMap: Record<string, Component> = {
   'i-lucide-archive': ArchiveIcon,
@@ -250,18 +221,6 @@ function homeIcon(icon: string | null | undefined, fallback: Component) {
   return homeIconMap[icon || ''] || fallback
 }
 
-type PostsPayload = {
-  items: HomePost[]
-  total: number
-  pageSize: number
-}
-
-type MemePayload = {
-  name: string
-  url: string
-  updatedAt: string
-}
-
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
@@ -269,11 +228,11 @@ const pageSize = 8
 const currentPage = ref(1)
 const categorySlug = ref('')
 const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }] = await Promise.all([
-  useFetch<{ data: PostsPayload }>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
-  useFetch<{ data: PostsPayload }>('/api/posts', { query: { page: 1, pageSize: 6 } }),
-  useFetch<{ data: TaxonomyItem[] }>('/api/categories'),
-  useFetch<{ data: TaxonomyItem[] }>('/api/tags'),
-  useFetch<{ data: MemePayload[] }>('/api/gallery/memes')
+  useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
+  useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 6 } }),
+  useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
+  useFetch<ApiResult<TaxonomyItem[]>>('/api/tags'),
+  useFetch<ApiResult<GalleryImagePayload[]>>('/api/gallery/memes')
 ])
 
 const posts = computed(() => data.value?.data.items || [])
@@ -361,7 +320,7 @@ const mobileHeroPosts = computed(() => {
   }]
 })
 
-const activeHeroPost = ref<HomePost | null>(null)
+const activeHeroPost = ref<PostSummary | null>(null)
 const topicTooltip = reactive({
   visible: false,
   label: '',

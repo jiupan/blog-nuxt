@@ -1,13 +1,18 @@
 import argon2 from 'argon2'
-import { getRequestIP, type H3Event } from 'h3'
+import type { H3Event } from 'h3'
 import { z } from 'zod'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
+import { conflict, rateLimited } from '~~/server/utils/api-error'
+import { authPolicy, registerRateLimitPolicy } from '~~/server/services/security/security-policy'
+import {
+  assertFixedWindowAllowed,
+  getClientIp,
+  incrementFixedWindow,
+  type FixedWindowStore
+} from '~~/server/services/security/rate-limit.service'
 
-const REGISTER_WINDOW_MS = 60 * 60 * 1000
-const REGISTER_LIMIT = 5
-
-const registerAttempts = new Map<string, { count: number, resetAt: number }>()
+const registerAttempts: FixedWindowStore = new Map()
 
 const registerSchema = z.object({
   username: z.string()
@@ -22,39 +27,17 @@ const registerSchema = z.object({
 })
 
 function getRegisterAttemptKey(event: H3Event) {
-  return getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  return getClientIp(event)
 }
 
 function assertRegisterAllowed(key: string) {
-  const now = Date.now()
-  const attempt = registerAttempts.get(key)
-
-  if (!attempt || attempt.resetAt <= now) {
-    registerAttempts.delete(key)
-    return
-  }
-
-  if (attempt.count >= REGISTER_LIMIT) {
-    throw createError({
-      statusCode: 429,
-      statusMessage: '注册过于频繁，请稍后再试'
-    })
-  }
+  assertFixedWindowAllowed(registerAttempts, key, registerRateLimitPolicy.limit, () => {
+    throw rateLimited('注册过于频繁，请稍后再试')
+  })
 }
 
 function recordRegisterAttempt(key: string) {
-  const now = Date.now()
-  const attempt = registerAttempts.get(key)
-
-  if (!attempt || attempt.resetAt <= now) {
-    registerAttempts.set(key, {
-      count: 1,
-      resetAt: now + REGISTER_WINDOW_MS
-    })
-    return
-  }
-
-  attempt.count += 1
+  incrementFixedWindow(registerAttempts, key, registerRateLimitPolicy.windowMs)
 }
 
 export default defineEventHandler(async (event) => {
@@ -76,10 +59,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (exists) {
-    throw createError({
-      statusCode: 409,
-      statusMessage: '用户名或邮箱已被注册'
-    })
+    throw conflict('用户名或邮箱已被注册')
   }
 
   const passwordHash = await argon2.hash(body.password, {
@@ -91,7 +71,7 @@ export default defineEventHandler(async (event) => {
       username: body.username,
       email,
       passwordHash,
-      role: 'USER',
+      role: authPolicy.userRole,
       status: 'ACTIVE',
       lastLoginAt: new Date()
     }

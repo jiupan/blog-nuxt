@@ -11,9 +11,9 @@ const bodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const body = bodySchema.parse(await readBody(event))
-  const post = await getPublishedPostById(body.postId)
 
   const result = await withAiUsage(event, 'writing-assistant', async () => {
+    const post = await getPublishedPostById(body.postId)
     const [categories, tags] = await Promise.all([
       prisma.category.findMany({
         orderBy: [{ name: 'asc' }],

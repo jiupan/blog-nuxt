@@ -1,4 +1,5 @@
 import { prisma } from '~~/server/utils/prisma'
+import { badRequest } from '~~/server/utils/api-error'
 
 export const relationTypes = ['PREREQUISITE', 'EXTENSION', 'SAME_TOPIC', 'PRACTICE', 'BACKGROUND'] as const
 export const relationSources = ['AI', 'MANUAL'] as const
@@ -94,10 +95,7 @@ export async function savePostRelations(postId: number, items: SavePostRelationI
     })
 
     if (publishedCount !== normalized.length) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: '关联文章必须是已发布文章'
-      })
+      throw badRequest('关联文章必须是已发布文章')
     }
   }
 

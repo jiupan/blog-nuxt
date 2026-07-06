@@ -1,16 +1,7 @@
-﻿import { prisma } from '~~/server/utils/prisma'
+﻿import { listSitemapPosts } from '~~/server/services/posts/post-query.service'
 
 export default defineEventHandler(async () => {
-  const posts = await prisma.post.findMany({
-    where: {
-      status: 'PUBLISHED',
-      publishedAt: { lte: new Date() }
-    },
-    select: {
-      slug: true,
-      updatedAt: true
-    }
-  })
+  const posts = await listSitemapPosts()
 
   return [
     { loc: '/', changefreq: 'daily', priority: 1 },

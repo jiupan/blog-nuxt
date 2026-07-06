@@ -1,5 +1,6 @@
 import type { Category, Post, PostTag, Tag } from '@prisma/client'
 import { prisma } from '~~/server/utils/prisma'
+import { badRequest } from '~~/server/utils/api-error'
 
 type ReviewPost = Post & {
   category: Category | null
@@ -81,20 +82,14 @@ export function getCurrentMonth() {
 function parseMonthRange(month: string) {
   const matched = /^(\d{4})-(\d{2})$/.exec(month)
   if (!matched) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: '月份格式应为 YYYY-MM'
-    })
+    throw badRequest('月份格式应为 YYYY-MM')
   }
 
   const year = Number(matched[1])
   const monthIndex = Number(matched[2]) - 1
 
   if (monthIndex < 0 || monthIndex > 11) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: '月份格式应为 YYYY-MM'
-    })
+    throw badRequest('月份格式应为 YYYY-MM')
   }
 
   return {

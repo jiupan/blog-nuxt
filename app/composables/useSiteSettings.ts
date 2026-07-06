@@ -1,3 +1,6 @@
+import type { ApiResult } from '~~/types/api'
+import type { SiteSettingsPayload } from '~~/types/dto/settings'
+
 export type SiteSettings = {
   site_title: string
   site_subtitle: string
@@ -32,7 +35,7 @@ export function useSiteSettings() {
   const settings = useState<SiteSettings>('site-settings', () => ({ ...defaults }))
   const loaded = useState<boolean>('site-settings-loaded', () => false)
 
-  const { data, error } = useFetch<{ data: Record<string, string> }>('/api/settings')
+  const { data, error } = useFetch<ApiResult<SiteSettingsPayload>>('/api/settings')
 
   watch([data, error], ([val, err]) => {
     if (val?.data) {
