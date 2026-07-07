@@ -40,10 +40,13 @@
       :site-name="navigation.siteName.value"
       @scroll-top="navigation.scrollToTop"
     />
+
+    <CuteBackToTop @scroll-top="navigation.scrollToTop" />
   </div>
 </template>
 
 <script setup lang="ts">
+import CuteBackToTop from '~/components/site/CuteBackToTop.vue'
 import MobileSidebar from '~/components/site/MobileSidebar.vue'
 import SiteFooter from '~/components/site/SiteFooter.vue'
 import SiteHeader from '~/components/site/SiteHeader.vue'

@@ -2,19 +2,30 @@
   <div class="post-page">
     <section class="post-hero" :style="{ background: `radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%), ${heroGradient}` }">
       <div class="post-hero-inner">
-        <div class="post-kicker">
-          <NuxtLink v-if="post.category" :to="`/categories/${post.category.slug}`">{{ post.category.name }}</NuxtLink>
-          <NuxtLink v-for="tag in post.tags" :key="tag.id" :to="`/tags/${tag.slug}`"># {{ tag.name }}</NuxtLink>
-        </div>
-
         <div class="post-hero-grid">
           <div class="post-hero-copy">
+            <div v-if="post.category || post.tags.length" class="post-kicker">
+              <NuxtLink v-if="post.category" :to="`/categories/${post.category.slug}`">{{ post.category.name }}</NuxtLink>
+              <NuxtLink v-for="tag in post.tags" :key="tag.id" :to="`/tags/${tag.slug}`"># {{ tag.name }}</NuxtLink>
+            </div>
             <h1>{{ post.title }}</h1>
             <div class="post-meta">
-              <span>{{ formatDate(post.publishedAt) }}</span>
-              <span>{{ post.rendered.readingTime }} 分钟阅读</span>
-              <span>{{ post.rendered.wordCount }} 字</span>
-              <span>{{ post.viewCount }} 阅读</span>
+              <span>
+                <CalendarDaysIcon :size="15" class="post-meta-icon" aria-hidden="true" />
+                {{ formatDate(post.publishedAt) }}
+              </span>
+              <span>
+                <Clock3Icon :size="15" class="post-meta-icon" aria-hidden="true" />
+                {{ post.rendered.readingTime }} 分钟阅读
+              </span>
+              <span>
+                <FileTextIcon :size="15" class="post-meta-icon" aria-hidden="true" />
+                {{ post.rendered.wordCount }} 字
+              </span>
+              <span>
+                <EyeIcon :size="15" class="post-meta-icon" aria-hidden="true" />
+                {{ post.viewCount }} 阅读
+              </span>
             </div>
           </div>
 
@@ -146,6 +157,13 @@
 </template>
 
 <script setup lang="ts">
+import {
+  CalendarDays as CalendarDaysIcon,
+  Clock3 as Clock3Icon,
+  Eye as EyeIcon,
+  FileText as FileTextIcon
+} from '@lucide/vue'
+
 const route = useRoute()
 const config = useRuntimeConfig()
 const [{ data, error }, { data: categoryData }, { data: tagData }, { data: relatedData }] = await Promise.all([
@@ -363,9 +381,10 @@ function updateTocIndicatorPosition() {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+  margin-bottom: 28px;
   color: rgb(255 255 255 / 86%);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .post-kicker a:first-child {
@@ -373,6 +392,7 @@ function updateTocIndicatorPosition() {
   border-radius: 999px;
   background: rgb(255 255 255 / 18%);
   color: white;
+  font-weight: 800;
 }
 
 .post-hero-grid {
@@ -385,7 +405,7 @@ function updateTocIndicatorPosition() {
 .post-hero-copy h1 {
   max-width: 900px;
   margin: 0;
-  font-size: clamp(42px, 4.4vw, 64px);
+  font-size: clamp(34px, 3.6vw, 52px);
   font-weight: 900;
   line-height: 1.2;
 }
@@ -396,16 +416,21 @@ function updateTocIndicatorPosition() {
   gap: 10px;
   margin-top: 36px;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .post-meta span {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   min-height: 34px;
   padding: 0 14px;
   border-radius: 999px;
   background: rgb(255 255 255 / 18%);
+}
+
+.post-meta-icon {
+  flex: 0 0 auto;
 }
 
 .post-cover-card {
@@ -442,12 +467,26 @@ function updateTocIndicatorPosition() {
 }
 
 .post-shell {
+  position: relative;
+  isolation: isolate;
   display: grid;
   width: min(100% - 32px, 1290px);
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 14px;
   align-items: start;
-  margin: 24px auto 72px;
+  margin: -24px auto 72px;
+  padding-top: 42px;
+}
+
+.post-shell::before {
+  position: absolute;
+  inset: 0 auto -72px 50%;
+  z-index: -1;
+  width: 100vw;
+  border-radius: 24px 24px 0 0;
+  background: #f3f6fc;
+  content: "";
+  transform: translateX(-50%);
 }
 
 .post-main {
@@ -1025,7 +1064,11 @@ function updateTocIndicatorPosition() {
 }
 
 @media (max-width: 900px) {
-  .post-hero-grid,
+  .post-hero-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 36px;
+  }
+
   .post-shell {
     grid-template-columns: 1fr;
   }
@@ -1051,8 +1094,126 @@ function updateTocIndicatorPosition() {
 @media (max-width: 640px) {
   .post-hero {
     margin-top: -70px;
-    padding-top: 104px;
-    min-height: 360px;
+    min-height: 0;
+    padding: 92px 0 48px;
+  }
+
+  .post-hero-inner {
+    width: min(100% - 28px, 560px);
+  }
+
+  .post-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    text-align: center;
+  }
+
+  .post-hero-copy {
+    display: contents;
+  }
+
+  .post-cover-card {
+    order: 1;
+    width: min(46vw, 190px);
+    max-width: none;
+    aspect-ratio: 1;
+    justify-self: center;
+    border-radius: 28px;
+    box-shadow:
+      inset 0 0 0 10px rgb(255 255 255 / 12%),
+      0 28px 60px rgb(24 25 33 / 18%);
+  }
+
+  .post-cover-card img {
+    border: 10px solid rgb(255 255 255 / 18%);
+    border-radius: inherit;
+  }
+
+  .cover-fallback {
+    width: 100%;
+    height: 100%;
+    border: 10px solid rgb(255 255 255 / 18%);
+    border-radius: inherit;
+    background: rgb(255 255 255 / 18%);
+  }
+
+  .cover-fallback span {
+    max-width: 82%;
+    font-size: clamp(28px, 9vw, 42px);
+    line-height: 1.08;
+  }
+
+  .cover-fallback strong {
+    font-size: 14px;
+  }
+
+  .post-kicker {
+    order: 2;
+    justify-content: center;
+    gap: 10px;
+    margin: 4px auto 0;
+    font-size: 14px;
+  }
+
+  .post-kicker a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 16%);
+    color: white;
+  }
+
+  .post-kicker a:first-child {
+    padding: 0 13px;
+  }
+
+  .post-hero-copy h1 {
+    order: 3;
+    max-width: 12em;
+    justify-self: center;
+    font-size: clamp(24px, 7.4vw, 34px);
+    line-height: 1.22;
+    text-wrap: balance;
+  }
+
+  .post-meta {
+    order: 4;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 0;
+    font-size: 13px;
+  }
+
+  .post-meta span {
+    min-height: 36px;
+    padding: 0 13px;
+    background: rgb(255 255 255 / 18%);
+    color: rgb(255 255 255 / 94%);
+    white-space: nowrap;
+  }
+
+  .post-shell {
+    width: min(100% - 20px, 560px);
+    margin-top: -18px;
+    padding-top: 30px;
+  }
+
+  .post-shell::before {
+    border-radius: 22px 22px 0 0;
+  }
+
+  .post-sidebar {
+    gap: 0;
+  }
+
+  .post-sidebar :deep(.sidebar-search),
+  .post-sidebar :deep(.toc-card),
+  .post-sidebar :deep(.sidebar-section),
+  .post-sidebar :deep(.info-card) {
+    display: none;
   }
 
   .summary-body,
@@ -1090,6 +1251,10 @@ function updateTocIndicatorPosition() {
     gap: 12px;
     align-items: start;
     padding: 0;
+  }
+
+  .summary-thumb {
+    display: none;
   }
 
   .summary-body p {
