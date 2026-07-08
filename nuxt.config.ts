@@ -37,6 +37,12 @@ export default defineNuxtConfig({
       security: {
         xssValidator: false
       }
+    },
+    '/api/admin/posts/**': {
+      cors: false,
+      security: {
+        xssValidator: false
+      }
     }
   },
   runtimeConfig: {
