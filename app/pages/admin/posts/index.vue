@@ -107,8 +107,9 @@
               </div>
 
               <div class="post-info-col post-main-info">
-                <div class="post-cover" :class="gradientClass(post.id)">
-                  <span>{{ post.title.slice(0, 1) }}</span>
+                <div class="post-cover" :class="post.cover ? 'has-image' : gradientClass(post.id)">
+                  <img v-if="post.cover" :src="post.cover" :alt="post.title" loading="lazy">
+                  <span v-else>{{ post.title.slice(0, 1) }}</span>
                 </div>
                 <div class="post-copy">
                   <NuxtLink :to="`/admin/posts/${post.id}`" class="post-title-link">
@@ -707,7 +708,14 @@ function postPath(slug: string) {
   place-items: center;
   border-radius: 0.85rem;
   color: #fff;
+  overflow: hidden;
   box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.18);
+}
+
+.post-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .post-cover span {
