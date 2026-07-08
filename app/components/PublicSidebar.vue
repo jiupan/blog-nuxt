@@ -1,15 +1,5 @@
 <template>
   <aside class="public-sidebar" aria-label="侧边栏">
-    <form v-if="showSearch" class="sidebar-search" role="search" @submit.prevent="submitSearch">
-      <div class="search-inner">
-        <SearchIcon aria-hidden="true" />
-        <input v-model="keyword" type="search" placeholder="搜索文章标题或内容..." aria-label="搜索文章标题或内容">
-        <button type="submit" aria-label="搜索">
-          <ArrowRightIcon aria-hidden="true" />
-        </button>
-      </div>
-    </form>
-
     <section class="sidebar-author">
       <span class="author-glow" aria-hidden="true"></span>
       <div class="author-content">
@@ -88,14 +78,12 @@
 
 <script setup lang="ts">
 import {
-  ArrowRight as ArrowRightIcon,
   BookOpen as BookOpenIcon,
   Camera as CameraIcon,
   Code2 as Code2Icon,
   Compass as CompassIcon,
   Leaf as LeafIcon,
   PenLine as PenLineIcon,
-  Search as SearchIcon,
   Sparkles as SparklesIcon,
   Tag as TagIcon,
   TrendingUp as TrendingUpIcon
@@ -127,18 +115,13 @@ const props = withDefaults(defineProps<{
   categories?: SidebarTaxonomy[]
   tags?: SidebarTaxonomy[]
   posts?: SidebarPost[]
-  showSearch?: boolean
 }>(), {
   description: '个人博客',
   avatar: '',
   categories: () => [],
   tags: () => [],
-  posts: () => [],
-  showSearch: true
+  posts: () => []
 })
-
-const route = useRoute()
-const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
 
 const initial = computed(() => props.siteName.slice(0, 1).toUpperCase())
 const subtitle = computed(() => props.siteName.includes('(') ? 'Personal Blog' : '独立写作者')
@@ -167,14 +150,6 @@ function topicTone(index: number) {
 function coverWord(post: SidebarPost) {
   return (post.category?.name || post.title).slice(0, 2)
 }
-
-function submitSearch() {
-  const q = keyword.value.trim()
-  navigateTo({
-    path: '/posts',
-    query: q ? { keyword: q } : undefined
-  })
-}
 </script>
 
 <style scoped>
@@ -182,73 +157,6 @@ function submitSearch() {
   display: grid;
   gap: 28px;
   color: #303946;
-}
-
-.sidebar-search {
-  padding: 5px;
-  border: 1px solid #eef1f5;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 30px rgb(15 23 42 / 5%);
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.sidebar-search:focus-within {
-  border-color: rgba(59, 130, 246, 0.48);
-  box-shadow: 0 14px 34px rgb(15 23 42 / 7%), 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-
-.search-inner {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) 34px;
-  align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  padding-left: 10px;
-}
-
-.search-inner > svg {
-  width: 18px;
-  height: 18px;
-  color: #9aa5b1;
-}
-
-.search-inner input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #303946;
-  font: inherit;
-  font-size: 14px;
-}
-
-.search-inner input::placeholder {
-  color: #9aa5b1;
-}
-
-.search-inner button {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 0;
-  border-radius: 8px;
-  background: #f6f8fa;
-  color: #64748b;
-  cursor: pointer;
-  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-}
-
-.search-inner button:hover {
-  background: #eef2f6;
-  color: #27313d;
-  transform: translateX(1px);
-}
-
-.search-inner button svg {
-  width: 15px;
-  height: 15px;
 }
 
 .sidebar-author {

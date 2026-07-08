@@ -34,6 +34,7 @@
           v-model:slug="form.slug"
           v-model:summary="form.summary"
           v-model:cover="form.cover"
+          v-model:is-pinned="form.isPinned"
           v-model:category-id="form.categoryId"
           v-model:tag-ids="form.tagIds"
           v-model:seo-title="form.seoTitle"

@@ -115,6 +115,10 @@
                   <NuxtLink :to="`/admin/posts/${post.id}`" class="post-title-link">
                     {{ post.title }}
                   </NuxtLink>
+                  <span v-if="post.isPinned" class="post-pin-badge">
+                    <UIcon name="i-lucide-pin" class="size-3" />
+                    置顶
+                  </span>
                   <p>{{ post.summary || postPath(post.slug) }}</p>
                   <div class="post-taxonomy">
                     <span class="post-category">
@@ -160,6 +164,15 @@
               <div class="post-actions-col">
                 <div class="post-row-actions">
                   <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-eye" :to="postPath(post.slug)" target="_blank" />
+                  <UButton
+                    size="xs"
+                    :color="post.isPinned ? 'warning' : 'neutral'"
+                    variant="ghost"
+                    icon="i-lucide-pin"
+                    :title="post.isPinned ? '取消置顶' : '置顶文章'"
+                    :loading="pinningId === post.id"
+                    @click="togglePinned(post)"
+                  />
                   <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-square-pen" :to="`/admin/posts/${post.id}`" />
                   <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingId === post.id" @click="deletePost(post)" />
                 </div>
@@ -213,6 +226,7 @@ const toast = useToast()
 const route = useRoute()
 
 const sortOptions = [
+  { label: '排序：置顶优先', value: 'pinned_desc' },
   { label: '排序：最近更新', value: 'updatedAt_desc' },
   { label: '排序：最早更新', value: 'updatedAt_asc' },
   { label: '排序：最近创建', value: 'createdAt_desc' },
@@ -226,10 +240,11 @@ const filterStatus = ref('')
 const searchText = ref(typeof route.query.search === 'string' ? route.query.search : '')
 const categoryFilter = ref('__all__')
 const tagFilter = ref('__all__')
-const sortValue = ref('createdAt_desc')
+const sortValue = ref('pinned_desc')
 const selectedIds = ref<number[]>([])
 const batching = ref(false)
 const deletingId = ref<number | null>(null)
+const pinningId = ref<number | null>(null)
 
 const { data: categoryData } = await useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/categories')
 const { data: tagData } = await useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/tags')
@@ -303,7 +318,7 @@ function resetFilters() {
   searchText.value = ''
   categoryFilter.value = '__all__'
   tagFilter.value = '__all__'
-  sortValue.value = 'createdAt_desc'
+  sortValue.value = 'pinned_desc'
   applyFilters()
 }
 
@@ -370,10 +385,39 @@ async function updatePostStatus(post: AdminPostListItem, status: PostStatus) {
       categoryId: post.categoryId || null,
       tagIds: post.tags.map((tag) => tag.id),
       status,
+      isPinned: post.isPinned || false,
       seoTitle: post.seoTitle || '',
       seoDescription: post.seoDescription || ''
     }
   })
+}
+
+async function togglePinned(post: AdminPostListItem) {
+  pinningId.value = post.id
+  try {
+    await $fetch(`/api/admin/posts/${post.id}`, {
+      method: 'PUT',
+      body: {
+        title: post.title,
+        slug: post.slug,
+        summary: post.summary || '',
+        content: post.content,
+        cover: post.cover || '',
+        categoryId: post.categoryId || null,
+        tagIds: post.tags.map((tag) => tag.id),
+        status: post.status,
+        isPinned: !post.isPinned,
+        seoTitle: post.seoTitle || '',
+        seoDescription: post.seoDescription || ''
+      }
+    })
+    toast.add({ title: post.isPinned ? '已取消置顶' : '文章已置顶', color: 'success' })
+    await refreshAll()
+  } catch (error: any) {
+    toast.add({ title: '置顶操作失败', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    pinningId.value = null
+  }
 }
 
 async function refreshAll() {
@@ -744,6 +788,21 @@ function postPath(slug: string) {
   text-overflow: ellipsis;
   transition: color 160ms ease;
   white-space: nowrap;
+}
+
+.post-pin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.32rem;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+  padding: 0.28rem 0.48rem;
 }
 
 .post-row:hover .post-title-link {

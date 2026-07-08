@@ -18,6 +18,8 @@ export type PostSummary = {
   tagIds?: number[]
   seoTitle?: string | null
   seoDescription?: string | null
+  isPinned?: boolean
+  pinnedAt?: string | Date | null
   createdAt?: string | Date
   updatedAt?: string | Date
   publishedAt?: string | Date | null
@@ -58,6 +60,7 @@ export type CreatePostRequest = {
   status: Extract<PostStatus, 'DRAFT' | 'PUBLISHED'>
   seoTitle?: string
   seoDescription?: string
+  isPinned?: boolean
 }
 
 export type UpdatePostRequest = CreatePostRequest

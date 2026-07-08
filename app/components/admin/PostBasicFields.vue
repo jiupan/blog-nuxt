@@ -44,6 +44,19 @@
       </div>
     </div>
   </UFormField>
+  <UFormField label="展示策略">
+    <label class="pin-setting-card" :class="{ 'is-active': isPinned }">
+      <input v-model="isPinned" type="checkbox" class="pin-setting-input">
+      <span class="pin-setting-icon" aria-hidden="true">
+        <UIcon name="i-lucide-pin" class="size-4" />
+      </span>
+      <span class="pin-setting-copy">
+        <strong>置顶文章</strong>
+        <small>开启后会优先显示在首页、文章列表和精选入口。</small>
+      </span>
+      <span class="pin-setting-state">{{ isPinned ? '已置顶' : '未置顶' }}</span>
+    </label>
+  </UFormField>
   <UFormField label="分类">
     <div class="taxonomy-field">
       <div class="taxonomy-field-main">
@@ -123,6 +136,7 @@ const title = defineModel<string>('title', { required: true })
 const slug = defineModel<string>('slug', { required: true })
 const summary = defineModel<string>('summary', { required: true })
 const cover = defineModel<string>('cover', { required: true })
+const isPinned = defineModel<boolean>('isPinned', { required: true })
 const categoryId = defineModel<number | null>('categoryId', { required: true })
 const tagIds = defineModel<number[]>('tagIds', { required: true })
 const seoTitle = defineModel<string>('seoTitle', { required: true })
@@ -130,3 +144,92 @@ const seoDescription = defineModel<string>('seoDescription', { required: true })
 
 const coverInputRef = ref<HTMLInputElement | null>(null)
 </script>
+
+<style scoped>
+.pin-setting-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.pin-setting-card:hover,
+.pin-setting-card:focus-within {
+  border-color: #c7d2fe;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(79 70 229 / 8%);
+}
+
+.pin-setting-card.is-active {
+  border-color: #fbbf24;
+  background: linear-gradient(135deg, #fffbeb, #fff7ed);
+  box-shadow: 0 10px 26px rgb(245 158 11 / 12%);
+}
+
+.pin-setting-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pin-setting-icon {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  border-radius: 0.65rem;
+  background: #eef2ff;
+  color: #4f46e5;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.pin-setting-card.is-active .pin-setting-icon {
+  background: #f59e0b;
+  color: #ffffff;
+  transform: rotate(-12deg);
+}
+
+.pin-setting-copy {
+  min-width: 0;
+}
+
+.pin-setting-copy strong,
+.pin-setting-copy small {
+  display: block;
+}
+
+.pin-setting-copy strong {
+  color: #1e293b;
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.pin-setting-copy small {
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.pin-setting-state {
+  border-radius: 999px;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+  padding: 0.4rem 0.55rem;
+  white-space: nowrap;
+}
+
+.pin-setting-card.is-active .pin-setting-state {
+  background: #f59e0b;
+  color: #ffffff;
+}
+</style>

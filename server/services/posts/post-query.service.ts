@@ -62,6 +62,8 @@ export async function listPublicPosts(query: PublicPostListQuery) {
       where,
       include: postInclude,
       orderBy: [
+        { isPinned: 'desc' },
+        { pinnedAt: { sort: 'desc', nulls: 'last' } },
         { createdAt: 'desc' },
         { id: 'desc' }
       ],
@@ -232,8 +234,14 @@ function findAdjacentPublicPost(
   })
 }
 
-function resolveAdminPostOrderBy(sort: string): Prisma.PostOrderByWithRelationInput {
+function resolveAdminPostOrderBy(sort: string): Prisma.PostOrderByWithRelationInput | Prisma.PostOrderByWithRelationInput[] {
   switch (sort) {
+    case 'pinned_desc':
+      return [
+        { isPinned: 'desc' },
+        { pinnedAt: { sort: 'desc', nulls: 'last' } },
+        { updatedAt: 'desc' }
+      ]
     case 'createdAt_asc':
       return { createdAt: 'asc' }
     case 'createdAt_desc':

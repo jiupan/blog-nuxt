@@ -21,7 +21,7 @@
           </Transition>
           <div class="hero-copy">
             <h1>{{ activeHeroPost?.title || latest?.title || siteName }}</h1>
-            <p>{{ activeHeroPost ? '最新发布' : (latest ? '最新发布' : '暂无已发布文章') }}</p>
+            <p>{{ currentHeroPost?.isPinned ? '置顶推荐' : (latest ? '最新发布' : '暂无已发布文章') }}</p>
           </div>
         </NuxtLink>
 
@@ -84,8 +84,12 @@
               </NuxtLink>
               <div class="post-body">
                 <div class="post-meta">
+                  <span v-if="post.isPinned" class="post-pinned-mark">
+                    <PinIcon aria-hidden="true" />
+                    置顶
+                  </span>
                   <span>{{ post.category }}</span>
-                  <span v-if="index < 2">最新</span>
+                  <span v-if="index < 2 && !post.isPinned">最新</span>
                 </div>
                 <NuxtLink :to="post.to" class="post-title">
                   <span>{{ post.title }}</span>
@@ -171,6 +175,7 @@ import {
   Newspaper as NewspaperIcon,
   Palette as PaletteIcon,
   PenTool as PenToolIcon,
+  Pin as PinIcon,
   Rocket as RocketIcon,
   SmilePlus as SmilePlusIcon,
   Sparkles as SparklesIcon,
@@ -273,7 +278,7 @@ const coverStyles = [
 ]
 
 const displayPosts = computed(() => {
-  return posts.value.map((post, index) => {
+  return posts.value.map((post) => {
     const style = coverStyles[post.id % coverStyles.length]!
     const category = post.category?.name || '未分类'
     const postTags = post.tags?.slice(0, 3).map((tag) => tag.name) || []
@@ -285,6 +290,7 @@ const displayPosts = computed(() => {
       category,
       tags: postTags,
       date: formatDate(post.publishedAt),
+      isPinned: Boolean(post.isPinned),
       cover: post.cover || '',
       coverWord: category === '未分类' ? post.title.slice(0, 4) : category,
       memeIcon: memeIconForPost(post.id),
@@ -758,10 +764,25 @@ function formatDate(value?: string | Date | null) {
 
 .post-meta {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   color: #8a909d;
   font-size: 12px;
   font-weight: 700;
+}
+
+.post-pinned-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #b45309;
+}
+
+.post-pinned-mark svg {
+  width: 13px;
+  height: 13px;
+  fill: rgb(245 158 11 / 18%);
 }
 
 .post-title {

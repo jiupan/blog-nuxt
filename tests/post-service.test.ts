@@ -99,6 +99,21 @@ describe('createPost', () => {
     expect(call.data.publishedAt).toBeInstanceOf(Date)
   })
 
+  it('sets pinnedAt when creating a pinned post', async () => {
+    prismaMock.post.create.mockResolvedValue({ id: 1 })
+
+    await createPost(createPostSchema.parse({
+      title: 'Pinned',
+      slug: 'pinned',
+      content: 'Content',
+      isPinned: true
+    }))
+
+    const call = prismaMock.post.create.mock.calls[0][0]
+    expect(call.data.isPinned).toBe(true)
+    expect(call.data.pinnedAt).toBeInstanceOf(Date)
+  })
+
   it('translates unique slug conflicts into API conflict errors', async () => {
     prismaMock.post.create.mockRejectedValue(createPrismaError('P2002'))
 
@@ -161,6 +176,23 @@ describe('updatePost', () => {
     }))
 
     expect(prismaMock.post.update.mock.calls[0][0].data.publishedAt).toBe(publishedAt)
+  })
+
+  it('preserves pinning when update input omits pinned state', async () => {
+    const pinnedAt = new Date('2026-01-02T03:04:05.000Z')
+    prismaMock.post.findUnique.mockResolvedValue({ id: 1, publishedAt: null, isPinned: true, pinnedAt })
+    prismaMock.post.update.mockResolvedValue({ id: 1 })
+
+    await updatePost(1, updatePostSchema.parse({
+      title: 'Updated',
+      slug: 'updated',
+      content: 'Content',
+      status: PostStatus.DRAFT
+    }))
+
+    const call = prismaMock.post.update.mock.calls[0][0]
+    expect(call.data.isPinned).toBe(true)
+    expect(call.data.pinnedAt).toBe(pinnedAt)
   })
 
   it('clears publishedAt when moving a post out of published status', async () => {

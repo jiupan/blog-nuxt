@@ -1209,7 +1209,6 @@ function updateTocIndicatorPosition() {
     gap: 0;
   }
 
-  .post-sidebar :deep(.sidebar-search),
   .post-sidebar :deep(.toc-card),
   .post-sidebar :deep(.sidebar-section),
   .post-sidebar :deep(.info-card) {

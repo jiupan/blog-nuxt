@@ -16,12 +16,14 @@ export const createPostSchema = z.object({
   tagIds: z.array(z.number().int()).default([]),
   status: postStatusSchema.default(PostStatus.DRAFT),
   seoTitle: z.string().optional().nullable(),
-  seoDescription: z.string().optional().nullable()
+  seoDescription: z.string().optional().nullable(),
+  isPinned: z.boolean().optional().default(false)
 })
 
 export const updatePostSchema = createPostSchema.extend({
   slug: z.string().min(1),
-  status: postStatusSchema
+  status: postStatusSchema,
+  isPinned: z.boolean().optional()
 })
 
 export type CreatePostInput = z.infer<typeof createPostSchema>
@@ -43,6 +45,8 @@ export async function createPost(input: CreatePostInput) {
         publishedAt: resolvePublishedAt(input.status),
         seoTitle: input.seoTitle,
         seoDescription: input.seoDescription,
+        isPinned: input.isPinned,
+        pinnedAt: resolvePinnedAt(input.isPinned),
         tags: {
           create: normalizeTagIds(input.tagIds).map((tagId) => ({ tagId }))
         }
@@ -61,6 +65,7 @@ export async function updatePost(id: number, input: UpdatePostInput) {
   }
 
   const slug = normalizePostSlug(input.slug)
+  const isPinned = input.isPinned ?? current.isPinned ?? false
 
   if (!slug) {
     throw badRequest('文章别名不能为空')
@@ -80,6 +85,8 @@ export async function updatePost(id: number, input: UpdatePostInput) {
         publishedAt: resolvePublishedAt(input.status, current.publishedAt),
         seoTitle: input.seoTitle,
         seoDescription: input.seoDescription,
+        isPinned,
+        pinnedAt: resolvePinnedAt(isPinned, current.pinnedAt),
         tags: {
           deleteMany: {},
           create: normalizeTagIds(input.tagIds).map((tagId) => ({ tagId }))
@@ -128,6 +135,14 @@ function resolvePublishedAt(status: PostStatus, currentPublishedAt?: Date | null
   }
 
   return currentPublishedAt || new Date()
+}
+
+function resolvePinnedAt(isPinned: boolean, currentPinnedAt?: Date | null) {
+  if (!isPinned) {
+    return null
+  }
+
+  return currentPinnedAt || new Date()
 }
 
 function normalizeTagIds(tagIds: number[]) {

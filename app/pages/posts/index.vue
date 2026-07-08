@@ -20,7 +20,13 @@
 
       <div class="grid gap-4">
         <article v-for="post in posts" :key="post.id" class="rounded-lg border border-gray-200 bg-white p-5">
-          <NuxtLink :to="postPath(post.slug)" class="text-xl font-semibold text-gray-950">{{ post.title }}</NuxtLink>
+          <div class="post-list-title-row">
+            <NuxtLink :to="postPath(post.slug)" class="text-xl font-semibold text-gray-950">{{ post.title }}</NuxtLink>
+            <span v-if="post.isPinned" class="post-list-pin">
+              <UIcon name="i-lucide-pin" class="size-3" />
+              置顶
+            </span>
+          </div>
           <p class="mt-3 text-sm leading-6 text-gray-600">{{ post.summary }}</p>
           <div class="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-500">
             <span>{{ formatDate(post.publishedAt) }}</span>
@@ -67,6 +73,27 @@ function formatDate(value?: string | Date | null) {
   position: sticky;
   top: 84px;
   align-self: start;
+}
+
+.post-list-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.post-list-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+  padding: 0.28rem 0.5rem;
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {
