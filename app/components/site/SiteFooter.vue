@@ -14,10 +14,7 @@
         </NuxtLink>
       </div>
       <button class="back-top-button" type="button" aria-label="返回顶部" data-tooltip="返回顶部" @click="$emit('scrollTop')">
-        <span class="footer-avatar" aria-hidden="true">
-          <span class="footer-avatar-head"></span>
-          <span class="footer-avatar-body"></span>
-        </span>
+        <Icon name="i-lucide-rocket" class="back-top-icon" aria-hidden="true" />
       </button>
       <div class="footer-action-side is-right">
         <NuxtLink

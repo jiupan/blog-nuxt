@@ -174,7 +174,7 @@ const [{ data, error }, { data: categoryData }, { data: tagData }, { data: relat
 ])
 
 if (error.value || !data.value?.data) {
-  throw createError({ statusCode: 404, statusMessage: '文章不存在' })
+  throw createError({ statusCode: 404, message: '文章不存在' })
 }
 
 const post = computed(() => data.value!.data)

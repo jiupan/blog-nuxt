@@ -31,7 +31,13 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/admin/**': { ssr: false },
-    '/api/admin/**': { cors: false }
+    '/api/admin/**': { cors: false },
+    '/api/admin/ai/**': {
+      cors: false,
+      security: {
+        xssValidator: false
+      }
+    }
   },
   runtimeConfig: {
     session: {

@@ -12,7 +12,7 @@ import {
 function expectAiError(error: unknown, code: string, statusMessage: string) {
   expect(error).toMatchObject({
     statusCode: 502,
-    statusMessage,
+    message: statusMessage,
     data: {
       code,
       message: statusMessage

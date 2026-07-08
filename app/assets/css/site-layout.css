@@ -1079,53 +1079,12 @@ body.site-search-lock {
   box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
 }
 
-.back-top-button::before {
-  position: absolute;
-  top: 5px;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: white;
-  content: "";
-}
-
-.footer-avatar {
-  position: relative;
-  display: grid;
-  width: 32px;
-  height: 36px;
-  place-items: center;
-}
-
-.footer-avatar-head {
-  position: absolute;
-  top: 6px;
-  width: 12px;
-  height: 12px;
-  border: 3px solid #fff;
-  border-radius: 999px;
-  background: #19191d;
-}
-
-.footer-avatar-body {
-  position: absolute;
-  bottom: 2px;
-  width: 25px;
-  height: 25px;
-  border-radius: 999px 999px 10px 10px;
-  background: #111217;
-}
-
-.footer-avatar-body::before {
-  position: absolute;
-  top: 9px;
-  left: 7px;
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: white;
-  box-shadow: 8px 0 0 white;
-  content: "";
+.back-top-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  font-size: 24px;
+  stroke-width: 2.4;
 }
 
 .footer-links {

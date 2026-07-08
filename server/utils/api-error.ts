@@ -27,7 +27,7 @@ export function fail(options: ApiErrorOptions) {
 
   return createError({
     statusCode: options.statusCode,
-    statusMessage: options.statusMessage,
+    message: options.statusMessage,
     data
   })
 }

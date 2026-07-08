@@ -14,7 +14,7 @@ const { requireAdmin, requireUser } = await import('../server/services/security/
 function expectApiError(error: unknown, statusCode: number, code: string, statusMessage: string) {
   expect(error).toMatchObject({
     statusCode,
-    statusMessage,
+    message: statusMessage,
     data: {
       code,
       message: statusMessage
