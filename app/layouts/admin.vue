@@ -95,6 +95,7 @@ const navItems = [
   { label: '标签', to: '/admin/tags', icon: 'i-lucide-tags' },
   { label: '菜单', to: '/admin/menus', icon: 'i-lucide-menu' },
   { label: '图库', to: '/admin/gallery', icon: 'i-lucide-images' },
+  { label: 'AI 知识库', to: '/admin/knowledge', icon: 'i-lucide-brain-circuit' },
   { label: '设置', to: '/admin/settings', icon: 'i-lucide-settings' }
 ]
 

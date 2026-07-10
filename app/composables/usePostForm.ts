@@ -1,4 +1,5 @@
 import type { GalleryImage, PostRelationItem, SeoCheckResult, TaxonomyItem, WritingAssistantResult } from '~/components/admin/post-form.types'
+import type { KnowledgeDocumentState } from '~~/types/dto/knowledge'
 import { getApiErrorMessage, getApiErrorRawMessage, getApiErrorStatus, isUniqueConstraintMessage } from '~/utils/api-error'
 
 type PostFormMode = 'create' | 'edit'
@@ -22,6 +23,8 @@ export async function usePostForm(options: UsePostFormOptions) {
   const writingAssistantGenerated = ref(false)
   const checkingSeo = ref(false)
   const seoCheckGenerated = ref(false)
+  const knowledgePending = ref(false)
+  const knowledgeDocument = ref<KnowledgeDocumentState | null>(null)
   const uploadingCover = ref(false)
   const coverUploaded = ref(false)
   const coverUploadError = ref(false)
@@ -85,6 +88,7 @@ export async function usePostForm(options: UsePostFormOptions) {
         seoDescription: data.value.data.seoDescription || ''
       })
       relationItems.value = normalizeLoadedRelations(data.value.data.relations || [])
+      knowledgeDocument.value = data.value.data.knowledgeDocument || null
     }
   }
 
@@ -150,6 +154,34 @@ export async function usePostForm(options: UsePostFormOptions) {
         }))
       }
     })
+  }
+
+  async function setKnowledgeEnabled(enabled: boolean) {
+    if (!options.postId) return
+    knowledgePending.value = true
+    try {
+      const response = await $fetch<{ data: KnowledgeDocumentState }>(`/api/admin/knowledge/documents/${options.postId}/enabled`, { method: 'PUT', body: { enabled } })
+      knowledgeDocument.value = response.data
+      toast.add({ title: enabled ? '已加入 AI 知识库' : '已从知识库停用', color: 'success' })
+    } catch (error: unknown) {
+      toast.add({ title: '知识库操作失败', description: getApiErrorMessage(error), color: 'error' })
+    } finally {
+      knowledgePending.value = false
+    }
+  }
+
+  async function syncKnowledge() {
+    if (!options.postId) return
+    knowledgePending.value = true
+    try {
+      const response = await $fetch<{ data: { document: KnowledgeDocumentState } }>(`/api/admin/knowledge/documents/${options.postId}/sync`, { method: 'POST' })
+      knowledgeDocument.value = response.data.document
+      toast.add({ title: '知识向量同步完成', color: 'success' })
+    } catch (error: unknown) {
+      toast.add({ title: '知识同步失败', description: getApiErrorMessage(error), color: 'error' })
+    } finally {
+      knowledgePending.value = false
+    }
   }
 
   async function generateSummary() {
@@ -701,6 +733,8 @@ export async function usePostForm(options: UsePostFormOptions) {
     writingAssistantGenerated,
     checkingSeo,
     seoCheckGenerated,
+    knowledgePending,
+    knowledgeDocument,
     uploadingCover,
     coverUploaded,
     coverUploadError,
@@ -723,6 +757,8 @@ export async function usePostForm(options: UsePostFormOptions) {
     galleryPickerTitle,
     galleryPickerDescription,
     save,
+    setKnowledgeEnabled,
+    syncKnowledge,
     generateSummary,
     generateSeoMeta,
     generateRelations,

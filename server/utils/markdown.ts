@@ -51,6 +51,7 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
     allowedAttributes: {
       a: ['href', 'name', 'target', 'rel'],
       code: ['class', 'style'],
+      div: ['class'],
       h1: ['id'],
       h2: ['id'],
       h3: ['id'],
@@ -136,7 +137,19 @@ async function highlightCodeBlocks(html: string) {
       theme: 'github-dark'
     }).catch(() => codeToHtml(decoded, { lang: 'text', theme: 'github-dark' }))
 
-    highlighted = highlighted.replace(block[0], rendered)
+    const codeBlock = `
+      <div class="md-editor-code">
+        <div class="md-editor-code-head">
+          <div class="md-editor-code-flag"><span></span><span></span><span></span></div>
+          <div class="md-editor-code-action">
+            <span class="md-editor-code-lang">${lang}</span>
+          </div>
+        </div>
+        ${rendered}
+      </div>
+    `
+
+    highlighted = highlighted.replace(block[0], codeBlock)
   }
 
   return highlighted

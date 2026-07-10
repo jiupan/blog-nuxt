@@ -5,6 +5,7 @@ import { unauthorized } from '~~/server/utils/api-error'
 import { createAiQuotaBlockedError, createAiRateLimitedError } from '~~/server/services/ai/errors'
 import { aiUsagePolicy } from '~~/server/services/security/security-policy'
 import { consumeFixedWindow, getClientIp, type FixedWindowStore } from '~~/server/services/security/rate-limit.service'
+import { getKnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
 
 const userWindows: FixedWindowStore = new Map()
 const ipWindows: FixedWindowStore = new Map()
@@ -39,7 +40,8 @@ async function assertAiQuota(event: H3Event, user: SessionUser, feature: string,
   consumeFixedWindow(userWindows, `user:${user.id}`, aiUsagePolicy.userWindowMs, aiUsagePolicy.userWindowLimit, () => {
     throw createAiRateLimitedError('操作太频繁，请稍后再试')
   })
-  consumeFixedWindow(ipWindows, `ip:${ip}`, aiUsagePolicy.ipWindowMs, aiUsagePolicy.ipWindowLimit, () => {
+  const knowledgeSettings = feature === 'ask-blog' ? await getKnowledgeRuntimeSettings() : null
+  consumeFixedWindow(ipWindows, `ip:${ip}`, aiUsagePolicy.ipWindowMs, knowledgeSettings?.ipHourlyLimit || aiUsagePolicy.ipWindowLimit, () => {
     throw createAiRateLimitedError('当前网络请求过于频繁，请稍后再试')
   })
 
@@ -58,9 +60,10 @@ async function assertAiQuota(event: H3Event, user: SessionUser, feature: string,
     }
   })
 
-  if (used >= aiUsagePolicy.dailyUserLimit) {
+  const dailyLimit = knowledgeSettings?.dailyUserLimit || aiUsagePolicy.dailyUserLimit
+  if (used >= dailyLimit) {
     await recordAiUsage(user.id, feature, 'BLOCKED', ip, userAgent)
-    throw createAiQuotaBlockedError(`今日 AI 额度已用完，每天可使用 ${aiUsagePolicy.dailyUserLimit} 次`)
+    throw createAiQuotaBlockedError(`今日 AI 额度已用完，每天可使用 ${dailyLimit} 次`)
   }
 }
 

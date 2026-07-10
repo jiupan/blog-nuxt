@@ -24,7 +24,13 @@ export const settingsDefaults = {
   ai_rerank_api_key: '',
   ai_rerank_base_url: 'https://api.cohere.com/v2',
   ai_rerank_model: 'rerank-v3.5',
-  ai_rerank_top_n: '8'
+  ai_rerank_top_n: '8',
+  rag_top_k: '10',
+  rag_context_limit: '8',
+  rag_system_prompt: '你是个人博客的站内问答助手。你只能根据提供的博客片段回答，必须返回严格 JSON。',
+  rag_no_answer_prompt: '当前博客中没有找到足够依据回答这个问题。',
+  rag_daily_user_limit: '20',
+  rag_ip_hourly_limit: '60'
 } as const
 
 export type SettingsKey = keyof typeof settingsDefaults
@@ -73,7 +79,13 @@ export const settingsInputSchema = z.object({
   ai_rerank_api_key: z.string().optional(),
   ai_rerank_base_url: optionalUrl,
   ai_rerank_model: z.string().optional(),
-  ai_rerank_top_n: z.string().optional()
+  ai_rerank_top_n: z.string().optional(),
+  rag_top_k: z.string().optional(),
+  rag_context_limit: z.string().optional(),
+  rag_system_prompt: z.string().optional(),
+  rag_no_answer_prompt: z.string().optional(),
+  rag_daily_user_limit: z.string().optional(),
+  rag_ip_hourly_limit: z.string().optional()
 }).strict()
 
 export type SettingsInput = z.infer<typeof settingsInputSchema>

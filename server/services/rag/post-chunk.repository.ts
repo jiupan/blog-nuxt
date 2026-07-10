@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
 import type { PreparedPostChunk } from './chunker.service'
 import { toVectorLiteral } from './vector-utils'
@@ -49,6 +50,40 @@ export async function insertPostChunk(chunk: PreparedPostChunk, embedding: numbe
     embeddingDim,
     toVectorLiteral(embedding)
   )
+}
+
+export async function replacePostChunks(
+  postId: number,
+  chunks: PreparedPostChunk[],
+  embeddings: number[][],
+  embeddingModel: string,
+  embeddingDim: number
+) {
+  await prisma.$transaction(async (tx) => {
+    await tx.postChunk.deleteMany({ where: { postId } })
+
+    for (let index = 0; index < chunks.length; index += 1) {
+      const chunk = chunks[index]
+      const embedding = embeddings[index]
+      if (!chunk || !embedding) {
+        throw new Error('知识分块与向量数量不一致')
+      }
+
+      await tx.$executeRaw`
+        INSERT INTO "PostChunk" (
+          "postId", "chunkIndex", "title", "slug", "summary", "content", "headingPath", "contentHash",
+          "tokenCount", "categoryId", "tagIds", "embeddingModel", "embeddingDim", "embedding", "status",
+          "indexedAt", "createdAt", "updatedAt"
+        ) VALUES (
+          ${chunk.postId}, ${chunk.chunkIndex}, ${chunk.title}, ${chunk.slug}, ${chunk.summary || null}, ${chunk.content},
+          ${chunk.headingPath || null}, ${chunk.contentHash}, ${chunk.tokenCount}, ${chunk.categoryId || null},
+          ${JSON.stringify(chunk.tagIds)}, ${embeddingModel}, ${embeddingDim},
+          ${Prisma.raw(`'${toVectorLiteral(embedding)}'::vector`)}, 'ACTIVE',
+          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+      `
+    }
+  })
 }
 
 export async function getPostChunkIndexStats() {

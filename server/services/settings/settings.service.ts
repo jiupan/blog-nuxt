@@ -25,6 +25,15 @@ export type RerankSettings = AiProviderSettings & {
   topN: number
 }
 
+export type KnowledgeRuntimeSettings = {
+  topK: number
+  contextLimit: number
+  systemPrompt: string
+  noAnswerPrompt: string
+  dailyUserLimit: number
+  ipHourlyLimit: number
+}
+
 export async function getSettingsMap(keys: readonly SettingsKey[] = settingKeys): Promise<SettingsMap> {
   const rows = await prisma.setting.findMany({
     where: {
@@ -64,6 +73,7 @@ export async function saveSettings(input: unknown) {
     })
   }
 
+  const current = await getSettingsMap()
   const ops = settingKeys
     .filter((key) => parsed.data[key] !== undefined)
     .map((key) => {
@@ -76,6 +86,15 @@ export async function saveSettings(input: unknown) {
     })
 
   await Promise.all(ops)
+
+  const embeddingChanged = ['ai_embedding_model', 'ai_embedding_dimensions']
+    .some((key) => parsed.data[key as SettingsKey] !== undefined && parsed.data[key as SettingsKey] !== current[key as SettingsKey])
+  if (embeddingChanged) {
+    await Promise.all([
+      prisma.knowledgeDocument.updateMany({ where: { enabled: true, indexedHash: { not: null } }, data: { status: 'STALE' } }),
+      prisma.knowledgeDocument.updateMany({ where: { enabled: true, indexedHash: null }, data: { status: 'PENDING' } })
+    ])
+  }
 }
 
 export async function getAiProviderSettings(): Promise<AiProviderSettings> {
@@ -137,6 +156,21 @@ export async function getRerankSettings(): Promise<RerankSettings> {
     ),
     model: String(envModel ? config.aiRerankModel : (settings.ai_rerank_model || config.aiRerankModel)).trim(),
     topN: normalizeBoundedInteger(envTopN ? config.aiRerankTopN : (settings.ai_rerank_top_n || config.aiRerankTopN), 8, 1, 20)
+  }
+}
+
+export async function getKnowledgeRuntimeSettings(): Promise<KnowledgeRuntimeSettings> {
+  const settings = await getSettingsMap([
+    'rag_top_k', 'rag_context_limit', 'rag_system_prompt', 'rag_no_answer_prompt',
+    'rag_daily_user_limit', 'rag_ip_hourly_limit'
+  ])
+  return {
+    topK: normalizeBoundedInteger(settings.rag_top_k, 10, 1, 40),
+    contextLimit: normalizeBoundedInteger(settings.rag_context_limit, 8, 1, 20),
+    systemPrompt: settings.rag_system_prompt.trim() || settingsDefaults.rag_system_prompt,
+    noAnswerPrompt: settings.rag_no_answer_prompt.trim() || settingsDefaults.rag_no_answer_prompt,
+    dailyUserLimit: normalizeBoundedInteger(settings.rag_daily_user_limit, 20, 1, 10000),
+    ipHourlyLimit: normalizeBoundedInteger(settings.rag_ip_hourly_limit, 60, 1, 100000)
   }
 }
 

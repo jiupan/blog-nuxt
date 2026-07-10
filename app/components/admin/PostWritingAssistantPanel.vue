@@ -1,6 +1,14 @@
 <template>
-  <UFormField label="AI 写作助手">
-    <div class="writing-assistant-field">
+  <details class="post-setting-tool">
+    <summary class="post-setting-tool-summary">
+      <span class="post-setting-tool-icon is-violet"><UIcon name="i-lucide-wand-sparkles" class="size-4" /></span>
+      <span class="post-setting-tool-copy">
+        <strong>AI 写作助手</strong>
+        <small>分析完成度并生成内容建议</small>
+      </span>
+      <UIcon name="i-lucide-chevron-down" class="post-setting-tool-chevron size-4" />
+    </summary>
+    <div class="post-setting-tool-body writing-assistant-field">
       <div class="writing-assistant-actions">
         <UButton
           color="neutral"
@@ -68,7 +76,7 @@
       </div>
       <p v-else class="post-relations-hint">分析不会自动覆盖表单，确认后再应用到文章。</p>
     </div>
-  </UFormField>
+  </details>
 </template>
 
 <script setup lang="ts">

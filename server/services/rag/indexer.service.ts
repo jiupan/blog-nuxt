@@ -1,8 +1,8 @@
 import { prisma } from '~~/server/utils/prisma'
-import { chunkPost, type ChunkInputPost } from './chunker.service'
+import { chunkPost, hashPostKnowledgeSource, type ChunkInputPost } from './chunker.service'
 import { embedTexts, resolveEmbeddingConfig } from '~~/server/services/embeddings/embedding.service'
 import { buildPublishedPostWhere } from '~~/server/services/posts/post-query.service'
-import { deletePostChunksByPostId, getPostChunkIndexStats, insertPostChunk } from './post-chunk.repository'
+import { deletePostChunksByPostId, getPostChunkIndexStats, replacePostChunks } from './post-chunk.repository'
 
 export type RebuildIndexResult = {
   indexedPosts: number
@@ -46,9 +46,8 @@ export async function indexPost(post: ChunkInputPost): Promise<RebuildIndexResul
   const chunks = chunkPost(post)
   const embeddingConfig = await resolveEmbeddingConfig()
 
-  await deletePostChunksByPostId(post.id)
-
   if (!chunks.length) {
+    await deletePostChunksByPostId(post.id)
     return {
       indexedPosts: 1,
       chunks: 0,
@@ -58,18 +57,15 @@ export async function indexPost(post: ChunkInputPost): Promise<RebuildIndexResul
   }
 
   const batchSize = 24
+  const allEmbeddings: number[][] = []
   for (let offset = 0; offset < chunks.length; offset += batchSize) {
     const batch = chunks.slice(offset, offset + batchSize)
-    const { config, embeddings } = await embedTexts(batch.map((chunk) => chunk.embeddingText))
+    const { embeddings } = await embedTexts(batch.map((chunk) => chunk.embeddingText))
 
-    for (let index = 0; index < batch.length; index += 1) {
-      const chunk = batch[index]
-      const embedding = embeddings[index]
-      if (!chunk || !embedding) continue
-
-      await insertPostChunk(chunk, embedding, config.model, config.dimensions)
-    }
+    allEmbeddings.push(...embeddings)
   }
+
+  await replacePostChunks(post.id, chunks, allEmbeddings, embeddingConfig.model, embeddingConfig.dimensions)
 
   return {
     indexedPosts: 1,
@@ -78,6 +74,8 @@ export async function indexPost(post: ChunkInputPost): Promise<RebuildIndexResul
     embeddingDim: embeddingConfig.dimensions
   }
 }
+
+export { hashPostKnowledgeSource }
 
 export async function getIndexStatus() {
   const stats = await getPostChunkIndexStats()

@@ -16,6 +16,7 @@ model User {
   status       UserStatus @default(ACTIVE)
   lastLoginAt  DateTime?
   aiUsageLogs  AiUsageLog[]
+  ragQueryLogs RagQueryLog[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -39,6 +40,8 @@ model Post {
   relations      PostRelation[] @relation("PostRelations")
   relatedBy      PostRelation[] @relation("RelatedPostRelations")
   chunks         PostChunk[]
+  knowledgeDocument KnowledgeDocument?
+  knowledgeSyncJobs KnowledgeSyncJob[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
   publishedAt    DateTime?
@@ -111,7 +114,7 @@ model PostChunk {
   tagIds         String          @default("[]")
   embeddingModel String
   embeddingDim   Int
-  embedding      Unsupported("vector")?
+  embedding      Unsupported("vector(1536)")?
   status         PostChunkStatus @default(ACTIVE)
   indexedAt      DateTime        @default(now())
   createdAt      DateTime        @default(now())
@@ -187,6 +190,70 @@ model AiUsageLog {
   @@index([ip, createdAt])
 }
 
+model KnowledgeDocument {
+  id            Int                     @id @default(autoincrement())
+  postId        Int                     @unique
+  enabled       Boolean                 @default(true)
+  status        KnowledgeDocumentStatus @default(PENDING)
+  sourceHash    String
+  indexedHash   String?
+  chunkCount    Int                     @default(0)
+  tokenCount    Int                     @default(0)
+  embeddingModel String?
+  embeddingDim  Int?
+  lastIndexedAt DateTime?
+  lastError     String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  post          Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([enabled, status])
+  @@index([lastIndexedAt])
+}
+
+model KnowledgeSyncJob {
+  id             Int                    @id @default(autoincrement())
+  type           KnowledgeSyncJobType
+  status         KnowledgeSyncJobStatus @default(PENDING)
+  postId         Int?
+  totalItems     Int                    @default(0)
+  completedItems Int                    @default(0)
+  successItems   Int                    @default(0)
+  failedItems    Int                    @default(0)
+  error          String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  post           Post?                  @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([postId, createdAt])
+}
+
+model RagQueryLog {
+  id               Int            @id @default(autoincrement())
+  userId           Int?
+  question         String
+  rewrittenQuestion String?
+  answer           String?
+  status           RagQueryStatus
+  retrievedChunks  Json?
+  citations        Json?
+  retrievalMs      Int?
+  modelMs          Int?
+  durationMs       Int?
+  inputTokens      Int?
+  outputTokens     Int?
+  feedback         Int?
+  error            String?
+  createdAt        DateTime       @default(now())
+  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
 enum PostStatus {
   DRAFT
   PUBLISHED
@@ -225,6 +292,36 @@ enum AiUsageStatus {
   SUCCESS
   FAILED
   BLOCKED
+}
+
+enum KnowledgeDocumentStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  STALE
+  FAILED
+  DISABLED
+}
+
+enum KnowledgeSyncJobType {
+  SINGLE_POST
+  BATCH_SYNC
+  FULL_REBUILD
+  REMOVE_STALE
+}
+
+enum KnowledgeSyncJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  PARTIAL_FAILED
+  FAILED
+}
+
+enum RagQueryStatus {
+  SUCCESS
+  NO_KNOWLEDGE
+  FAILED
 }
 
 enum MenuLocation {

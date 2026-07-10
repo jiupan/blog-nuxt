@@ -10,6 +10,7 @@ const postInclude = {
   category: true,
   tags: { include: { tag: true } }
 } satisfies Prisma.PostInclude
+const adminPostInclude = { ...postInclude, knowledgeDocument: true } satisfies Prisma.PostInclude
 
 type PostWithTaxonomy = Prisma.PostGetPayload<{ include: typeof postInclude }>
 type PostWithFlatTags = Omit<PostWithTaxonomy, 'tags'> & {
@@ -165,7 +166,7 @@ export async function listAdminPosts(query: AdminPostListQuery) {
   const [items, total] = await Promise.all([
     prisma.post.findMany({
       where,
-      include: postInclude,
+      include: adminPostInclude,
       orderBy: resolveAdminPostOrderBy(query.sort),
       skip: (page - 1) * pageSize,
       take: pageSize
@@ -185,7 +186,7 @@ export async function getAdminPostDetail(id: number) {
   const [post, relations] = await Promise.all([
     prisma.post.findUnique({
       where: { id },
-      include: postInclude
+      include: adminPostInclude
     }),
     getAdminPostRelations(id)
   ])
@@ -259,7 +260,7 @@ function resolveAdminPostOrderBy(sort: string): Prisma.PostOrderByWithRelationIn
   }
 }
 
-function mapPostTags(post: PostWithTaxonomy): PostWithFlatTags {
+function mapPostTags<T extends PostWithTaxonomy>(post: T): Omit<T, 'tags'> & { tags: PostWithFlatTags['tags'] } {
   return {
     ...post,
     tags: post.tags.map((item) => item.tag)

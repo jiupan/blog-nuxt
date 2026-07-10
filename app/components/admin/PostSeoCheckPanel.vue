@@ -1,6 +1,14 @@
 <template>
-  <UFormField label="SEO 检查助手">
-    <div class="seo-check-field">
+  <details class="post-setting-tool">
+    <summary class="post-setting-tool-summary">
+      <span class="post-setting-tool-icon is-orange"><UIcon name="i-lucide-search-check" class="size-4" /></span>
+      <span class="post-setting-tool-copy">
+        <strong>SEO 检查助手</strong>
+        <small>检查结构、关键词和搜索摘要</small>
+      </span>
+      <UIcon name="i-lucide-chevron-down" class="post-setting-tool-chevron size-4" />
+    </summary>
+    <div class="post-setting-tool-body seo-check-field">
       <div class="writing-assistant-actions">
         <UButton
           color="neutral"
@@ -68,7 +76,7 @@
       </div>
       <p v-else class="post-relations-hint">检查当前标题、摘要、SEO 字段、正文结构、图片和链接。</p>
     </div>
-  </UFormField>
+  </details>
 </template>
 
 <script setup lang="ts">

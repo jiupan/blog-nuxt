@@ -702,7 +702,7 @@ function updateTocIndicatorPosition() {
 }
 
 .content-card :deep(.prose-blog) {
-  max-width: 89ch;
+  max-width: 94ch;
 }
 
 .post-main > .content-card:first-child {

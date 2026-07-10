@@ -76,6 +76,13 @@
           @apply-tags="applyWritingTags"
           @apply-title="applyWritingTitle"
         />
+        <PostKnowledgePanel
+          v-if="mode === 'edit'"
+          :document="knowledgeDocument"
+          :pending="knowledgePending"
+          @set-enabled="setKnowledgeEnabled"
+          @sync="syncKnowledge"
+        />
         <PostRelationsEditor
           v-if="mode === 'edit'"
           v-model="relationItems"
@@ -130,6 +137,7 @@ import PostBasicFields from './PostBasicFields.vue'
 import PostCategoryCreateModal from './PostCategoryCreateModal.vue'
 import PostGalleryPicker from './PostGalleryPicker.vue'
 import PostMarkdownEditor from './PostMarkdownEditor.vue'
+import PostKnowledgePanel from './PostKnowledgePanel.vue'
 import PostRelationsEditor from './PostRelationsEditor.vue'
 import PostSeoCheckPanel from './PostSeoCheckPanel.vue'
 import PostTagCreateModal from './PostTagCreateModal.vue'
@@ -152,6 +160,8 @@ const {
   writingAssistantGenerated,
   checkingSeo,
   seoCheckGenerated,
+  knowledgePending,
+  knowledgeDocument,
   uploadingCover,
   coverUploaded,
   coverUploadError,
@@ -174,6 +184,8 @@ const {
   galleryPickerTitle,
   galleryPickerDescription,
   save,
+  setKnowledgeEnabled,
+  syncKnowledge,
   generateSummary,
   generateSeoMeta,
   generateRelations,
@@ -202,7 +214,7 @@ const {
 .post-editor-layout {
   display: grid;
   gap: 1rem;
-  grid-template-columns: 21rem minmax(0, 1fr);
+  grid-template-columns: 23rem minmax(0, 1fr);
   align-items: start;
 }
 
@@ -215,6 +227,9 @@ const {
   position: sticky;
   top: 4.75rem;
   align-self: start;
+  overflow: hidden;
+  border-color: #e5eaf2;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 6%);
 }
 
 .post-panel-title {
@@ -260,8 +275,133 @@ const {
 
 .post-settings-form {
   display: grid;
-  gap: 0.85rem;
-  padding: 1rem;
+  max-height: calc(100vh - 9.25rem);
+  overflow-y: auto;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-width: thin;
+}
+
+.post-settings-form::-webkit-scrollbar {
+  width: 6px;
+}
+
+.post-settings-form::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.post-setting-tool {
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+}
+
+.post-setting-tool-summary {
+  display: flex;
+  min-height: 3.75rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  list-style: none;
+  transition: background 160ms ease;
+}
+
+.post-setting-tool-summary::-webkit-details-marker {
+  display: none;
+}
+
+.post-setting-tool-summary:hover {
+  background: #fbfcfe;
+}
+
+.post-setting-tool-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.6rem;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.post-setting-tool-icon.is-orange {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.post-setting-tool-icon.is-violet {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+.post-setting-tool-icon.is-sky {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.post-setting-tool-copy {
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+
+.post-setting-tool-copy strong,
+.post-setting-tool-copy small {
+  display: block;
+}
+
+.post-setting-tool-copy strong {
+  color: #172033;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.post-setting-tool-copy small {
+  overflow: hidden;
+  margin-top: 0.12rem;
+  color: #7b8798;
+  font-size: 0.69rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-setting-tool-count {
+  display: grid;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  place-items: center;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.post-setting-tool-chevron {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  transition: transform 180ms ease;
+}
+
+.post-setting-tool[open] .post-setting-tool-chevron {
+  transform: rotate(180deg);
+}
+
+.post-setting-tool[open] .post-setting-tool-summary {
+  border-bottom: 1px solid #eef2f7;
+  background: #fbfcfe;
+}
+
+.post-setting-tool-body {
+  padding: 0.8rem;
 }
 
 .post-upload-row {
@@ -816,6 +956,11 @@ const {
 
   .post-settings-panel {
     position: static;
+  }
+
+  .post-settings-form {
+    max-height: none;
+    overflow: visible;
   }
 }
 

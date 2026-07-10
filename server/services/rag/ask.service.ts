@@ -1,5 +1,6 @@
 import { generateBlogAnswer } from '~~/server/utils/ai'
 import { searchPostChunks, type RagSearchResult } from './retrieval.service'
+import { getKnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
 
 export type BlogAskCitation = {
   postId: number
@@ -23,15 +24,16 @@ export type BlogAskResult = {
 }
 
 export async function askBlog(question: string): Promise<BlogAskResult> {
+  const settings = await getKnowledgeRuntimeSettings()
   const results = await searchPostChunks({
     query: question,
-    limit: 12
+    limit: settings.topK
   })
-  const sources = normalizeSources(results)
+  const sources = normalizeSources(results, settings.contextLimit)
 
   if (!sources.length) {
     return {
-      answer: '当前博客中没有找到足够依据回答这个问题。',
+      answer: settings.noAnswerPrompt,
       citations: [],
       relatedPosts: []
     }
@@ -67,7 +69,7 @@ export async function askBlog(question: string): Promise<BlogAskResult> {
   }
 }
 
-function normalizeSources(results: RagSearchResult[]) {
+function normalizeSources(results: RagSearchResult[], contextLimit: number) {
   const postCounts = new Map<number, number>()
   let totalLength = 0
 
@@ -87,7 +89,7 @@ function normalizeSources(results: RagSearchResult[]) {
       totalLength += item.excerpt.length
       return true
     })
-    .slice(0, 8)
+    .slice(0, contextLimit)
 }
 
 function buildRelatedPosts(sources: RagSearchResult[]): BlogAskRelatedPost[] {

@@ -1,6 +1,15 @@
 <template>
-  <UFormField label="继续阅读">
-    <div class="post-relations-field">
+  <details class="post-setting-tool">
+    <summary class="post-setting-tool-summary">
+      <span class="post-setting-tool-icon is-sky"><UIcon name="i-lucide-network" class="size-4" /></span>
+      <span class="post-setting-tool-copy">
+        <strong>继续阅读</strong>
+        <small>配置前台关联文章推荐</small>
+      </span>
+      <span v-if="items.length" class="post-setting-tool-count">{{ items.length }}</span>
+      <UIcon name="i-lucide-chevron-down" class="post-setting-tool-chevron size-4" />
+    </summary>
+    <div class="post-setting-tool-body post-relations-field">
       <div class="post-relations-actions">
         <UButton
           color="neutral"
@@ -39,7 +48,7 @@
         暂无关联文章，可用 AI 生成后人工确认。
       </div>
     </div>
-  </UFormField>
+  </details>
 </template>
 
 <script setup lang="ts">

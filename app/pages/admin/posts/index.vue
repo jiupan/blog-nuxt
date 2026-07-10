@@ -87,6 +87,7 @@
             </div>
             <div class="post-info-col">文章信息</div>
             <div class="post-status-col">状态</div>
+            <div class="post-knowledge-col">AI 知识库</div>
             <div class="post-metrics-col">数据</div>
             <div class="post-date-col">更新时间</div>
             <div class="post-actions-col">操作</div>
@@ -99,7 +100,7 @@
               class="post-row"
               :class="{ 'is-selected': selectedIds.includes(post.id) }"
             >
-              <div class="post-row-accent"></div>
+              <div class="post-row-accent" />
               <div class="post-check-cell">
                 <button type="button" class="post-check-button" @click="toggleSelect(post.id)">
                   <UIcon :name="selectedIds.includes(post.id) ? 'i-lucide-check-square' : 'i-lucide-square'" class="size-5" />
@@ -139,6 +140,21 @@
                   <UIcon :name="statusIcon(post.status)" class="size-3.5" />
                   {{ statusText(post.status) }}
                 </span>
+              </div>
+
+              <div class="post-knowledge-col">
+                <span class="post-knowledge-status" :class="knowledgeStatusClass(post.knowledgeDocument?.status)">
+                  {{ knowledgeStatusText(post.knowledgeDocument?.status) }}
+                </span>
+                <button
+                  v-if="post.status === 'PUBLISHED'"
+                  type="button"
+                  class="post-knowledge-action"
+                  :disabled="knowledgeLoadingId === post.id"
+                  @click="handleKnowledgeAction(post)"
+                >
+                  {{ post.knowledgeDocument?.enabled ? '同步' : '加入' }}
+                </button>
               </div>
 
               <div class="post-metrics-col">
@@ -245,6 +261,7 @@ const selectedIds = ref<number[]>([])
 const batching = ref(false)
 const deletingId = ref<number | null>(null)
 const pinningId = ref<number | null>(null)
+const knowledgeLoadingId = ref<number | null>(null)
 
 const { data: categoryData } = await useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/categories')
 const { data: tagData } = await useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/tags')
@@ -420,6 +437,24 @@ async function togglePinned(post: AdminPostListItem) {
   }
 }
 
+async function handleKnowledgeAction(post: AdminPostListItem) {
+  knowledgeLoadingId.value = post.id
+  try {
+    if (!post.knowledgeDocument?.enabled) {
+      await $fetch(`/api/admin/knowledge/documents/${post.id}/enabled`, { method: 'PUT', body: { enabled: true } })
+      toast.add({ title: '已加入 AI 知识库', description: '点击“同步”生成知识向量。', color: 'success' })
+    } else {
+      await $fetch(`/api/admin/knowledge/documents/${post.id}/sync`, { method: 'POST' })
+      toast.add({ title: '知识向量同步完成', color: 'success' })
+    }
+    await refresh()
+  } catch (error: unknown) {
+    toast.add({ title: '知识库操作失败', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    knowledgeLoadingId.value = null
+  }
+}
+
 async function refreshAll() {
   await Promise.all([
     refresh(),
@@ -455,6 +490,14 @@ function statusClass(status?: string) {
   if (status === 'PUBLISHED') return 'is-published'
   if (status === 'ARCHIVED') return 'is-archived'
   return 'is-draft'
+}
+
+function knowledgeStatusText(status?: string) {
+  return ({ PENDING: '待同步', SYNCING: '同步中', SYNCED: '已同步', STALE: '需要更新', FAILED: '同步失败', DISABLED: '未启用' } as Record<string, string>)[status || ''] || '未启用'
+}
+
+function knowledgeStatusClass(status?: string) {
+  return `is-${(status || 'disabled').toLowerCase()}`
 }
 
 function contentSize(content?: string | null) {
@@ -673,6 +716,41 @@ function postPath(slug: string) {
 .post-status-col {
   width: 7.5rem;
   flex: 0 0 7.5rem;
+}
+
+.post-knowledge-col {
+  display: grid;
+  width: 8rem;
+  flex: 0 0 8rem;
+  justify-items: start;
+  gap: 0.28rem;
+}
+
+.post-knowledge-status {
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 850;
+  padding: 0.28rem 0.5rem;
+}
+
+.post-knowledge-status.is-synced { background: #d1fae5; color: #047857; }
+.post-knowledge-status.is-syncing { background: #dbeafe; color: #2563eb; }
+.post-knowledge-status.is-pending,
+.post-knowledge-status.is-stale { background: #fef3c7; color: #b45309; }
+.post-knowledge-status.is-failed { background: #fee2e2; color: #dc2626; }
+
+.post-knowledge-action {
+  color: #4f46e5;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.post-knowledge-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .post-metrics-col {

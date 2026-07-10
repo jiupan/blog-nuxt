@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { badRequest, conflict, notFound } from '../../utils/api-error'
 import { prisma } from '../../utils/prisma'
 import { createRandomPostSlug, normalizePostSlug } from '../../utils/slug'
+import { refreshKnowledgeDocumentState } from '../knowledge/knowledge-state.service'
 
 const postStatusSchema = z.enum([PostStatus.DRAFT, PostStatus.PUBLISHED, PostStatus.ARCHIVED])
 
@@ -72,7 +73,7 @@ export async function updatePost(id: number, input: UpdatePostInput) {
   }
 
   try {
-    return await prisma.post.update({
+    const updated = await prisma.post.update({
       where: { id },
       data: {
         title: input.title,
@@ -93,6 +94,8 @@ export async function updatePost(id: number, input: UpdatePostInput) {
         }
       }
     })
+    await refreshKnowledgeDocumentState(id).catch(() => null)
+    return updated
   } catch (error) {
     handlePostWriteError(error)
   }

@@ -1,5 +1,6 @@
 import type { PaginationPayload } from '../api'
 import type { TaxonomySummary } from './taxonomy'
+import type { KnowledgeStatus } from './knowledge'
 
 export type PostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 
@@ -33,6 +34,12 @@ export type AdminPostListItem = PostSummary & {
   tags: TaxonomySummary[]
   createdAt: string | Date
   updatedAt: string | Date
+  knowledgeDocument?: {
+    enabled: boolean
+    status: KnowledgeStatus
+    chunkCount: number
+    lastIndexedAt?: string | Date | null
+  } | null
 }
 
 export type AdminPostListPayload = PaginationPayload<AdminPostListItem>

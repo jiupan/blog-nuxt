@@ -29,6 +29,19 @@ export type PreparedPostChunk = {
 const targetChunkLength = 760
 const maxChunkLength = 980
 const overlapLength = 120
+export const chunkingVersion = 'markdown-headings-v1:760:980:120'
+
+export function hashPostKnowledgeSource(post: ChunkInputPost) {
+  const tags = normalizeTags(post).sort((a, b) => a.id - b.id)
+  return hashContent(JSON.stringify({
+    version: chunkingVersion,
+    title: post.title,
+    content: post.content,
+    categoryId: post.categoryId || null,
+    categoryName: post.category?.name || '',
+    tags
+  }))
+}
 
 export function chunkPost(post: ChunkInputPost): PreparedPostChunk[] {
   const sections = splitMarkdownSections(post.content)

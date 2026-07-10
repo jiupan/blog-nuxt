@@ -3,6 +3,7 @@ import { createAiContentInsufficientError } from './errors'
 import { parseBlogAnswerResult } from './parsers'
 import { buildBlogAnswerPrompt } from './prompts'
 import type { BlogAnswerResult, BlogAnswerSource } from './types'
+import { getKnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
 
 export async function generateBlogAnswer(question: string, sources: BlogAnswerSource[]): Promise<BlogAnswerResult> {
   if (!sources.length) {
@@ -10,12 +11,13 @@ export async function generateBlogAnswer(question: string, sources: BlogAnswerSo
   }
 
   const input = buildBlogAnswerPrompt(question, sources)
+  const settings = await getKnowledgeRuntimeSettings()
   const text = await requestAiChatJson({
     failureMessage: 'AI 问答生成失败',
     messages: [
       {
         role: 'system',
-        content: '你是个人博客的站内问答助手。你只能根据提供的博客片段回答，必须返回严格 JSON。'
+        content: settings.systemPrompt
       },
       {
         role: 'user',

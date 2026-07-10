@@ -1,0 +1,8 @@
+import { requireAdmin } from '~~/server/utils/auth'
+import { ok } from '~~/server/utils/response'
+import { syncAllKnowledgeDocuments } from '~~/server/services/knowledge/knowledge.service'
+
+export default defineEventHandler(async (event) => {
+  await requireAdmin(event)
+  return ok(await syncAllKnowledgeDocuments(), '知识库同步任务已完成')
+})
