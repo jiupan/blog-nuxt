@@ -112,13 +112,16 @@
             <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">
               <ChevronLeftIcon aria-hidden="true" />
             </button>
-            <button
-              v-for="p in totalPages"
-              :key="p"
-              class="page-dot"
-              :class="{ 'is-active': p === currentPage }"
-              @click="goToPage(p)"
-            >{{ p }}</button>
+            <template v-for="item in visiblePageItems" :key="item.key">
+              <span v-if="item.page === null" class="page-ellipsis" aria-hidden="true">…</span>
+              <button
+                v-else
+                class="page-dot"
+                :class="{ 'is-active': item.page === currentPage }"
+                :aria-current="item.page === currentPage ? 'page' : undefined"
+                @click="goToPage(item.page)"
+              >{{ item.page }}</button>
+            </template>
             <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">
               <ChevronRightIcon aria-hidden="true" />
             </button>
@@ -244,6 +247,19 @@ const posts = computed(() => data.value?.data.items || [])
 const heroAll = computed(() => heroData.value?.data.items || [])
 const totalPosts = computed(() => data.value?.data.total || posts.value.length)
 const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
+const visiblePageItems = computed(() => {
+  const total = totalPages.value
+  if (total <= 5) return Array.from({ length: total }, (_, index) => ({ key: `page-${index + 1}`, page: index + 1 }))
+  const pages = new Set([1, total, currentPage.value - 1, currentPage.value, currentPage.value + 1])
+  const sorted = [...pages].filter(page => page >= 1 && page <= total).sort((a, b) => a - b)
+  const items: Array<{ key: string, page: number | null }> = []
+  sorted.forEach((page, index) => {
+    const previous = sorted[index - 1]
+    if (previous !== undefined && page - previous > 1) items.push({ key: `ellipsis-${previous}-${page}`, page: null })
+    items.push({ key: `page-${page}`, page })
+  })
+  return items
+})
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 const memeIcons = computed(() => memeData.value?.data.map((image) => image.url) || [])
@@ -1060,6 +1076,8 @@ function formatDate(value?: string | Date | null) {
   background: #4964f4;
   color: white;
 }
+
+.page-ellipsis { display: grid; width: 22px; height: 38px; place-items: center; color: #9097a5; font-size: 15px; font-weight: 800; user-select: none; }
 
 .page-next {
   min-width: 76px;

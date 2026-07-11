@@ -92,12 +92,12 @@ body[style*="padding-right"] {
 
 .prose-blog h1 {
   margin-top: 0;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
   background: linear-gradient(135deg, var(--article-accent), var(--article-secondary));
   background-clip: text;
   color: transparent;
-  font-size: 2.5rem;
-  text-align: center;
+  font-size: 2rem;
+  text-align: left;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -469,7 +469,7 @@ body[style*="padding-right"] {
   }
 
   .prose-blog h1 {
-    font-size: 2rem;
+    font-size: 1.7rem;
   }
 
   .prose-blog h2 {

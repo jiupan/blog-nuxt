@@ -17,6 +17,7 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@napi-rs/canvas": "0.1.80",
     "@nuxt/image": "2.0.0",
     "@nuxt/ui": "4.9.0",
     "@nuxtjs/sitemap": "8.2.2",
