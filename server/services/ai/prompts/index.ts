@@ -174,10 +174,10 @@ export function buildBlogAnswerPrompt(question: string, sources: BlogAnswerSourc
   }).join('\n\n---\n\n')
 
   return [
-    '请基于下面提供的博客片段回答用户问题。',
+    '请基于下面提供的知识库片段回答用户问题。',
     '要求：',
-    '1. 只能使用提供的博客片段，不要使用外部知识补充。',
-    '2. 如果片段中没有足够依据，请明确说明“当前博客中没有找到足够依据”。',
+    '1. 只能使用提供的知识库片段，不要使用外部知识补充。',
+    '2. 如果片段中没有足够依据，请明确说明“当前知识库中没有找到足够依据”。',
     '3. 不要编造文章标题、链接、来源编号或片段中没有的结论。',
     '4. 回答用中文，结构清晰，控制在 600 字以内。',
     '5. citationIds 只能填写用到的来源编号，最多 5 个。',
@@ -186,7 +186,7 @@ export function buildBlogAnswerPrompt(question: string, sources: BlogAnswerSourc
     '',
     `用户问题：${question}`,
     '',
-    '博客片段：',
+    '知识库片段：',
     sourceText
   ].join('\n')
 }

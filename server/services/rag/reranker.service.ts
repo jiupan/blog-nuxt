@@ -57,10 +57,10 @@ export async function rerankSearchResults(query: string, results: RagSearchResul
 
     if (!reranked.length) return results
 
-    const rerankedIds = new Set(reranked.map((item: RagSearchResult) => item.chunkId))
+    const rerankedIds = new Set(reranked.map((item: RagSearchResult) => `${item.sourceType}:${item.chunkId}`))
     return [
       ...reranked,
-      ...results.filter((item) => !rerankedIds.has(item.chunkId))
+      ...results.filter((item) => !rerankedIds.has(`${item.sourceType}:${item.chunkId}`))
     ]
   } catch {
     return results

@@ -1,13 +1,17 @@
 import { generateBlogAnswer } from '~~/server/utils/ai'
 import { searchPostChunks, type RagSearchResult } from './retrieval.service'
 import { getKnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
+import type { KnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
 
 export type BlogAskCitation = {
-  postId: number
+  sourceType: 'POST' | 'FILE'
+  postId?: number
+  knowledgeFileId?: number
   title: string
   slug: string
   headingPath?: string | null
   excerpt: string
+  pageNumber?: number | null
 }
 
 export type BlogAskRelatedPost = {
@@ -29,6 +33,15 @@ export async function askBlog(question: string): Promise<BlogAskResult> {
     query: question,
     limit: settings.topK
   })
+  return answerBlogFromResults(question, results, settings)
+}
+
+export async function answerBlogFromResults(
+  question: string,
+  results: RagSearchResult[],
+  runtimeSettings?: Pick<KnowledgeRuntimeSettings, 'contextLimit' | 'noAnswerPrompt'>
+): Promise<BlogAskResult> {
+  const settings = runtimeSettings ?? await getKnowledgeRuntimeSettings()
   const sources = normalizeSources(results, settings.contextLimit)
 
   if (!sources.length) {
@@ -43,11 +56,11 @@ export async function askBlog(question: string): Promise<BlogAskResult> {
     sourceId: index + 1,
     title: source.title,
     slug: source.slug,
-    headingPath: source.headingPath,
+    headingPath: [source.headingPath, source.pageNumber ? `第 ${source.pageNumber} 页` : ''].filter(Boolean).join(' / ') || null,
     excerpt: source.excerpt
   })))
 
-  const noGrounding = answer.answer.includes('当前博客中没有找到足够依据')
+  const noGrounding = answer.answer.includes('没有找到足够依据')
   const citedSources = noGrounding
     ? []
     : answer.citationIds.length
@@ -60,17 +73,20 @@ export async function askBlog(question: string): Promise<BlogAskResult> {
     answer: answer.answer,
     citations: citedSources.map((source) => ({
       postId: source.postId,
+      sourceType: source.sourceType,
+      knowledgeFileId: source.knowledgeFileId,
       title: source.title,
       slug: source.slug,
       headingPath: source.headingPath,
-      excerpt: source.excerpt
+      excerpt: source.excerpt,
+      pageNumber: source.pageNumber
     })),
     relatedPosts: noGrounding ? [] : buildRelatedPosts(citedSources.length ? citedSources : sources)
   }
 }
 
 function normalizeSources(results: RagSearchResult[], contextLimit: number) {
-  const postCounts = new Map<number, number>()
+  const sourceCounts = new Map<string, number>()
   let totalLength = 0
 
   return results
@@ -80,12 +96,13 @@ function normalizeSources(results: RagSearchResult[], contextLimit: number) {
       excerpt: trimText(item.excerpt, 900)
     }))
     .filter((item) => {
-      const count = postCounts.get(item.postId) || 0
+      const sourceKey = item.sourceType === 'POST' ? `post:${item.postId}` : `file:${item.knowledgeFileId}`
+      const count = sourceCounts.get(sourceKey) || 0
       if (count >= 3 || totalLength >= 5000) {
         return false
       }
 
-      postCounts.set(item.postId, count + 1)
+      sourceCounts.set(sourceKey, count + 1)
       totalLength += item.excerpt.length
       return true
     })
@@ -95,16 +112,17 @@ function normalizeSources(results: RagSearchResult[], contextLimit: number) {
 function buildRelatedPosts(sources: RagSearchResult[]): BlogAskRelatedPost[] {
   const seen = new Set<number>()
   return sources
+    .filter((source) => source.sourceType === 'POST' && source.postId !== undefined)
     .filter((source) => {
-      if (seen.has(source.postId)) {
+      if (seen.has(source.postId!)) {
         return false
       }
 
-      seen.add(source.postId)
+      seen.add(source.postId!)
       return true
     })
     .map((source) => ({
-      id: source.postId,
+      id: source.postId!,
       title: source.title,
       slug: source.slug,
       summary: source.summary

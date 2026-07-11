@@ -1,19 +1,30 @@
 import { PostStatus, Prisma } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { prismaMock } = vi.hoisted(() => ({
+const { prismaMock, queueKnowledgePostSyncMock, setKnowledgeEnabledMock, refreshKnowledgeDocumentStateMock } = vi.hoisted(() => ({
   prismaMock: {
     post: {
       create: vi.fn(),
       update: vi.fn(),
       findUnique: vi.fn(),
       delete: vi.fn()
-    }
-  }
+    },
+    knowledgeDocument: { findUnique: vi.fn() }
+  },
+  queueKnowledgePostSyncMock: vi.fn(),
+  setKnowledgeEnabledMock: vi.fn(),
+  refreshKnowledgeDocumentStateMock: vi.fn()
 }))
 
 vi.mock('../server/utils/prisma', () => ({
   prisma: prismaMock
+}))
+vi.mock('../server/services/knowledge/knowledge-state.service', () => ({
+  refreshKnowledgeDocumentState: refreshKnowledgeDocumentStateMock
+}))
+vi.mock('../server/services/knowledge/knowledge.service', () => ({
+  queueKnowledgePostSync: queueKnowledgePostSyncMock,
+  setKnowledgeEnabled: setKnowledgeEnabledMock
 }))
 
 const {
@@ -59,6 +70,9 @@ describe('createPostSchema', () => {
 describe('createPost', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    prismaMock.knowledgeDocument.findUnique.mockResolvedValue(null)
+    setKnowledgeEnabledMock.mockResolvedValue({ status: 'PENDING' })
+    queueKnowledgePostSyncMock.mockResolvedValue({ alreadyRunning: false })
   })
 
   it('normalizes custom slug, de-duplicates tags and keeps drafts unpublished', async () => {
@@ -97,6 +111,8 @@ describe('createPost', () => {
 
     const call = prismaMock.post.create.mock.calls[0][0]
     expect(call.data.publishedAt).toBeInstanceOf(Date)
+    expect(setKnowledgeEnabledMock).toHaveBeenCalledWith(1, true)
+    expect(queueKnowledgePostSyncMock).toHaveBeenCalledWith(1)
   })
 
   it('sets pinnedAt when creating a pinned post', async () => {
@@ -133,6 +149,9 @@ describe('createPost', () => {
 describe('updatePost', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    prismaMock.knowledgeDocument.findUnique.mockResolvedValue(null)
+    setKnowledgeEnabledMock.mockResolvedValue({ status: 'PENDING' })
+    queueKnowledgePostSyncMock.mockResolvedValue({ alreadyRunning: false })
   })
 
   it('publishes a draft with a new publishedAt and replaces tags', async () => {

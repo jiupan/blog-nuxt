@@ -15,6 +15,16 @@ export type RawChunkRow = {
   distance?: number
 }
 
+export type RawFileChunkRow = {
+  id: number
+  knowledgeFileId: number
+  chunkIndex: number
+  title: string
+  content: string
+  headingPath: string | null
+  pageNumber: number | null
+}
+
 export type ChunkSearchFilters = {
   categoryId?: number
   tagId?: number
@@ -183,6 +193,36 @@ export async function keywordSearchPostChunks(
     embeddingDim,
     `%${escapeLike(query)}%`,
     ...rawFilters.params
+  )
+}
+
+export async function vectorSearchKnowledgeFileChunks(embedding: number[], embeddingModel: string, embeddingDim: number) {
+  return prisma.$queryRawUnsafe<RawFileChunkRow[]>(
+    `SELECT c."id", c."knowledgeFileId", c."chunkIndex", c."title", c."content", c."headingPath", c."pageNumber"
+     FROM "KnowledgeFileChunk" c
+     JOIN "KnowledgeFile" f ON f."id" = c."knowledgeFileId"
+     WHERE c."status" = 'ACTIVE' AND f."enabled" = true AND f."status" = 'SYNCED'
+       AND c."embeddingModel" = $2 AND c."embeddingDim" = $3
+     ORDER BY c."embedding" <=> $1::vector
+     LIMIT 40`,
+    toVectorLiteral(embedding), embeddingModel, embeddingDim
+  )
+}
+
+export async function keywordSearchKnowledgeFileChunks(query: string, embeddingModel: string, embeddingDim: number) {
+  return prisma.$queryRawUnsafe<RawFileChunkRow[]>(
+    `SELECT c."id", c."knowledgeFileId", c."chunkIndex", c."title", c."content", c."headingPath", c."pageNumber"
+     FROM "KnowledgeFileChunk" c
+     JOIN "KnowledgeFile" f ON f."id" = c."knowledgeFileId"
+     WHERE c."status" = 'ACTIVE' AND f."enabled" = true AND f."status" = 'SYNCED'
+       AND c."embeddingModel" = $2 AND c."embeddingDim" = $3
+       AND (
+         to_tsvector('simple', concat_ws(' ', c."title", c."content")) @@ websearch_to_tsquery('simple', $1)
+         OR c."title" ILIKE $4 OR c."content" ILIKE $4
+       )
+     ORDER BY CASE WHEN c."title" ILIKE $4 THEN 0 ELSE 1 END, c."indexedAt" DESC
+     LIMIT 40`,
+    query, embeddingModel, embeddingDim, `%${escapeLike(query)}%`
   )
 }
 

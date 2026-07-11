@@ -8,43 +8,43 @@ datasource db {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique
-  email        String?  @unique
+  id           Int           @id @default(autoincrement())
+  username     String        @unique
+  email        String?       @unique
   passwordHash String
-  role         Role     @default(USER)
-  status       UserStatus @default(ACTIVE)
+  role         Role          @default(USER)
+  status       UserStatus    @default(ACTIVE)
   lastLoginAt  DateTime?
   aiUsageLogs  AiUsageLog[]
   ragQueryLogs RagQueryLog[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Post {
-  id             Int        @id @default(autoincrement())
-  title          String
-  slug           String     @unique
-  summary        String?
-  content        String
-  cover          String?
-  status         PostStatus @default(DRAFT)
-  viewCount      Int        @default(0)
-  categoryId     Int?
-  category       Category?  @relation(fields: [categoryId], references: [id])
-  tags           PostTag[]
-  seoTitle       String?
-  seoDescription String?
-  isPinned       Boolean    @default(false)
-  pinnedAt       DateTime?
-  relations      PostRelation[] @relation("PostRelations")
-  relatedBy      PostRelation[] @relation("RelatedPostRelations")
-  chunks         PostChunk[]
+  id                Int                @id @default(autoincrement())
+  title             String
+  slug              String             @unique
+  summary           String?
+  content           String
+  cover             String?
+  status            PostStatus         @default(DRAFT)
+  viewCount         Int                @default(0)
+  categoryId        Int?
+  category          Category?          @relation(fields: [categoryId], references: [id])
+  tags              PostTag[]
+  seoTitle          String?
+  seoDescription    String?
+  isPinned          Boolean            @default(false)
+  pinnedAt          DateTime?
+  relations         PostRelation[]     @relation("PostRelations")
+  relatedBy         PostRelation[]     @relation("RelatedPostRelations")
+  chunks            PostChunk[]
   knowledgeDocument KnowledgeDocument?
   knowledgeSyncJobs KnowledgeSyncJob[]
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  publishedAt    DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  publishedAt       DateTime?
 
   @@index([slug])
   @@index([status])
@@ -100,7 +100,7 @@ model PostRelation {
 }
 
 model PostChunk {
-  id             Int             @id @default(autoincrement())
+  id             Int                          @id @default(autoincrement())
   postId         Int
   chunkIndex     Int
   title          String
@@ -109,17 +109,17 @@ model PostChunk {
   content        String
   headingPath    String?
   contentHash    String
-  tokenCount     Int             @default(0)
+  tokenCount     Int                          @default(0)
   categoryId     Int?
-  tagIds         String          @default("[]")
+  tagIds         String                       @default("[]")
   embeddingModel String
   embeddingDim   Int
   embedding      Unsupported("vector(1536)")?
-  status         PostChunkStatus @default(ACTIVE)
-  indexedAt      DateTime        @default(now())
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  post           Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  status         PostChunkStatus              @default(ACTIVE)
+  indexedAt      DateTime                     @default(now())
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  post           Post                         @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([postId, chunkIndex])
   @@index([postId])
@@ -176,14 +176,14 @@ model MenuItem {
 }
 
 model AiUsageLog {
-  id         Int           @id @default(autoincrement())
-  userId     Int
-  feature    String
-  status     AiUsageStatus
-  ip         String?
-  userAgent  String?
-  createdAt  DateTime      @default(now())
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  feature   String
+  status    AiUsageStatus
+  ip        String?
+  userAgent String?
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([feature, createdAt])
@@ -191,64 +191,120 @@ model AiUsageLog {
 }
 
 model KnowledgeDocument {
-  id            Int                     @id @default(autoincrement())
-  postId        Int                     @unique
-  enabled       Boolean                 @default(true)
-  status        KnowledgeDocumentStatus @default(PENDING)
-  sourceHash    String
-  indexedHash   String?
-  chunkCount    Int                     @default(0)
-  tokenCount    Int                     @default(0)
+  id             Int                     @id @default(autoincrement())
+  postId         Int                     @unique
+  enabled        Boolean                 @default(true)
+  status         KnowledgeDocumentStatus @default(PENDING)
+  sourceHash     String
+  indexedHash    String?
+  chunkCount     Int                     @default(0)
+  tokenCount     Int                     @default(0)
   embeddingModel String?
-  embeddingDim  Int?
-  lastIndexedAt DateTime?
-  lastError     String?
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
-  post          Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  embeddingDim   Int?
+  lastIndexedAt  DateTime?
+  lastError      String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  post           Post                    @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([enabled, status])
   @@index([lastIndexedAt])
 }
 
 model KnowledgeSyncJob {
-  id             Int                    @id @default(autoincrement())
-  type           KnowledgeSyncJobType
-  status         KnowledgeSyncJobStatus @default(PENDING)
-  postId         Int?
-  totalItems     Int                    @default(0)
-  completedItems Int                    @default(0)
-  successItems   Int                    @default(0)
-  failedItems    Int                    @default(0)
-  error          String?
-  startedAt      DateTime?
-  finishedAt     DateTime?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  post           Post?                  @relation(fields: [postId], references: [id], onDelete: SetNull)
+  id              Int                    @id @default(autoincrement())
+  type            KnowledgeSyncJobType
+  status          KnowledgeSyncJobStatus @default(PENDING)
+  postId          Int?
+  knowledgeFileId Int?
+  totalItems      Int                    @default(0)
+  completedItems  Int                    @default(0)
+  successItems    Int                    @default(0)
+  failedItems     Int                    @default(0)
+  error           String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  post            Post?                  @relation(fields: [postId], references: [id], onDelete: SetNull)
+  knowledgeFile   KnowledgeFile?         @relation(fields: [knowledgeFileId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([postId, createdAt])
+  @@index([knowledgeFileId, createdAt])
+}
+
+model KnowledgeFile {
+  id             Int                     @id @default(autoincrement())
+  name           String
+  originalName   String
+  storedName     String                  @unique
+  mimeType       String
+  extension      String
+  size           Int
+  fileHash       String
+  enabled        Boolean                 @default(true)
+  status         KnowledgeDocumentStatus @default(PENDING)
+  chunkCount     Int                     @default(0)
+  tokenCount     Int                     @default(0)
+  embeddingModel String?
+  embeddingDim   Int?
+  lastIndexedAt  DateTime?
+  lastError      String?
+  chunks         KnowledgeFileChunk[]
+  syncJobs       KnowledgeSyncJob[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@index([enabled, status])
+  @@index([fileHash])
+  @@index([createdAt])
+}
+
+model KnowledgeFileChunk {
+  id              Int                          @id @default(autoincrement())
+  knowledgeFileId Int
+  chunkIndex      Int
+  title           String
+  content         String
+  headingPath     String?
+  pageNumber      Int?
+  contentHash     String
+  tokenCount      Int                          @default(0)
+  embeddingModel  String
+  embeddingDim    Int
+  embedding       Unsupported("vector(1536)")?
+  status          PostChunkStatus              @default(ACTIVE)
+  indexedAt       DateTime                     @default(now())
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  knowledgeFile   KnowledgeFile                @relation(fields: [knowledgeFileId], references: [id], onDelete: Cascade)
+
+  @@unique([knowledgeFileId, chunkIndex])
+  @@index([knowledgeFileId])
+  @@index([contentHash])
+  @@index([embeddingModel])
+  @@index([status])
 }
 
 model RagQueryLog {
-  id               Int            @id @default(autoincrement())
-  userId           Int?
-  question         String
+  id                Int            @id @default(autoincrement())
+  userId            Int?
+  question          String
   rewrittenQuestion String?
-  answer           String?
-  status           RagQueryStatus
-  retrievedChunks  Json?
-  citations        Json?
-  retrievalMs      Int?
-  modelMs          Int?
-  durationMs       Int?
-  inputTokens      Int?
-  outputTokens     Int?
-  feedback         Int?
-  error            String?
-  createdAt        DateTime       @default(now())
-  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  answer            String?
+  status            RagQueryStatus
+  retrievedChunks   Json?
+  citations         Json?
+  retrievalMs       Int?
+  modelMs           Int?
+  durationMs        Int?
+  inputTokens       Int?
+  outputTokens      Int?
+  feedback          Int?
+  error             String?
+  createdAt         DateTime       @default(now())
+  user              User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
@@ -308,6 +364,7 @@ enum KnowledgeSyncJobType {
   BATCH_SYNC
   FULL_REBUILD
   REMOVE_STALE
+  FILE_SYNC
 }
 
 enum KnowledgeSyncJobStatus {

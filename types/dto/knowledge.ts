@@ -21,7 +21,7 @@ export type KnowledgeDocumentItem = KnowledgeDocumentState & {
 }
 
 export type KnowledgeOverview = {
-  stats: { documents: number, chunks: number, tokens: number, pending: number, failed: number, todayQueries: number }
+  stats: { documents: number, files: number, chunks: number, tokens: number, pending: number, failed: number, todayQueries: number }
   recentJobs: KnowledgeJob[]
   recentQueries: RagQueryLog[]
 }
@@ -40,6 +40,24 @@ export type KnowledgeJob = {
   finishedAt?: string | null
   createdAt: string
   post?: { title: string } | null
+  knowledgeFile?: { name: string } | null
+}
+
+export type KnowledgeFileItem = {
+  id: number
+  name: string
+  originalName: string
+  mimeType: string
+  extension: string
+  size: number
+  enabled: boolean
+  status: KnowledgeStatus
+  chunkCount: number
+  tokenCount: number
+  embeddingModel?: string | null
+  lastIndexedAt?: string | null
+  lastError?: string | null
+  createdAt: string
 }
 
 export type RagQueryLog = {

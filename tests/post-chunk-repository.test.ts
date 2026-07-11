@@ -24,7 +24,9 @@ const {
   deletePostChunksByPostId,
   getPostChunkIndexStats,
   insertPostChunk,
+  keywordSearchKnowledgeFileChunks,
   keywordSearchPostChunks,
+  vectorSearchKnowledgeFileChunks,
   vectorSearchPostChunks
 } = await import('../server/services/rag/post-chunk.repository')
 
@@ -143,6 +145,17 @@ describe('post chunk repository search SQL', () => {
       '%100\\%\\_match\\\\test%',
       '[6]'
     ])
+  })
+
+  it('searches only enabled and successfully synced file chunks', async () => {
+    await vectorSearchKnowledgeFileChunks([0.25], 'model-a', 1536)
+    await keywordSearchKnowledgeFileChunks('部署', 'model-a', 1536)
+
+    const vectorSql = prismaMock.$queryRawUnsafe.mock.calls[0][0]
+    const keywordSql = prismaMock.$queryRawUnsafe.mock.calls[1][0]
+    expect(vectorSql).toContain('f."enabled" = true')
+    expect(vectorSql).toContain('f."status" = \'SYNCED\'')
+    expect(keywordSql).toContain('websearch_to_tsquery(\'simple\', $1)')
   })
 })
 

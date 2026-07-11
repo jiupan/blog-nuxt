@@ -43,6 +43,15 @@ export default defineNuxtConfig({
       security: {
         xssValidator: false
       }
+    },
+    '/api/admin/knowledge/files/**': {
+      cors: false,
+      security: {
+        requestSizeLimiter: {
+          maxRequestSizeInBytes: 11 * 1024 * 1024,
+          maxUploadFileRequestInBytes: 11 * 1024 * 1024
+        }
+      }
     }
   },
   runtimeConfig: {
@@ -58,6 +67,7 @@ export default defineNuxtConfig({
       }
     },
     uploadDir: process.env.UPLOAD_DIR || './uploads',
+    knowledgeFileDir: process.env.KNOWLEDGE_FILE_DIR || './data/knowledge-files',
     aiApiKey: process.env.AI_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || '',
     aiBaseUrl: process.env.AI_BASE_URL || 'https://api.deepseek.com',
     aiModel: process.env.AI_MODEL || 'deepseek-v4-flash',

@@ -20,13 +20,16 @@ services:
       DATABASE_URL: postgresql://blog:blog_password@postgres:5432/nuxt_blog?schema=public
       NUXT_SESSION_PASSWORD: replace-with-at-least-32-characters-secret
       UPLOAD_DIR: /app/uploads
+      KNOWLEDGE_FILE_DIR: /app/data/knowledge-files
       SITE_URL: http://localhost
       SITE_NAME: Jiupan Blog
     volumes:
       - uploads:/app/uploads
+      - knowledge-files:/app/data/knowledge-files
     ports:
       - "3000:3000"
 
 volumes:
   postgres-data:
   uploads:
+  knowledge-files:

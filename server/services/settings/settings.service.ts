@@ -62,6 +62,23 @@ export async function getAdminSettings() {
   return getSettingsMap()
 }
 
+const knowledgeSettingKeys = [
+  'ai_api_key', 'ai_base_url', 'ai_model',
+  'ai_embedding_api_key', 'ai_embedding_base_url', 'ai_embedding_model', 'ai_embedding_dimensions',
+  'ai_rerank_enabled', 'ai_rerank_api_key', 'ai_rerank_base_url', 'ai_rerank_model', 'ai_rerank_top_n',
+  'rag_top_k', 'rag_context_limit', 'rag_system_prompt', 'rag_no_answer_prompt', 'rag_daily_user_limit', 'rag_ip_hourly_limit'
+] as const satisfies readonly SettingsKey[]
+
+export async function getKnowledgeAdminSettings() {
+  return getSettingsMap(knowledgeSettingKeys)
+}
+
+export async function saveKnowledgeSettings(input: unknown) {
+  const source = input && typeof input === 'object' ? input as Record<string, unknown> : {}
+  const scopedInput = Object.fromEntries(knowledgeSettingKeys.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]))
+  return saveSettings(scopedInput)
+}
+
 export async function saveSettings(input: unknown) {
   const parsed = settingsInputSchema.safeParse(input)
   if (!parsed.success) {
@@ -92,7 +109,9 @@ export async function saveSettings(input: unknown) {
   if (embeddingChanged) {
     await Promise.all([
       prisma.knowledgeDocument.updateMany({ where: { enabled: true, indexedHash: { not: null } }, data: { status: 'STALE' } }),
-      prisma.knowledgeDocument.updateMany({ where: { enabled: true, indexedHash: null }, data: { status: 'PENDING' } })
+      prisma.knowledgeDocument.updateMany({ where: { enabled: true, indexedHash: null }, data: { status: 'PENDING' } }),
+      prisma.knowledgeFile.updateMany({ where: { enabled: true, chunkCount: { gt: 0 } }, data: { status: 'STALE' } }),
+      prisma.knowledgeFile.updateMany({ where: { enabled: true, chunkCount: 0 }, data: { status: 'PENDING' } })
     ])
   }
 }

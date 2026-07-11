@@ -21,11 +21,14 @@ services:
       - .env
     environment:
       UPLOAD_DIR: /app/uploads
+      KNOWLEDGE_FILE_DIR: /app/data/knowledge-files
     volumes:
       - uploads:/app/uploads
+      - knowledge-files:/app/data/knowledge-files
     ports:
       - "3000:3000"
 
 volumes:
   postgres-data:
   uploads:
+  knowledge-files:

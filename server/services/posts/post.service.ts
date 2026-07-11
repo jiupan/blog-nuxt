@@ -4,6 +4,7 @@ import { badRequest, conflict, notFound } from '../../utils/api-error'
 import { prisma } from '../../utils/prisma'
 import { createRandomPostSlug, normalizePostSlug } from '../../utils/slug'
 import { refreshKnowledgeDocumentState } from '../knowledge/knowledge-state.service'
+import { queueKnowledgePostSync, setKnowledgeEnabled } from '../knowledge/knowledge.service'
 
 const postStatusSchema = z.enum([PostStatus.DRAFT, PostStatus.PUBLISHED, PostStatus.ARCHIVED])
 
@@ -34,7 +35,7 @@ export async function createPost(input: CreatePostInput) {
   const slug = await resolvePostSlug(input.slug)
 
   try {
-    return await prisma.post.create({
+    const created = await prisma.post.create({
       data: {
         title: input.title,
         slug,
@@ -53,6 +54,8 @@ export async function createPost(input: CreatePostInput) {
         }
       }
     })
+    await autoSyncPublishedPost(created.id, input.status).catch(() => null)
+    return created
   } catch (error) {
     handlePostWriteError(error)
   }
@@ -94,11 +97,26 @@ export async function updatePost(id: number, input: UpdatePostInput) {
         }
       }
     })
-    await refreshKnowledgeDocumentState(id).catch(() => null)
+    await autoSyncPublishedPost(id, input.status).catch(() => null)
     return updated
   } catch (error) {
     handlePostWriteError(error)
   }
+}
+
+async function autoSyncPublishedPost(postId: number, status: PostStatus) {
+  if (status !== PostStatus.PUBLISHED) {
+    await refreshKnowledgeDocumentState(postId).catch(() => null)
+    return
+  }
+
+  const existing = await prisma.knowledgeDocument.findUnique({ where: { postId }, select: { enabled: true } })
+  if (existing && !existing.enabled) return
+  const document = !existing
+    ? await setKnowledgeEnabled(postId, true)
+    : await refreshKnowledgeDocumentState(postId)
+  if (document?.status === 'SYNCED') return
+  await queueKnowledgePostSync(postId)
 }
 
 export async function deletePost(id: number) {

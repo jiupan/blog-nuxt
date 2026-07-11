@@ -418,9 +418,13 @@ const settingTabs = [
   { label: '基本设置', value: 'basic' },
   { label: 'SEO 设置', value: 'seo' },
   { label: '底部信息', value: 'footer' },
-  { label: '底部快捷入口', value: 'footerActions' },
-  { label: 'AI 设置', value: 'ai' }
+  { label: '底部快捷入口', value: 'footerActions' }
 ] as const
+
+const siteSettingKeys = [
+  'site_title', 'site_subtitle', 'site_brand', 'sidebar_description', 'site_logo', 'site_favicon',
+  'seo_noindex', 'seo_keywords', 'seo_description', 'footer_copyright', 'footer_bottom_links', 'footer_actions'
+] as const satisfies readonly (keyof SettingsForm)[]
 
 const aiSettingTabs = [
   { label: '对话模型', value: 'chat', icon: 'i-lucide-message-square-text' },
@@ -450,7 +454,7 @@ const footerActionIconOptions = [
   { label: '星标', name: 'i-lucide-star' }
 ]
 
-const activeTab = ref<(typeof settingTabs)[number]['value']>('basic')
+const activeTab = ref<(typeof settingTabs)[number]['value'] | 'ai'>('basic')
 const activeAiTab = ref<(typeof aiSettingTabs)[number]['value']>('chat')
 const form = ref<SettingsForm | null>(null)
 const footerActionItems = ref<FooterActionItem[]>([])
@@ -511,7 +515,8 @@ async function save() {
   saving.value = true
   saved.value = false
   try {
-    await $fetch('/api/admin/settings', { method: 'PUT', body: form.value })
+    const siteSettings = Object.fromEntries(siteSettingKeys.map((key) => [key, form.value![key]]))
+    await $fetch('/api/admin/settings', { method: 'PUT', body: siteSettings })
     saved.value = true
     setTimeout(() => { saved.value = false }, 2000)
   } finally {

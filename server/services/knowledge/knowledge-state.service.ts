@@ -13,6 +13,9 @@ export async function refreshKnowledgeDocumentState(postId: number) {
   const post = await prisma.post.findUnique({ where: { id: postId }, include: postInclude })
   if (!post) return null
   const sourceHash = hashPostKnowledgeSource(post)
+  // A refresh must not hide the error produced by the latest indexing attempt.
+  // Once the source changes again, expose it as stale/pending so it can be retried.
+  if (document.status === 'FAILED' && sourceHash === document.sourceHash) return document
   const status = document.indexedHash && document.indexedHash === sourceHash ? 'SYNCED' : document.indexedHash ? 'STALE' : 'PENDING'
   if (status === 'SYNCED') {
     await prisma.postChunk.updateMany({
