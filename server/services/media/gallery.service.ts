@@ -21,7 +21,7 @@ export type GalleryImage = {
   url: string
   size: number
   type: string
-  collection: 'images' | 'memes'
+  collection: 'images' | 'covers' | 'memes'
   updatedAt: string
 }
 
@@ -83,6 +83,12 @@ export async function listPublicMemeImages(): Promise<PublicMemeImage[]> {
   return sortByUpdatedAt(images)
 }
 
+export async function getRandomCoverUrl(): Promise<string | null> {
+  const covers = (await listGalleryImages()).filter(image => image.collection === 'covers')
+  if (!covers.length) return null
+  return covers[Math.floor(Math.random() * covers.length)]?.url || null
+}
+
 export async function deleteGalleryImage(requestedPath: string) {
   const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
   const { filepath, relativePath } = resolveUploadPath(uploadRoot, requestedPath)
@@ -120,7 +126,9 @@ async function walkMediaFiles(uploadRoot: string, dir: string, visitor: (file: {
 }
 
 function resolveCollection(relativePath: string): GalleryImage['collection'] {
-  return relativePath === 'memes' || relativePath.startsWith('memes/') ? 'memes' : 'images'
+  if (relativePath === 'memes' || relativePath.startsWith('memes/')) return 'memes'
+  if (relativePath === 'covers' || relativePath.startsWith('covers/')) return 'covers'
+  return 'images'
 }
 
 function sortByUpdatedAt<T extends { updatedAt: string }>(items: T[]) {

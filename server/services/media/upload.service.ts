@@ -11,7 +11,7 @@ const allowedFormats = new Set(['jpeg', 'png', 'webp'])
 const memeFormats = new Set(['jpeg', 'png', 'webp', 'gif'])
 const unsafeSvgPattern = /<\s*(?:script|foreignobject|iframe|object|embed|link|style)\b|(?:\s|<)on[a-z]+\s*=|javascript:/i
 
-export type UploadPurpose = 'image' | 'favicon' | 'meme'
+export type UploadPurpose = 'image' | 'cover' | 'favicon' | 'meme'
 
 export type UploadedImage = {
   url: string
@@ -20,6 +20,7 @@ export type UploadedImage = {
 export function parseUploadPurpose(value: unknown): UploadPurpose {
   if (value === 'favicon') return 'favicon'
   if (value === 'meme') return 'meme'
+  if (value === 'cover') return 'cover'
   return 'image'
 }
 
@@ -38,9 +39,10 @@ export async function uploadImage(input: Buffer, purpose: UploadPurpose): Promis
   const year = String(now.getFullYear())
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const isMeme = purpose === 'meme'
+  const isCover = purpose === 'cover'
   const output = await optimizeImage(input, purpose)
   const filename = `${randomUUID()}${output.extension}`
-  const relativeDir = isMeme ? `memes/${year}/${month}` : `${year}/${month}`
+  const relativeDir = isMeme ? `memes/${year}/${month}` : isCover ? `covers/${year}/${month}` : `${year}/${month}`
   const relativePath = `${relativeDir}/${filename}`
 
   await mkdir(join(uploadRoot, relativeDir), { recursive: true })

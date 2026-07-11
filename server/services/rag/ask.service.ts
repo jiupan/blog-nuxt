@@ -1,4 +1,5 @@
 import { generateBlogAnswer } from '~~/server/utils/ai'
+import { generateBlogAnswerStream } from '~~/server/services/ai/blog-answer.service'
 import { searchPostChunks, type RagSearchResult } from './retrieval.service'
 import { getKnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
 import type { KnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
@@ -12,6 +13,35 @@ export type BlogAskCitation = {
   headingPath?: string | null
   excerpt: string
   pageNumber?: number | null
+}
+
+export async function streamBlogAnswerFromResults(
+  question: string,
+  results: RagSearchResult[],
+  settings: Pick<KnowledgeRuntimeSettings, 'contextLimit' | 'noAnswerPrompt'>,
+  options: { signal?: AbortSignal, onDelta: (text: string) => void | Promise<void> }
+) {
+  const sources = normalizeSources(results, settings.contextLimit)
+  if (!sources.length) {
+    await options.onDelta(settings.noAnswerPrompt)
+    return { answer: settings.noAnswerPrompt, citations: [] as BlogAskCitation[] }
+  }
+  const answer = await generateBlogAnswerStream(question, sources.map((source, index) => ({
+    sourceId: index + 1,
+    title: source.title,
+    slug: source.slug,
+    headingPath: [source.headingPath, source.pageNumber ? `第 ${source.pageNumber} 页` : ''].filter(Boolean).join(' / ') || null,
+    excerpt: source.excerpt
+  })), options)
+  const citedSources = answer.includes('没有找到足够依据') ? [] : sources.slice(0, 3)
+  return {
+    answer,
+    citations: citedSources.map(source => ({
+      postId: source.postId, sourceType: source.sourceType, knowledgeFileId: source.knowledgeFileId,
+      title: source.title, slug: source.slug, headingPath: source.headingPath,
+      excerpt: source.excerpt, pageNumber: source.pageNumber
+    }))
+  }
 }
 
 export type BlogAskRelatedPost = {

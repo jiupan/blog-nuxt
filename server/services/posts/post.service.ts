@@ -5,6 +5,7 @@ import { prisma } from '../../utils/prisma'
 import { createRandomPostSlug, normalizePostSlug } from '../../utils/slug'
 import { refreshKnowledgeDocumentState } from '../knowledge/knowledge-state.service'
 import { queueKnowledgePostSync, setKnowledgeEnabled } from '../knowledge/knowledge.service'
+import { getRandomCoverUrl } from '../media/gallery.service'
 
 const postStatusSchema = z.enum([PostStatus.DRAFT, PostStatus.PUBLISHED, PostStatus.ARCHIVED])
 
@@ -33,6 +34,7 @@ export type UpdatePostInput = z.infer<typeof updatePostSchema>
 
 export async function createPost(input: CreatePostInput) {
   const slug = await resolvePostSlug(input.slug)
+  const cover = await resolvePostCover(input.cover)
 
   try {
     const created = await prisma.post.create({
@@ -41,7 +43,7 @@ export async function createPost(input: CreatePostInput) {
         slug,
         summary: input.summary,
         content: input.content,
-        cover: input.cover,
+        cover,
         categoryId: input.categoryId,
         status: input.status,
         publishedAt: resolvePublishedAt(input.status),
@@ -70,6 +72,7 @@ export async function updatePost(id: number, input: UpdatePostInput) {
 
   const slug = normalizePostSlug(input.slug)
   const isPinned = input.isPinned ?? current.isPinned ?? false
+  const cover = await resolvePostCover(input.cover)
 
   if (!slug) {
     throw badRequest('文章别名不能为空')
@@ -83,7 +86,7 @@ export async function updatePost(id: number, input: UpdatePostInput) {
         slug,
         summary: input.summary,
         content: input.content,
-        cover: input.cover,
+        cover,
         categoryId: input.categoryId,
         status: input.status,
         publishedAt: resolvePublishedAt(input.status, current.publishedAt),
@@ -102,6 +105,11 @@ export async function updatePost(id: number, input: UpdatePostInput) {
   } catch (error) {
     handlePostWriteError(error)
   }
+}
+
+async function resolvePostCover(cover: string | null | undefined) {
+  const specifiedCover = cover?.trim()
+  return specifiedCover || await getRandomCoverUrl()
 }
 
 async function autoSyncPublishedPost(postId: number, status: PostStatus) {

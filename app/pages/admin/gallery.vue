@@ -14,14 +14,17 @@
         <div class="gallery-actions">
           <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="搜索文件名或路径..." size="sm" class="gallery-search" />
           <input ref="imageInputRef" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" @change="uploadFiles($event, 'images')" />
+          <input ref="coverInputRef" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" @change="uploadFiles($event, 'covers')" />
           <input ref="memeInputRef" type="file" accept="image/*,.gif" multiple class="hidden" @change="uploadFiles($event, 'memes')" />
           <UButton icon="i-lucide-upload" :loading="uploadingCollection === 'images'" @click="imageInputRef?.click()">上传图片</UButton>
+          <UButton color="neutral" variant="outline" icon="i-lucide-panels-top-left" :loading="uploadingCollection === 'covers'" @click="coverInputRef?.click()">上传封面</UButton>
           <UButton color="neutral" variant="outline" icon="i-lucide-smile-plus" :loading="uploadingCollection === 'memes'" @click="memeInputRef?.click()">上传表情包</UButton>
         </div>
       </header>
 
       <div class="gallery-toolbar">
         <span>普通图片 {{ regularImages.length }} 张</span>
+        <span>封面 {{ coverImages.length }} 张</span>
         <span>表情包 {{ memeImages.length }} 张</span>
         <span v-if="filteredImages.length !== images.length">当前显示 {{ filteredImages.length }} 张</span>
       </div>
@@ -70,6 +73,51 @@
               <UIcon name="i-lucide-image-off" class="size-10" />
               <strong>{{ searchQuery ? '没有匹配的普通图片' : '暂无普通图片' }}</strong>
               <span>{{ searchQuery ? '换个关键词试试。' : '上传后可作为封面或正文插图。' }}</span>
+            </div>
+          </section>
+
+          <section class="gallery-column gallery-column-covers">
+            <div class="gallery-column-head">
+              <div>
+                <h2>封面</h2>
+                <p>文章未指定封面时，从这里随机选取</p>
+              </div>
+              <span>{{ filteredCoverImages.length }}/{{ coverImages.length }}</span>
+            </div>
+
+            <template v-if="filteredCoverImages.length">
+              <div class="gallery-grid">
+                <article v-for="image in paginatedCoverImages" :key="image.path" class="gallery-card">
+                  <a :href="image.url" target="_blank" class="gallery-thumb">
+                    <img :src="image.url" :alt="image.name" loading="lazy" />
+                  </a>
+                  <div class="gallery-card-body">
+                    <strong :title="image.name">{{ image.name }}</strong>
+                    <small :title="image.url">{{ image.url }}</small>
+                    <div class="gallery-meta">
+                      <span>{{ formatSize(image.size) }}</span>
+                      <span>{{ formatDate(image.updatedAt) }}</span>
+                    </div>
+                  </div>
+                  <div class="gallery-card-actions">
+                    <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-copy" @click="copyUrl(image.url)">复制地址</UButton>
+                    <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-external-link" :to="image.url" target="_blank" />
+                    <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingPath === image.path" @click="deleteImage(image)" />
+                  </div>
+                </article>
+              </div>
+
+              <div v-if="coverTotalPages > 1" class="gallery-pagination">
+                <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-chevron-left" :disabled="coverPage <= 1" @click="coverPage--">上一页</UButton>
+                <span>第 {{ coverPage }} / {{ coverTotalPages }} 页</span>
+                <UButton size="xs" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-right" :disabled="coverPage >= coverTotalPages" @click="coverPage++">下一页</UButton>
+              </div>
+            </template>
+
+            <div v-else class="gallery-empty">
+              <UIcon name="i-lucide-panels-top-left" class="size-10" />
+              <strong>{{ searchQuery ? '没有匹配的封面' : '暂无封面' }}</strong>
+              <span>{{ searchQuery ? '换个关键词试试。' : '上传后可作为文章的随机默认封面。' }}</span>
             </div>
           </section>
 
@@ -137,24 +185,27 @@ type GalleryImage = {
   url: string
   size: number
   type: string
-  collection?: 'images' | 'memes'
+  collection?: 'images' | 'covers' | 'memes'
   updatedAt: string
 }
 
 const toast = useToast()
 const searchQuery = ref('')
-const uploadingCollection = ref<'images' | 'memes' | null>(null)
+const uploadingCollection = ref<'images' | 'covers' | 'memes' | null>(null)
 const deletingPath = ref<string | null>(null)
 const imageInputRef = ref<HTMLInputElement | null>(null)
+const coverInputRef = ref<HTMLInputElement | null>(null)
 const memeInputRef = ref<HTMLInputElement | null>(null)
 const pageSize = 12
 const regularPage = ref(1)
+const coverPage = ref(1)
 const memePage = ref(1)
 
 const { data, refresh } = await useFetch<{ data: GalleryImage[] }>('/api/admin/gallery')
 
 const images = computed(() => data.value?.data || [])
-const regularImages = computed(() => images.value.filter((image) => image.collection !== 'memes'))
+const regularImages = computed(() => images.value.filter((image) => image.collection === 'images' || !image.collection))
+const coverImages = computed(() => images.value.filter((image) => image.collection === 'covers'))
 const memeImages = computed(() => images.value.filter((image) => image.collection === 'memes'))
 const filteredImages = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
@@ -164,14 +215,18 @@ const filteredImages = computed(() => {
   })
 })
 const filteredRegularImages = computed(() => filterImages(regularImages.value))
+const filteredCoverImages = computed(() => filterImages(coverImages.value))
 const filteredMemeImages = computed(() => filterImages(memeImages.value))
 const regularTotalPages = computed(() => totalPages(filteredRegularImages.value.length))
+const coverTotalPages = computed(() => totalPages(filteredCoverImages.value.length))
 const memeTotalPages = computed(() => totalPages(filteredMemeImages.value.length))
 const paginatedRegularImages = computed(() => paginateImages(filteredRegularImages.value, regularPage.value))
+const paginatedCoverImages = computed(() => paginateImages(filteredCoverImages.value, coverPage.value))
 const paginatedMemeImages = computed(() => paginateImages(filteredMemeImages.value, memePage.value))
 
 watch(searchQuery, () => {
   regularPage.value = 1
+  coverPage.value = 1
   memePage.value = 1
 })
 
@@ -179,11 +234,15 @@ watch(regularTotalPages, (value) => {
   regularPage.value = clampPage(regularPage.value, value)
 })
 
+watch(coverTotalPages, (value) => {
+  coverPage.value = clampPage(coverPage.value, value)
+})
+
 watch(memeTotalPages, (value) => {
   memePage.value = clampPage(memePage.value, value)
 })
 
-async function uploadFiles(event: Event, collection: 'images' | 'memes') {
+async function uploadFiles(event: Event, collection: 'images' | 'covers' | 'memes') {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
   if (!files.length) return
@@ -193,16 +252,19 @@ async function uploadFiles(event: Event, collection: 'images' | 'memes') {
     for (const file of files) {
       const body = new FormData()
       body.append('file', file)
-      const url = collection === 'memes' ? '/api/admin/upload?purpose=meme' : '/api/admin/upload'
+      const url = collection === 'memes' ? '/api/admin/upload?purpose=meme' : collection === 'covers' ? '/api/admin/upload?purpose=cover' : '/api/admin/upload'
       await $fetch(url, { method: 'POST', body })
     }
     await refresh()
     if (collection === 'memes') {
       memePage.value = 1
+    } else if (collection === 'covers') {
+      coverPage.value = 1
     } else {
       regularPage.value = 1
     }
-    toast.add({ title: collection === 'memes' ? '表情包已上传' : '图片已上传', description: `已上传 ${files.length} 张${collection === 'memes' ? '表情包' : '图片'}`, color: 'success' })
+    const collectionName = collection === 'memes' ? '表情包' : collection === 'covers' ? '封面' : '图片'
+    toast.add({ title: `${collectionName}已上传`, description: `已上传 ${files.length} 张${collectionName}`, color: 'success' })
   } catch (error: any) {
     toast.add({ title: '上传失败', description: getErrorMessage(error), color: 'error' })
   } finally {
@@ -373,7 +435,7 @@ function getErrorMessage(error: any) {
   display: grid;
   align-items: start;
   gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .gallery-column {
@@ -419,6 +481,15 @@ function getErrorMessage(error: any) {
 
 .gallery-column-memes .gallery-column-head {
   background: #fff7ed;
+}
+
+.gallery-column-covers .gallery-column-head {
+  background: #eff6ff;
+}
+
+.gallery-column-covers .gallery-column-head > span {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .gallery-column-memes .gallery-column-head > span {
@@ -555,10 +626,13 @@ function getErrorMessage(error: any) {
   font-size: 0.85rem;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1100px) {
   .gallery-columns {
     grid-template-columns: 1fr;
   }
+}
+
+@media (max-width: 760px) {
 
   .gallery-head,
   .gallery-actions {

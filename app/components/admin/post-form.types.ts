@@ -13,6 +13,6 @@ export type GalleryImage = GalleryImagePayload & {
   url: string
   size: number
   type: string
-  collection: 'images' | 'memes'
+  collection: 'images' | 'covers' | 'memes'
   updatedAt: string
 }

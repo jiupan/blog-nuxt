@@ -30,7 +30,7 @@ export async function usePostForm(options: UsePostFormOptions) {
   const coverUploadError = ref(false)
   const galleryPickerOpen = ref(false)
   const galleryPickerMode = ref<'cover' | 'content'>('cover')
-  const galleryCollectionFilter = ref<'images' | 'memes'>('images')
+  const galleryCollectionFilter = ref<GalleryImage['collection']>('images')
   const gallerySearchQuery = ref('')
   const categoryCreatorOpen = ref(false)
   const tagCreatorOpen = ref(false)
@@ -682,7 +682,7 @@ export async function usePostForm(options: UsePostFormOptions) {
     try {
       const body = new FormData()
       body.append('file', file)
-      const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', { method: 'POST', body })
+      const result = await $fetch<{ data: { url: string } }>('/api/admin/upload?purpose=cover', { method: 'POST', body })
       form.cover = result.data.url
       await refreshGallery()
       coverUploaded.value = true
@@ -698,7 +698,7 @@ export async function usePostForm(options: UsePostFormOptions) {
 
   function openGalleryPicker(mode: 'cover' | 'content') {
     galleryPickerMode.value = mode
-    galleryCollectionFilter.value = 'images'
+    galleryCollectionFilter.value = mode === 'cover' ? 'covers' : 'images'
     gallerySearchQuery.value = ''
     galleryPickerOpen.value = true
     refreshGallery()

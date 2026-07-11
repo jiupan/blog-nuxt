@@ -191,6 +191,13 @@ export function buildBlogAnswerPrompt(question: string, sources: BlogAnswerSourc
   ].join('\n')
 }
 
+export function buildBlogAnswerStreamPrompt(question: string, sources: BlogAnswerSource[]) {
+  return buildBlogAnswerPrompt(question, sources)
+    .replace('5. citationIds 只能填写用到的来源编号，最多 5 个。\n', '')
+    .replace('6. 返回严格 JSON，不要包裹 Markdown 代码块。\n', '')
+    .replace('JSON 结构必须是：{"answer":"回答内容","citationIds":[1,2]}\n', '5. 直接输出回答正文，不要返回 JSON，不要包裹 Markdown 代码块。\n')
+}
+
 function cleanMarkdown(content: string) {
   return content
     .replace(/```[\s\S]*?```/g, ' ')

@@ -136,8 +136,9 @@ export async function syncKnowledgeFileContent(id: number) {
   const chunks = chunkKnowledgeFile(file.name, sections)
   const config = await resolveEmbeddingConfig()
   const embeddings: number[][] = []
-  for (let offset = 0; offset < chunks.length; offset += 24) {
-    const result = await embedTexts(chunks.slice(offset, offset + 24).map((chunk) => chunk.embeddingText))
+  const batchSize = 10
+  for (let offset = 0; offset < chunks.length; offset += batchSize) {
+    const result = await embedTexts(chunks.slice(offset, offset + batchSize).map((chunk) => chunk.embeddingText))
     embeddings.push(...result.embeddings)
   }
   await replaceKnowledgeFileChunks(id, file.name, chunks, embeddings, config.model, config.dimensions)

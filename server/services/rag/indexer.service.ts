@@ -56,7 +56,8 @@ export async function indexPost(post: ChunkInputPost): Promise<RebuildIndexResul
     }
   }
 
-  const batchSize = 24
+  // Keep batches compatible with embedding providers that accept at most 10 inputs.
+  const batchSize = 10
   const allEmbeddings: number[][] = []
   for (let offset = 0; offset < chunks.length; offset += batchSize) {
     const batch = chunks.slice(offset, offset + batchSize)

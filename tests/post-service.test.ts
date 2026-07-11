@@ -1,7 +1,7 @@
 import { PostStatus, Prisma } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { prismaMock, queueKnowledgePostSyncMock, setKnowledgeEnabledMock, refreshKnowledgeDocumentStateMock } = vi.hoisted(() => ({
+const { prismaMock, queueKnowledgePostSyncMock, setKnowledgeEnabledMock, refreshKnowledgeDocumentStateMock, getRandomCoverUrlMock } = vi.hoisted(() => ({
   prismaMock: {
     post: {
       create: vi.fn(),
@@ -13,7 +13,8 @@ const { prismaMock, queueKnowledgePostSyncMock, setKnowledgeEnabledMock, refresh
   },
   queueKnowledgePostSyncMock: vi.fn(),
   setKnowledgeEnabledMock: vi.fn(),
-  refreshKnowledgeDocumentStateMock: vi.fn()
+  refreshKnowledgeDocumentStateMock: vi.fn(),
+  getRandomCoverUrlMock: vi.fn()
 }))
 
 vi.mock('../server/utils/prisma', () => ({
@@ -25,6 +26,9 @@ vi.mock('../server/services/knowledge/knowledge-state.service', () => ({
 vi.mock('../server/services/knowledge/knowledge.service', () => ({
   queueKnowledgePostSync: queueKnowledgePostSyncMock,
   setKnowledgeEnabled: setKnowledgeEnabledMock
+}))
+vi.mock('../server/services/media/gallery.service', () => ({
+  getRandomCoverUrl: getRandomCoverUrlMock
 }))
 
 const {
@@ -73,6 +77,7 @@ describe('createPost', () => {
     prismaMock.knowledgeDocument.findUnique.mockResolvedValue(null)
     setKnowledgeEnabledMock.mockResolvedValue({ status: 'PENDING' })
     queueKnowledgePostSyncMock.mockResolvedValue({ alreadyRunning: false })
+    getRandomCoverUrlMock.mockResolvedValue(null)
   })
 
   it('normalizes custom slug, de-duplicates tags and keeps drafts unpublished', async () => {
@@ -115,6 +120,19 @@ describe('createPost', () => {
     expect(queueKnowledgePostSyncMock).toHaveBeenCalledWith(1)
   })
 
+  it('uses a random gallery cover when no cover is specified', async () => {
+    prismaMock.post.create.mockResolvedValue({ id: 1 })
+    getRandomCoverUrlMock.mockResolvedValue('/uploads/covers/default.webp')
+
+    await createPost(createPostSchema.parse({
+      title: 'Covered',
+      content: 'Content',
+      cover: ''
+    }))
+
+    expect(prismaMock.post.create.mock.calls[0][0].data.cover).toBe('/uploads/covers/default.webp')
+  })
+
   it('sets pinnedAt when creating a pinned post', async () => {
     prismaMock.post.create.mockResolvedValue({ id: 1 })
 
@@ -152,6 +170,7 @@ describe('updatePost', () => {
     prismaMock.knowledgeDocument.findUnique.mockResolvedValue(null)
     setKnowledgeEnabledMock.mockResolvedValue({ status: 'PENDING' })
     queueKnowledgePostSyncMock.mockResolvedValue({ alreadyRunning: false })
+    getRandomCoverUrlMock.mockResolvedValue(null)
   })
 
   it('publishes a draft with a new publishedAt and replaces tags', async () => {

@@ -75,9 +75,12 @@
           <Transition name="summary-dialog-panel" @after-enter="focusSummaryDialogInput">
             <div v-if="summaryDialogOpen" class="summary-dialog-stage">
               <section class="summary-dialog" role="dialog" aria-modal="true" aria-labelledby="summary-dialog-title">
-                <header class="summary-dialog-header"><div class="summary-dialog-identity"><span><Icon name="i-lucide-sparkles" /></span><div><strong id="summary-dialog-title">DyuGPT</strong><small>当前文章智能助手</small></div></div><div class="summary-dialog-head-actions"><button v-if="summaryConversationId" type="button" aria-label="新建对话" title="新建对话" @click="resetSummaryConversation"><Icon name="i-lucide-message-square-plus" /></button><button type="button" aria-label="关闭对话" @click="closeSummaryDialog"><Icon name="i-lucide-x" /></button></div></header>
+                <header class="summary-dialog-header"><div class="summary-dialog-identity"><span><Icon name="i-lucide-sparkles" /></span><div><strong id="summary-dialog-title">DyuGPT</strong><small>当前文章智能助手</small></div></div><div class="summary-dialog-head-actions"><button type="button" aria-label="历史会话" title="历史会话" :class="{ 'is-active': summaryHistoryOpen }" @click="toggleSummaryHistory"><Icon name="i-lucide-history" /></button><button v-if="summaryConversationId" type="button" aria-label="新建对话" title="新建对话" @click="resetSummaryConversation"><Icon name="i-lucide-message-square-plus" /></button><button type="button" aria-label="关闭对话" @click="closeSummaryDialog"><Icon name="i-lucide-x" /></button></div></header>
                 <div class="summary-dialog-rule" />
-                <div ref="summaryMessagesEl" class="summary-dialog-messages"><div class="summary-dialog-message is-assistant"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><p>你好，我是这篇文章的 AI 助手。你可以围绕文章内容继续提问。</p></div><div v-for="message in summaryMessages" :key="message.id" class="summary-dialog-message" :class="message.role === 'USER' ? 'is-user' : 'is-assistant'"><span v-if="message.role === 'ASSISTANT'" class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div class="summary-dialog-message-copy"><p>{{ message.content }}</p><div v-if="message.citations?.length" class="summary-dialog-citations"><span v-for="citation in message.citations" :key="`${citation.chunkId}-${citation.headingPath}`"><Icon name="i-lucide-quote" />{{ citation.headingPath || '文章正文' }}</span></div></div></div><div v-if="summaryDialogLoading" class="summary-dialog-pending"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div><i /><i /><i /></div><small>正在阅读当前文章</small></div><div v-if="summaryDialogError" class="summary-dialog-error"><Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button type="button" @click="retrySummaryQuestion">重试</button></div></div>
+                <Transition name="summary-history">
+                  <aside v-if="summaryHistoryOpen" class="summary-history-drawer" aria-label="历史会话"><header><div><strong>历史会话</strong><small>{{ summaryHistoryTotal }} 个对话</small></div><button type="button" aria-label="关闭历史会话" @click="summaryHistoryOpen = false"><Icon name="i-lucide-x" /></button></header><label class="summary-history-search"><Icon name="i-lucide-search" /><input v-model="summaryHistoryQuery" type="search" placeholder="搜索会话" /></label><div class="summary-history-list"><div v-if="summaryHistoryLoading && !summaryHistoryItems.length" class="summary-history-state"><Icon name="i-lucide-loader-circle" />正在加载</div><template v-else-if="summaryHistoryGroups.length"><section v-for="group in summaryHistoryGroups" :key="group.label"><h3>{{ group.label }}</h3><article v-for="item in group.items" :key="item.id" :class="{ 'is-current': item.id === summaryConversationId }"><button type="button" class="summary-history-main" @click="switchSummaryConversation(item.id)"><span><Icon name="i-lucide-message-circle" /></span><div><strong>{{ item.title }}</strong><small>{{ item.messageCount }} 条消息 · {{ formatConversationTime(item.lastMessageAt) }}</small></div></button><button type="button" class="summary-history-delete" aria-label="删除会话" @click="removeSummaryConversation(item)"><Icon name="i-lucide-trash-2" /></button></article></section><button v-if="summaryHistoryHasMore && !summaryHistoryQuery" type="button" class="summary-history-more" :disabled="summaryHistoryLoading" @click="loadSummaryHistory(false)">{{ summaryHistoryLoading ? '加载中…' : '加载更多' }}</button></template><div v-else class="summary-history-empty"><span><Icon name="i-lucide-messages-square" /></span><strong>{{ summaryHistoryQuery ? '没有匹配的会话' : '还没有历史会话' }}</strong><small>{{ summaryHistoryQuery ? '换个关键词试试' : '开始提问后，会话会保存在这里' }}</small></div></div></aside>
+                </Transition>
+                <div ref="summaryMessagesEl" class="summary-dialog-messages"><div class="summary-dialog-message is-assistant"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><p>你好，我是这篇文章的 AI 助手。你可以围绕文章内容继续提问。</p></div><div v-for="message in summaryMessages" :key="message.id" class="summary-dialog-message" :class="message.role === 'USER' ? 'is-user' : 'is-assistant'"><span v-if="message.role === 'ASSISTANT'" class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div class="summary-dialog-message-copy"><p>{{ message.content }}</p><details v-if="message.citations?.length" class="summary-dialog-citations"><summary><Icon name="i-lucide-book-open-text" /><span>参考章节</span><small>{{ message.citations.length }}</small><Icon name="i-lucide-chevron-down" class="citation-chevron" /></summary><div class="summary-dialog-citation-list"><button v-for="(citation, citationIndex) in message.citations" :key="`${citation.chunkId}-${citation.headingPath}-${citationIndex}`" type="button" @click="goToArticleCitation(citation)"><span>{{ citationIndex + 1 }}</span><strong>{{ citation.headingPath || '文章正文' }}</strong><Icon name="i-lucide-arrow-up-right" /></button></div></details></div></div><div v-if="summaryDialogLoading" class="summary-dialog-pending"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div><i /><i /><i /></div><small>正在阅读当前文章</small></div><div v-if="summaryDialogError" class="summary-dialog-error"><Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button type="button" @click="retrySummaryQuestion">重试</button></div></div>
                 <footer class="summary-dialog-footer"><form class="summary-dialog-composer" @submit.prevent="sendSummaryDialogMessage"><textarea ref="summaryDialogInput" v-model="summaryDialogDraft" rows="1" placeholder="继续针对这篇文章提问…" aria-label="继续提问" @keydown.enter.exact.prevent="sendSummaryDialogMessage" /><button v-if="!summaryDialogLoading" type="submit" :disabled="!summaryDialogDraft.trim()" aria-label="发送消息"><Icon name="i-lucide-send" /></button><button v-else type="button" class="is-stop" aria-label="停止生成" @click="stopSummaryDialogRequest"><Icon name="i-lucide-square" /></button></form><p>回答仅基于当前文章内容，请注意核对重要信息</p></footer>
               </section>
             </div>
@@ -205,8 +208,16 @@ const summaryDialogDraft = ref('')
 const summaryDialogOpen = ref(false)
 type ArticleChatCitation = { chunkId?: number, headingPath?: string | null, excerpt?: string }
 type ArticleChatMessage = { id: number | string, role: 'USER' | 'ASSISTANT', content: string, status: string, citations?: ArticleChatCitation[], error?: string | null }
+type ArticleConversationItem = { id: number, status: 'ACTIVE' | 'ARCHIVED', title: string, messageCount: number, lastMessageAt: string, createdAt: string }
 const summaryMessages = ref<ArticleChatMessage[]>([])
 const summaryConversationId = ref<number | null>(null)
+const summaryHistoryOpen = ref(false)
+const summaryHistoryLoading = ref(false)
+const summaryHistoryQuery = ref('')
+const summaryHistoryItems = ref<ArticleConversationItem[]>([])
+const summaryHistoryPage = ref(1)
+const summaryHistoryHasMore = ref(false)
+const summaryHistoryTotal = ref(0)
 const summaryDialogLoading = ref(false)
 const summaryDialogError = ref('')
 const summaryDialogInput = ref<HTMLTextAreaElement | null>(null)
@@ -218,6 +229,18 @@ const sidebarCategories = computed(() => categoryData.value?.data || [])
 const sidebarTags = computed(() => tagData.value?.data || [])
 const sidebarPosts = computed(() => {
   return (relatedData.value?.data?.items || []).filter((item: any) => item.slug !== post.value.slug)
+})
+const summaryHistoryGroups = computed(() => {
+  const query = summaryHistoryQuery.value.trim().toLocaleLowerCase()
+  const items = query
+    ? summaryHistoryItems.value.filter(item => item.title.toLocaleLowerCase().includes(query))
+    : summaryHistoryItems.value
+  const groups = new Map<string, ArticleConversationItem[]>()
+  for (const item of items) {
+    const label = conversationDateGroup(item.lastMessageAt)
+    groups.set(label, [...(groups.get(label) || []), item])
+  }
+  return [...groups].map(([label, groupedItems]) => ({ label, items: groupedItems }))
 })
 const savedRelations = computed(() => post.value.relations || [])
 const hasSavedRelations = computed(() => savedRelations.value.length > 0)
@@ -293,8 +316,106 @@ async function openSummaryDialog() {
 }
 
 function closeSummaryDialog() {
+  summaryDialogController?.abort()
+  summaryHistoryOpen.value = false
   summaryDialogOpen.value = false
   document.body.style.overflow = ''
+}
+
+async function toggleSummaryHistory() {
+  summaryHistoryOpen.value = !summaryHistoryOpen.value
+  if (summaryHistoryOpen.value) await loadSummaryHistory(true)
+}
+
+async function loadSummaryHistory(reset: boolean) {
+  if (summaryHistoryLoading.value) return
+  if (reset) {
+    summaryHistoryPage.value = 1
+    summaryHistoryItems.value = []
+  }
+  summaryHistoryLoading.value = true
+  try {
+    const response = await $fetch<{ data: { items: ArticleConversationItem[], pagination: { page: number, total: number, hasMore: boolean } } }>(`/api/posts/${post.value.slug}/chat/conversations`, {
+      query: { page: summaryHistoryPage.value, pageSize: 20 }
+    })
+    summaryHistoryItems.value.push(...response.data.items)
+    summaryHistoryTotal.value = response.data.pagination.total
+    summaryHistoryHasMore.value = response.data.pagination.hasMore
+    if (response.data.pagination.hasMore) summaryHistoryPage.value += 1
+  } catch (error: unknown) {
+    summaryDialogError.value = getArticleChatError(error)
+  } finally {
+    summaryHistoryLoading.value = false
+  }
+}
+
+async function switchSummaryConversation(conversationId: number) {
+  if (summaryDialogLoading.value || conversationId === summaryConversationId.value) {
+    summaryHistoryOpen.value = false
+    return
+  }
+  summaryDialogError.value = ''
+  try {
+    const response = await $fetch<{ data: { conversation: { id: number }, messages: ArticleChatMessage[] } }>(`/api/posts/${post.value.slug}/chat/conversations/${conversationId}`, { method: 'PUT' })
+    summaryConversationId.value = response.data.conversation.id
+    summaryMessages.value = response.data.messages
+    summaryHistoryOpen.value = false
+    await scrollSummaryMessages(false)
+    summaryDialogInput.value?.focus()
+  } catch (error: unknown) {
+    summaryDialogError.value = getArticleChatError(error)
+  }
+}
+
+async function removeSummaryConversation(item: ArticleConversationItem) {
+  if (summaryDialogLoading.value || !window.confirm(`确定删除会话“${item.title}”吗？删除后无法恢复。`)) return
+  try {
+    await $fetch(`/api/posts/${post.value.slug}/chat/conversations/${item.id}`, { method: 'DELETE' })
+    summaryHistoryItems.value = summaryHistoryItems.value.filter(conversation => conversation.id !== item.id)
+    summaryHistoryTotal.value = Math.max(0, summaryHistoryTotal.value - 1)
+    if (item.id === summaryConversationId.value) {
+      summaryConversationId.value = null
+      summaryMessages.value = []
+      summaryDialogError.value = ''
+    }
+  } catch (error: unknown) {
+    summaryDialogError.value = getArticleChatError(error)
+  }
+}
+
+function conversationDateGroup(value: string) {
+  const date = new Date(value)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const target = new Date(date); target.setHours(0, 0, 0, 0)
+  const days = Math.round((today.getTime() - target.getTime()) / 86400000)
+  if (days === 0) return '今天'
+  if (days <= 7) return '最近 7 天'
+  return '更早'
+}
+
+function formatConversationTime(value: string) {
+  const date = new Date(value)
+  return conversationDateGroup(value) === '今天'
+    ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
+}
+
+function goToArticleCitation(citation: ArticleChatCitation) {
+  const headingName = citation.headingPath?.split('/').at(-1)?.trim()
+  const headings = [...document.querySelectorAll<HTMLElement>('.prose-blog h1, .prose-blog h2, .prose-blog h3')]
+  const target = headingName
+    ? headings.find(heading => normalizeHeadingText(heading.textContent) === normalizeHeadingText(headingName))
+    : document.querySelector<HTMLElement>('.prose-blog')
+
+  closeSummaryDialog()
+  window.requestAnimationFrame(() => {
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (target) window.setTimeout(() => target.focus({ preventScroll: true }), 450)
+  })
+}
+
+function normalizeHeadingText(value?: string | null) {
+  return (value || '').replace(/\s+/g, '').replace(/[＃#]/g, '').trim()
 }
 
 function focusSummaryDialogInput() {
@@ -325,23 +446,45 @@ async function sendSummaryDialogMessage() {
 async function submitSummaryQuestion(question: string) {
   if (summaryDialogLoading.value) return
   const temporaryId = `pending-${Date.now()}`
+  const assistantTemporaryId = `stream-${Date.now()}`
   summaryMessages.value.push({ id: temporaryId, role: 'USER', content: question, status: 'COMPLETED', citations: [] })
   summaryDialogLoading.value = true
   summaryDialogError.value = ''
   summaryDialogController = new AbortController()
   await scrollSummaryMessages()
   try {
-    const response = await $fetch<{ data: { conversation: { id: number }, userMessage: ArticleChatMessage, assistantMessage: ArticleChatMessage } }>(`/api/posts/${post.value.slug}/chat`, {
-      method: 'POST', signal: summaryDialogController.signal,
-      body: { conversationId: summaryConversationId.value || undefined, message: question }
+    const response = await fetch(`/api/posts/${encodeURIComponent(post.value.slug)}/chat/stream`, {
+      method: 'POST',
+      signal: summaryDialogController.signal,
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify({ conversationId: summaryConversationId.value || undefined, message: question })
     })
-    summaryConversationId.value = response.data.conversation.id
-    const index = summaryMessages.value.findIndex(item => item.id === temporaryId)
-    if (index >= 0) summaryMessages.value[index] = response.data.userMessage
-    summaryMessages.value.push(response.data.assistantMessage)
+    if (!response.ok || !response.body) throw new Error(await readStreamHttpError(response))
+    summaryMessages.value.push({ id: assistantTemporaryId, role: 'ASSISTANT', content: '', status: 'COMPLETED', citations: [] })
+    await consumeArticleChatStream(response.body, {
+      meta: (data) => {
+        const payload = data as { conversation: { id: number }, userMessage: ArticleChatMessage }
+        summaryConversationId.value = payload.conversation.id
+        const index = summaryMessages.value.findIndex(item => item.id === temporaryId)
+        if (index >= 0) summaryMessages.value[index] = payload.userMessage
+      },
+      delta: (data) => {
+        const message = summaryMessages.value.find(item => item.id === assistantTemporaryId)
+        if (message) message.content += String((data as { text?: string }).text || '')
+        void scrollSummaryMessages(false)
+      },
+      done: (data) => {
+        const payload = data as { assistantMessage: ArticleChatMessage }
+        const index = summaryMessages.value.findIndex(item => item.id === assistantTemporaryId)
+        if (index >= 0) summaryMessages.value[index] = payload.assistantMessage
+      },
+      error: data => { throw new Error(String((data as { message?: string }).message || '回答生成失败，请稍后重试')) }
+    })
   } catch (error: unknown) {
     if (summaryDialogController?.signal.aborted) summaryDialogError.value = '已停止本次回答'
-    else summaryDialogError.value = getArticleChatError(error)
+    else summaryDialogError.value = error instanceof Error ? error.message : getArticleChatError(error)
+    const partial = summaryMessages.value.find(item => item.id === assistantTemporaryId)
+    if (partial && !partial.content) summaryMessages.value = summaryMessages.value.filter(item => item.id !== assistantTemporaryId)
   } finally {
     summaryDialogLoading.value = false
     summaryDialogController = null
@@ -355,6 +498,7 @@ function stopSummaryDialogRequest() {
 
 async function resetSummaryConversation() {
   if (summaryDialogLoading.value || !summaryConversationId.value) return
+  summaryHistoryOpen.value = false
   try {
     await $fetch(`/api/posts/${post.value.slug}/chat`, { method: 'DELETE', body: { conversationId: summaryConversationId.value } })
     summaryConversationId.value = null
@@ -376,9 +520,35 @@ async function retrySummaryQuestion() {
   await submitSummaryQuestion(lastUser.content)
 }
 
-async function scrollSummaryMessages() {
+async function scrollSummaryMessages(smooth = true) {
   await nextTick()
-  summaryMessagesEl.value?.scrollTo({ top: summaryMessagesEl.value.scrollHeight, behavior: 'smooth' })
+  summaryMessagesEl.value?.scrollTo({ top: summaryMessagesEl.value.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+async function consumeArticleChatStream(
+  body: ReadableStream<Uint8Array>,
+  handlers: Record<'meta' | 'delta' | 'done' | 'error', (data: unknown) => void>
+) {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    buffer += decoder.decode(value, { stream: !done })
+    const events = buffer.split(/\r?\n\r?\n/)
+    buffer = events.pop() || ''
+    for (const block of events) {
+      const eventName = block.match(/^event:\s*(.+)$/m)?.[1]?.trim() as keyof typeof handlers | undefined
+      const dataText = block.match(/^data:\s*(.+)$/m)?.[1]
+      if (eventName && dataText && handlers[eventName]) handlers[eventName](JSON.parse(dataText))
+    }
+    if (done) break
+  }
+}
+
+async function readStreamHttpError(response: Response) {
+  const payload = await response.json().catch(() => null) as { statusMessage?: string, message?: string, data?: { message?: string } } | null
+  return payload?.data?.message || payload?.statusMessage || payload?.message || '无法建立流式连接'
 }
 
 function getArticleChatError(error: unknown) {
@@ -834,7 +1004,7 @@ function updateTocIndicatorPosition() {
 .summary-chat-form button:disabled { opacity: .48; cursor: not-allowed; box-shadow: none; }
 .summary-dialog-backdrop { position: fixed; inset: 0; z-index: 80; background: rgb(28 34 45 / 16%); backdrop-filter: blur(12px); }
 .summary-dialog-stage { position: fixed; inset: 0; z-index: 81; display: grid; place-items: center; padding: 24px; pointer-events: none; }
-.summary-dialog { display: flex; width: min(680px, 100%); height: min(750px, 80vh); overflow: hidden; flex-direction: column; border: 1px solid rgb(255 255 255 / 68%); border-radius: 30px; background: rgb(255 255 255 / 88%); box-shadow: 0 30px 80px -20px rgb(32 40 55 / 24%), 0 0 0 1px rgb(49 57 72 / 4%); backdrop-filter: blur(28px) saturate(125%); pointer-events: auto; }
+.summary-dialog { position: relative; display: flex; width: min(680px, 100%); height: min(750px, 80vh); overflow: hidden; flex-direction: column; border: 1px solid rgb(255 255 255 / 68%); border-radius: 30px; background: rgb(255 255 255 / 88%); box-shadow: 0 30px 80px -20px rgb(32 40 55 / 24%), 0 0 0 1px rgb(49 57 72 / 4%); backdrop-filter: blur(28px) saturate(125%); pointer-events: auto; }
 .summary-dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px 16px 22px; }
 .summary-dialog-identity { display: flex; align-items: center; gap: 11px; }
 .summary-dialog-identity>span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#b65348,#d17b68); color: #fff; box-shadow: 0 6px 16px rgb(182 83 72 / 22%); }
@@ -844,8 +1014,21 @@ function updateTocIndicatorPosition() {
 .summary-dialog-identity small { margin-top: 2px; color: #9298a2; font-size: 11px; }
 .summary-dialog-head-actions { display: flex; gap: 7px; }.summary-dialog-head-actions button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: #f5f6f8; color: #858c97; cursor: pointer; transition: background .18s ease,color .18s ease,transform .18s ease; }
 .summary-dialog-head-actions button:hover { background: #eceef2; color: #4e5560; transform: translateY(-1px); }
+.summary-dialog-head-actions button.is-active { background: #f5e9e7; color: #a64f45; }
 .summary-dialog-head-actions button :deep(svg) { width: 17px; height: 17px; }
 .summary-dialog-rule { height: 1px; flex: 0 0 auto; background: linear-gradient(90deg,transparent,#e9ebef 18%,#e9ebef 82%,transparent); }
+.summary-history-drawer { position: absolute; top: 68px; bottom: 0; left: 0; z-index: 4; display: flex; width: min(310px, 72%); overflow: hidden; flex-direction: column; border-right: 1px solid rgb(222 218 218 / 72%); background: rgb(249 249 250 / 88%); box-shadow: 18px 0 42px rgb(44 38 38 / 9%); backdrop-filter: blur(24px) saturate(120%); }
+.summary-history-drawer>header { display: flex; align-items: center; justify-content: space-between; padding: 20px 18px 12px; }
+.summary-history-drawer>header strong,.summary-history-drawer>header small { display: block; }.summary-history-drawer>header strong { color: #3f434b; font-size: 14px; }.summary-history-drawer>header small { margin-top: 3px; color: #9a9fa8; font-size: 10px; }
+.summary-history-drawer>header button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #959ba5; cursor: pointer; }.summary-history-drawer>header button:hover { background: #eceef1; color: #555b64; }.summary-history-drawer>header button :deep(svg) { width: 14px; height: 14px; }
+.summary-history-search { display: flex; align-items: center; gap: 8px; margin: 0 14px 12px; border: 1px solid #e4e5e8; border-radius: 12px; background: rgb(255 255 255 / 78%); color: #a1a6ae; padding: 0 11px; }.summary-history-search:focus-within { border-color: #d9b1aa; box-shadow: 0 0 0 3px rgb(182 83 72 / 6%); }.summary-history-search :deep(svg) { width: 14px; height: 14px; }.summary-history-search input { width: 100%; height: 36px; border: 0; background: transparent; color: #4b5059; font: inherit; font-size: 12px; outline: 0; }
+.summary-history-list { flex: 1; overflow-y: auto; padding: 0 10px 14px; scrollbar-width: thin; scrollbar-color: #dfe1e5 transparent; }.summary-history-list section+section { margin-top: 15px; }.summary-history-list h3 { margin: 0 8px 6px; color: #a1a5ad; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.summary-history-list article { position: relative; display: flex; align-items: center; border-radius: 13px; transition: background .18s ease; }.summary-history-list article:hover,.summary-history-list article.is-current { background: rgb(238 231 230 / 72%); }.summary-history-list article.is-current::before { position: absolute; top: 12px; bottom: 12px; left: 0; width: 2px; border-radius: 2px; background: #b65348; content: ''; }
+.summary-history-main { display: grid; min-width: 0; flex: 1; grid-template-columns: 30px minmax(0,1fr); align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 9px 7px 9px 10px; text-align: left; }.summary-history-main>span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; background: rgb(255 255 255 / 72%); color: #a8645c; }.summary-history-main>span :deep(svg) { width: 14px; height: 14px; }.summary-history-main div { min-width: 0; }.summary-history-main strong,.summary-history-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.summary-history-main strong { color: #535861; font-size: 11px; font-weight: 680; }.summary-history-main small { margin-top: 4px; color: #9b9fa7; font-size: 9px; }
+.summary-history-delete { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; margin-right: 6px; border: 0; border-radius: 9px; background: transparent; color: transparent; cursor: pointer; }.summary-history-list article:hover .summary-history-delete { color: #a8a1a1; }.summary-history-delete:hover { background: rgb(255 255 255 / 72%); color: #b65348!important; }.summary-history-delete :deep(svg) { width: 13px; height: 13px; }
+.summary-history-more { width: calc(100% - 16px); margin: 12px 8px 0; border: 1px solid #e2e3e6; border-radius: 10px; background: rgb(255 255 255 / 65%); color: #777d86; cursor: pointer; font-size: 10px; padding: 8px; }.summary-history-state,.summary-history-empty { display: flex; min-height: 220px; align-items: center; justify-content: center; flex-direction: column; color: #a1a6af; font-size: 11px; }.summary-history-state :deep(svg) { width: 18px; height: 18px; margin-bottom: 8px; animation: summary-history-spin .9s linear infinite; }.summary-history-empty>span { display: grid; width: 42px; height: 42px; margin-bottom: 11px; place-items: center; border-radius: 14px; background: #f0f1f3; color: #a3a8b0; }.summary-history-empty>span :deep(svg) { width: 19px; height: 19px; }.summary-history-empty strong { color: #777c84; font-size: 12px; }.summary-history-empty small { margin-top: 5px; font-size: 9px; }
+.summary-history-enter-active,.summary-history-leave-active { transition: opacity .24s ease,transform .28s cubic-bezier(.22,1,.36,1); }.summary-history-enter-from,.summary-history-leave-to { opacity: 0; transform: translateX(-20px); }
+@keyframes summary-history-spin { to { transform: rotate(360deg); } }
 .summary-dialog-messages { display: flex; flex: 1; overflow-y: auto; flex-direction: column; gap: 28px; padding: 32px 26px; scrollbar-width: thin; scrollbar-color: #dfe2e7 transparent; }
 .summary-dialog-message { display: flex; width: 100%; }
 .summary-dialog-avatar { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border: 1px solid #eceef2; border-radius: 50%; background: #fafafb; color: #b65348; }
@@ -857,9 +1040,20 @@ function updateTocIndicatorPosition() {
 .summary-dialog-message.is-user p { max-width: 76%; border-radius: 18px 18px 4px 18px; background: #f0f1f4; color: #3f444d; padding: 11px 16px; }
 .summary-dialog-message-copy { min-width: 0; }
 .summary-dialog-message.is-user .summary-dialog-message-copy { display: flex; justify-content: flex-end; width: 100%; }
-.summary-dialog-citations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-.summary-dialog-citations span { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: #f8eeee; color: #a55047; font-size: 10px; font-weight: 700; padding: 4px 8px; }
-.summary-dialog-citations :deep(svg) { width: 11px; height: 11px; }
+.summary-dialog-citations { width: min(100%, 390px); margin-top: 12px; }
+.summary-dialog-citations summary { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; border: 1px solid rgb(182 83 72 / 12%); border-radius: 999px; background: rgb(248 238 238 / 72%); color: #985148; cursor: pointer; font-size: 11px; font-weight: 750; list-style: none; padding: 0 10px; transition: border-color .18s ease,background .18s ease,transform .18s ease; }
+.summary-dialog-citations summary::-webkit-details-marker { display: none; }
+.summary-dialog-citations summary:hover { border-color: rgb(182 83 72 / 24%); background: rgb(248 238 238 / 95%); transform: translateY(-1px); }
+.summary-dialog-citations summary>small { display: grid; min-width: 18px; height: 18px; place-items: center; border-radius: 999px; background: rgb(255 255 255 / 72%); color: #a85b51; font-size: 9px; }
+.summary-dialog-citations summary :deep(svg) { width: 12px; height: 12px; }
+.summary-dialog-citations .citation-chevron { margin-left: 1px; transition: transform .2s ease; }
+.summary-dialog-citations[open] .citation-chevron { transform: rotate(180deg); }
+.summary-dialog-citation-list { display: grid; gap: 4px; margin-top: 7px; padding: 5px; border: 1px solid rgb(224 217 216 / 72%); border-radius: 14px; background: rgb(255 255 255 / 66%); box-shadow: 0 8px 24px rgb(57 47 45 / 6%); backdrop-filter: blur(12px); }
+.summary-dialog-citation-list button { display: grid; grid-template-columns: 20px minmax(0,1fr) 16px; align-items: center; gap: 8px; width: 100%; border: 0; border-radius: 10px; background: transparent; color: #65616a; cursor: pointer; padding: 8px; text-align: left; transition: background .18s ease,color .18s ease; }
+.summary-dialog-citation-list button:hover { background: rgb(248 238 238 / 72%); color: #974d45; }
+.summary-dialog-citation-list button>span { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 7px; background: #f5f1f1; color: #a75a50; font-size: 9px; font-weight: 800; }
+.summary-dialog-citation-list strong { overflow: hidden; font-size: 11px; font-weight: 650; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.summary-dialog-citation-list :deep(svg) { width: 13px; height: 13px; color: #b3a5a3; }
 .summary-dialog-pending { display: flex; align-items: center; gap: 12px; color: #9ba1aa; }
 .summary-dialog-pending>div { display: flex; gap: 4px; }
 .summary-dialog-pending i { width: 6px; height: 6px; border-radius: 50%; background: #c47263; animation: summary-dialog-dot 1.15s infinite ease-in-out; }
@@ -1457,6 +1651,7 @@ function updateTocIndicatorPosition() {
   .summary-dialog-stage { align-items: end; padding: 10px; }
   .summary-dialog { height: min(86vh,750px); border-radius: 24px; }
   .summary-dialog-header { padding: 14px 15px 13px 17px; }
+  .summary-history-drawer { top: 63px; width: 100%; border-right: 0; }
   .summary-dialog-messages { gap: 22px; padding: 24px 17px; }
   .summary-dialog-message.is-assistant { max-width: 96%; }
   .summary-dialog-message.is-user p { max-width: 88%; }

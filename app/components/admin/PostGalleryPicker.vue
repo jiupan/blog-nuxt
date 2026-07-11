@@ -31,7 +31,7 @@
             </span>
             <span class="gallery-picker-info">
               <strong :title="image.name">{{ image.name }}</strong>
-              <small>{{ image.collection === 'memes' ? '表情包' : '普通图片' }} · {{ formatSize(image.size) }} · {{ formatDate(image.updatedAt) }}</small>
+              <small>{{ collectionLabel(image.collection) }} · {{ formatSize(image.size) }} · {{ formatDate(image.updatedAt) }}</small>
             </span>
           </button>
         </div>
@@ -66,8 +66,15 @@ const searchQuery = defineModel<string>('searchQuery', { required: true })
 
 const galleryCollectionOptions = [
   { value: 'images' as const, label: '普通图片', icon: 'i-lucide-image' },
+  { value: 'covers' as const, label: '封面', icon: 'i-lucide-panels-top-left' },
   { value: 'memes' as const, label: '表情包', icon: 'i-lucide-smile' }
 ]
+
+function collectionLabel(collection: GalleryImage['collection']) {
+  if (collection === 'covers') return '封面'
+  if (collection === 'memes') return '表情包'
+  return '普通图片'
+}
 
 const filteredImages = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
