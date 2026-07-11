@@ -971,6 +971,11 @@ body.site-search-lock {
   background: linear-gradient(180deg, #f3f6fc 0%, #fff 26%);
 }
 
+.home-footer.is-compact {
+  margin-top: 0;
+  background: #f4f6fa;
+}
+
 .footer-actions {
   display: flex;
   width: min(100% - 32px, 860px);

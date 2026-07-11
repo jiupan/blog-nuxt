@@ -1,6 +1,6 @@
 <template>
-  <footer class="home-footer">
-    <div class="footer-actions" aria-label="底部快捷入口">
+  <footer class="home-footer" :class="{ 'is-compact': compact }">
+    <div v-if="!compact" class="footer-actions" aria-label="底部快捷入口">
       <div class="footer-action-side is-left">
         <NuxtLink
           v-for="link in footerActionLeft"
@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div class="footer-links">
+    <div v-if="!compact" class="footer-links">
       <div v-for="group in footerGroups" :key="group.title">
         <h3>{{ group.title }}</h3>
         <NuxtLink v-for="link in group.links" :key="link.label" :to="link.to">{{ link.label }}</NuxtLink>
@@ -56,6 +56,7 @@ import type { Component } from 'vue'
 import type { FooterActionLink, FooterCopyrightPart, FooterGroup, FooterLink } from '~/composables/useSiteNavigation'
 
 defineProps<{
+  compact?: boolean
   footerActionLeft: FooterActionLink[]
   footerActionRight: FooterActionLink[]
   footerActionIcon: (icon?: string) => Component

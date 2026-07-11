@@ -787,6 +787,24 @@ const {
   white-space: nowrap;
 }
 
+.taxonomy-icon-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+  border: 0;
+  background: transparent;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.25rem 0;
+}
+
+.taxonomy-icon-toggle:hover {
+  color: #4338ca;
+}
+
 .taxonomy-create-actions {
   display: flex;
   justify-content: flex-end;

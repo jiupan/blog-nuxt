@@ -5,7 +5,7 @@ import sharp from 'sharp'
 import { badRequest } from '~~/server/utils/api-error'
 import { resolveUploadRoot, toUploadUrl } from './path-safety'
 
-const maxUploadSize = 10 * 1024 * 1024
+const maxUploadSize = 50 * 1024 * 1024
 const maxInputPixels = 40_000_000
 const allowedFormats = new Set(['jpeg', 'png', 'webp'])
 const memeFormats = new Set(['jpeg', 'png', 'webp', 'gif'])
@@ -30,7 +30,7 @@ export async function uploadImage(input: Buffer, purpose: UploadPurpose): Promis
   }
 
   if (input.byteLength > maxUploadSize) {
-    throw badRequest('原图不能超过 10MB')
+    throw badRequest('原图不能超过 50MB')
   }
 
   const config = useRuntimeConfig()

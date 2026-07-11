@@ -6,12 +6,13 @@
           <h2>
             <UIcon name="i-lucide-tags" class="size-5" />
             标签库
+            <small>{{ totalItems }}</small>
           </h2>
           <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plus" @click="startCreate" />
         </div>
 
         <div class="tag-search">
-          <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="搜索标签名称或别名..." size="sm" />
+          <UInput v-model="searchQuery" icon="i-lucide-search" placeholder="搜索标签名称或别名..." size="sm" :loading="listLoading" />
         </div>
 
         <div class="tag-list-scroll">
@@ -37,6 +38,10 @@
                   <UIcon name="i-lucide-trash-2" class="size-3.5" />
                 </button>
               </span>
+            </button>
+            <button v-if="hasMore" type="button" class="tag-load-more" :disabled="listLoading" @click="loadTags(false)">
+              <UIcon :name="listLoading ? 'i-lucide-loader-circle' : 'i-lucide-chevron-down'" class="size-4" />
+              {{ listLoading ? '加载中…' : `加载更多（已显示 ${items.length}/${totalItems}）` }}
             </button>
           </div>
 
@@ -140,6 +145,11 @@ const toast = useToast()
 const searchQuery = ref('')
 const activeId = ref<number | null>(null)
 const pending = ref(false)
+const listLoading = ref(false)
+const items = ref<TagItem[]>([])
+const currentPage = ref(1)
+const hasMore = ref(false)
+const totalItems = ref(0)
 const form = reactive({
   name: '',
   slug: ''
@@ -147,17 +157,7 @@ const form = reactive({
 
 const colorClasses = ['slate', 'indigo', 'rose', 'emerald', 'sky', 'amber', 'purple']
 
-const { data, refresh } = await useFetch<{ data: TagItem[] }>('/api/admin/tags')
-
-const items = computed(() => data.value?.data || [])
-const filteredItems = computed(() => {
-  const sorted = items.value.slice().sort((a, b) => (b._count?.posts || 0) - (a._count?.posts || 0))
-  const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return sorted
-  return sorted.filter((item) => {
-    return item.name.toLowerCase().includes(query) || item.slug.toLowerCase().includes(query)
-  })
-})
+const filteredItems = computed(() => items.value)
 const activeItem = computed(() => items.value.find((item) => item.id === activeId.value) || null)
 const isEditing = computed(() => Boolean(activeId.value))
 const canSave = computed(() => {
@@ -166,17 +166,43 @@ const canSave = computed(() => {
 })
 const currentColorClass = computed(() => activeItem.value ? tagColorClass(activeItem.value) : tagColorClass({ id: 0, name: form.name, slug: form.slug }))
 
-watch(items, (value) => {
-  if (!value.length) {
-    startCreate()
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let reloadAfterCurrent = false
+watch(searchQuery, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => void loadTags(true), 280)
+})
+onBeforeUnmount(() => clearTimeout(searchTimer))
+
+await loadTags(true)
+
+async function loadTags(reset: boolean) {
+  if (listLoading.value) {
+    if (reset) reloadAfterCurrent = true
     return
   }
-
-  if (!activeId.value || !value.some((item) => item.id === activeId.value)) {
-    const first = filteredItems.value[0] || value[0]
-    if (first) editItem(first)
+  listLoading.value = true
+  if (reset) currentPage.value = 1
+  try {
+    const response = await $fetch<{ data: { items: TagItem[], pagination: { page: number, total: number, hasMore: boolean } } }>('/api/admin/tags', {
+      query: { search: searchQuery.value.trim(), page: currentPage.value, pageSize: 10 }
+    })
+    items.value = reset ? response.data.items : [...items.value, ...response.data.items]
+    totalItems.value = response.data.pagination.total
+    hasMore.value = response.data.pagination.hasMore
+    if (response.data.pagination.hasMore) currentPage.value = response.data.pagination.page + 1
+    if (!items.value.length) startCreate()
+    else if (!activeId.value || !items.value.some(item => item.id === activeId.value)) editItem(items.value[0]!)
+  } catch (error: unknown) {
+    toast.add({ title: '标签列表加载失败', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    listLoading.value = false
+    if (reloadAfterCurrent) {
+      reloadAfterCurrent = false
+      void loadTags(true)
+    }
   }
-}, { immediate: true })
+}
 
 function editItem(item: TagItem) {
   activeId.value = item.id
@@ -213,9 +239,10 @@ async function saveItem() {
         }
       })
       activeId.value = created.data.id
+      searchQuery.value = created.data.name
       toast.add({ title: '标签已创建', color: 'success' })
     }
-    await refresh()
+    await loadTags(true)
   } catch (error: any) {
     toast.add({
       title: isEditing.value ? '保存失败' : '创建失败',
@@ -235,7 +262,7 @@ async function deleteItem(item: TagItem) {
     if (activeId.value === item.id) {
       startCreate()
     }
-    await refresh()
+    await loadTags(true)
     toast.add({ title: '标签已删除', color: 'success' })
   } catch (error: any) {
     toast.add({
@@ -263,6 +290,7 @@ function getErrorMessage(error: any) {
 <style scoped>
 .tag-page {
   display: grid;
+  min-width: 0;
   min-height: calc(100vh - 1.75rem);
   place-items: start center;
 }
@@ -272,7 +300,7 @@ function getErrorMessage(error: any) {
   width: 100%;
   min-height: min(720px, calc(100vh - 1.75rem));
   overflow: hidden;
-  grid-template-columns: 20rem minmax(0, 1fr);
+  grid-template-columns: clamp(15rem, 24vw, 20rem) minmax(0, 1fr);
   border: 1px solid #e2e8f0;
   border-radius: 1rem;
   background: #fff;
@@ -281,6 +309,7 @@ function getErrorMessage(error: any) {
 
 .tag-list-panel {
   display: flex;
+  min-width: 0;
   min-height: 0;
   flex-direction: column;
   border-right: 1px solid #eef2f7;
@@ -323,6 +352,15 @@ function getErrorMessage(error: any) {
   color: #4f46e5;
 }
 
+.tag-panel-head h2 small {
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.15rem 0.42rem;
+}
+
 .tag-search {
   border-bottom: 1px solid #eef2f7;
   padding: 0.75rem 1rem;
@@ -331,6 +369,7 @@ function getErrorMessage(error: any) {
 .tag-list-scroll {
   min-height: 0;
   flex: 1 1 auto;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0.75rem;
 }
@@ -340,8 +379,38 @@ function getErrorMessage(error: any) {
   gap: 0.4rem;
 }
 
+.tag-load-more {
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.72);
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.tag-load-more:hover {
+  border-color: #a5b4fc;
+  color: #4f46e5;
+}
+
+.tag-load-more:disabled svg {
+  animation: tag-loading-spin 0.9s linear infinite;
+}
+
+@keyframes tag-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 .tag-card {
   width: 100%;
+  min-width: 0;
   gap: 0.75rem;
   border: 1px solid transparent;
   border-radius: 0.75rem;
@@ -404,11 +473,12 @@ function getErrorMessage(error: any) {
 }
 
 .tag-card-meta {
+  min-width: 0;
   flex: 0 0 auto;
   gap: 0.35rem;
 }
 
-.tag-card-meta span {
+.tag-card-meta > span {
   border-radius: 999px;
   background: #f1f5f9;
   color: #64748b;
@@ -418,29 +488,36 @@ function getErrorMessage(error: any) {
   white-space: nowrap;
 }
 
-.tag-card.is-active .tag-card-meta span {
+.tag-card.is-active .tag-card-meta > span {
   background: #eef2ff;
   color: #4f46e5;
 }
 
 .tag-card-meta button {
   display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
   border: 0;
-  border-radius: 0.45rem;
+  border-radius: 0.35rem;
   background: transparent;
-  color: #e11d48;
+  color: #94a3b8;
+  cursor: pointer;
   opacity: 0;
-  padding: 0.35rem;
-  transition: opacity 160ms ease, background-color 160ms ease;
+  padding: 0.25rem;
+  pointer-events: none;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
 }
 
 .tag-card:hover .tag-card-meta button,
 .tag-card.is-active .tag-card-meta button {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .tag-card-meta button:hover {
   background: #fff1f2;
+  color: #e11d48;
 }
 
 .tag-empty-list {

@@ -68,6 +68,7 @@
           :tags="tags"
           :posts="hotPosts"
         />
+
       </div>
     </section>
   </div>

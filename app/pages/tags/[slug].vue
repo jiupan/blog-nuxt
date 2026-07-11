@@ -1,5 +1,5 @@
 <template>
-  <PostCollection title="标签文章" :query="{ tag: String(route.params.slug) }" />
+  <PostCollection kind="tag" :slug="String(route.params.slug)" />
 </template>
 
 <script setup lang="ts">

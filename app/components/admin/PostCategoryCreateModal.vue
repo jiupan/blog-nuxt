@@ -11,7 +11,7 @@
         <UFormField label="图标">
           <div class="taxonomy-icon-grid" role="radiogroup" aria-label="分类图标">
             <button
-              v-for="option in categoryIconOptions"
+              v-for="option in visibleIconOptions"
               :key="option.name"
               type="button"
               class="taxonomy-icon-option"
@@ -23,6 +23,10 @@
               <span>{{ option.label }}</span>
             </button>
           </div>
+          <button type="button" class="taxonomy-icon-toggle" @click="iconsExpanded = !iconsExpanded">
+            <UIcon :name="iconsExpanded ? 'i-lucide-chevron-up' : 'i-lucide-layout-grid'" class="size-4" />
+            {{ iconsExpanded ? '收起更多图标' : `展开更多图标（${categoryIconOptions.length - primaryCategoryIconCount}）` }}
+          </button>
         </UFormField>
         <div class="taxonomy-create-actions">
           <UButton type="button" color="neutral" variant="outline" @click="open = false">取消</UButton>
@@ -34,6 +38,8 @@
 </template>
 
 <script setup lang="ts">
+import { categoryIconOptions, primaryCategoryIconCount, visibleCategoryIcons } from '~/utils/category-icons'
+
 defineProps<{
   creating: boolean
 }>()
@@ -46,17 +52,7 @@ const open = defineModel<boolean>('open', { required: true })
 const name = defineModel<string>('name', { required: true })
 const slug = defineModel<string>('slug', { required: true })
 const icon = defineModel<string>('icon', { required: true })
+const iconsExpanded = ref(false)
+const visibleIconOptions = computed(() => visibleCategoryIcons(icon.value, iconsExpanded.value))
 
-const categoryIconOptions = [
-  { name: 'i-lucide-folder', label: '通用' },
-  { name: 'i-lucide-code-2', label: '代码' },
-  { name: 'i-lucide-terminal', label: '终端' },
-  { name: 'i-lucide-book-open', label: '阅读' },
-  { name: 'i-lucide-pen-tool', label: '写作' },
-  { name: 'i-lucide-camera', label: '摄影' },
-  { name: 'i-lucide-palette', label: '设计' },
-  { name: 'i-lucide-coffee', label: '生活' },
-  { name: 'i-lucide-rocket', label: '项目' },
-  { name: 'i-lucide-wrench', label: '工具' }
-]
 </script>

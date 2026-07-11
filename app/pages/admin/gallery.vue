@@ -16,22 +16,32 @@
           <input ref="imageInputRef" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" @change="uploadFiles($event, 'images')" />
           <input ref="coverInputRef" type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" @change="uploadFiles($event, 'covers')" />
           <input ref="memeInputRef" type="file" accept="image/*,.gif" multiple class="hidden" @change="uploadFiles($event, 'memes')" />
-          <UButton icon="i-lucide-upload" :loading="uploadingCollection === 'images'" @click="imageInputRef?.click()">上传图片</UButton>
-          <UButton color="neutral" variant="outline" icon="i-lucide-panels-top-left" :loading="uploadingCollection === 'covers'" @click="coverInputRef?.click()">上传封面</UButton>
-          <UButton color="neutral" variant="outline" icon="i-lucide-smile-plus" :loading="uploadingCollection === 'memes'" @click="memeInputRef?.click()">上传表情包</UButton>
+          <UButton :icon="activeTab.icon" :loading="uploadingCollection === activeCollection" @click="openActiveUpload">上传{{ activeTab.uploadLabel }}</UButton>
         </div>
       </header>
 
       <div class="gallery-toolbar">
-        <span>普通图片 {{ regularImages.length }} 张</span>
-        <span>封面 {{ coverImages.length }} 张</span>
-        <span>表情包 {{ memeImages.length }} 张</span>
-        <span v-if="filteredImages.length !== images.length">当前显示 {{ filteredImages.length }} 张</span>
+        <div class="gallery-tabs" role="tablist" aria-label="图库分类">
+          <button
+            v-for="tab in galleryTabs"
+            :key="tab.value"
+            type="button"
+            role="tab"
+            :aria-selected="activeCollection === tab.value"
+            :class="{ 'is-active': activeCollection === tab.value }"
+            @click="activeCollection = tab.value"
+          >
+            <UIcon :name="tab.icon" class="size-4" />
+            <span>{{ tab.label }}</span>
+            <small>{{ tab.count }}</small>
+          </button>
+        </div>
+        <span v-if="searchQuery.trim()">当前显示 {{ activeFilteredCount }} 张</span>
       </div>
 
       <div class="gallery-scroll">
         <div class="gallery-columns">
-          <section class="gallery-column">
+          <section v-show="activeCollection === 'images'" class="gallery-column">
             <div class="gallery-column-head">
               <div>
                 <h2>普通图片</h2>
@@ -76,7 +86,7 @@
             </div>
           </section>
 
-          <section class="gallery-column gallery-column-covers">
+          <section v-show="activeCollection === 'covers'" class="gallery-column gallery-column-covers">
             <div class="gallery-column-head">
               <div>
                 <h2>封面</h2>
@@ -121,7 +131,7 @@
             </div>
           </section>
 
-          <section class="gallery-column gallery-column-memes">
+          <section v-show="activeCollection === 'memes'" class="gallery-column gallery-column-memes">
             <div class="gallery-column-head">
               <div>
                 <h2>表情包</h2>
@@ -191,6 +201,7 @@ type GalleryImage = {
 
 const toast = useToast()
 const searchQuery = ref('')
+const activeCollection = ref<'images' | 'covers' | 'memes'>('images')
 const uploadingCollection = ref<'images' | 'covers' | 'memes' | null>(null)
 const deletingPath = ref<string | null>(null)
 const imageInputRef = ref<HTMLInputElement | null>(null)
@@ -207,16 +218,20 @@ const images = computed(() => data.value?.data || [])
 const regularImages = computed(() => images.value.filter((image) => image.collection === 'images' || !image.collection))
 const coverImages = computed(() => images.value.filter((image) => image.collection === 'covers'))
 const memeImages = computed(() => images.value.filter((image) => image.collection === 'memes'))
-const filteredImages = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return images.value
-  return images.value.filter((image) => {
-    return image.name.toLowerCase().includes(query) || image.url.toLowerCase().includes(query)
-  })
-})
+const galleryTabs = computed(() => [
+  { value: 'images' as const, label: '普通图片', uploadLabel: '图片', icon: 'i-lucide-image', count: regularImages.value.length },
+  { value: 'covers' as const, label: '封面', uploadLabel: '封面', icon: 'i-lucide-panels-top-left', count: coverImages.value.length },
+  { value: 'memes' as const, label: '表情包', uploadLabel: '表情包', icon: 'i-lucide-smile-plus', count: memeImages.value.length }
+])
+const activeTab = computed(() => galleryTabs.value.find(tab => tab.value === activeCollection.value) || galleryTabs.value[0]!)
 const filteredRegularImages = computed(() => filterImages(regularImages.value))
 const filteredCoverImages = computed(() => filterImages(coverImages.value))
 const filteredMemeImages = computed(() => filterImages(memeImages.value))
+const activeFilteredCount = computed(() => {
+  if (activeCollection.value === 'covers') return filteredCoverImages.value.length
+  if (activeCollection.value === 'memes') return filteredMemeImages.value.length
+  return filteredRegularImages.value.length
+})
 const regularTotalPages = computed(() => totalPages(filteredRegularImages.value.length))
 const coverTotalPages = computed(() => totalPages(filteredCoverImages.value.length))
 const memeTotalPages = computed(() => totalPages(filteredMemeImages.value.length))
@@ -241,6 +256,15 @@ watch(coverTotalPages, (value) => {
 watch(memeTotalPages, (value) => {
   memePage.value = clampPage(memePage.value, value)
 })
+
+function openActiveUpload() {
+  const input = activeCollection.value === 'covers'
+    ? coverInputRef.value
+    : activeCollection.value === 'memes'
+      ? memeInputRef.value
+      : imageInputRef.value
+  input?.click()
+}
 
 async function uploadFiles(event: Event, collection: 'images' | 'covers' | 'memes') {
   const input = event.target as HTMLInputElement
@@ -424,6 +448,44 @@ function getErrorMessage(error: any) {
   font-weight: 700;
 }
 
+.gallery-tabs {
+  display: flex;
+  min-width: 0;
+  align-self: stretch;
+  gap: 0.25rem;
+}
+
+.gallery-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #64748b;
+  padding: 0 0.75rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gallery-tabs button:hover,
+.gallery-tabs button.is-active {
+  border-bottom-color: #4f46e5;
+  color: #4338ca;
+}
+
+.gallery-tabs button.is-active {
+  background: #eef2ff;
+}
+
+.gallery-tabs small {
+  border-radius: 999px;
+  background: #e2e8f0;
+  padding: 0.1rem 0.4rem;
+  color: #475569;
+  font-size: 0.7rem;
+}
+
 .gallery-scroll {
   min-height: 0;
   flex: 1 1 auto;
@@ -432,10 +494,7 @@ function getErrorMessage(error: any) {
 }
 
 .gallery-columns {
-  display: grid;
-  align-items: start;
-  gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: block;
 }
 
 .gallery-column {
@@ -626,12 +685,6 @@ function getErrorMessage(error: any) {
   font-size: 0.85rem;
 }
 
-@media (max-width: 1100px) {
-  .gallery-columns {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 760px) {
 
   .gallery-head,
@@ -642,6 +695,21 @@ function getErrorMessage(error: any) {
 
   .gallery-search {
     width: 100%;
+  }
+
+  .gallery-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 0.5rem;
+  }
+
+  .gallery-tabs {
+    overflow-x: auto;
+  }
+
+  .gallery-tabs button {
+    min-height: 2.5rem;
+    flex: 0 0 auto;
   }
 
   .gallery-pagination {

@@ -26,10 +26,17 @@ export const updateTagSchema = createTagSchema.extend({
   slug: z.string().min(1)
 })
 
+export const listAdminTagsSchema = z.object({
+  search: z.string().trim().max(80).default(''),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(10).max(100).default(40)
+})
+
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>
 export type CreateTagInput = z.infer<typeof createTagSchema>
 export type UpdateTagInput = z.infer<typeof updateTagSchema>
+export type ListAdminTagsInput = z.infer<typeof listAdminTagsSchema>
 
 export function listAdminCategories() {
   return prisma.category.findMany({
@@ -100,7 +107,35 @@ export async function deleteCategory(id: number) {
   }
 }
 
-export function listAdminTags() {
+export async function listAdminTags(input: ListAdminTagsInput) {
+  const where: Prisma.TagWhereInput = input.search
+    ? { OR: [
+        { name: { contains: input.search, mode: 'insensitive' } },
+        { slug: { contains: input.search, mode: 'insensitive' } }
+      ] }
+    : {}
+  const [total, items] = await prisma.$transaction([
+    prisma.tag.count({ where }),
+    prisma.tag.findMany({
+      where,
+      orderBy: [{ posts: { _count: 'desc' } }, { name: 'asc' }, { id: 'asc' }],
+      skip: (input.page - 1) * input.pageSize,
+      take: input.pageSize,
+      include: { _count: { select: { posts: true } } }
+    })
+  ])
+  return {
+    items,
+    pagination: {
+      page: input.page,
+      pageSize: input.pageSize,
+      total,
+      hasMore: input.page * input.pageSize < total
+    }
+  }
+}
+
+export function listAllAdminTags() {
   return prisma.tag.findMany({
     orderBy: { updatedAt: 'desc' },
     include: { _count: { select: { posts: true } } }

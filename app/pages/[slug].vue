@@ -88,7 +88,7 @@
         </Teleport>
 
         <div class="content-card">
-          <div class="prose-blog" v-html="post.rendered.html" />
+          <div ref="articleContentEl" class="prose-blog" v-html="post.rendered.html" />
         </div>
 
         <section v-if="continueItems.length" class="continue-card">
@@ -222,6 +222,7 @@ const summaryDialogLoading = ref(false)
 const summaryDialogError = ref('')
 const summaryDialogInput = ref<HTMLTextAreaElement | null>(null)
 const summaryMessagesEl = ref<HTMLElement | null>(null)
+const articleContentEl = ref<HTMLElement | null>(null)
 let summaryDialogController: AbortController | null = null
 let sidebarResizeObserver: ResizeObserver | undefined
 let tocObserver: IntersectionObserver | undefined
@@ -283,6 +284,7 @@ onBeforeUnmount(() => {
 onMounted(() => {
   updatePostSidebarStickyTop()
   setupTocObserver()
+  nextTick(() => requestAnimationFrame(setupCollapsibleCodeBlocks))
   window.addEventListener('resize', updatePostSidebarStickyTop)
   window.addEventListener('keydown', handleSummaryDialogEscape)
   const sidebar = document.querySelector<HTMLElement>('.post-sidebar')
@@ -293,8 +295,43 @@ onMounted(() => {
   }
 })
 
+function setupCollapsibleCodeBlocks() {
+  const content = articleContentEl.value
+  if (!content) return
+
+  for (const block of content.querySelectorAll<HTMLElement>('.md-editor-code')) {
+    if (block.dataset.collapseReady === 'true') continue
+    const pre = block.querySelector<HTMLElement>('pre')
+    if (!pre || pre.scrollHeight <= 480) continue
+
+    block.dataset.collapseReady = 'true'
+    block.classList.add('is-code-collapsed')
+
+    const toggle = document.createElement('button')
+    toggle.type = 'button'
+    toggle.className = 'code-collapse-toggle'
+    toggle.textContent = '展开全部代码'
+    toggle.setAttribute('aria-expanded', 'false')
+    toggle.addEventListener('click', () => {
+      const willExpand = block.classList.contains('is-code-collapsed')
+      block.classList.toggle('is-code-collapsed', !willExpand)
+      toggle.textContent = willExpand ? '收起代码' : '展开全部代码'
+      toggle.setAttribute('aria-expanded', String(willExpand))
+
+      if (!willExpand && block.getBoundingClientRect().top < 0) {
+        block.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+    block.append(toggle)
+  }
+}
+
 watch(activeTocId, () => {
   nextTick(updateTocIndicatorPosition)
+})
+
+watch(() => post.value.rendered.html, () => {
+  nextTick(() => requestAnimationFrame(setupCollapsibleCodeBlocks))
 })
 
 useSeoMeta({
@@ -1081,6 +1118,49 @@ function updateTocIndicatorPosition() {
 
 .content-card :deep(.prose-blog) {
   max-width: 94ch;
+}
+
+.content-card :deep(.md-editor-code.is-code-collapsed pre) {
+  max-height: 480px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.content-card :deep(.md-editor-code.is-code-collapsed::after) {
+  position: absolute;
+  right: 0;
+  bottom: 42px;
+  left: 0;
+  height: 88px;
+  background: linear-gradient(to bottom, transparent, #282c34);
+  content: '';
+  pointer-events: none;
+}
+
+.content-card :deep(.code-collapse-toggle) {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  background: #242830;
+  color: #cbd5e1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.content-card :deep(.code-collapse-toggle:hover),
+.content-card :deep(.code-collapse-toggle:focus-visible) {
+  background: #303640;
+  color: #fff;
+  outline: none;
 }
 
 .post-main > .content-card:first-child {

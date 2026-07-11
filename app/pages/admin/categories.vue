@@ -80,7 +80,7 @@
             <UFormField label="分类图标">
               <div class="icon-picker" role="radiogroup" aria-label="分类图标">
                 <button
-                  v-for="option in iconOptions"
+                  v-for="option in visibleIconOptions"
                   :key="option.name"
                   type="button"
                   class="icon-option"
@@ -94,6 +94,10 @@
                   <span>{{ option.label }}</span>
                 </button>
               </div>
+              <button type="button" class="icon-picker-toggle" @click="iconsExpanded = !iconsExpanded">
+                <UIcon :name="iconsExpanded ? 'i-lucide-chevron-up' : 'i-lucide-layout-grid'" class="size-4" />
+                {{ iconsExpanded ? '收起更多图标' : `展开更多图标（${categoryIconOptions.length - primaryCategoryIconCount}）` }}
+              </button>
               <p class="category-help">首页分类胶囊会使用这里选择的图标，未选择时使用默认文件夹图标。</p>
             </UFormField>
 
@@ -130,6 +134,7 @@
 
 <script setup lang="ts">
 import { getApiErrorMessage } from '~/utils/api-error'
+import { categoryIconOptions, defaultCategoryIcon, primaryCategoryIconCount, visibleCategoryIcons } from '~/utils/category-icons'
 
 definePageMeta({
   layout: 'admin',
@@ -146,43 +151,17 @@ type CategoryItem = {
   }
 }
 
-const defaultCategoryIcon = 'i-lucide-folder'
-const iconOptions = [
-  { name: 'i-lucide-folder', label: '文件夹' },
-  { name: 'i-lucide-code-2', label: '代码' },
-  { name: 'i-lucide-terminal', label: '终端' },
-  { name: 'i-lucide-cpu', label: '系统' },
-  { name: 'i-lucide-brain-circuit', label: '思考' },
-  { name: 'i-lucide-sparkles', label: '灵感' },
-  { name: 'i-lucide-book-open', label: '阅读' },
-  { name: 'i-lucide-newspaper', label: '资讯' },
-  { name: 'i-lucide-pen-tool', label: '写作' },
-  { name: 'i-lucide-image', label: '图片' },
-  { name: 'i-lucide-camera', label: '摄影' },
-  { name: 'i-lucide-palette', label: '设计' },
-  { name: 'i-lucide-music', label: '音乐' },
-  { name: 'i-lucide-gamepad-2', label: '游戏' },
-  { name: 'i-lucide-coffee', label: '生活' },
-  { name: 'i-lucide-leaf', label: '自然' },
-  { name: 'i-lucide-heart', label: '随笔' },
-  { name: 'i-lucide-flame', label: '热门' },
-  { name: 'i-lucide-rocket', label: '项目' },
-  { name: 'i-lucide-globe-2', label: '网络' },
-  { name: 'i-lucide-database', label: '数据' },
-  { name: 'i-lucide-lock-keyhole', label: '安全' },
-  { name: 'i-lucide-wrench', label: '工具' },
-  { name: 'i-lucide-archive', label: '归档' }
-]
-
 const toast = useToast()
 const searchQuery = ref('')
 const activeId = ref<number | null>(null)
 const pending = ref(false)
+const iconsExpanded = ref(false)
 const form = reactive({
   name: '',
   slug: '',
   icon: defaultCategoryIcon
 })
+const visibleIconOptions = computed(() => visibleCategoryIcons(form.icon, iconsExpanded.value))
 
 const { data, refresh } = await useFetch<{ data: CategoryItem[] }>('/api/admin/categories')
 
@@ -457,6 +436,7 @@ function getErrorMessage(error: any) {
   border-radius: 0.35rem;
   background: transparent;
   color: #94a3b8;
+  cursor: pointer;
   opacity: 0;
   padding: 0.25rem;
   pointer-events: none;
@@ -640,6 +620,24 @@ function getErrorMessage(error: any) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.icon-picker-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+  border: 0;
+  background: transparent;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.25rem 0;
+}
+
+.icon-picker-toggle:hover {
+  color: #4338ca;
 }
 
 .category-readonly-grid {
