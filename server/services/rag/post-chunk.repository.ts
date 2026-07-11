@@ -26,6 +26,7 @@ export type RawFileChunkRow = {
 }
 
 export type ChunkSearchFilters = {
+  postId?: number
   categoryId?: number
   tagId?: number
 }
@@ -230,6 +231,12 @@ function buildRawFilters(options: ChunkSearchFilters, startIndex = 2) {
   const parts: string[] = []
   const params: unknown[] = []
   let index = startIndex
+
+  if (options.postId) {
+    parts.push(`AND c."postId" = $${index}`)
+    params.push(options.postId)
+    index += 1
+  }
 
   if (options.categoryId) {
     parts.push(`AND c."categoryId" = $${index}`)

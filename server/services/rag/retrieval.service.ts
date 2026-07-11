@@ -11,6 +11,7 @@ import {
 
 export type RagSearchOptions = {
   query: string
+  postId?: number
   categoryId?: number
   tagId?: number
   limit?: number
@@ -43,8 +44,8 @@ export async function searchPostChunks(options: RagSearchOptions): Promise<RagSe
   const [vectorRows, keywordRows, fileVectorRows, fileKeywordRows] = await Promise.all([
     vectorSearchPostChunks(embedding, config.model, config.dimensions, options),
     keywordSearchPostChunks(query, config.model, config.dimensions, options),
-    vectorSearchKnowledgeFileChunks(embedding, config.model, config.dimensions),
-    keywordSearchKnowledgeFileChunks(query, config.model, config.dimensions)
+    options.postId ? Promise.resolve([]) : vectorSearchKnowledgeFileChunks(embedding, config.model, config.dimensions),
+    options.postId ? Promise.resolve([]) : keywordSearchKnowledgeFileChunks(query, config.model, config.dimensions)
   ])
   const fused = fuseResults(vectorRows, keywordRows, fileVectorRows, fileKeywordRows)
   const reranked = await rerankSearchResults(query, fused)

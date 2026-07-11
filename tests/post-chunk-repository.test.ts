@@ -128,6 +128,13 @@ describe('post chunk repository search SQL', () => {
     expect(params).toEqual(['[0.25000000,0.50000000]', 'model-a', 768, 9, '[10]'])
   })
 
+  it('can scope vector search to one article', async () => {
+    await vectorSearchPostChunks([0.25], 'model-a', 1536, { postId: 42 })
+    const [sql, ...params] = prismaMock.$queryRawUnsafe.mock.calls[0]
+    expect(sql).toContain('c."postId" = $4')
+    expect(params).toEqual(['[0.25000000]', 'model-a', 1536, 42])
+  })
+
   it('keyword search escapes LIKE wildcards and offsets filter placeholders', async () => {
     await keywordSearchPostChunks('100%_match\\test', 'model-b', 1536, { tagId: 6 })
 

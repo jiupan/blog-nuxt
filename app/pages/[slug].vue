@@ -59,14 +59,30 @@
             </div>
             <p>{{ post.summary }}</p>
           </div>
-          <form class="summary-chat-form" @submit.prevent>
-            <input type="text" placeholder="针对这个文章有什么想问的？" aria-label="针对这篇文章提问" />
-            <button type="submit">
+          <form class="summary-chat-form" @submit.prevent="openSummaryDialog">
+            <input v-model="summaryQuestion" type="text" placeholder="针对这个文章有什么想问的？" aria-label="针对这篇文章提问" />
+            <button type="submit" :disabled="!summaryQuestion.trim()">
               <span>发送</span>
               <Icon name="i-lucide-corner-down-left" />
             </button>
           </form>
         </section>
+
+        <Teleport to="body">
+          <Transition name="summary-dialog-backdrop">
+            <div v-if="summaryDialogOpen" class="summary-dialog-backdrop" @click="closeSummaryDialog" />
+          </Transition>
+          <Transition name="summary-dialog-panel" @after-enter="focusSummaryDialogInput">
+            <div v-if="summaryDialogOpen" class="summary-dialog-stage">
+              <section class="summary-dialog" role="dialog" aria-modal="true" aria-labelledby="summary-dialog-title">
+                <header class="summary-dialog-header"><div class="summary-dialog-identity"><span><Icon name="i-lucide-sparkles" /></span><div><strong id="summary-dialog-title">DyuGPT</strong><small>当前文章智能助手</small></div></div><div class="summary-dialog-head-actions"><button v-if="summaryConversationId" type="button" aria-label="新建对话" title="新建对话" @click="resetSummaryConversation"><Icon name="i-lucide-message-square-plus" /></button><button type="button" aria-label="关闭对话" @click="closeSummaryDialog"><Icon name="i-lucide-x" /></button></div></header>
+                <div class="summary-dialog-rule" />
+                <div ref="summaryMessagesEl" class="summary-dialog-messages"><div class="summary-dialog-message is-assistant"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><p>你好，我是这篇文章的 AI 助手。你可以围绕文章内容继续提问。</p></div><div v-for="message in summaryMessages" :key="message.id" class="summary-dialog-message" :class="message.role === 'USER' ? 'is-user' : 'is-assistant'"><span v-if="message.role === 'ASSISTANT'" class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div class="summary-dialog-message-copy"><p>{{ message.content }}</p><div v-if="message.citations?.length" class="summary-dialog-citations"><span v-for="citation in message.citations" :key="`${citation.chunkId}-${citation.headingPath}`"><Icon name="i-lucide-quote" />{{ citation.headingPath || '文章正文' }}</span></div></div></div><div v-if="summaryDialogLoading" class="summary-dialog-pending"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div><i /><i /><i /></div><small>正在阅读当前文章</small></div><div v-if="summaryDialogError" class="summary-dialog-error"><Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button type="button" @click="retrySummaryQuestion">重试</button></div></div>
+                <footer class="summary-dialog-footer"><form class="summary-dialog-composer" @submit.prevent="sendSummaryDialogMessage"><textarea ref="summaryDialogInput" v-model="summaryDialogDraft" rows="1" placeholder="继续针对这篇文章提问…" aria-label="继续提问" @keydown.enter.exact.prevent="sendSummaryDialogMessage" /><button v-if="!summaryDialogLoading" type="submit" :disabled="!summaryDialogDraft.trim()" aria-label="发送消息"><Icon name="i-lucide-send" /></button><button v-else type="button" class="is-stop" aria-label="停止生成" @click="stopSummaryDialogRequest"><Icon name="i-lucide-square" /></button></form><p>回答仅基于当前文章内容，请注意核对重要信息</p></footer>
+              </section>
+            </div>
+          </Transition>
+        </Teleport>
 
         <div class="content-card">
           <div class="prose-blog" v-html="post.rendered.html" />
@@ -184,6 +200,18 @@ const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const postSidebarStickyTop = ref('84px')
 const activeTocId = ref('')
 const activeTocOffset = ref(0)
+const summaryQuestion = ref('')
+const summaryDialogDraft = ref('')
+const summaryDialogOpen = ref(false)
+type ArticleChatCitation = { chunkId?: number, headingPath?: string | null, excerpt?: string }
+type ArticleChatMessage = { id: number | string, role: 'USER' | 'ASSISTANT', content: string, status: string, citations?: ArticleChatCitation[], error?: string | null }
+const summaryMessages = ref<ArticleChatMessage[]>([])
+const summaryConversationId = ref<number | null>(null)
+const summaryDialogLoading = ref(false)
+const summaryDialogError = ref('')
+const summaryDialogInput = ref<HTMLTextAreaElement | null>(null)
+const summaryMessagesEl = ref<HTMLElement | null>(null)
+let summaryDialogController: AbortController | null = null
 let sidebarResizeObserver: ResizeObserver | undefined
 let tocObserver: IntersectionObserver | undefined
 const sidebarCategories = computed(() => categoryData.value?.data || [])
@@ -222,7 +250,9 @@ layoutScrollTitle.value = post.value.title
 
 onBeforeUnmount(() => {
   layoutScrollTitle.value = ''
+  document.body.style.overflow = ''
   window.removeEventListener('resize', updatePostSidebarStickyTop)
+  window.removeEventListener('keydown', handleSummaryDialogEscape)
   sidebarResizeObserver?.disconnect()
   tocObserver?.disconnect()
 })
@@ -231,6 +261,7 @@ onMounted(() => {
   updatePostSidebarStickyTop()
   setupTocObserver()
   window.addEventListener('resize', updatePostSidebarStickyTop)
+  window.addEventListener('keydown', handleSummaryDialogEscape)
   const sidebar = document.querySelector<HTMLElement>('.post-sidebar')
 
   if (sidebar && 'ResizeObserver' in window) {
@@ -250,6 +281,110 @@ useSeoMeta({
   ogDescription: () => post.value.summary || '',
   ogImage: () => post.value.cover || ''
 })
+
+async function openSummaryDialog() {
+  const question = summaryQuestion.value.trim()
+  if (!question) return
+  summaryDialogOpen.value = true
+  document.body.style.overflow = 'hidden'
+  if (!summaryMessages.value.length) await restoreSummaryConversation()
+  await submitSummaryQuestion(question)
+  summaryQuestion.value = ''
+}
+
+function closeSummaryDialog() {
+  summaryDialogOpen.value = false
+  document.body.style.overflow = ''
+}
+
+function focusSummaryDialogInput() {
+  summaryDialogInput.value?.focus()
+}
+
+function handleSummaryDialogEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape' && summaryDialogOpen.value) closeSummaryDialog()
+}
+
+async function restoreSummaryConversation() {
+  try {
+    const response = await $fetch<{ data: { conversation: { id: number } | null, messages: ArticleChatMessage[] } }>(`/api/posts/${post.value.slug}/chat`)
+    summaryConversationId.value = response.data.conversation?.id || null
+    summaryMessages.value = response.data.messages
+  } catch {
+    summaryMessages.value = []
+  }
+}
+
+async function sendSummaryDialogMessage() {
+  const question = summaryDialogDraft.value.trim()
+  if (!question || summaryDialogLoading.value) return
+  summaryDialogDraft.value = ''
+  await submitSummaryQuestion(question)
+}
+
+async function submitSummaryQuestion(question: string) {
+  if (summaryDialogLoading.value) return
+  const temporaryId = `pending-${Date.now()}`
+  summaryMessages.value.push({ id: temporaryId, role: 'USER', content: question, status: 'COMPLETED', citations: [] })
+  summaryDialogLoading.value = true
+  summaryDialogError.value = ''
+  summaryDialogController = new AbortController()
+  await scrollSummaryMessages()
+  try {
+    const response = await $fetch<{ data: { conversation: { id: number }, userMessage: ArticleChatMessage, assistantMessage: ArticleChatMessage } }>(`/api/posts/${post.value.slug}/chat`, {
+      method: 'POST', signal: summaryDialogController.signal,
+      body: { conversationId: summaryConversationId.value || undefined, message: question }
+    })
+    summaryConversationId.value = response.data.conversation.id
+    const index = summaryMessages.value.findIndex(item => item.id === temporaryId)
+    if (index >= 0) summaryMessages.value[index] = response.data.userMessage
+    summaryMessages.value.push(response.data.assistantMessage)
+  } catch (error: unknown) {
+    if (summaryDialogController?.signal.aborted) summaryDialogError.value = '已停止本次回答'
+    else summaryDialogError.value = getArticleChatError(error)
+  } finally {
+    summaryDialogLoading.value = false
+    summaryDialogController = null
+    await scrollSummaryMessages()
+  }
+}
+
+function stopSummaryDialogRequest() {
+  summaryDialogController?.abort()
+}
+
+async function resetSummaryConversation() {
+  if (summaryDialogLoading.value || !summaryConversationId.value) return
+  try {
+    await $fetch(`/api/posts/${post.value.slug}/chat`, { method: 'DELETE', body: { conversationId: summaryConversationId.value } })
+    summaryConversationId.value = null
+    summaryMessages.value = []
+    summaryDialogError.value = ''
+    summaryDialogDraft.value = ''
+    await nextTick()
+    summaryDialogInput.value?.focus()
+  } catch (error: unknown) {
+    summaryDialogError.value = getArticleChatError(error)
+  }
+}
+
+async function retrySummaryQuestion() {
+  if (summaryDialogLoading.value) return
+  const lastUser = [...summaryMessages.value].reverse().find(item => item.role === 'USER')
+  if (!lastUser) return
+  if (typeof lastUser.id === 'string' && lastUser.id.startsWith('pending-')) summaryMessages.value = summaryMessages.value.filter(item => item.id !== lastUser.id)
+  await submitSummaryQuestion(lastUser.content)
+}
+
+async function scrollSummaryMessages() {
+  await nextTick()
+  summaryMessagesEl.value?.scrollTo({ top: summaryMessagesEl.value.scrollHeight, behavior: 'smooth' })
+}
+
+function getArticleChatError(error: unknown) {
+  const candidate = error as { data?: { statusMessage?: string, message?: string, data?: { message?: string } }, statusMessage?: string }
+  return candidate.data?.data?.message || candidate.data?.statusMessage || candidate.data?.message || candidate.statusMessage || '回答生成失败，请稍后重试'
+}
 
 function formatDate(value?: string | Date | null) {
   return value ? new Date(value).toLocaleDateString('zh-CN') : ''
@@ -695,6 +830,55 @@ function updateTocIndicatorPosition() {
   width: 15px;
   height: 15px;
 }
+
+.summary-chat-form button:disabled { opacity: .48; cursor: not-allowed; box-shadow: none; }
+.summary-dialog-backdrop { position: fixed; inset: 0; z-index: 80; background: rgb(28 34 45 / 16%); backdrop-filter: blur(12px); }
+.summary-dialog-stage { position: fixed; inset: 0; z-index: 81; display: grid; place-items: center; padding: 24px; pointer-events: none; }
+.summary-dialog { display: flex; width: min(680px, 100%); height: min(750px, 80vh); overflow: hidden; flex-direction: column; border: 1px solid rgb(255 255 255 / 68%); border-radius: 30px; background: rgb(255 255 255 / 88%); box-shadow: 0 30px 80px -20px rgb(32 40 55 / 24%), 0 0 0 1px rgb(49 57 72 / 4%); backdrop-filter: blur(28px) saturate(125%); pointer-events: auto; }
+.summary-dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px 16px 22px; }
+.summary-dialog-identity { display: flex; align-items: center; gap: 11px; }
+.summary-dialog-identity>span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#b65348,#d17b68); color: #fff; box-shadow: 0 6px 16px rgb(182 83 72 / 22%); }
+.summary-dialog-identity>span :deep(svg) { width: 17px; height: 17px; }
+.summary-dialog-identity strong,.summary-dialog-identity small { display: block; }
+.summary-dialog-identity strong { color: #30343c; font-size: 14px; letter-spacing: .02em; }
+.summary-dialog-identity small { margin-top: 2px; color: #9298a2; font-size: 11px; }
+.summary-dialog-head-actions { display: flex; gap: 7px; }.summary-dialog-head-actions button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: #f5f6f8; color: #858c97; cursor: pointer; transition: background .18s ease,color .18s ease,transform .18s ease; }
+.summary-dialog-head-actions button:hover { background: #eceef2; color: #4e5560; transform: translateY(-1px); }
+.summary-dialog-head-actions button :deep(svg) { width: 17px; height: 17px; }
+.summary-dialog-rule { height: 1px; flex: 0 0 auto; background: linear-gradient(90deg,transparent,#e9ebef 18%,#e9ebef 82%,transparent); }
+.summary-dialog-messages { display: flex; flex: 1; overflow-y: auto; flex-direction: column; gap: 28px; padding: 32px 26px; scrollbar-width: thin; scrollbar-color: #dfe2e7 transparent; }
+.summary-dialog-message { display: flex; width: 100%; }
+.summary-dialog-avatar { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; border: 1px solid #eceef2; border-radius: 50%; background: #fafafb; color: #b65348; }
+.summary-dialog-avatar :deep(svg) { width: 16px; height: 16px; }
+.summary-dialog-message p { margin: 0; font-size: 15px; line-height: 1.72; }
+.summary-dialog-message.is-assistant { max-width: 88%; align-items: flex-start; gap: 13px; color: #555b65; }
+.summary-dialog-message.is-assistant p { padding-top: 4px; }
+.summary-dialog-message.is-user { justify-content: flex-end; }
+.summary-dialog-message.is-user p { max-width: 76%; border-radius: 18px 18px 4px 18px; background: #f0f1f4; color: #3f444d; padding: 11px 16px; }
+.summary-dialog-message-copy { min-width: 0; }
+.summary-dialog-message.is-user .summary-dialog-message-copy { display: flex; justify-content: flex-end; width: 100%; }
+.summary-dialog-citations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.summary-dialog-citations span { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: #f8eeee; color: #a55047; font-size: 10px; font-weight: 700; padding: 4px 8px; }
+.summary-dialog-citations :deep(svg) { width: 11px; height: 11px; }
+.summary-dialog-pending { display: flex; align-items: center; gap: 12px; color: #9ba1aa; }
+.summary-dialog-pending>div { display: flex; gap: 4px; }
+.summary-dialog-pending i { width: 6px; height: 6px; border-radius: 50%; background: #c47263; animation: summary-dialog-dot 1.15s infinite ease-in-out; }
+.summary-dialog-pending i:nth-child(2) { animation-delay: 140ms; }.summary-dialog-pending i:nth-child(3) { animation-delay: 280ms; }
+.summary-dialog-pending small { font-size: 11px; }
+.summary-dialog-error { display: flex; align-items: center; gap: 8px; border-radius: 12px; background: #fff1f0; color: #b5544b; font-size: 12px; padding: 10px 12px; }
+.summary-dialog-error :deep(svg) { width: 15px; height: 15px; }
+.summary-dialog-error button { margin-left: auto; border: 0; border-radius: 8px; background: #fff; color: #a4473e; cursor: pointer; font-size: 11px; font-weight: 800; padding: 5px 9px; }
+.summary-dialog-footer { flex: 0 0 auto; padding: 14px 18px 16px; }
+.summary-dialog-composer { display: flex; align-items: flex-end; gap: 8px; border: 1px solid #e3e6eb; border-radius: 22px; background: #f8f9fa; padding: 6px; transition: background .18s ease,border-color .18s ease,box-shadow .18s ease; }
+.summary-dialog-composer:focus-within { border-color: #d5aaa2; background: #fff; box-shadow: 0 0 0 4px rgb(182 83 72 / 7%); }
+.summary-dialog-composer textarea { width: 100%; min-height: 38px; max-height: 116px; resize: none; border: 0; background: transparent; color: #454a53; font: inherit; font-size: 14px; line-height: 1.5; outline: none; padding: 9px 10px 7px; }
+.summary-dialog-composer button { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: #b65348; color: #fff; cursor: pointer; transition: opacity .18s ease,transform .18s ease,background .18s ease; }
+.summary-dialog-composer button:hover { background: #a4473e; transform: scale(1.04); }.summary-dialog-composer button:disabled { background: #c7cbd1; cursor: not-allowed; opacity: .55; transform: none; }.summary-dialog-composer button.is-stop { background: #737a85; }
+.summary-dialog-composer button :deep(svg) { width: 16px; height: 16px; }
+.summary-dialog-footer>p { margin: 9px 0 0; color: #a1a6ae; font-size: 10px; letter-spacing: .02em; text-align: center; }
+.summary-dialog-backdrop-enter-active,.summary-dialog-backdrop-leave-active { transition: opacity 420ms cubic-bezier(.22,1,.36,1); }.summary-dialog-backdrop-enter-from,.summary-dialog-backdrop-leave-to { opacity: 0; }
+.summary-dialog-panel-enter-active,.summary-dialog-panel-leave-active { transition: opacity 460ms cubic-bezier(.34,1.56,.64,1),transform 460ms cubic-bezier(.34,1.56,.64,1); }.summary-dialog-panel-enter-from,.summary-dialog-panel-leave-to { opacity: 0; transform: translateY(18px) scale(.965); }
+@keyframes summary-dialog-dot { 0%,70%,100% { transform: translateY(0); opacity: .42; } 35% { transform: translateY(-4px); opacity: 1; } }
 
 .content-card {
   margin-top: 14px;
@@ -1269,6 +1453,14 @@ function updateTocIndicatorPosition() {
     height: 34px;
     font-size: 13px;
   }
+
+  .summary-dialog-stage { align-items: end; padding: 10px; }
+  .summary-dialog { height: min(86vh,750px); border-radius: 24px; }
+  .summary-dialog-header { padding: 14px 15px 13px 17px; }
+  .summary-dialog-messages { gap: 22px; padding: 24px 17px; }
+  .summary-dialog-message.is-assistant { max-width: 96%; }
+  .summary-dialog-message.is-user p { max-width: 88%; }
+  .summary-dialog-footer { padding: 11px 12px 13px; }
 
   .post-pager-prev,
   .post-pager-next {
