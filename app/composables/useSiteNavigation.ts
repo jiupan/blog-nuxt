@@ -52,6 +52,7 @@ export type FooterActionLink = {
   label: string
   to: string
   icon: string
+  image: string
 }
 
 export type FooterCopyrightPart = {
@@ -349,14 +350,14 @@ function parseFooterBottomLinks(value: string) {
 
 function parseFooterActions(value: string) {
   const fallback = [
-    { label: '文章', to: '/posts', icon: 'i-lucide-library' },
-    { label: '归档', to: '/archive', icon: 'i-lucide-archive' },
-    { label: '我的', to: '/about', icon: 'i-lucide-user-round' },
-    { label: '后台', to: '/admin', icon: 'i-lucide-settings' },
-    { label: '全部文章', to: '/posts', icon: 'i-lucide-newspaper' },
-    { label: '时间线', to: '/archive', icon: 'i-lucide-clock-3' },
-    { label: '友链', to: '/link', icon: 'i-lucide-link' },
-    { label: '登录', to: '/admin/login', icon: 'i-lucide-log-in' }
+    { label: '文章', to: '/posts', icon: 'i-lucide-library', image: '' },
+    { label: '归档', to: '/archive', icon: 'i-lucide-archive', image: '' },
+    { label: '我的', to: '/about', icon: 'i-lucide-user-round', image: '' },
+    { label: '后台', to: '/admin', icon: 'i-lucide-settings', image: '' },
+    { label: '全部文章', to: '/posts', icon: 'i-lucide-newspaper', image: '' },
+    { label: '时间线', to: '/archive', icon: 'i-lucide-clock-3', image: '' },
+    { label: '友链', to: '/link', icon: 'i-lucide-link', image: '' },
+    { label: '登录', to: '/admin/login', icon: 'i-lucide-log-in', image: '' }
   ]
 
   try {
@@ -365,8 +366,9 @@ function parseFooterActions(value: string) {
     const links = parsed
       .map((item) => ({
         label: String(item?.label || '').trim(),
-        to: String(item?.to || '/').trim() || '/',
-        icon: String(item?.icon || 'i-lucide-link').trim() || 'i-lucide-link'
+        to: String(item?.to || '').trim(),
+        icon: String(item?.icon || 'i-lucide-link').trim() || 'i-lucide-link',
+        image: String(item?.image || '').trim()
       }))
       .filter((item) => item.label)
     return links.length ? links : fallback

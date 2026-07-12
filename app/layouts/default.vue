@@ -34,7 +34,6 @@
       :compact="compactFooter"
       :footer-action-left="navigation.footerActionLeft.value"
       :footer-action-right="navigation.footerActionRight.value"
-      :footer-action-icon="navigation.footerActionIcon"
       :footer-groups="navigation.footerGroups.value"
       :footer-copyright-parts="navigation.footerCopyrightParts.value"
       :footer-bottom-links="navigation.footerBottomLinks.value"

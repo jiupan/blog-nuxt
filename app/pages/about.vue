@@ -407,14 +407,14 @@ function formatFullDate(value?: string | Date | null) {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
   padding: 12px 14px;
-  color: var(--theme-text-muted);
+  color: #64748b;
   font-size: 12px;
   box-shadow: 0 16px 30px rgba(38, 50, 56, 0.12);
   backdrop-filter: blur(12px);
 }
 
 .portrait-note span {
-  color: var(--theme-text);
+  color: #263244;
   font-size: 22px;
   font-weight: 850;
   line-height: 1;

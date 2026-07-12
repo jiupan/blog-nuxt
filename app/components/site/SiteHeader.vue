@@ -55,8 +55,8 @@
             :data-tooltip="themeToggleLabel"
             @click="toggleColorMode"
           >
-            <SunIcon v-if="isDarkMode" aria-hidden="true" />
-            <MoonIcon v-else aria-hidden="true" />
+            <SunIcon class="theme-icon theme-icon-sun" aria-hidden="true" />
+            <MoonIcon class="theme-icon theme-icon-moon" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -182,7 +182,8 @@ const randomPostLoading = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 function applyColorMode() {
-  colorMode.preference = isDarkMode.value ? 'light' : 'dark'
+  const currentMode = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  colorMode.preference = currentMode === 'dark' ? 'light' : 'dark'
 }
 
 function toggleColorMode(event: MouseEvent) {

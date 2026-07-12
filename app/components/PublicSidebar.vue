@@ -44,7 +44,7 @@
       </NuxtLink>
     </section>
 
-    <section v-if="visibleCategories.length" class="sidebar-section">
+    <section v-if="visibleCategories.length" class="sidebar-section topics-section">
       <div class="section-title">
         <h3>探索话题</h3>
         <CompassIcon aria-hidden="true" />
@@ -345,8 +345,7 @@ function coverWord(post: SidebarPost) {
 }
 
 .topic-row:hover .topic-icon {
-  background: var(--theme-surface);
-  box-shadow: 0 6px 14px rgb(15 23 42 / 6%);
+  box-shadow: 0 6px 14px rgb(var(--theme-shadow) / 14%);
 }
 
 .topic-icon svg {
@@ -356,7 +355,7 @@ function coverWord(post: SidebarPost) {
 
 .topic-name {
   overflow: hidden;
-  color: #495566;
+  color: var(--theme-text-soft);
   font-size: 14px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -397,11 +396,11 @@ function coverWord(post: SidebarPost) {
   display: inline-flex;
   align-items: center;
   min-height: 38px;
-  border: 1px solid #edf1f5;
+  border: 1px solid var(--theme-border);
   border-radius: 999px;
   background: var(--theme-surface-muted);
   padding: 0 18px;
-  color: #536170;
+  color: var(--theme-text-soft);
   font-size: 14px;
   font-weight: 700;
   box-shadow: inset 0 1px 2px rgb(15 23 42 / 2%);
@@ -409,10 +408,38 @@ function coverWord(post: SidebarPost) {
 }
 
 .popular-tags a:hover {
-  border-color: #d8e0e8;
+  border-color: var(--theme-text-faint);
   background: var(--theme-surface);
   color: var(--theme-text-strong);
   transform: translateY(-1px);
+}
+
+:global(.dark) .topics-section,
+:global(.dark) .popular-tags-section {
+  border-color: #3a4860;
+  background: linear-gradient(145deg, var(--theme-surface-raised), var(--theme-surface));
+  box-shadow: 0 16px 38px rgb(0 0 0 / 18%), inset 0 1px 0 rgb(255 255 255 / 3%);
+}
+
+:global(.dark) .topic-row:hover {
+  background: var(--theme-surface-hover);
+}
+
+:global(.dark) .topic-count {
+  background: #202b40;
+  color: var(--theme-text-muted);
+}
+
+:global(.dark) .popular-tags a {
+  border-color: #526078;
+  background: #202a3d;
+  color: var(--theme-text-muted);
+}
+
+:global(.dark) .popular-tags a:hover {
+  border-color: var(--theme-accent);
+  background: var(--theme-surface-hover);
+  color: var(--theme-text-strong);
 }
 
 .featured-section {

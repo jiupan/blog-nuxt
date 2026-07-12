@@ -250,7 +250,7 @@ function coverWord(post: ArchivePost) {
   display: flex;
   flex-wrap: wrap;
   gap: 0 34px;
-  margin-bottom: 54px;
+  margin-bottom: 20px;
   border-bottom: 1px solid var(--theme-border);
   padding-bottom: 0;
 }
@@ -312,7 +312,7 @@ function coverWord(post: ArchivePost) {
   bottom: -1px;
   left: 158px;
   height: 1px;
-  background: rgba(219, 226, 234, 0.75);
+  background: color-mix(in srgb, var(--theme-border) 75%, transparent);
   content: "";
   pointer-events: none;
 }
@@ -322,9 +322,9 @@ function coverWord(post: ArchivePost) {
 }
 
 .archive-item:hover {
-  border-color: rgba(226, 232, 240, 0.9);
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: 0 22px 44px rgba(38, 50, 56, 0.06);
+  border-color: color-mix(in srgb, var(--theme-accent) 34%, var(--theme-border));
+  background: color-mix(in srgb, var(--theme-surface-raised) 94%, transparent);
+  box-shadow: 0 22px 44px rgb(var(--theme-shadow) / 16%);
   transform: translateY(-3px);
 }
 
@@ -410,7 +410,7 @@ function coverWord(post: ArchivePost) {
 }
 
 .archive-item:hover .archive-copy p {
-  color: #53606d;
+  color: var(--theme-text-soft);
 }
 
 .archive-meta {
@@ -436,14 +436,14 @@ function coverWord(post: ArchivePost) {
 
 .meta-left > span:first-child {
   border-radius: 999px;
-  background: rgba(244, 246, 248, 0.9);
+  background: color-mix(in srgb, var(--theme-surface-muted) 90%, transparent);
   padding: 6px 10px;
   transition: background-color 180ms ease, color 180ms ease;
 }
 
 .archive-item:hover .meta-left > span:first-child {
   background: var(--theme-success-soft);
-  color: #647e73;
+  color: var(--theme-success);
 }
 
 .read-time {
@@ -528,7 +528,7 @@ function coverWord(post: ArchivePost) {
 .archive-empty {
   border: 1px solid var(--theme-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.76);
+  background: color-mix(in srgb, var(--theme-surface) 76%, transparent);
   padding: 44px;
   color: var(--theme-text-muted);
   text-align: center;
@@ -637,7 +637,7 @@ function coverWord(post: ArchivePost) {
   place-items: center;
   border-radius: 999px;
   background: var(--theme-surface-hover);
-  color: #697280;
+  color: var(--theme-text-muted);
   font-size: 12px;
   font-weight: 900;
 }
@@ -648,7 +648,7 @@ function coverWord(post: ArchivePost) {
 }
 
 .hot-card strong {
-  color: #40454f;
+  color: var(--theme-text-soft);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -675,7 +675,7 @@ function coverWord(post: ArchivePost) {
 
   .archive-tabs {
     gap: 0 22px;
-    margin-bottom: 34px;
+    margin-bottom: 20px;
   }
 
   .archive-item {

@@ -10,6 +10,10 @@
           <h1>站点设置</h1>
         </div>
       </div>
+      <div v-if="form" class="admin-page-actions settings-header-actions">
+        <span v-if="saved" class="text-sm font-medium text-emerald-600">✓ 已保存</span>
+        <UButton icon="i-lucide-save" :loading="saving" @click="save">保存设置</UButton>
+      </div>
     </div>
 
     <section v-if="form" class="admin-panel settings-admin-panel">
@@ -284,10 +288,10 @@
             <article v-for="(item, index) in footerActionItems" :key="item.id" class="footer-action-item">
               <div class="footer-action-item-main">
                 <div class="footer-action-preview">
-                  <UIcon :name="item.icon || 'i-lucide-link'" class="size-5" />
+                  <UIcon :name="item.icon || 'i-simple-icons-linktree'" class="size-5" />
                 </div>
                 <UInput v-model="item.label" icon="i-lucide-type" placeholder="显示名称" />
-                <UInput v-model="item.to" icon="i-lucide-link" placeholder="/posts 或 https://..." />
+                <UInput v-model="item.to" icon="i-lucide-link" placeholder="跳转地址（留空则展示图片）" />
                 <UButton
                   color="error"
                   variant="ghost"
@@ -297,9 +301,31 @@
                 />
               </div>
 
+              <div class="footer-action-image-editor">
+                <div v-if="item.image" class="footer-action-image-preview">
+                  <img :src="item.image" :alt="`${item.label} 悬浮图片预览`">
+                </div>
+                <div class="footer-action-image-copy">
+                  <strong>悬浮图片</strong>
+                  <p>{{ item.to.trim() ? '当前填写了跳转地址，前台会优先执行跳转。清空地址后才会展示这张图片。' : '地址留空时，桌面端悬浮、移动端点击图标即可查看图片。' }}</p>
+                  <div class="footer-action-image-buttons">
+                    <label class="footer-action-upload" :class="{ 'is-loading': uploadingFooterActionId === item.id }">
+                      <input type="file" accept="image/jpeg,image/png,image/webp" :disabled="uploadingFooterActionId === item.id" @change="uploadFooterActionImage($event, item)">
+                      <UIcon :name="uploadingFooterActionId === item.id ? 'i-lucide-loader-circle' : 'i-lucide-upload'" class="size-4" />
+                      {{ uploadingFooterActionId === item.id ? '上传中' : item.image ? '替换图片' : '上传图片' }}
+                    </label>
+                    <button v-if="item.image" type="button" class="footer-action-image-remove" @click="item.image = ''">
+                      <UIcon name="i-lucide-trash-2" class="size-4" />
+                      删除图片
+                    </button>
+                  </div>
+                  <small v-if="footerImageUploadErrorId === item.id">上传失败，请使用 JPG、PNG 或 WebP 图片重试。</small>
+                </div>
+              </div>
+
               <div class="footer-icon-grid" aria-label="图标库">
                 <button
-                  v-for="icon in footerActionIconOptions"
+                  v-for="icon in visibleFooterActionIcons(item.id)"
                   :key="icon.name"
                   type="button"
                   class="footer-icon-option"
@@ -310,16 +336,21 @@
                   <UIcon :name="icon.name" class="size-4" />
                 </button>
               </div>
+              <button
+                v-if="footerActionIconOptions.length > collapsedFooterIconCount"
+                type="button"
+                class="footer-icon-toggle"
+                :aria-expanded="expandedFooterIconItems.has(item.id)"
+                @click="toggleFooterIconGrid(item.id)"
+              >
+                {{ expandedFooterIconItems.has(item.id) ? '收起图标' : `展开全部 ${footerActionIconOptions.length} 个图标` }}
+                <UIcon :name="expandedFooterIconItems.has(item.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-4" />
+              </button>
             </article>
           </div>
         </div>
       </div>
 
-      <div class="settings-actions">
-        <UButton type="submit" icon="i-lucide-save" :loading="saving" @click="save">保存设置</UButton>
-        <span v-if="saved" class="text-sm font-medium text-emerald-600">✓ 已保存</span>
-        <span v-else class="text-xs text-slate-400">点击保存后前台页面即刻生效</span>
-      </div>
     </section>
 
     <div v-else class="admin-panel grid place-items-center px-5 py-16 text-center">
@@ -382,6 +413,7 @@ type FooterActionItem = {
   label: string
   to: string
   icon: string
+  image: string
 }
 
 const defaultValue = (key: string) => {
@@ -436,28 +468,48 @@ const aiSettingTabs = [
 const defaultFooterActions = '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
 
 const footerActionIconOptions = [
-  { label: '文库', name: 'i-lucide-library' },
-  { label: '归档', name: 'i-lucide-archive' },
-  { label: '用户', name: 'i-lucide-user-round' },
-  { label: '设置', name: 'i-lucide-settings' },
-  { label: '文章', name: 'i-lucide-newspaper' },
-  { label: '时间', name: 'i-lucide-clock-3' },
-  { label: '链接', name: 'i-lucide-link' },
-  { label: '登录', name: 'i-lucide-log-in' },
-  { label: '首页', name: 'i-lucide-house' },
-  { label: '搜索', name: 'i-lucide-search' },
-  { label: '标签', name: 'i-lucide-tag' },
-  { label: '分类', name: 'i-lucide-folder' },
-  { label: '仪表盘', name: 'i-lucide-layout-dashboard' },
-  { label: '外链', name: 'i-lucide-external-link' },
-  { label: '邮件', name: 'i-lucide-mail' },
-  { label: '星标', name: 'i-lucide-star' }
+  { label: 'QQ', name: 'i-simple-icons-qq' },
+  { label: '微信', name: 'i-simple-icons-wechat' },
+  { label: '新浪微博', name: 'i-simple-icons-sinaweibo' },
+  { label: 'GitHub', name: 'i-simple-icons-github' },
+  { label: 'Gitee', name: 'i-simple-icons-gitee' },
+  { label: '哔哩哔哩', name: 'i-simple-icons-bilibili' },
+  { label: '知乎', name: 'i-simple-icons-zhihu' },
+  { label: '掘金', name: 'i-simple-icons-juejin' },
+  { label: 'CSDN', name: 'i-simple-icons-csdn' },
+  { label: 'Telegram', name: 'i-simple-icons-telegram' },
+  { label: 'X', name: 'i-simple-icons-x' },
+  { label: 'Facebook', name: 'i-simple-icons-facebook' },
+  { label: 'Instagram', name: 'i-simple-icons-instagram' },
+  { label: 'YouTube', name: 'i-simple-icons-youtube' },
+  { label: 'TikTok', name: 'i-simple-icons-tiktok' },
+  { label: 'Discord', name: 'i-simple-icons-discord' },
+  { label: 'LinkedIn', name: 'i-simple-icons-linkedin' },
+  { label: 'Gmail', name: 'i-simple-icons-gmail' },
+  { label: 'RSS', name: 'i-simple-icons-rss' },
+  { label: '网易云音乐', name: 'i-simple-icons-neteasecloudmusic' },
+  { label: 'Spotify', name: 'i-simple-icons-spotify' },
+  { label: 'Steam', name: 'i-simple-icons-steam' },
+  { label: 'WordPress', name: 'i-simple-icons-wordpress' },
+  { label: 'Blogger', name: 'i-simple-icons-blogger' },
+  { label: 'Medium', name: 'i-simple-icons-medium' },
+  { label: 'DEV', name: 'i-simple-icons-devdotto' },
+  { label: 'Stack Overflow', name: 'i-simple-icons-stackoverflow' },
+  { label: 'GitLab', name: 'i-simple-icons-gitlab' },
+  { label: 'npm', name: 'i-simple-icons-npm' },
+  { label: 'Docker', name: 'i-simple-icons-docker' },
+  { label: 'Linktree', name: 'i-simple-icons-linktree' }
 ]
+
+const collapsedFooterIconCount = 12
 
 const activeTab = ref<(typeof settingTabs)[number]['value'] | 'ai'>('basic')
 const activeAiTab = ref<(typeof aiSettingTabs)[number]['value']>('chat')
 const form = ref<SettingsForm | null>(null)
 const footerActionItems = ref<FooterActionItem[]>([])
+const expandedFooterIconItems = ref(new Set<number>())
+const uploadingFooterActionId = ref<number | null>(null)
+const footerImageUploadErrorId = ref<number | null>(null)
 const saving = ref(false)
 const saved = ref(false)
 const rebuildingIndex = ref(false)
@@ -507,10 +559,11 @@ watch(data, (val) => {
 
 async function save() {
   if (!form.value) return
-  form.value.footer_actions = JSON.stringify(footerActionItems.value.map(({ label, to, icon }) => ({
+  form.value.footer_actions = JSON.stringify(footerActionItems.value.map(({ label, to, icon, image }) => ({
     label: label.trim(),
-    to: to.trim() || '/',
-    icon: icon.trim() || 'i-lucide-link'
+    to: to.trim(),
+    icon: icon.trim() || 'i-simple-icons-linktree',
+    image: image.trim()
   })).filter((item) => item.label))
   saving.value = true
   saved.value = false
@@ -557,8 +610,9 @@ function parseFooterActionItems(value: string): FooterActionItem[] {
     const items = parsed.map((item, index) => ({
       id: Date.now() + index,
       label: String(item?.label || '').trim(),
-      to: String(item?.to || '/').trim() || '/',
-      icon: String(item?.icon || 'i-lucide-link').trim() || 'i-lucide-link'
+      to: String(item?.to || '').trim(),
+      icon: String(item?.icon || 'i-simple-icons-linktree').trim() || 'i-simple-icons-linktree',
+      image: String(item?.image || '').trim()
     })).filter((item) => item.label)
     return items.length ? items : parseFooterActionItems(defaultFooterActions)
   } catch {
@@ -570,9 +624,43 @@ function addFooterAction() {
   footerActionItems.value.push({
     id: Date.now(),
     label: '新入口',
-    to: '/',
-    icon: 'i-lucide-link'
+    to: '',
+    icon: 'i-simple-icons-linktree',
+    image: ''
   })
+}
+
+function visibleFooterActionIcons(itemId: number) {
+  return expandedFooterIconItems.value.has(itemId)
+    ? footerActionIconOptions
+    : footerActionIconOptions.slice(0, collapsedFooterIconCount)
+}
+
+function toggleFooterIconGrid(itemId: number) {
+  const next = new Set(expandedFooterIconItems.value)
+  if (next.has(itemId)) next.delete(itemId)
+  else next.add(itemId)
+  expandedFooterIconItems.value = next
+}
+
+async function uploadFooterActionImage(event: Event, item: FooterActionItem) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  uploadingFooterActionId.value = item.id
+  footerImageUploadErrorId.value = null
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', { method: 'POST', body })
+    item.image = result.data.url
+  } catch {
+    footerImageUploadErrorId.value = item.id
+  } finally {
+    uploadingFooterActionId.value = null
+    input.value = ''
+  }
 }
 
 function removeFooterAction(index: number) {
@@ -956,6 +1044,96 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   gap: 0.45rem;
 }
 
+.footer-action-image-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  border: 1px solid #e8edf4;
+  border-radius: 0.65rem;
+  background: #f8fafc;
+  padding: 0.75rem;
+}
+
+.footer-action-image-preview {
+  width: 5rem;
+  height: 5rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid #dbe3ed;
+  border-radius: 0.55rem;
+  background: #fff;
+}
+
+.footer-action-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.footer-action-image-copy {
+  min-width: 0;
+}
+
+.footer-action-image-copy strong {
+  color: #334155;
+  font-size: 0.82rem;
+}
+
+.footer-action-image-copy p {
+  margin: 0.2rem 0 0.55rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.footer-action-image-copy small {
+  display: block;
+  margin-top: 0.45rem;
+  color: #dc2626;
+}
+
+.footer-action-image-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.footer-action-upload,
+.footer-action-image-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #dbe3ed;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 750;
+  padding: 0.42rem 0.65rem;
+}
+
+.footer-action-upload input {
+  display: none;
+}
+
+.footer-action-upload.is-loading {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.footer-action-upload.is-loading svg {
+  animation: footer-upload-spin 0.8s linear infinite;
+}
+
+.footer-action-image-remove {
+  color: #dc2626;
+}
+
+@keyframes footer-upload-spin {
+  to { transform: rotate(360deg); }
+}
+
 .footer-icon-option {
   display: grid;
   height: 2.25rem;
@@ -975,21 +1153,40 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   color: #4f46e5;
 }
 
-.settings-actions {
+.footer-icon-toggle {
+  display: inline-flex;
+  width: max-content;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 750;
+  padding: 0.1rem 0;
+}
+
+.footer-icon-toggle:hover {
+  color: #4f46e5;
+}
+
+.settings-header-actions {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-top: 1px solid #eef2f7;
-  background: rgba(248, 250, 252, 0.72);
-  padding: 0.9rem 1rem;
 }
 
 @media (max-width: 640px) {
   .settings-row-head,
-  .settings-upload,
-  .settings-actions {
+  .settings-upload {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .settings-header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .footer-action-item-main {
