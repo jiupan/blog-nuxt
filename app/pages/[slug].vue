@@ -1796,6 +1796,15 @@ function updateTocIndicatorPosition() {
   .summary-chat-form input,
   .summary-chat-form button {
     height: 34px;
+  }
+
+  .summary-chat-form input,
+  .summary-dialog-composer textarea,
+  .summary-history-search input {
+    font-size: 16px;
+  }
+
+  .summary-chat-form button {
     font-size: 13px;
   }
 

@@ -137,7 +137,24 @@
                 <h2>表情包</h2>
                 <p>单独存放聊天、评论和文章里的表情图片</p>
               </div>
-              <span>{{ filteredMemeImages.length }}/{{ memeImages.length }}</span>
+              <span>{{ filteredMemeImages.length }}/{{ activeMemeImages.length }}</span>
+            </div>
+
+            <div class="meme-groups" role="tablist" aria-label="表情包分组">
+              <button
+                v-for="group in memeGroupTabs"
+                :key="group.id"
+                type="button"
+                role="tab"
+                :aria-selected="activeMemeGroup === group.id"
+                :class="{ 'is-active': activeMemeGroup === group.id }"
+                @click="selectMemeGroup(group.id)"
+              >
+                <span>{{ group.name }}</span>
+                <small>{{ group.count }}</small>
+              </button>
+              <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-plus" @click="createGroup">新建分组</UButton>
+              <UButton v-if="activeMemeGroup !== 'ungrouped'" size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" @click="removeActiveGroup">删除分组</UButton>
             </div>
 
             <template v-if="filteredMemeImages.length">
@@ -196,8 +213,11 @@ type GalleryImage = {
   size: number
   type: string
   collection?: 'images' | 'covers' | 'memes'
+  memeGroup?: string
   updatedAt: string
 }
+
+type MemeGroup = { id: string, name: string }
 
 const toast = useToast()
 const searchQuery = ref('')
@@ -211,13 +231,20 @@ const pageSize = 12
 const regularPage = ref(1)
 const coverPage = ref(1)
 const memePage = ref(1)
+const activeMemeGroup = ref('ungrouped')
 
 const { data, refresh } = await useFetch<{ data: GalleryImage[] }>('/api/admin/gallery')
+const { data: memeGroupsData, refresh: refreshMemeGroups } = await useFetch<{ data: MemeGroup[] }>('/api/admin/gallery/groups')
 
 const images = computed(() => data.value?.data || [])
 const regularImages = computed(() => images.value.filter((image) => image.collection === 'images' || !image.collection))
 const coverImages = computed(() => images.value.filter((image) => image.collection === 'covers'))
 const memeImages = computed(() => images.value.filter((image) => image.collection === 'memes'))
+const memeGroups = computed(() => memeGroupsData.value?.data || [])
+const memeGroupTabs = computed(() => [
+  { id: 'ungrouped', name: '未分组', count: memeImages.value.filter(image => !image.memeGroup).length },
+  ...memeGroups.value.map(group => ({ ...group, count: memeImages.value.filter(image => image.memeGroup === group.id).length }))
+])
 const galleryTabs = computed(() => [
   { value: 'images' as const, label: '普通图片', uploadLabel: '图片', icon: 'i-lucide-image', count: regularImages.value.length },
   { value: 'covers' as const, label: '封面', uploadLabel: '封面', icon: 'i-lucide-panels-top-left', count: coverImages.value.length },
@@ -226,7 +253,8 @@ const galleryTabs = computed(() => [
 const activeTab = computed(() => galleryTabs.value.find(tab => tab.value === activeCollection.value) || galleryTabs.value[0]!)
 const filteredRegularImages = computed(() => filterImages(regularImages.value))
 const filteredCoverImages = computed(() => filterImages(coverImages.value))
-const filteredMemeImages = computed(() => filterImages(memeImages.value))
+const activeMemeImages = computed(() => memeImages.value.filter(image => activeMemeGroup.value === 'ungrouped' ? !image.memeGroup : image.memeGroup === activeMemeGroup.value))
+const filteredMemeImages = computed(() => filterImages(activeMemeImages.value))
 const activeFilteredCount = computed(() => {
   if (activeCollection.value === 'covers') return filteredCoverImages.value.length
   if (activeCollection.value === 'memes') return filteredMemeImages.value.length
@@ -266,6 +294,38 @@ function openActiveUpload() {
   input?.click()
 }
 
+function selectMemeGroup(id: string) {
+  activeMemeGroup.value = id
+  memePage.value = 1
+}
+
+async function createGroup() {
+  const name = window.prompt('请输入表情包分组名称（例如：小黄脸、猫猫）')?.trim()
+  if (!name) return
+  try {
+    const result = await $fetch<{ data: MemeGroup }>('/api/admin/gallery/groups', { method: 'POST', body: { name } })
+    await refreshMemeGroups()
+    activeMemeGroup.value = result.data.id
+    memePage.value = 1
+    toast.add({ title: '分组已创建', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: '创建失败', description: getErrorMessage(error), color: 'error' })
+  }
+}
+
+async function removeActiveGroup() {
+  const group = memeGroups.value.find(item => item.id === activeMemeGroup.value)
+  if (!group || !window.confirm(`确定删除空分组“${group.name}”吗？`)) return
+  try {
+    await $fetch('/api/admin/gallery/groups', { method: 'DELETE', body: { id: group.id } })
+    activeMemeGroup.value = 'ungrouped'
+    await refreshMemeGroups()
+    toast.add({ title: '分组已删除', color: 'success' })
+  } catch (error: any) {
+    toast.add({ title: '删除失败', description: getErrorMessage(error), color: 'error' })
+  }
+}
+
 async function uploadFiles(event: Event, collection: 'images' | 'covers' | 'memes') {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
@@ -276,7 +336,8 @@ async function uploadFiles(event: Event, collection: 'images' | 'covers' | 'meme
     for (const file of files) {
       const body = new FormData()
       body.append('file', file)
-      const url = collection === 'memes' ? '/api/admin/upload?purpose=meme' : collection === 'covers' ? '/api/admin/upload?purpose=cover' : '/api/admin/upload'
+      const memeGroupQuery = activeMemeGroup.value === 'ungrouped' ? '' : `&memeGroup=${encodeURIComponent(activeMemeGroup.value)}`
+      const url = collection === 'memes' ? `/api/admin/upload?purpose=meme${memeGroupQuery}` : collection === 'covers' ? '/api/admin/upload?purpose=cover' : '/api/admin/upload'
       await $fetch(url, { method: 'POST', body })
     }
     await refresh()
@@ -554,6 +615,37 @@ function getErrorMessage(error: any) {
 .gallery-column-memes .gallery-column-head > span {
   background: #ffedd5;
   color: #c2410c;
+}
+
+.meme-groups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+}
+
+.meme-groups > button:not(.u-button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.55rem;
+  color: #64748b;
+  background: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.meme-groups > button:not(.u-button).is-active {
+  border-color: #f59e0b;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.meme-groups small {
+  color: #94a3b8;
 }
 
 .gallery-grid {

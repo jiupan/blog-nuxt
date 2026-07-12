@@ -35,7 +35,8 @@
             @mouseenter.prevent="activeHeroPost = item"
           >
             <span class="hero-link-icon">
-              <component :is="homeIcon(item.icon, FileTextIcon)" aria-hidden="true" />
+              <img v-if="item.memeIcon" :src="item.memeIcon" alt="" aria-hidden="true">
+              <component v-else :is="homeIcon(item.icon, FileTextIcon)" aria-hidden="true" />
             </span>
             <span>{{ item.title }}</span>
           </NuxtLink>
@@ -235,12 +236,13 @@ const siteName = computed(() => siteSettings.value.site_title || config.public.s
 const pageSize = 8
 const currentPage = ref(1)
 const categorySlug = ref('')
-const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }] = await Promise.all([
+const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }, { data: heroMemeData }] = await Promise.all([
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 6 } }),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/tags'),
-  useFetch<ApiResult<GalleryImagePayload[]>>('/api/gallery/memes')
+  useFetch<ApiResult<GalleryImagePayload[]>>('/api/gallery/memes'),
+  useFetch<ApiResult<GalleryImagePayload[]>>('/api/gallery/memes', { query: computed(() => ({ group: siteSettings.value.hero_meme_group || undefined })) })
 ])
 
 const posts = computed(() => data.value?.data.items || [])
@@ -263,6 +265,8 @@ const visiblePageItems = computed(() => {
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 const memeIcons = computed(() => memeData.value?.data.map((image) => image.url) || [])
+const heroMemeIcons = computed(() => siteSettings.value.hero_meme_group ? heroMemeData.value?.data.map(image => image.url) || [] : [])
+const heroMemeOffset = useState('home-hero-meme-offset', () => Math.floor(Math.random() * 10000))
 const latest = computed(() => heroAll.value[0])
 const currentHeroPost = computed(() => activeHeroPost.value || latest.value)
 const heroImage = computed(() => currentHeroPost.value?.cover || '/images/home-hero-ai.png')
@@ -325,7 +329,8 @@ const heroPosts = computed(() => {
       slug: post.slug,
       cover: post.cover,
       to: postPath(post.slug),
-      icon: heroIconLabels[index] || 'i-lucide-file-text'
+      icon: heroIconLabels[index] || 'i-lucide-file-text',
+      memeIcon: heroMemeIcons.value.length ? heroMemeIcons.value[(index + heroMemeOffset.value) % heroMemeIcons.value.length] : ''
     }
   })
 })
@@ -557,6 +562,7 @@ function formatDate(value?: string | Date | null) {
   display: grid;
   width: 34px;
   height: 34px;
+  overflow: hidden;
   place-items: center;
   border-radius: 9px;
   background: color-mix(in srgb, var(--theme-surface) 20%, transparent);
@@ -568,6 +574,13 @@ function formatDate(value?: string | Date | null) {
 .hero-link-icon :deep(span) {
   width: 18px;
   height: 18px;
+}
+
+.hero-link-icon img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
 }
 
 .topic-tabs {

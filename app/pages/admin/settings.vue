@@ -72,6 +72,28 @@
           </div>
           <p class="text-xs text-slate-400">粘贴图片 URL，或点击上传按钮选择本地图片</p>
         </div>
+
+        <div class="settings-row">
+          <label class="settings-label">首页轮播表情包分组</label>
+          <UDropdownMenu
+            :items="heroMemeGroupMenuItems"
+            :content="{ align: 'start', sideOffset: 6 }"
+            :ui="{ content: 'w-[360px] max-w-[calc(100vw-2rem)]' }"
+          >
+            <UButton
+              type="button"
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-smile"
+              trailing-icon="i-lucide-chevron-down"
+              :label="selectedHeroMemeGroupLabel"
+              block
+              class="hero-meme-trigger"
+            />
+          </UDropdownMenu>
+          <p v-if="memeGroupsError" class="text-xs text-red-500">分组加载失败，请刷新页面或重新登录后重试。</p>
+          <p class="text-xs text-slate-400">轮播文章左侧图标将从该分组随机选取；不选择或分组为空时使用默认图标。</p>
+        </div>
       </div>
 
       <div v-else-if="activeTab === 'seo'" class="settings-form">
@@ -375,6 +397,7 @@ type SettingsForm = {
   site_brand: string
   site_logo: string
   site_favicon: string
+  hero_meme_group: string
   seo_noindex: string
   seo_keywords: string
   seo_description: string
@@ -423,6 +446,7 @@ const defaultValue = (key: string) => {
     site_brand: 'DYU',
     site_logo: '',
     site_favicon: '',
+    hero_meme_group: '',
     seo_noindex: 'false',
     seo_keywords: '',
     seo_description: '',
@@ -453,7 +477,7 @@ const settingTabs = [
 ] as const
 
 const siteSettingKeys = [
-  'site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon',
+  'site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon', 'hero_meme_group',
   'seo_noindex', 'seo_keywords', 'seo_description', 'footer_copyright', 'footer_bottom_links', 'footer_actions'
 ] as const satisfies readonly (keyof SettingsForm)[]
 
@@ -542,6 +566,22 @@ const logoInputRef = ref<HTMLInputElement | null>(null)
 const faviconInputRef = ref<HTMLInputElement | null>(null)
 
 const { data } = await useFetch<ApiResult<AdminSettingsPayload>>('/api/admin/settings')
+const { data: memeGroupsData, error: memeGroupsError } = await useFetch<ApiResult<Array<{ id: string, name: string }>>>('/api/admin/gallery/groups')
+const heroMemeGroupOptions = computed(() => [
+  { label: '不使用表情包（默认图标）', value: '' },
+  { label: '未分组', value: 'ungrouped' },
+  ...(memeGroupsData.value?.data || []).map(group => ({ label: group.name, value: group.id }))
+])
+const selectedHeroMemeGroupLabel = computed(() => {
+  return heroMemeGroupOptions.value.find(option => option.value === form.value?.hero_meme_group)?.label || '请选择表情包分组'
+})
+const heroMemeGroupMenuItems = computed(() => heroMemeGroupOptions.value.map(option => ({
+  label: option.label,
+  icon: form.value?.hero_meme_group === option.value ? 'i-lucide-check' : 'i-lucide-circle',
+  onSelect: () => {
+    if (form.value) form.value.hero_meme_group = option.value
+  }
+})))
 const { data: aiIndexData, refresh: refreshAiIndexStatus } = await useFetch<ApiResult<AiIndexStatus>>('/api/admin/ai/index/status')
 const aiIndexStatus = computed(() => aiIndexData.value?.data || null)
 
@@ -553,6 +593,7 @@ watch(data, (val) => {
       site_brand: val.data.site_brand || defaultValue('site_brand'),
       site_logo: val.data.site_logo || defaultValue('site_logo'),
       site_favicon: val.data.site_favicon || defaultValue('site_favicon'),
+      hero_meme_group: val.data.hero_meme_group || defaultValue('hero_meme_group'),
       seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),
       seo_keywords: val.data.seo_keywords || defaultValue('seo_keywords'),
       seo_description: val.data.seo_description || defaultValue('seo_description'),
@@ -939,6 +980,11 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 
 .settings-control {
   width: min(100%, 644px);
+}
+
+.hero-meme-trigger {
+  width: min(100%, 360px);
+  justify-content: flex-start;
 }
 
 .settings-checkbox {

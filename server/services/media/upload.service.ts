@@ -24,7 +24,7 @@ export function parseUploadPurpose(value: unknown): UploadPurpose {
   return 'image'
 }
 
-export async function uploadImage(input: Buffer, purpose: UploadPurpose): Promise<UploadedImage> {
+export async function uploadImage(input: Buffer, purpose: UploadPurpose, memeGroup?: string): Promise<UploadedImage> {
   if (!input.byteLength) {
     throw badRequest('请选择要上传的图片')
   }
@@ -42,7 +42,8 @@ export async function uploadImage(input: Buffer, purpose: UploadPurpose): Promis
   const isCover = purpose === 'cover'
   const output = await optimizeImage(input, purpose)
   const filename = `${randomUUID()}${output.extension}`
-  const relativeDir = isMeme ? `memes/${year}/${month}` : isCover ? `covers/${year}/${month}` : `${year}/${month}`
+  const groupDir = isMeme && memeGroup ? `${validateMemeGroupId(memeGroup)}/` : ''
+  const relativeDir = isMeme ? `memes/${groupDir}${year}/${month}` : isCover ? `covers/${year}/${month}` : `${year}/${month}`
   const relativePath = `${relativeDir}/${filename}`
 
   await mkdir(join(uploadRoot, relativeDir), { recursive: true })
@@ -51,6 +52,13 @@ export async function uploadImage(input: Buffer, purpose: UploadPurpose): Promis
   return {
     url: toUploadUrl(relativePath)
   }
+}
+
+function validateMemeGroupId(value: string) {
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(value)) {
+    throw badRequest('表情包分组不合法')
+  }
+  return value
 }
 
 async function optimizeImage(input: Buffer, purpose: UploadPurpose) {

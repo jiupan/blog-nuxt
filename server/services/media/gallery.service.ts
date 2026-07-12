@@ -1,4 +1,4 @@
-import { readdir, stat, unlink } from 'node:fs/promises'
+import { mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { notFound } from '~~/server/utils/api-error'
 import { resolveUploadPath, resolveUploadRoot, toUploadRelativePath, toUploadUrl } from './path-safety'
@@ -22,8 +22,12 @@ export type GalleryImage = {
   size: number
   type: string
   collection: 'images' | 'covers' | 'memes'
+  memeGroup?: string
   updatedAt: string
 }
+
+export type MemeGroup = { id: string, name: string }
+const memeGroupsFilename = '.groups.json'
 
 export type PublicMemeImage = {
   name: string
@@ -52,6 +56,7 @@ export async function listGalleryImages(): Promise<GalleryImage[]> {
       size: fileStat.size,
       type,
       collection: resolveCollection(relativePath),
+      memeGroup: resolveMemeGroup(relativePath),
       updatedAt: fileStat.mtime.toISOString()
     })
   })
@@ -59,7 +64,55 @@ export async function listGalleryImages(): Promise<GalleryImage[]> {
   return sortByUpdatedAt(images)
 }
 
-export async function listPublicMemeImages(): Promise<PublicMemeImage[]> {
+export async function listMemeGroups(): Promise<MemeGroup[]> {
+  const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
+  const filepath = join(uploadRoot, 'memes', memeGroupsFilename)
+  const content = await readFile(filepath, 'utf8').catch(() => '[]')
+  try {
+    const value = JSON.parse(content)
+    return Array.isArray(value) ? value.filter(group => typeof group?.id === 'string' && typeof group?.name === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export async function createMemeGroup(name: string): Promise<MemeGroup> {
+  const normalizedName = name.trim()
+  if (!normalizedName || normalizedName.length > 30) throw badRequest('分组名称需为 1 到 30 个字符')
+  const groups = await listMemeGroups()
+  if (groups.some(group => group.name.toLowerCase() === normalizedName.toLowerCase())) throw badRequest('该表情包分组已存在')
+  const base = normalizedName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'group'
+  let id = base.slice(0, 48)
+  let suffix = 2
+  while (groups.some(group => group.id === id)) id = `${base.slice(0, 44)}-${suffix++}`
+  const group = { id, name: normalizedName }
+  await saveMemeGroups([...groups, group])
+  return group
+}
+
+export async function requireMemeGroup(id: string) {
+  const group = (await listMemeGroups()).find(item => item.id === id)
+  if (!group) throw badRequest('表情包分组不存在')
+  return group
+}
+
+export async function deleteMemeGroup(id: string) {
+  const groups = await listMemeGroups()
+  const group = groups.find(item => item.id === id)
+  if (!group) throw notFound('表情包分组不存在')
+  const images = await listGalleryImages()
+  if (images.some(image => image.collection === 'memes' && image.memeGroup === id)) throw badRequest('请先删除该分组中的表情包')
+  await saveMemeGroups(groups.filter(item => item.id !== id))
+  return group
+}
+
+async function saveMemeGroups(groups: MemeGroup[]) {
+  const memeRoot = join(resolveUploadRoot(useRuntimeConfig().uploadDir), 'memes')
+  await mkdir(memeRoot, { recursive: true })
+  await writeFile(join(memeRoot, memeGroupsFilename), JSON.stringify(groups, null, 2), 'utf8')
+}
+
+export async function listPublicMemeImages(memeGroup?: string): Promise<PublicMemeImage[]> {
   const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
   const memeRoot = join(uploadRoot, 'memes')
   const images: PublicMemeImage[] = []
@@ -72,6 +125,10 @@ export async function listPublicMemeImages(): Promise<PublicMemeImage[]> {
 
     const relativePath = toUploadRelativePath(uploadRoot, filepath)
     if (!relativePath) return
+    if (memeGroup) {
+      const resolvedGroup = resolveMemeGroup(relativePath)
+      if (memeGroup === 'ungrouped' ? resolvedGroup : resolvedGroup !== memeGroup) return
+    }
 
     images.push({
       name,
@@ -129,6 +186,12 @@ function resolveCollection(relativePath: string): GalleryImage['collection'] {
   if (relativePath === 'memes' || relativePath.startsWith('memes/')) return 'memes'
   if (relativePath === 'covers' || relativePath.startsWith('covers/')) return 'covers'
   return 'images'
+}
+
+function resolveMemeGroup(relativePath: string) {
+  const match = relativePath.match(/^memes\/([^/]+)\//)
+  if (!match || /^\d{4}$/.test(match[1]!)) return undefined
+  return match[1]
 }
 
 function sortByUpdatedAt<T extends { updatedAt: string }>(items: T[]) {

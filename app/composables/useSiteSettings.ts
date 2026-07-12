@@ -14,6 +14,7 @@ export type SiteSettings = {
   sidebar_modules: string
   site_logo: string
   site_favicon: string
+  hero_meme_group: string
   seo_noindex: string
   seo_keywords: string
   seo_description: string
@@ -35,6 +36,7 @@ const defaults: SiteSettings = {
   sidebar_modules: '[{"key":"author","visible":true},{"key":"featured","visible":true},{"key":"categories","visible":true},{"key":"tags","visible":true}]',
   site_logo: '',
   site_favicon: '',
+  hero_meme_group: '',
   seo_noindex: 'false',
   seo_keywords: '',
   seo_description: '',
@@ -64,6 +66,7 @@ export function useSiteSettings() {
         sidebar_modules: val.data.sidebar_modules || defaults.sidebar_modules,
         site_logo: val.data.site_logo || defaults.site_logo,
         site_favicon: val.data.site_favicon || defaults.site_favicon,
+        hero_meme_group: val.data.hero_meme_group || defaults.hero_meme_group,
         seo_noindex: val.data.seo_noindex || defaults.seo_noindex,
         seo_keywords: val.data.seo_keywords || defaults.seo_keywords,
         seo_description: val.data.seo_description || defaults.seo_description,
