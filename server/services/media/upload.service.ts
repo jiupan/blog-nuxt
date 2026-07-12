@@ -6,21 +6,24 @@ import { badRequest } from '~~/server/utils/api-error'
 import { resolveUploadRoot, toUploadUrl } from './path-safety'
 
 const maxUploadSize = 50 * 1024 * 1024
+const maxAvatarVideoSize = 5 * 1024 * 1024
 const maxInputPixels = 40_000_000
 const allowedFormats = new Set(['jpeg', 'png', 'webp'])
 const memeFormats = new Set(['jpeg', 'png', 'webp', 'gif'])
 const unsafeSvgPattern = /<\s*(?:script|foreignobject|iframe|object|embed|link|style)\b|(?:\s|<)on[a-z]+\s*=|javascript:/i
 
-export type UploadPurpose = 'image' | 'cover' | 'favicon' | 'meme'
+export type UploadPurpose = 'image' | 'cover' | 'favicon' | 'meme' | 'avatar'
 
 export type UploadedImage = {
   url: string
+  mediaType?: 'image' | 'video'
 }
 
 export function parseUploadPurpose(value: unknown): UploadPurpose {
   if (value === 'favicon') return 'favicon'
   if (value === 'meme') return 'meme'
   if (value === 'cover') return 'cover'
+  if (value === 'avatar') return 'avatar'
   return 'image'
 }
 
@@ -40,17 +43,22 @@ export async function uploadImage(input: Buffer, purpose: UploadPurpose, memeGro
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const isMeme = purpose === 'meme'
   const isCover = purpose === 'cover'
-  const output = await optimizeImage(input, purpose)
+  const avatarVideo = purpose === 'avatar' ? detectAvatarVideo(input) : null
+  if (avatarVideo && input.byteLength > maxAvatarVideoSize) {
+    throw badRequest('头像视频不能超过 5MB')
+  }
+  const output = avatarVideo ? { data: input, extension: avatarVideo.extension } : await optimizeImage(input, purpose)
   const filename = `${randomUUID()}${output.extension}`
   const groupDir = isMeme && memeGroup ? `${validateMemeGroupId(memeGroup)}/` : ''
-  const relativeDir = isMeme ? `memes/${groupDir}${year}/${month}` : isCover ? `covers/${year}/${month}` : `${year}/${month}`
+  const relativeDir = isMeme ? `memes/${groupDir}${year}/${month}` : isCover ? `covers/${year}/${month}` : purpose === 'avatar' ? `avatars/${year}/${month}` : `${year}/${month}`
   const relativePath = `${relativeDir}/${filename}`
 
   await mkdir(join(uploadRoot, relativeDir), { recursive: true })
   await writeFile(join(uploadRoot, relativePath), output.data)
 
   return {
-    url: toUploadUrl(relativePath)
+    url: toUploadUrl(relativePath),
+    mediaType: avatarVideo ? 'video' : 'image'
   }
 }
 
@@ -80,7 +88,7 @@ async function optimizeImage(input: Buffer, purpose: UploadPurpose) {
   const allowed = purpose === 'meme' ? memeFormats : allowedFormats
 
   if (!format || !allowed.has(format) || !metadata?.width || !metadata.height) {
-    throw badRequest(purpose === 'meme' ? '表情包只支持 jpg/png/webp/gif 图片' : purpose === 'favicon' ? 'Favicon 只支持 jpg/png/webp/svg 图片' : '只支持 jpg/png/webp 图片')
+    throw badRequest(purpose === 'meme' ? '表情包只支持 jpg/png/webp/gif 图片' : purpose === 'favicon' ? 'Favicon 只支持 jpg/png/webp/svg 图片' : purpose === 'avatar' ? '作者头像只支持 jpg/png/webp/mp4/webm' : '只支持 jpg/png/webp 图片')
   }
 
   if (purpose === 'meme' && format === 'gif') {
@@ -118,6 +126,20 @@ async function optimizeImage(input: Buffer, purpose: UploadPurpose) {
   } catch {
     throw badRequest('图片处理失败，请换一张图片重试')
   }
+}
+
+function detectAvatarVideo(input: Buffer) {
+  if (input.length >= 12 && input.subarray(4, 8).toString('ascii') === 'ftyp') {
+    const brands = input.subarray(8, Math.min(input.length, 40)).toString('ascii')
+    if (/(?:isom|iso[2-9]|mp4[12]|avc1|M4V |MSNV|dash)/.test(brands)) {
+      return { extension: '.mp4' as const }
+    }
+  }
+  if (input.length >= 4 && input[0] === 0x1a && input[1] === 0x45 && input[2] === 0xdf && input[3] === 0xa3) {
+    const header = input.subarray(0, Math.min(input.length, 4096)).toString('latin1').toLowerCase()
+    if (header.includes('webm')) return { extension: '.webm' as const }
+  }
+  return null
 }
 
 function isSvg(input: Buffer) {

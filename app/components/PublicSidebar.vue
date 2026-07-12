@@ -4,7 +4,8 @@
       <span class="author-glow" aria-hidden="true" />
       <div class="author-content">
         <div class="author-avatar">
-          <img v-if="authorAvatar" :src="authorAvatar" :alt="authorName">
+          <video v-if="authorAvatarIsVideo" :src="authorAvatar" autoplay muted loop playsinline preload="metadata" :aria-label="`${authorName} 的头像视频`" />
+          <img v-else-if="authorAvatar" :src="authorAvatar" :alt="authorName">
           <span v-else>{{ initial }}</span>
           <i aria-hidden="true" />
         </div>
@@ -142,6 +143,7 @@ const siteSettings = useSiteSettings()
 const slots = useSlots()
 const authorName = computed(() => siteSettings.value.sidebar_author_name.trim() || props.siteName)
 const authorAvatar = computed(() => siteSettings.value.sidebar_author_avatar || props.avatar)
+const authorAvatarIsVideo = computed(() => /\.(?:mp4|webm)(?:$|[?#])/i.test(authorAvatar.value))
 const authorDescription = computed(() => siteSettings.value.sidebar_author_description || props.description)
 const authorSignature = computed(() => siteSettings.value.sidebar_author_signature.trim() || authorName.value)
 const initial = computed(() => authorName.value.slice(0, 1).toUpperCase())
@@ -267,7 +269,8 @@ function coverWord(post: SidebarPost) {
   animation: author-pulse 3s infinite;
 }
 
-.author-avatar img {
+.author-avatar img,
+.author-avatar video {
   width: 100%;
   height: 100%;
   border: 4px solid var(--theme-surface);

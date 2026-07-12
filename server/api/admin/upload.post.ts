@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const file = files?.find((item) => item.name === 'file')
 
   if (!file?.data) {
-    throw badRequest('请选择要上传的图片')
+    throw badRequest('请选择要上传的文件')
   }
 
   const query = getQuery(event)
