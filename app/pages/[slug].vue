@@ -100,7 +100,7 @@
             <NuxtLink v-for="item in continueItems" :key="item.post.slug" :to="postPath(item.post.slug)" class="continue-item">
               <span v-if="item.type" class="continue-type">{{ relationTypeLabel(item.type) }}</span>
               <strong>{{ item.post.title }}</strong>
-              <p>{{ item.reason || item.post.summary || '这篇文章也许值得继续阅读。' }}</p>
+              <p>{{ truncateText(item.reason || item.post.summary || '这篇文章也许值得继续阅读。', 100) }}</p>
             </NuxtLink>
           </div>
         </section>
@@ -259,6 +259,13 @@ const continueItems = computed(() => {
 const coverWord = computed(() => {
   return post.value.category?.name || post.value.title.slice(0, 4)
 })
+
+function truncateText(value: string, maxLength: number) {
+  const characters = Array.from(value.trim())
+  return characters.length > maxLength
+    ? `${characters.slice(0, maxLength).join('')}…`
+    : characters.join('')
+}
 
 const heroGradients = [
   'linear-gradient(135deg, #5c2348, #8b2f6a)',

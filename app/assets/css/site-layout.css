@@ -730,6 +730,10 @@ body.site-search-lock {
     color: var(--theme-text);
   }
 
+  .tool-nav .random-post-button {
+    display: none;
+  }
+
   .site-header.is-scrolled .tool-nav {
     background: transparent;
     box-shadow: none;
@@ -1327,13 +1331,14 @@ body.site-search-lock {
   .footer-action {
     width: 36px;
     height: 36px;
-    background: var(--theme-text);
+    background: #3d3f45;
     box-shadow: 0 10px 22px rgb(34 38 46 / 10%);
+    color: #fff;
   }
 
   .footer-action:hover,
   .footer-action:focus-visible {
-    background: var(--theme-text);
+    background: #3d3f45;
     box-shadow: 0 10px 22px rgb(34 38 46 / 10%);
     transform: none;
   }

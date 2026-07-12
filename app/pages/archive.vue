@@ -241,7 +241,7 @@ function coverWord(post: ArchivePost) {
 .archive-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 36px;
+  gap: 20px;
   align-items: start;
 }
 
@@ -330,13 +330,18 @@ function coverWord(post: ArchivePost) {
 
 .archive-list {
   display: grid;
+  min-width: 0;
   gap: 14px;
 }
 
 .archive-item {
   display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   gap: 22px;
   align-items: center;
+  overflow: hidden;
   padding: 12px;
   border: 1px solid color-mix(in srgb, var(--theme-border) 68%, transparent);
   border-radius: 24px;
@@ -385,12 +390,15 @@ function coverWord(post: ArchivePost) {
 .cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
 
 .archive-copy h2 {
+  overflow: hidden;
   margin: 0;
   color: var(--theme-text);
   font-size: 20px;
   font-weight: 850;
   line-height: 1.4;
+  text-overflow: ellipsis;
   transition: color 180ms ease;
+  white-space: nowrap;
 }
 
 .archive-item:hover .archive-copy h2 { color: var(--theme-accent); }
@@ -686,6 +694,7 @@ function coverWord(post: ArchivePost) {
     overflow: hidden;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    white-space: normal;
   }
 }
 </style>

@@ -39,7 +39,7 @@
 
       <div class="header-actions">
         <nav class="tool-nav" aria-label="快捷入口">
-          <button type="button" class="tool-button" aria-label="随机前往一个文章" data-tooltip="随机前往一个文章" @click="navigateToRandomPost">
+          <button type="button" class="tool-button random-post-button" aria-label="随机前往一个文章" data-tooltip="随机前往一个文章" @click="navigateToRandomPost">
             <LibraryIcon aria-hidden="true" />
           </button>
           <button type="button" class="tool-button" aria-label="归档" data-tooltip="归档" @click="navigateTo('/archive')">
