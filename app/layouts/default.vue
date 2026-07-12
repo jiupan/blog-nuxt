@@ -69,6 +69,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.default-layout {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .default-layout.is-viewport-fit {
   display: flex;
   min-height: 100vh;

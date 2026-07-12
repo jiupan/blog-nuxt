@@ -1139,6 +1139,8 @@ function formatDate(value?: string | Date | null) {
     padding: 0 12px 2px;
     scroll-padding-inline: 12px;
     scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
     scrollbar-width: none;
   }
 
@@ -1149,8 +1151,8 @@ function formatDate(value?: string | Date | null) {
   .mobile-hero-slide {
     position: relative;
     display: block;
-    width: calc(100vw - 56px);
-    min-width: calc(100vw - 56px);
+    width: calc(100% - 56px);
+    min-width: calc(100% - 56px);
     height: 188px;
     overflow: hidden;
     border-radius: 14px;

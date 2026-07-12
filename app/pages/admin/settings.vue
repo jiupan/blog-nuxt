@@ -50,16 +50,10 @@
         </div>
 
         <div class="settings-row">
-          <label class="settings-label">侧边栏描述</label>
-          <UInput v-model="form.sidebar_description" icon="i-lucide-panel-right" placeholder="首页侧边栏简介" class="settings-control" />
-          <p class="text-xs text-slate-400">显示在首页侧边栏头像卡片下方</p>
-        </div>
-
-        <div class="settings-row">
           <label class="settings-label">Logo URL</label>
           <div class="settings-upload">
             <UInput v-model="form.site_logo" icon="i-lucide-image" placeholder="https://example.com/logo.png" class="flex-1" />
-            <input ref="logoInputRef" type="file" accept="image/*" class="hidden" @change="uploadFile($event, 'site_logo')" />
+            <input ref="logoInputRef" type="file" accept="image/*" class="hidden" @change="uploadFile($event, 'site_logo')" >
             <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploading === 'site_logo'" @click="logoInputRef?.click()">上传</UButton>
             <span v-if="logoUploaded" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><UIcon name="i-lucide-check" class="size-4" />已上传</span>
             <span v-if="logoUploadError" class="inline-flex items-center gap-1 text-sm font-medium text-red-500"><UIcon name="i-lucide-alert-circle" class="size-4" />上传失败</span>
@@ -71,7 +65,7 @@
           <label class="settings-label">Favicon URL</label>
           <div class="settings-upload">
             <UInput v-model="form.site_favicon" icon="i-lucide-globe" placeholder="https://example.com/favicon.ico" class="flex-1" />
-            <input ref="faviconInputRef" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" class="hidden" @change="uploadFile($event, 'site_favicon')" />
+            <input ref="faviconInputRef" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" class="hidden" @change="uploadFile($event, 'site_favicon')" >
             <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploading === 'site_favicon'" @click="faviconInputRef?.click()">上传</UButton>
             <span v-if="faviconUploaded" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><UIcon name="i-lucide-check" class="size-4" />已上传</span>
             <span v-if="faviconUploadError" class="inline-flex items-center gap-1 text-sm font-medium text-red-500"><UIcon name="i-lucide-alert-circle" class="size-4" />上传失败</span>
@@ -87,7 +81,7 @@
               type="checkbox"
               :checked="form.seo_noindex === 'true'"
               @change="toggleNoindex"
-            />
+            >
             <span>屏蔽搜索引擎</span>
           </label>
           <p class="text-sm text-slate-500">为所有页面添加 robots noindex 标签，阻止搜索引擎索引。</p>
@@ -217,7 +211,7 @@
                   type="checkbox"
                   :checked="form.ai_rerank_enabled === 'true'"
                   @change="toggleRerank"
-                />
+                >
                 <span>启用 Rerank</span>
               </label>
               <p class="text-sm text-slate-500">默认关闭；未配置 API Key 或模型时会自动跳过精排。</p>
@@ -379,7 +373,6 @@ type SettingsForm = {
   site_title: string
   site_subtitle: string
   site_brand: string
-  sidebar_description: string
   site_logo: string
   site_favicon: string
   seo_noindex: string
@@ -428,7 +421,6 @@ const defaultValue = (key: string) => {
     site_title: 'Jiupan Blog',
     site_subtitle: '个人博客',
     site_brand: 'DYU',
-    sidebar_description: '个人博客',
     site_logo: '',
     site_favicon: '',
     seo_noindex: 'false',
@@ -461,7 +453,7 @@ const settingTabs = [
 ] as const
 
 const siteSettingKeys = [
-  'site_title', 'site_subtitle', 'site_brand', 'sidebar_description', 'site_logo', 'site_favicon',
+  'site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon',
   'seo_noindex', 'seo_keywords', 'seo_description', 'footer_copyright', 'footer_bottom_links', 'footer_actions'
 ] as const satisfies readonly (keyof SettingsForm)[]
 
@@ -559,7 +551,6 @@ watch(data, (val) => {
       site_title: val.data.site_title || defaultValue('site_title'),
       site_subtitle: val.data.site_subtitle || defaultValue('site_subtitle'),
       site_brand: val.data.site_brand || defaultValue('site_brand'),
-      sidebar_description: val.data.sidebar_description || defaultValue('sidebar_description'),
       site_logo: val.data.site_logo || defaultValue('site_logo'),
       site_favicon: val.data.site_favicon || defaultValue('site_favicon'),
       seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),

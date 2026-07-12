@@ -3,56 +3,75 @@
     <section class="archive-shell">
       <div class="archive-layout">
         <main class="archive-main">
-          <header class="archive-heading">
-            <h1>文字档案</h1>
-            <p>记录思考的轨迹，分享代码与生活的温度。</p>
-          </header>
-
-          <nav class="archive-tabs" aria-label="文章筛选">
-            <button
-              v-for="tab in tabs"
-              :key="tab.key"
-              type="button"
-              :class="{ 'is-active': activeTab === tab.key }"
-              @click="activeTab = tab.key"
-            >
-              {{ tab.label }}
-            </button>
-          </nav>
+          <section class="archive-filters" aria-label="文章筛选">
+            <div class="filter-row category-filters">
+              <button
+                v-for="filter in categoryFilters"
+                :key="filter.key"
+                type="button"
+                :class="{ 'is-active': activeCategory === filter.key }"
+                @click="activeCategory = filter.key"
+              >
+                <UIcon :name="filter.icon" class="filter-icon" aria-hidden="true" />
+                {{ filter.label }}
+              </button>
+            </div>
+            <div class="filter-row year-filters">
+              <button
+                v-for="year in yearFilters"
+                :key="year"
+                type="button"
+                :class="{ 'is-active': activeYear === year }"
+                @click="activeYear = year"
+              >
+                {{ year === 'all' ? '全部' : year }}
+              </button>
+            </div>
+          </section>
 
           <div class="archive-list">
             <NuxtLink v-for="post in pagedPosts" :key="post.id" :to="postPath(post.slug)" class="archive-item">
-              <div class="archive-date-col">
-                <time>{{ formatArchiveDate(post.publishedAt) }}</time>
-                <span class="archive-thumb" :class="!post.cover && coverFallbackClass(post.id)">
-                  <img v-if="post.cover" :src="post.cover" :alt="post.title">
-                  <span v-else>{{ coverWord(post) }}</span>
-                </span>
-              </div>
+              <span class="archive-thumb" :class="!post.cover && coverFallbackClass(post.id)">
+                <img v-if="post.cover" :src="post.cover" :alt="post.title">
+                <span v-else>{{ coverWord(post) }}</span>
+              </span>
               <div class="archive-copy">
                 <h2>{{ post.title }}</h2>
-                <p>{{ post.summary || '这篇文章暂时没有摘要，点击阅读全文。' }}</p>
+                <p><strong>{{ post.category?.name || '未分类' }}</strong><span>/</span>{{ post.summary || '这篇文章暂时没有摘要，点击阅读全文。' }}</p>
                 <div class="archive-meta">
-                  <span class="meta-left">
-                    <span>{{ post.category?.name || '未分类' }}</span>
-                    <span class="read-time">
-                      <BookOpenIcon aria-hidden="true" />
-                      {{ readMinutes(post) }} min read
-                    </span>
+                  <span>
+                    <CalendarIcon aria-hidden="true" />
+                    {{ formatArchiveDate(post.publishedAt) }}
                   </span>
-                  <span class="read-more">
-                    阅读全文
-                    <ArrowRightIcon aria-hidden="true" />
+                  <span>
+                    <EyeIcon aria-hidden="true" />
+                    {{ formatViews(post.viewCount) }}
                   </span>
                 </div>
               </div>
+              <span class="archive-arrow" aria-hidden="true">
+                <ChevronRightIcon />
+              </span>
             </NuxtLink>
           </div>
 
           <div v-if="totalPages > 1" class="pager">
-            <button :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">← 上一页</button>
-            <span>{{ currentPage }} / {{ totalPages }}</span>
-            <button :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">下一页 →</button>
+            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">
+              <ChevronLeftIcon aria-hidden="true" />
+            </button>
+            <template v-for="item in visiblePageItems" :key="item.key">
+              <span v-if="item.page === null" class="page-ellipsis" aria-hidden="true">…</span>
+              <button
+                v-else
+                class="page-dot"
+                :class="{ 'is-active': item.page === currentPage }"
+                :aria-current="item.page === currentPage ? 'page' : undefined"
+                @click="goToPage(item.page)"
+              >{{ item.page }}</button>
+            </template>
+            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">
+              <ChevronRightIcon aria-hidden="true" />
+            </button>
           </div>
 
           <div v-if="!filteredPosts.length" class="archive-empty">
@@ -76,8 +95,10 @@
 
 <script setup lang="ts">
 import {
-  ArrowRight as ArrowRightIcon,
-  BookOpen as BookOpenIcon
+  Calendar as CalendarIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Eye as EyeIcon
 } from '@lucide/vue'
 
 type ArchivePost = {
@@ -94,10 +115,17 @@ type ArchivePost = {
   } | null
 }
 
+type ArchiveCategory = {
+  name: string
+  slug: string
+  icon?: string | null
+}
+
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
-const activeTab = ref('all')
-const pageSize = 6
+const activeCategory = ref('all')
+const activeYear = ref<string | number>('all')
+const pageSize = 10
 const currentPage = ref(1)
 
 const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
@@ -107,39 +135,51 @@ const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all(
 ])
 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
-const siteInitial = computed(() => siteName.value.slice(0, 1).toUpperCase())
 const posts = computed(() => data.value?.data.items || [])
-const categories = computed(() => categoryData.value?.data || [])
+const categories = computed<ArchiveCategory[]>(() => (categoryData.value?.data || []) as ArchiveCategory[])
 const tags = computed(() => tagData.value?.data || [])
 
-const tabs = computed(() => [
-  { key: 'all', label: '全部文章' },
-  { key: 'featured', label: '精选' },
-  { key: 'hot', label: '热门' },
-  ...categories.value.slice(0, 6).map((category: any) => ({
+const categoryFilters = computed(() => [
+  { key: 'all', label: '全部内容', icon: 'i-lucide-layout-list' },
+  ...categories.value.slice(0, 6).map(category => ({
     key: `category:${category.slug}`,
-    label: category.name
+    label: category.name,
+    icon: category.icon || 'i-lucide-folder'
   }))
 ])
 
-const tabFilteredPosts = computed(() => {
-  if (activeTab.value.startsWith('category:')) {
-    const slug = activeTab.value.replace('category:', '')
-    return posts.value.filter((post) => post.category?.slug === slug)
-  }
-
-  if (activeTab.value === 'hot') {
-    return [...posts.value].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
-  }
-
-  return posts.value
-})
+const yearFilters = computed(() => [
+  'all',
+  ...[...new Set(posts.value
+    .map(post => post.publishedAt ? new Date(post.publishedAt).getFullYear() : null)
+    .filter((year): year is number => year !== null && !Number.isNaN(year)))]
+    .sort((a, b) => b - a)
+])
 
 const filteredPosts = computed(() => {
-  return tabFilteredPosts.value
+  return posts.value.filter((post) => {
+    const categoryMatches = activeCategory.value === 'all'
+      || post.category?.slug === activeCategory.value.replace('category:', '')
+    const postYear = post.publishedAt ? new Date(post.publishedAt).getFullYear() : null
+    const yearMatches = activeYear.value === 'all' || postYear === activeYear.value
+    return categoryMatches && yearMatches
+  })
 })
 
 const totalPages = computed(() => Math.ceil(filteredPosts.value.length / pageSize))
+const visiblePageItems = computed(() => {
+  const total = totalPages.value
+  if (total <= 5) return Array.from({ length: total }, (_, index) => ({ key: `page-${index + 1}`, page: index + 1 }))
+  const pages = new Set([1, total, currentPage.value - 1, currentPage.value, currentPage.value + 1])
+  const sorted = [...pages].filter(page => page >= 1 && page <= total).sort((a, b) => a - b)
+  const items: Array<{ key: string, page: number | null }> = []
+  sorted.forEach((page, index) => {
+    const previous = sorted[index - 1]
+    if (previous !== undefined && page - previous > 1) items.push({ key: `ellipsis-${previous}-${page}`, page: null })
+    items.push({ key: `page-${page}`, page })
+  })
+  return items
+})
 const pagedPosts = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   return filteredPosts.value.slice(start, start + pageSize)
@@ -150,7 +190,7 @@ function goToPage(p: number) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-watch(activeTab, () => {
+watch([activeCategory, activeYear], () => {
   currentPage.value = 1
 })
 
@@ -174,12 +214,12 @@ function formatArchiveDate(value?: string | Date | null) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
-  return `${year}.${month}.${day}`
+  return `${year}年${month}月${day}日`
 }
 
-function readMinutes(post: ArchivePost) {
-  const base = post.summary?.length || post.title.length
-  return Math.max(3, Math.ceil(base / 18))
+function formatViews(value?: number) {
+  const views = value || 0
+  return views >= 1000 ? `${(views / 1000).toFixed(1).replace('.0', '')}k` : String(views)
 }
 
 const coverFallbackClasses = ['cover-pink', 'cover-blue', 'cover-green', 'cover-orange', 'cover-gray', 'cover-coral']
@@ -202,7 +242,7 @@ function coverWord(post: ArchivePost) {
 .archive-shell {
   width: min(100% - 32px, 1290px);
   margin: 0 auto;
-  padding: 56px 0 88px;
+  padding: 20px 0 88px;
 }
 
 .archive-layout {
@@ -225,147 +265,112 @@ function coverWord(post: ArchivePost) {
   padding-right: 8px;
 }
 
-.archive-heading {
-  margin-bottom: 52px;
+.archive-filters {
+  margin-bottom: 24px;
+  border: 1px solid color-mix(in srgb, var(--theme-border) 72%, transparent);
+  border-radius: 24px;
+  background: var(--theme-surface);
+  padding: 18px 20px;
+  box-shadow: 0 5px 24px rgb(var(--theme-shadow) / 5%);
 }
 
-.archive-heading h1 {
-  margin: 0;
-  color: var(--theme-text);
-  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
-  font-size: clamp(42px, 7vw, 56px);
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1.1;
-}
-
-.archive-heading p {
-  margin: 16px 0 0;
-  color: var(--theme-text-muted);
-  font-size: 17px;
-  line-height: 1.75;
-}
-
-.archive-tabs {
+.filter-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0 34px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--theme-border);
-  padding-bottom: 0;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.archive-tabs button {
-  position: relative;
+.filter-row::-webkit-scrollbar { display: none; }
+
+.filter-row button {
   flex: 0 0 auto;
   border: 0;
-  background: transparent;
-  padding: 0 0 18px;
-  color: var(--theme-text-faint);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 750;
-  cursor: pointer;
-  transition: color 160ms ease;
-}
-
-.archive-tabs button::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
   border-radius: 999px;
   background: transparent;
-  content: "";
+  color: var(--theme-text-muted);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
-.archive-tabs button:hover,
-.archive-tabs button.is-active {
-  color: var(--theme-text);
+.category-filters {
+  padding-bottom: 15px;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 68%, transparent);
 }
 
-.archive-tabs button.is-active::after {
+.category-filters button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  font-size: 14px;
+}
+
+.filter-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.category-filters button:hover { background: var(--theme-surface-hover); }
+
+.category-filters button.is-active {
+  background: var(--theme-accent);
+  color: white;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--theme-accent) 32%, transparent);
+}
+
+.year-filters { padding-top: 15px; }
+
+.year-filters button {
+  padding: 6px 13px;
+  font-size: 12px;
+}
+
+.year-filters button:hover { background: var(--theme-surface-hover); }
+
+.year-filters button.is-active {
   background: var(--theme-text);
+  color: var(--theme-surface);
 }
 
 .archive-list {
   display: grid;
-  gap: 0;
+  gap: 14px;
 }
 
 .archive-item {
-  display: grid;
-  position: relative;
-  grid-template-columns: 128px minmax(0, 1fr);
-  gap: 36px;
-  align-items: start;
-  padding: 30px 30px 34px;
-  border: 1px solid transparent;
-  border-radius: 28px;
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--theme-border) 68%, transparent);
+  border-radius: 24px;
+  background: var(--theme-surface);
+  box-shadow: 0 4px 20px rgb(var(--theme-shadow) / 4%);
   transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
-}
-
-.archive-item::after {
-  position: absolute;
-  right: 30px;
-  bottom: -1px;
-  left: 158px;
-  height: 1px;
-  background: color-mix(in srgb, var(--theme-border) 75%, transparent);
-  content: "";
-  pointer-events: none;
-}
-
-.archive-item:last-child::after {
-  display: none;
 }
 
 .archive-item:hover {
   border-color: color-mix(in srgb, var(--theme-accent) 34%, var(--theme-border));
-  background: color-mix(in srgb, var(--theme-surface-raised) 94%, transparent);
-  box-shadow: 0 22px 44px rgb(var(--theme-shadow) / 16%);
-  transform: translateY(-3px);
-}
-
-.archive-item:hover::after {
-  opacity: 0;
-}
-
-.archive-date-col {
-  display: grid;
-  gap: 16px;
-  align-content: start;
-  min-width: 0;
-}
-
-.archive-date-col time {
-  padding-top: 7px;
-  color: var(--theme-text-faint);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  transition: color 180ms ease;
-}
-
-.archive-item:hover .archive-date-col time {
-  color: var(--theme-text-muted);
+  box-shadow: 0 15px 34px rgb(var(--theme-shadow) / 13%);
+  transform: translateY(-4px) scale(1.005);
 }
 
 .archive-thumb {
   display: grid;
-  width: 128px;
-  aspect-ratio: 16 / 9;
+  flex: 0 0 160px;
+  width: 160px;
+  height: 120px;
   place-items: center;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 16px;
   background: var(--theme-text);
   color: rgba(255, 255, 255, 0.72);
-  font-size: 18px;
+  font-size: 23px;
   font-weight: 900;
-  letter-spacing: 0;
-  box-shadow: 0 10px 24px rgba(38, 50, 56, 0.08);
+  box-shadow: 0 10px 24px rgb(var(--theme-shadow) / 8%);
 }
 
 .archive-thumb img {
@@ -389,140 +394,119 @@ function coverWord(post: ArchivePost) {
 .archive-copy h2 {
   margin: 0;
   color: var(--theme-text);
-  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
-  font-size: clamp(24px, 3vw, 30px);
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1.45;
+  font-size: 20px;
+  font-weight: 850;
+  line-height: 1.4;
   transition: color 180ms ease;
 }
+
+.archive-item:hover .archive-copy h2 { color: var(--theme-accent); }
 
 .archive-copy p {
-  display: -webkit-box;
   overflow: hidden;
-  margin: 16px 0 0;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  margin: 10px 0 0;
   color: var(--theme-text-muted);
-  font-size: 15px;
-  line-height: 1.9;
-  transition: color 180ms ease;
+  font-size: 14px;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.archive-item:hover .archive-copy p {
-  color: var(--theme-text-soft);
-}
+.archive-copy p strong { color: var(--theme-text-soft); }
+.archive-copy p span { margin: 0 7px; color: var(--theme-text-faint); }
 
 .archive-meta {
   display: flex;
-  position: relative;
-  justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
   align-items: center;
-  margin-top: 20px;
+  margin-top: 12px;
   color: var(--theme-text-faint);
   font-size: 12px;
   font-weight: 750;
 }
 
-.meta-left {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-  padding-right: 112px;
-}
-
-.meta-left > span:first-child {
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--theme-surface-muted) 90%, transparent);
-  padding: 6px 10px;
-  transition: background-color 180ms ease, color 180ms ease;
-}
-
-.archive-item:hover .meta-left > span:first-child {
-  background: var(--theme-success-soft);
-  color: var(--theme-success);
-}
-
-.read-time {
+.archive-meta span {
   display: inline-flex;
+  gap: 5px;
   align-items: center;
-  gap: 6px;
 }
 
-.read-time svg {
+.archive-meta svg {
   width: 14px;
   height: 14px;
 }
 
-.read-more {
-  position: absolute;
-  right: 0;
-  display: inline-flex;
+.archive-copy { flex: 1 1 auto; min-width: 0; }
+
+.archive-arrow {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
   align-items: center;
-  gap: 6px;
-  color: var(--theme-text-muted);
-  font-size: 13px;
-  font-weight: 850;
-  opacity: 0;
-  transform: translateX(-12px);
-  transition: opacity 220ms ease, transform 220ms ease, color 160ms ease;
+  justify-content: center;
+  margin-right: 4px;
+  border-radius: 999px;
+  background: var(--theme-surface-muted);
+  color: var(--theme-text-faint);
+  transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
 }
 
-.read-more svg {
-  width: 16px;
-  height: 16px;
-}
+.archive-arrow svg { width: 20px; height: 20px; }
 
-.archive-item:hover .read-more {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.read-more:hover {
-  color: var(--theme-text);
+.archive-item:hover .archive-arrow {
+  background: color-mix(in srgb, var(--theme-accent) 12%, var(--theme-surface));
+  color: var(--theme-accent);
+  transform: translateX(3px);
 }
 
 .pager {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  gap: 18px;
-  margin-top: 62px;
-  border-top: 1px solid var(--theme-border);
-  padding-top: 28px;
-  color: var(--theme-text-faint);
-  font-size: 14px;
-  font-weight: 750;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0 0;
 }
 
-.pager button {
-  border: 0;
-  background: transparent;
-  color: var(--theme-text-muted);
-  font: inherit;
+.page-dot {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--theme-border-soft);
+  border-radius: 999px;
+  background: var(--theme-surface);
+  color: var(--theme-text-soft);
+  font-weight: 800;
   cursor: pointer;
-  transition: color 160ms ease, transform 160ms ease;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.pager button:first-child {
-  justify-self: start;
+.page-dot svg { width: 16px; height: 16px; }
+
+.page-dot:hover:not(:disabled):not(.is-active) {
+  border-color: #4964f4;
 }
 
-.pager button:last-child {
-  justify-self: end;
-}
-
-.pager button:hover:not(:disabled) {
-  color: var(--theme-text);
-  transform: translateY(-1px);
-}
-
-.pager button:disabled {
-  opacity: 0.42;
+.page-dot:disabled {
+  opacity: 0.4;
   cursor: default;
+}
+
+.page-dot.is-active {
+  background: #4964f4;
+  color: white;
+}
+
+.page-ellipsis {
+  display: grid;
+  width: 22px;
+  height: 38px;
+  place-items: center;
+  color: #9097a5;
+  font-size: 15px;
+  font-weight: 800;
+  user-select: none;
 }
 
 .archive-empty {
@@ -666,61 +650,49 @@ function coverWord(post: ArchivePost) {
 @media (max-width: 640px) {
   .archive-shell {
     width: min(100% - 20px, 1290px);
-    padding-top: 42px;
+    padding-top: 20px;
   }
 
-  .archive-heading {
-    margin-bottom: 36px;
-  }
+  .archive-main { padding-right: 0; }
 
-  .archive-tabs {
-    gap: 0 22px;
-    margin-bottom: 20px;
-  }
+  .archive-filters { border-radius: 20px; padding: 14px; }
 
   .archive-item {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 22px 18px 26px;
-    border-radius: 18px;
-  }
-
-  .archive-item::after {
-    right: 18px;
-    left: 18px;
-  }
-
-  .archive-date-col {
-    grid-template-columns: auto minmax(96px, 128px);
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
     gap: 14px;
-  }
-
-  .archive-date-col time {
-    padding-top: 0;
+    border-radius: 18px;
+    padding: 9px;
   }
 
   .archive-thumb {
-    width: min(128px, 36vw);
+    width: 104px;
+    height: 88px;
+    border-radius: 13px;
+    font-size: 17px;
   }
 
-  .archive-meta {
-    gap: 10px;
-  }
+  .archive-copy h2 { font-size: 16px; }
+  .archive-copy p { margin-top: 6px; font-size: 12px; }
+  .archive-meta { gap: 10px; margin-top: 7px; font-size: 10px; }
+  .archive-meta svg { width: 12px; height: 12px; }
 
-  .meta-left {
-    padding-right: 0;
-  }
-
-  .read-more {
-    position: static;
-    opacity: 1;
-    transform: none;
-  }
+  .archive-arrow { display: none; }
 
   .pager {
-    margin-top: 42px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .archive-item { grid-template-columns: 86px minmax(0, 1fr); gap: 11px; }
+  .archive-thumb { width: 86px; height: 78px; }
+  .archive-copy p { display: none; }
+  .archive-copy h2 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 }
 </style>

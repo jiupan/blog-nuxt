@@ -300,9 +300,47 @@ function setupCollapsibleCodeBlocks() {
   if (!content) return
 
   for (const block of content.querySelectorAll<HTMLElement>('.md-editor-code')) {
-    if (block.dataset.collapseReady === 'true') continue
     const pre = block.querySelector<HTMLElement>('pre')
-    if (!pre || pre.scrollHeight <= 480) continue
+    const code = pre?.querySelector<HTMLElement>('code')
+    const actions = block.querySelector<HTMLElement>('.md-editor-code-action')
+
+    if (code && actions && block.dataset.copyReady !== 'true') {
+      block.dataset.copyReady = 'true'
+
+      const copyButton = document.createElement('button')
+      copyButton.type = 'button'
+      copyButton.className = 'code-copy-button'
+      copyButton.innerHTML = codeCopyIcon('copy')
+      copyButton.setAttribute('aria-label', '复制代码')
+      copyButton.title = '复制代码'
+      copyButton.addEventListener('click', async () => {
+        try {
+          await copyText(code.textContent || '')
+          copyButton.innerHTML = codeCopyIcon('check')
+          copyButton.setAttribute('aria-label', '已复制')
+          copyButton.title = '已复制'
+          copyButton.classList.add('is-copied')
+          window.setTimeout(() => {
+            copyButton.innerHTML = codeCopyIcon('copy')
+            copyButton.setAttribute('aria-label', '复制代码')
+            copyButton.title = '复制代码'
+            copyButton.classList.remove('is-copied')
+          }, 1600)
+        } catch {
+          copyButton.setAttribute('aria-label', '复制失败')
+          copyButton.title = '复制失败'
+          copyButton.classList.add('is-copy-error')
+          window.setTimeout(() => {
+            copyButton.setAttribute('aria-label', '复制代码')
+            copyButton.title = '复制代码'
+            copyButton.classList.remove('is-copy-error')
+          }, 1600)
+        }
+      })
+      actions.append(copyButton)
+    }
+
+    if (!pre || pre.scrollHeight <= 480 || block.dataset.collapseReady === 'true') continue
 
     block.dataset.collapseReady = 'true'
     block.classList.add('is-code-collapsed')
@@ -324,6 +362,30 @@ function setupCollapsibleCodeBlocks() {
     })
     block.append(toggle)
   }
+}
+
+function codeCopyIcon(icon: 'copy' | 'check') {
+  const path = icon === 'check'
+    ? '<path d="M20 6 9 17l-5-5" />'
+    : '<rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />'
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value)
+    return
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.append(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('Copy command failed')
 }
 
 watch(activeTocId, () => {

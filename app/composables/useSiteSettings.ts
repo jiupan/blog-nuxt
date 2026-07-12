@@ -6,6 +6,12 @@ export type SiteSettings = {
   site_subtitle: string
   site_brand: string
   sidebar_description: string
+  sidebar_author_name: string
+  sidebar_author_subtitle: string
+  sidebar_author_description: string
+  sidebar_author_avatar: string
+  sidebar_author_signature: string
+  sidebar_modules: string
   site_logo: string
   site_favicon: string
   seo_noindex: string
@@ -21,6 +27,12 @@ const defaults: SiteSettings = {
   site_subtitle: '个人博客',
   site_brand: 'DYU',
   sidebar_description: '个人博客',
+  sidebar_author_name: '',
+  sidebar_author_subtitle: '独立写作者',
+  sidebar_author_description: '',
+  sidebar_author_avatar: '',
+  sidebar_author_signature: '',
+  sidebar_modules: '[{"key":"author","visible":true},{"key":"featured","visible":true},{"key":"categories","visible":true},{"key":"tags","visible":true}]',
   site_logo: '',
   site_favicon: '',
   seo_noindex: 'false',
@@ -44,6 +56,12 @@ export function useSiteSettings() {
         site_subtitle: val.data.site_subtitle || defaults.site_subtitle,
         site_brand: val.data.site_brand || defaults.site_brand,
         sidebar_description: val.data.sidebar_description || defaults.sidebar_description,
+        sidebar_author_name: val.data.sidebar_author_name || defaults.sidebar_author_name,
+        sidebar_author_subtitle: val.data.sidebar_author_subtitle || defaults.sidebar_author_subtitle,
+        sidebar_author_description: val.data.sidebar_author_description || val.data.sidebar_description || defaults.sidebar_author_description,
+        sidebar_author_avatar: val.data.sidebar_author_avatar || defaults.sidebar_author_avatar,
+        sidebar_author_signature: val.data.sidebar_author_signature || defaults.sidebar_author_signature,
+        sidebar_modules: val.data.sidebar_modules || defaults.sidebar_modules,
         site_logo: val.data.site_logo || defaults.site_logo,
         site_favicon: val.data.site_favicon || defaults.site_favicon,
         seo_noindex: val.data.seo_noindex || defaults.seo_noindex,

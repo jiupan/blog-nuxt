@@ -137,16 +137,26 @@ a {
 }
 
 html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   overflow-y: scroll;
   scroll-behavior: smooth;
   scrollbar-gutter: stable;
+}
+
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 html[data-scroll-locked],
 body[data-scroll-locked] {
   padding-right: 0 !important;
   margin-right: 0 !important;
-  overflow: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
 html[style*="padding-right"],
@@ -312,6 +322,14 @@ body[style*="padding-right"] {
   font-size: 1.05rem;
 }
 
+.prose-blog ul {
+  list-style-type: disc;
+}
+
+.prose-blog ol {
+  list-style-type: decimal;
+}
+
 .prose-blog li {
   margin-bottom: 0.5rem;
 }
@@ -468,10 +486,51 @@ body[style*="padding-right"] {
 }
 
 .prose-blog .md-editor-code-lang {
-  margin-right: 10px;
+  margin-right: 8px;
   color: #a9b7c6;
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
   line-height: 32px;
+}
+
+.prose-blog .code-copy-button {
+  display: grid;
+  width: 26px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin-right: 6px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 5px;
+  background: rgb(255 255 255 / 6%);
+  color: #cbd5e1;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.prose-blog .code-copy-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.prose-blog .code-copy-button:hover,
+.prose-blog .code-copy-button:focus-visible {
+  border-color: rgb(255 255 255 / 24%);
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+  outline: none;
+}
+
+.prose-blog .code-copy-button.is-copied {
+  border-color: rgb(97 197 84 / 45%);
+  color: #86efac;
+}
+
+.prose-blog .code-copy-button.is-copy-error {
+  border-color: rgb(236 106 94 / 45%);
+  color: #fca5a5;
 }
 
 .prose-blog .md-editor-code pre {
