@@ -42,9 +42,9 @@
           <button type="button" class="tool-button" aria-label="随机前往一个文章" data-tooltip="随机前往一个文章" @click="navigateToRandomPost">
             <LibraryIcon aria-hidden="true" />
           </button>
-          <NuxtLink to="/archive" aria-label="归档" data-tooltip="归档">
+          <button type="button" class="tool-button" aria-label="归档" data-tooltip="归档" @click="navigateTo('/archive')">
             <ArchiveIcon aria-hidden="true" />
-          </NuxtLink>
+          </button>
           <button type="button" class="tool-button search-trigger" aria-label="站内搜索" data-tooltip="站内搜索" @click="openSearch">
             <SearchIcon aria-hidden="true" />
           </button>

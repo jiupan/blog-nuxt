@@ -28,6 +28,10 @@ export type PostSummary = {
 
 export type PublicPostListPayload = PaginationPayload<PostSummary>
 
+export type PublicArchivePayload = PaginationPayload<PostSummary> & {
+  years: number[]
+}
+
 export type AdminPostListItem = PostSummary & {
   content: string
   status: PostStatus

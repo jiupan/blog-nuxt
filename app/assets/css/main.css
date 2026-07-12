@@ -139,7 +139,6 @@ a {
 html {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
   overflow-y: scroll;
   scroll-behavior: smooth;
   scrollbar-gutter: stable;
@@ -148,7 +147,6 @@ html {
 body {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
 }
 
 html[data-scroll-locked],

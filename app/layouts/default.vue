@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
 .default-layout {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .default-layout.is-viewport-fit {

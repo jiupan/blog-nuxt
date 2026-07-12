@@ -1,4 +1,4 @@
-import { PostStatus, type Prisma } from '@prisma/client'
+import { PostStatus, Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { renderMarkdown } from '~~/server/utils/markdown'
 import { prisma } from '~~/server/utils/prisma'
@@ -25,6 +25,13 @@ export const publicPostListQuerySchema = z.object({
   tag: z.string().optional().default('')
 })
 
+export const publicArchiveQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(10),
+  category: z.string().optional().default(''),
+  year: z.coerce.number().int().min(1970).max(9999).optional()
+})
+
 export const adminPostListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(8),
@@ -36,6 +43,7 @@ export const adminPostListQuerySchema = z.object({
 })
 
 export type PublicPostListQuery = z.infer<typeof publicPostListQuerySchema>
+export type PublicArchiveQuery = z.infer<typeof publicArchiveQuerySchema>
 export type AdminPostListQuery = z.infer<typeof adminPostListQuerySchema>
 
 export async function listPublicPosts(query: PublicPostListQuery) {
@@ -79,6 +87,52 @@ export async function listPublicPosts(query: PublicPostListQuery) {
     total,
     page,
     pageSize
+  }
+}
+
+export async function listPublicArchive(query: PublicArchiveQuery) {
+  const now = new Date()
+  const category = query.category.trim()
+  const where = buildPublishedPostWhere({
+    ...(category ? { category: { slug: category } } : {})
+  }, now)
+
+  if (query.year !== undefined) {
+    where.publishedAt = {
+      gte: new Date(Date.UTC(query.year, 0, 1)),
+      lt: new Date(Date.UTC(query.year + 1, 0, 1)),
+      lte: now
+    }
+  }
+
+  const [items, total, yearRows] = await Promise.all([
+    prisma.post.findMany({
+      where,
+      include: postInclude,
+      orderBy: [
+        { publishedAt: { sort: 'desc', nulls: 'last' } },
+        { id: 'desc' }
+      ],
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize
+    }),
+    prisma.post.count({ where }),
+    prisma.$queryRaw<Array<{ year: number }>>(Prisma.sql`
+      SELECT DISTINCT EXTRACT(YEAR FROM "publishedAt")::int AS "year"
+      FROM "Post"
+      WHERE "status" = ${PostStatus.PUBLISHED}::"PostStatus"
+        AND "publishedAt" IS NOT NULL
+        AND "publishedAt" <= ${now}
+      ORDER BY "year" DESC
+    `)
+  ])
+
+  return {
+    items: items.map(mapPostTags),
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    years: yearRows.map(row => row.year)
   }
 }
 

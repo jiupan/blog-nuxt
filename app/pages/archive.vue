@@ -10,7 +10,7 @@
                 :key="filter.key"
                 type="button"
                 :class="{ 'is-active': activeCategory === filter.key }"
-                @click="activeCategory = filter.key"
+                @click="selectCategory(filter.key)"
               >
                 <UIcon :name="filter.icon" class="filter-icon" aria-hidden="true" />
                 {{ filter.label }}
@@ -22,7 +22,7 @@
                 :key="year"
                 type="button"
                 :class="{ 'is-active': activeYear === year }"
-                @click="activeYear = year"
+                @click="selectYear(year)"
               >
                 {{ year === 'all' ? '全部' : year }}
               </button>
@@ -74,7 +74,7 @@
             </button>
           </div>
 
-          <div v-if="!filteredPosts.length" class="archive-empty">
+          <div v-if="!posts.length" class="archive-empty">
             暂无归档文章
           </div>
         </main>
@@ -94,6 +94,9 @@
 </template>
 
 <script setup lang="ts">
+import type { ApiResult } from '~~/types/api'
+import type { PublicArchivePayload, PublicPostListPayload } from '~~/types/dto/post'
+import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import {
   Calendar as CalendarIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -108,17 +111,11 @@ type ArchivePost = {
   summary?: string | null
   cover?: string | null
   publishedAt?: string | Date | null
-  viewCount?: number
+  viewCount?: number | null
   category?: {
     name: string
     slug: string
   } | null
-}
-
-type ArchiveCategory = {
-  name: string
-  slug: string
-  icon?: string | null
 }
 
 const config = useRuntimeConfig()
@@ -128,15 +125,23 @@ const activeYear = ref<string | number>('all')
 const pageSize = 10
 const currentPage = ref(1)
 
-const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
-  useFetch<{ data: { items: ArchivePost[] } }>('/api/posts', { query: { pageSize: 100 } }),
-  useFetch('/api/categories'),
-  useFetch('/api/tags')
+const archiveQuery = computed(() => ({
+  page: currentPage.value,
+  pageSize,
+  category: activeCategory.value.startsWith('category:') ? activeCategory.value.slice('category:'.length) : undefined,
+  year: activeYear.value === 'all' ? undefined : activeYear.value
+}))
+
+const [{ data }, { data: categoryData }, { data: tagData }, { data: sidebarPostData }] = await Promise.all([
+  useFetch<ApiResult<PublicArchivePayload>>('/api/archive', { query: archiveQuery }),
+  useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
+  useFetch<ApiResult<TaxonomyItem[]>>('/api/tags'),
+  useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 4 } })
 ])
 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const posts = computed(() => data.value?.data.items || [])
-const categories = computed<ArchiveCategory[]>(() => (categoryData.value?.data || []) as ArchiveCategory[])
+const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 
 const categoryFilters = computed(() => [
@@ -150,23 +155,10 @@ const categoryFilters = computed(() => [
 
 const yearFilters = computed(() => [
   'all',
-  ...[...new Set(posts.value
-    .map(post => post.publishedAt ? new Date(post.publishedAt).getFullYear() : null)
-    .filter((year): year is number => year !== null && !Number.isNaN(year)))]
-    .sort((a, b) => b - a)
+  ...(data.value?.data.years || [])
 ])
 
-const filteredPosts = computed(() => {
-  return posts.value.filter((post) => {
-    const categoryMatches = activeCategory.value === 'all'
-      || post.category?.slug === activeCategory.value.replace('category:', '')
-    const postYear = post.publishedAt ? new Date(post.publishedAt).getFullYear() : null
-    const yearMatches = activeYear.value === 'all' || postYear === activeYear.value
-    return categoryMatches && yearMatches
-  })
-})
-
-const totalPages = computed(() => Math.ceil(filteredPosts.value.length / pageSize))
+const totalPages = computed(() => Math.ceil((data.value?.data.total || 0) / pageSize))
 const visiblePageItems = computed(() => {
   const total = totalPages.value
   if (total <= 5) return Array.from({ length: total }, (_, index) => ({ key: `page-${index + 1}`, page: index + 1 }))
@@ -180,24 +172,25 @@ const visiblePageItems = computed(() => {
   })
   return items
 })
-const pagedPosts = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return filteredPosts.value.slice(start, start + pageSize)
-})
+const pagedPosts = computed(() => posts.value)
+
+function selectCategory(key: string) {
+  activeCategory.value = key
+  currentPage.value = 1
+}
+
+function selectYear(year: string | number) {
+  activeYear.value = year
+  currentPage.value = 1
+}
 
 function goToPage(p: number) {
   currentPage.value = p
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-watch([activeCategory, activeYear], () => {
-  currentPage.value = 1
-})
-
 const hotPosts = computed(() => {
-  return [...posts.value]
-    .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
-    .slice(0, 5)
+  return sidebarPostData.value?.data.items || []
 })
 
 useSeoMeta({
@@ -217,7 +210,7 @@ function formatArchiveDate(value?: string | Date | null) {
   return `${year}年${month}月${day}日`
 }
 
-function formatViews(value?: number) {
+function formatViews(value?: number | null) {
   const views = value || 0
   return views >= 1000 ? `${(views / 1000).toFixed(1).replace('.0', '')}k` : String(views)
 }
@@ -242,7 +235,7 @@ function coverWord(post: ArchivePost) {
 .archive-shell {
   width: min(100% - 32px, 1290px);
   margin: 0 auto;
-  padding: 20px 0 88px;
+  padding: 20px 0 30px;
 }
 
 .archive-layout {

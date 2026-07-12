@@ -687,7 +687,9 @@ function updatePostSidebarStickyTop() {
     return
   }
 
-  postSidebarStickyTop.value = `${baseTop - toc.offsetTop}px`
+  const sidebarTop = sidebar.getBoundingClientRect().top
+  const tocTop = toc.getBoundingClientRect().top
+  postSidebarStickyTop.value = `${baseTop - (tocTop - sidebarTop)}px`
 }
 
 function setupTocObserver() {
@@ -1415,7 +1417,7 @@ function updateTocIndicatorPosition() {
   overflow: hidden;
   padding: 0;
   border-color: var(--theme-border-soft);
-  border-radius: 8px;
+  border-radius: 24px;
   background: color-mix(in srgb, var(--theme-surface) 82%, transparent);
   box-shadow: 0 8px 30px rgb(15 23 42 / 5%);
   backdrop-filter: blur(18px);
