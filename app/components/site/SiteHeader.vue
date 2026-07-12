@@ -48,9 +48,16 @@
           <button type="button" class="tool-button search-trigger" aria-label="站内搜索" data-tooltip="站内搜索" @click="openSearch">
             <SearchIcon aria-hidden="true" />
           </button>
-          <NuxtLink to="/admin" aria-label="后台" data-tooltip="后台" class="desktop-admin-link">
-            <LayoutDashboardIcon aria-hidden="true" />
-          </NuxtLink>
+          <button
+            type="button"
+            class="tool-button desktop-theme-toggle"
+            :aria-label="themeToggleLabel"
+            :data-tooltip="themeToggleLabel"
+            @click="toggleColorMode"
+          >
+            <SunIcon v-if="isDarkMode" aria-hidden="true" />
+            <MoonIcon v-else aria-hidden="true" />
+          </button>
           <button
             type="button"
             class="mobile-menu-button"
@@ -133,10 +140,11 @@ import {
   Archive as ArchiveIcon,
   ChevronRight as ChevronRightIcon,
   FileText as FileTextIcon,
-  LayoutDashboard as LayoutDashboardIcon,
   Library as LibraryIcon,
   Menu as MenuIcon,
+  Moon as MoonIcon,
   Search as SearchIcon,
+  Sun as SunIcon,
   X as XIcon
 } from '@lucide/vue'
 import type { ApiResult } from '~~/types/api'
@@ -163,12 +171,46 @@ defineEmits<{
 }>()
 
 const searchOpen = ref(false)
+const colorMode = useColorMode()
+const isDarkMode = computed(() => colorMode.value === 'dark')
+const themeToggleLabel = computed(() => isDarkMode.value ? '切换到白天模式' : '切换到夜间模式')
 const searchQuery = ref('')
 const searchLoading = ref(false)
 const searchResults = ref<PostSummary[]>([])
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const randomPostLoading = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+function applyColorMode() {
+  colorMode.preference = isDarkMode.value ? 'light' : 'dark'
+}
+
+function toggleColorMode(event: MouseEvent) {
+  if (!import.meta.client) return
+
+  const root = document.documentElement
+  const target = event.currentTarget as HTMLElement | null
+  const rect = target?.getBoundingClientRect()
+  const x = rect ? rect.left + rect.width / 2 : window.innerWidth * .95
+  const y = rect ? rect.top + rect.height / 2 : 35
+  const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
+  root.style.setProperty('--theme-switch-x', `${x}px`)
+  root.style.setProperty('--theme-switch-y', `${y}px`)
+  root.style.setProperty('--theme-switch-radius', `${radius}px`)
+
+  const startViewTransition = document.startViewTransition?.bind(document)
+  if (startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    startViewTransition(async () => {
+      applyColorMode()
+      await nextTick()
+    })
+    return
+  }
+
+  root.classList.add('theme-switching')
+  applyColorMode()
+  window.setTimeout(() => root.classList.remove('theme-switching'), 280)
+}
 
 const [{ data: recentPostData }, { data: tagData }] = await Promise.all([
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 4 } }),

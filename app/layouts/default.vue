@@ -72,18 +72,17 @@ onBeforeUnmount(() => {
 <style scoped>
 .default-layout.is-viewport-fit {
   display: flex;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
   flex-direction: column;
 }
 
 .default-layout.is-viewport-fit > main {
   display: flex;
-  min-height: 0;
+  min-width: 0;
   flex: 1 1 auto;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow-x: clip;
 }
 
 .default-layout.is-viewport-fit > :deep(.site-header),

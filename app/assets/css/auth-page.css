@@ -2,10 +2,10 @@
   display: grid;
   min-height: 100vh;
   place-items: center;
-  background-color: #f5f5f3;
+  background: var(--theme-page);
   background-image: radial-gradient(#e5e2dc 1px, transparent 1px);
   background-size: 24px 24px;
-  color: #2c2c2c;
+  color: var(--theme-text);
   padding: 24px;
 }
 
@@ -17,7 +17,7 @@
   overflow: hidden;
   border: 1px solid #edf0f3;
   border-radius: 22px;
-  background: #fff;
+  background: var(--theme-surface);
   box-shadow: 0 22px 70px rgb(15 23 42 / 8%);
   animation: auth-fade 0.55s ease both;
 }
@@ -28,7 +28,7 @@
   place-items: center;
   overflow: hidden;
   border-right: 1px solid #edf0f3;
-  background: #faf9f7;
+  background: var(--theme-surface);
   padding: 48px;
 }
 
@@ -67,7 +67,7 @@
 
 .auth-art h2 {
   margin: 0;
-  color: #2c2c2c;
+  color: var(--theme-text);
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 30px;
   font-weight: 500;
@@ -102,7 +102,7 @@
 
 .auth-back:hover,
 .auth-back:focus-visible {
-  color: #2c2c2c;
+  color: var(--theme-text);
   outline: none;
 }
 
@@ -118,7 +118,7 @@
 .auth-brand {
   display: inline-block;
   margin-bottom: 22px;
-  color: #2c2c2c;
+  color: var(--theme-text);
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 27px;
   font-weight: 500;
@@ -131,7 +131,7 @@
 
 .auth-heading h1 {
   margin: 0;
-  color: #2c2c2c;
+  color: var(--theme-text);
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 28px;
   font-weight: 500;
@@ -164,11 +164,11 @@
 .auth-field input {
   width: 100%;
   height: 48px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 7px;
-  background: #fff;
+  background: var(--theme-surface);
   box-shadow: inset 0 1px 2px rgb(15 23 42 / 2%);
-  color: #2c2c2c;
+  color: var(--theme-text);
   font: inherit;
   font-size: 15px;
   outline: none;
@@ -213,7 +213,7 @@
 
 .auth-password button:hover,
 .auth-password button:focus-visible {
-  background: #f4f6f8;
+  background: var(--theme-surface-muted);
   color: #5f6875;
   outline: none;
 }
@@ -231,7 +231,7 @@
   gap: 9px;
   border: 0;
   border-radius: 7px;
-  background: #2c2c2c;
+  background: var(--theme-text);
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -271,7 +271,7 @@
 }
 
 .auth-switch a {
-  color: #2c2c2c;
+  color: var(--theme-text);
   font-weight: 800;
   text-decoration: underline;
   text-decoration-color: #cfd5dd;

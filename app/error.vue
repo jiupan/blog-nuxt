@@ -93,7 +93,8 @@ function goTo(path: string) {
   width: 100%;
   min-height: 100%;
   place-items: center;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   background: #f8fafc;
   color: #334155;
   isolation: isolate;
@@ -104,6 +105,11 @@ function goTo(path: string) {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.error-aurora {
+  overflow: hidden;
+  contain: strict;
 }
 
 .error-orb {

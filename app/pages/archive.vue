@@ -196,7 +196,7 @@ function coverWord(post: ArchivePost) {
 <style scoped>
 .archive-page {
   min-height: 100vh;
-  color: #303137;
+  color: var(--theme-text);
 }
 
 .archive-shell {
@@ -217,7 +217,7 @@ function coverWord(post: ArchivePost) {
 .hot-card {
   border: 1px solid #dfe6f3;
   border-radius: 8px;
-  background: white;
+  background: var(--theme-surface);
 }
 
 .archive-main {
@@ -231,7 +231,7 @@ function coverWord(post: ArchivePost) {
 
 .archive-heading h1 {
   margin: 0;
-  color: #24313d;
+  color: var(--theme-text);
   font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
   font-size: clamp(42px, 7vw, 56px);
   font-weight: 650;
@@ -241,7 +241,7 @@ function coverWord(post: ArchivePost) {
 
 .archive-heading p {
   margin: 16px 0 0;
-  color: #697583;
+  color: var(--theme-text-muted);
   font-size: 17px;
   line-height: 1.75;
 }
@@ -251,7 +251,7 @@ function coverWord(post: ArchivePost) {
   flex-wrap: wrap;
   gap: 0 34px;
   margin-bottom: 54px;
-  border-bottom: 1px solid #dbe2ea;
+  border-bottom: 1px solid var(--theme-border);
   padding-bottom: 0;
 }
 
@@ -261,7 +261,7 @@ function coverWord(post: ArchivePost) {
   border: 0;
   background: transparent;
   padding: 0 0 18px;
-  color: #9aa4ae;
+  color: var(--theme-text-faint);
   font: inherit;
   font-size: 15px;
   font-weight: 750;
@@ -282,11 +282,11 @@ function coverWord(post: ArchivePost) {
 
 .archive-tabs button:hover,
 .archive-tabs button.is-active {
-  color: #24313d;
+  color: var(--theme-text);
 }
 
 .archive-tabs button.is-active::after {
-  background: #24313d;
+  background: var(--theme-text);
 }
 
 .archive-list {
@@ -341,7 +341,7 @@ function coverWord(post: ArchivePost) {
 
 .archive-date-col time {
   padding-top: 7px;
-  color: #9aa4ae;
+  color: var(--theme-text-faint);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   font-weight: 750;
@@ -350,7 +350,7 @@ function coverWord(post: ArchivePost) {
 }
 
 .archive-item:hover .archive-date-col time {
-  color: #738392;
+  color: var(--theme-text-muted);
 }
 
 .archive-thumb {
@@ -360,7 +360,7 @@ function coverWord(post: ArchivePost) {
   place-items: center;
   overflow: hidden;
   border-radius: 8px;
-  background: #343941;
+  background: var(--theme-text);
   color: rgba(255, 255, 255, 0.72);
   font-size: 18px;
   font-weight: 900;
@@ -383,12 +383,12 @@ function coverWord(post: ArchivePost) {
 .cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
 .cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
 .cover-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
-.cover-gray { background: linear-gradient(135deg, #343941, #5d6470); }
+.cover-gray { background: linear-gradient(135deg, var(--theme-text), #5d6470); }
 .cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
 
 .archive-copy h2 {
   margin: 0;
-  color: #24313d;
+  color: var(--theme-text);
   font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
   font-size: clamp(24px, 3vw, 30px);
   font-weight: 650;
@@ -403,7 +403,7 @@ function coverWord(post: ArchivePost) {
   margin: 16px 0 0;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  color: #697583;
+  color: var(--theme-text-muted);
   font-size: 15px;
   line-height: 1.9;
   transition: color 180ms ease;
@@ -420,7 +420,7 @@ function coverWord(post: ArchivePost) {
   gap: 18px;
   align-items: center;
   margin-top: 20px;
-  color: #9aa4ae;
+  color: var(--theme-text-faint);
   font-size: 12px;
   font-weight: 750;
 }
@@ -442,7 +442,7 @@ function coverWord(post: ArchivePost) {
 }
 
 .archive-item:hover .meta-left > span:first-child {
-  background: #eef4f0;
+  background: var(--theme-success-soft);
   color: #647e73;
 }
 
@@ -463,7 +463,7 @@ function coverWord(post: ArchivePost) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #738392;
+  color: var(--theme-text-muted);
   font-size: 13px;
   font-weight: 850;
   opacity: 0;
@@ -482,7 +482,7 @@ function coverWord(post: ArchivePost) {
 }
 
 .read-more:hover {
-  color: #24313d;
+  color: var(--theme-text);
 }
 
 .pager {
@@ -491,9 +491,9 @@ function coverWord(post: ArchivePost) {
   align-items: center;
   gap: 18px;
   margin-top: 62px;
-  border-top: 1px solid #dbe2ea;
+  border-top: 1px solid var(--theme-border);
   padding-top: 28px;
-  color: #9aa4ae;
+  color: var(--theme-text-faint);
   font-size: 14px;
   font-weight: 750;
 }
@@ -501,7 +501,7 @@ function coverWord(post: ArchivePost) {
 .pager button {
   border: 0;
   background: transparent;
-  color: #5f6874;
+  color: var(--theme-text-muted);
   font: inherit;
   cursor: pointer;
   transition: color 160ms ease, transform 160ms ease;
@@ -516,7 +516,7 @@ function coverWord(post: ArchivePost) {
 }
 
 .pager button:hover:not(:disabled) {
-  color: #24313d;
+  color: var(--theme-text);
   transform: translateY(-1px);
 }
 
@@ -526,11 +526,11 @@ function coverWord(post: ArchivePost) {
 }
 
 .archive-empty {
-  border: 1px solid #dbe2ea;
+  border: 1px solid var(--theme-border);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.76);
   padding: 44px;
-  color: #7d8792;
+  color: var(--theme-text-muted);
   text-align: center;
 }
 
@@ -581,7 +581,7 @@ function coverWord(post: ArchivePost) {
   flex: 1;
   padding: 8px 0;
   border-radius: 999px;
-  background: rgb(255 255 255 / 18%);
+  background: color-mix(in srgb, var(--theme-surface) 18%, transparent);
   text-align: center;
   font-size: 13px;
   font-weight: 900;
@@ -603,11 +603,11 @@ function coverWord(post: ArchivePost) {
   display: flex;
   justify-content: space-between;
   margin: 10px 0 0;
-  color: #747b87;
+  color: var(--theme-text-muted);
 }
 
 .stats-card strong {
-  color: #303137;
+  color: var(--theme-text);
 }
 
 .card-title {
@@ -617,7 +617,7 @@ function coverWord(post: ArchivePost) {
 }
 
 .card-title a {
-  color: #747b87;
+  color: var(--theme-text-muted);
   font-size: 12px;
   font-weight: 800;
 }
@@ -636,7 +636,7 @@ function coverWord(post: ArchivePost) {
   height: 20px;
   place-items: center;
   border-radius: 999px;
-  background: #eef1f8;
+  background: var(--theme-surface-hover);
   color: #697280;
   font-size: 12px;
   font-weight: 900;

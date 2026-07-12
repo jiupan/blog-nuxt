@@ -212,7 +212,7 @@ function formatFullDate(value?: string | Date | null) {
 <style scoped>
 .about-page {
   min-height: 100vh;
-  color: #263238;
+  color: var(--theme-text);
 }
 
 .about-hero,
@@ -239,7 +239,7 @@ function formatFullDate(value?: string | Date | null) {
   gap: 8px;
   border: 1px solid #dbe6df;
   border-radius: 999px;
-  background: #f4faf6;
+  background: var(--theme-success-soft);
   padding: 5px 11px;
   color: #5e8271;
   font-size: 12px;
@@ -258,7 +258,7 @@ function formatFullDate(value?: string | Date | null) {
 .about-hero h1 {
   max-width: 720px;
   margin: 24px 0 0;
-  color: #23313d;
+  color: var(--theme-text);
   font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
   font-size: clamp(42px, 7vw, 72px);
   font-weight: 650;
@@ -267,14 +267,14 @@ function formatFullDate(value?: string | Date | null) {
 }
 
 .about-hero h1 span {
-  color: #738392;
+  color: var(--theme-text-muted);
   font-style: italic;
 }
 
 .about-hero p {
   max-width: 620px;
   margin: 24px 0 0;
-  color: #5d6875;
+  color: var(--theme-text-muted);
   font-size: 16px;
   line-height: 1.9;
 }
@@ -294,19 +294,26 @@ function formatFullDate(value?: string | Date | null) {
   gap: 8px;
   min-height: 46px;
   border-radius: 8px;
-  background: #1f2933;
+  border: 1px solid color-mix(in srgb, #2f8f68 72%, var(--theme-border));
+  background: linear-gradient(135deg, #277a5b, #356f5b);
   padding: 0 18px;
   color: #ffffff;
   font-size: 14px;
   font-weight: 800;
-  box-shadow: 0 12px 26px rgba(31, 41, 51, 0.14);
-  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  box-shadow: 0 12px 26px rgb(20 83 62 / 18%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, filter 160ms ease, transform 160ms ease;
 }
 
 .primary-action:hover {
-  background: #344150;
-  box-shadow: 0 16px 32px rgba(31, 41, 51, 0.18);
+  border-color: #55b58c;
+  box-shadow: 0 16px 34px rgb(47 143 104 / 24%);
+  filter: brightness(1.08);
   transform: translateY(-1px);
+}
+
+.primary-action:focus-visible {
+  outline: 3px solid color-mix(in srgb, #55b58c 32%, transparent);
+  outline-offset: 3px;
 }
 
 .primary-action svg {
@@ -327,13 +334,13 @@ function formatFullDate(value?: string | Date | null) {
   height: 36px;
   place-items: center;
   border-radius: 8px;
-  color: #98a3ad;
+  color: var(--theme-text-faint);
   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
 .social-actions a:hover {
-  background: #eef3ef;
-  color: #263238;
+  background: var(--theme-success-soft);
+  color: var(--theme-text);
   transform: translateY(-1px);
 }
 
@@ -354,7 +361,7 @@ function formatFullDate(value?: string | Date | null) {
   inset: 50px 12px 28px;
   border: 1px solid #dde4df;
   border-radius: 8px;
-  background: #eef3ef;
+  background: var(--theme-success-soft);
   transform: rotate(-6deg);
 }
 
@@ -400,14 +407,14 @@ function formatFullDate(value?: string | Date | null) {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.92);
   padding: 12px 14px;
-  color: #66717a;
+  color: var(--theme-text-muted);
   font-size: 12px;
   box-shadow: 0 16px 30px rgba(38, 50, 56, 0.12);
   backdrop-filter: blur(12px);
 }
 
 .portrait-note span {
-  color: #24313d;
+  color: var(--theme-text);
   font-size: 22px;
   font-weight: 850;
   line-height: 1;
@@ -428,7 +435,7 @@ function formatFullDate(value?: string | Date | null) {
 .section-heading h2,
 .skill-copy h2 {
   margin: 0;
-  color: #263238;
+  color: var(--theme-text);
   font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
   font-size: 34px;
   font-weight: 650;
@@ -439,7 +446,7 @@ function formatFullDate(value?: string | Date | null) {
 .section-heading p,
 .skill-copy p {
   margin: 8px 0 0;
-  color: #6c7680;
+  color: var(--theme-text-muted);
   line-height: 1.8;
 }
 
@@ -447,7 +454,7 @@ function formatFullDate(value?: string | Date | null) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #738392;
+  color: var(--theme-text-muted);
   font-size: 14px;
   font-weight: 800;
   white-space: nowrap;
@@ -455,7 +462,7 @@ function formatFullDate(value?: string | Date | null) {
 }
 
 .section-link:hover {
-  color: #263238;
+  color: var(--theme-text);
   transform: translateX(2px);
 }
 
@@ -474,7 +481,7 @@ function formatFullDate(value?: string | Date | null) {
 .empty-about-card {
   border: 1px solid #edf0ed;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--theme-surface);
   box-shadow:
     0 2px 14px rgba(38, 50, 56, 0.05),
     0 16px 30px rgba(38, 50, 56, 0.04);
@@ -487,7 +494,7 @@ function formatFullDate(value?: string | Date | null) {
 }
 
 .article-card:hover {
-  border-color: #dfe6e0;
+  border-color: var(--theme-border);
   box-shadow:
     0 4px 18px rgba(38, 50, 56, 0.07),
     0 24px 42px rgba(38, 50, 56, 0.08);
@@ -499,14 +506,14 @@ function formatFullDate(value?: string | Date | null) {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  color: #8a949d;
+  color: var(--theme-text-faint);
   font-size: 12px;
 }
 
 .article-meta a,
 .article-meta span {
   border-radius: 999px;
-  background: #eef7f1;
+  background: var(--theme-success-soft);
   padding: 4px 9px;
   color: #5d8270;
   font-weight: 750;
@@ -515,7 +522,7 @@ function formatFullDate(value?: string | Date | null) {
 .article-title {
   display: block;
   margin-top: 18px;
-  color: #24313d;
+  color: var(--theme-text);
   font-size: 17px;
   font-weight: 850;
   line-height: 1.55;
@@ -523,7 +530,7 @@ function formatFullDate(value?: string | Date | null) {
 }
 
 .article-title:hover {
-  color: #738392;
+  color: var(--theme-text-muted);
 }
 
 .article-card p,
@@ -533,7 +540,7 @@ function formatFullDate(value?: string | Date | null) {
   margin: 12px 0 0;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  color: #65707b;
+  color: var(--theme-text-muted);
   font-size: 14px;
   line-height: 1.8;
 }
@@ -544,7 +551,7 @@ function formatFullDate(value?: string | Date | null) {
 
 .empty-about-card h3 {
   margin: 0;
-  color: #24313d;
+  color: var(--theme-text);
   font-size: 18px;
 }
 
@@ -571,13 +578,13 @@ function formatFullDate(value?: string | Date | null) {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 7px;
-  color: #4f5c67;
+  color: var(--theme-text-soft);
   font-size: 13px;
   font-weight: 800;
 }
 
 .skill-row strong {
-  color: #8a949d;
+  color: var(--theme-text-faint);
   font-size: 12px;
 }
 
@@ -585,14 +592,14 @@ function formatFullDate(value?: string | Date | null) {
   overflow: hidden;
   height: 5px;
   border-radius: 999px;
-  background: #dfe5e2;
+  background: var(--theme-border);
 }
 
 .skill-track span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #738392;
+  background: var(--theme-text-muted);
 }
 
 .tag-cloud {
@@ -603,11 +610,11 @@ function formatFullDate(value?: string | Date | null) {
 }
 
 .tag-chip {
-  border: 1px solid #dfe5e2;
+  border: 1px solid var(--theme-border);
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--theme-surface);
   padding: 9px 15px;
-  color: #65707b;
+  color: var(--theme-text-muted);
   font-size: 13px;
   line-height: 1;
   box-shadow: 0 7px 16px rgba(38, 50, 56, 0.04);
@@ -615,7 +622,7 @@ function formatFullDate(value?: string | Date | null) {
 }
 
 .tag-chip:hover {
-  border-color: #91a39a;
+  border-color: var(--theme-border);
   color: #4f7564;
   transform: translateY(-1px);
 }

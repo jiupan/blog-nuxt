@@ -427,8 +427,8 @@ function formatDate(value?: string | Date | null) {
 <style scoped>
 .home-page {
   min-height: 100vh;
-  background: #f3f6fc;
-  color: #32333a;
+  background: var(--theme-page);
+  color: var(--theme-text);
 }
 
 .home-shell {
@@ -549,7 +549,7 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-link.is-active {
-  background: rgb(255 255 255 / 18%);
+  background: color-mix(in srgb, var(--theme-surface) 18%, transparent);
   color: white;
 }
 
@@ -559,7 +559,7 @@ function formatDate(value?: string | Date | null) {
   height: 34px;
   place-items: center;
   border-radius: 9px;
-  background: rgb(255 255 255 / 20%);
+  background: color-mix(in srgb, var(--theme-surface) 20%, transparent);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 16%);
   font-size: 12px;
 }
@@ -586,10 +586,10 @@ function formatDate(value?: string | Date | null) {
   gap: 6px;
   height: 38px;
   padding: 0 18px;
-  border: 1px solid #e1e7f2;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 18px;
-  background: white;
-  color: #3a3b44;
+  background: var(--theme-surface);
+  color: var(--theme-text-soft);
   font-size: 14px;
   font-weight: 800;
   cursor: pointer;
@@ -611,26 +611,26 @@ function formatDate(value?: string | Date | null) {
 
 .topic-tab:hover {
   border-color: #d8deea;
-  background: #f8fafc;
+  background: var(--theme-surface-muted);
   box-shadow: 0 10px 24px rgb(31 43 68 / 8%);
   outline: none;
 }
 
 .topic-tab:focus-visible {
   border-color: #8da0ff;
-  background: white;
+  background: var(--theme-surface);
   box-shadow: 0 0 0 3px rgb(73 100 244 / 14%);
   outline: none;
 }
 
 .topic-tab.is-active:hover {
-  border-color: #435be3;
-  background: #435be3;
+  border-color: var(--theme-accent-hover);
+  background: var(--theme-accent-hover);
   color: white;
 }
 
 .topic-tab.is-active:focus-visible {
-  border-color: #435be3;
+  border-color: var(--theme-accent-hover);
   background: #4964f4;
   color: white;
   box-shadow: 0 0 0 3px rgb(73 100 244 / 18%);
@@ -641,12 +641,12 @@ function formatDate(value?: string | Date | null) {
   z-index: 80;
   min-width: max-content;
   padding: 10px 14px;
-  border: 1px solid #dfe5f2;
+  border: 1px solid var(--theme-border);
   border-radius: 14px;
-  background: rgb(255 255 255 / 88%);
+  background: color-mix(in srgb, var(--theme-surface) 88%, transparent);
   backdrop-filter: blur(12px) saturate(1.15);
   box-shadow: 0 16px 34px rgb(31 43 68 / 14%);
-  color: #303137;
+  color: var(--theme-text);
   font-size: 14px;
   font-weight: 500;
   line-height: 1;
@@ -670,9 +670,9 @@ function formatDate(value?: string | Date | null) {
 
 .post-card {
   overflow: hidden;
-  border: 1px solid #e4e9f3;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 8px;
-  background: white;
+  background: var(--theme-surface);
   box-shadow: 0 14px 34px rgb(42 59 91 / 7%);
   transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
@@ -690,7 +690,7 @@ function formatDate(value?: string | Date | null) {
   place-items: center;
   overflow: hidden;
   isolation: isolate;
-  background: #e9eef8;
+  background: var(--theme-accent-soft);
 }
 
 .cover-image {
@@ -735,9 +735,9 @@ function formatDate(value?: string | Date | null) {
   place-items: center;
   border: 8px solid rgb(255 255 255 / 72%);
   border-radius: 28px;
-  background: rgb(255 255 255 / 75%);
+  background: color-mix(in srgb, var(--theme-surface) 75%, transparent);
   box-shadow: 0 18px 34px rgb(0 0 0 / 18%);
-  color: #17181d;
+  color: var(--theme-text-strong);
   font-size: 58px;
   font-weight: 900;
 }
@@ -751,7 +751,7 @@ function formatDate(value?: string | Date | null) {
 .cover-icon.has-meme {
   overflow: hidden;
   border-color: rgb(255 255 255 / 38%);
-  background: rgb(255 255 255 / 64%);
+  background: color-mix(in srgb, var(--theme-surface) 64%, transparent);
   backdrop-filter: blur(22px) saturate(130%);
   -webkit-backdrop-filter: blur(22px) saturate(130%);
 }
@@ -771,7 +771,7 @@ function formatDate(value?: string | Date | null) {
 .cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
 .cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
 .cover-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
-.cover-gray { background: linear-gradient(135deg, #343941, #5d6470); }
+.cover-gray { background: linear-gradient(135deg, var(--theme-text), #5d6470); }
 .cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
 
 .post-body {
@@ -783,7 +783,7 @@ function formatDate(value?: string | Date | null) {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  color: #8a909d;
+  color: var(--theme-text-faint);
   font-size: 12px;
   font-weight: 700;
 }
@@ -792,7 +792,7 @@ function formatDate(value?: string | Date | null) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #b45309;
+  color: var(--theme-warning);
 }
 
 .post-pinned-mark svg {
@@ -808,7 +808,7 @@ function formatDate(value?: string | Date | null) {
   justify-content: space-between;
   gap: 12px;
   margin-top: 10px;
-  color: #33343b;
+  color: var(--theme-text);
   font-size: 20px;
   font-weight: 900;
   line-height: 1.45;
@@ -821,7 +821,7 @@ function formatDate(value?: string | Date | null) {
 
 .post-card:hover .post-title,
 .post-card:focus-within .post-title {
-  color: #4f67f5;
+  color: var(--theme-accent);
 }
 
 .post-title span:first-child {
@@ -836,7 +836,7 @@ function formatDate(value?: string | Date | null) {
   place-items: center;
   border-radius: 999px;
   background: rgb(79 103 245 / 10%);
-  color: #4f67f5;
+  color: var(--theme-accent);
   font-size: 18px;
   line-height: 1;
   opacity: 0;
@@ -853,7 +853,7 @@ function formatDate(value?: string | Date | null) {
   align-items: center;
   gap: 12px;
   margin-top: 18px;
-  color: #777d89;
+  color: var(--theme-text-muted);
   font-size: 14px;
 }
 
@@ -862,7 +862,7 @@ function formatDate(value?: string | Date | null) {
 }
 
 .post-tags span:hover {
-  color: #4f67f5;
+  color: var(--theme-accent);
 }
 
 .post-tags time {
@@ -880,9 +880,9 @@ function formatDate(value?: string | Date | null) {
 .profile-card,
 .tag-cloud,
 .site-stats {
-  border: 1px solid #e4e9f3;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 8px;
-  background: white;
+  background: var(--theme-surface);
   box-shadow: 0 14px 34px rgb(42 59 91 / 7%);
 }
 
@@ -950,14 +950,14 @@ function formatDate(value?: string | Date | null) {
   height: 34px;
   place-items: center;
   border-radius: 999px;
-  background: rgb(255 255 255 / 16%);
+  background: color-mix(in srgb, var(--theme-surface) 16%, transparent);
   color: white;
   font-size: 18px;
   transition: background 0.2s ease;
 }
 
 .social-icon:hover {
-  background: rgb(255 255 255 / 28%);
+  background: color-mix(in srgb, var(--theme-surface) 28%, transparent);
 }
 
 .social-icon :deep(svg),
@@ -1020,7 +1020,7 @@ function formatDate(value?: string | Date | null) {
   display: block;
   margin-top: 22px;
   padding: 11px 16px;
-  border: 1px solid #e4e9f3;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 999px;
   text-align: center;
   color: #555b66;
@@ -1049,16 +1049,16 @@ function formatDate(value?: string | Date | null) {
 .page-next {
   display: grid;
   place-items: center;
-  border: 1px solid #e1e7f2;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 999px;
-  background: white;
+  background: var(--theme-surface);
   font-weight: 800;
 }
 
 .page-dot {
   width: 38px;
   height: 38px;
-  color: #3a3b44;
+  color: var(--theme-text-soft);
   cursor: pointer;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
@@ -1092,23 +1092,23 @@ function formatDate(value?: string | Date | null) {
 }
 
 .empty-card {
-  border: 1px solid #e4e9f3;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 8px;
-  background: white;
+  background: var(--theme-surface);
   padding: 48px 32px;
   box-shadow: 0 14px 34px rgb(42 59 91 / 7%);
 }
 
 .empty-card h2 {
   margin: 0;
-  color: #33343b;
+  color: var(--theme-text);
   font-size: 24px;
   font-weight: 900;
 }
 
 .empty-card p {
   margin: 12px 0 0;
-  color: #777d89;
+  color: var(--theme-text-muted);
 }
 
 @media (max-width: 1100px) {

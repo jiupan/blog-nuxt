@@ -3,13 +3,128 @@
 
 :root {
   color-scheme: light;
+  --theme-page: #f3f6fc;
+  --theme-page-soft: #f7f9fd;
+  --theme-surface: #fff;
+  --theme-surface-raised: #fff;
+  --theme-surface-muted: #f8fafc;
+  --theme-surface-hover: #eef2ff;
+  --theme-text: #303137;
+  --theme-text-strong: #0f172a;
+  --theme-text-soft: #475569;
+  --theme-text-muted: #64748b;
+  --theme-text-faint: #94a3b8;
+  --theme-border: #dfe5f2;
+  --theme-border-soft: #e2e8f0;
+  --theme-accent: #4f67f5;
+  --theme-accent-hover: #435be3;
+  --theme-accent-soft: #eef2ff;
+  --theme-shadow: 31 43 68;
+  --theme-overlay: 15 23 42;
+  --theme-code: #1e293b;
+  --theme-code-text: #e2e8f0;
+  --theme-success-soft: #ecfdf5;
+  --theme-warning-soft: #fff7ed;
+  --theme-danger-soft: #fff1f2;
+  --theme-info-soft: #eff6ff;
+  --theme-purple-soft: #f5f3ff;
+  --theme-info: #2563eb;
+  --theme-success: #15803d;
+  --theme-warning: #b45309;
+  --theme-danger: #be123c;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --theme-page: #0f1420;
+  --theme-page-soft: #141b29;
+  --theme-surface: #1a2232;
+  --theme-surface-raised: #202a3b;
+  --theme-surface-muted: #172033;
+  --theme-surface-hover: #222e45;
+  --theme-text: #e7eaf0;
+  --theme-text-strong: #f4f6fb;
+  --theme-text-soft: #c5cedb;
+  --theme-text-muted: #9ba8bc;
+  --theme-text-faint: #78869b;
+  --theme-border: #2c374a;
+  --theme-border-soft: #263246;
+  --theme-accent: #7c8dff;
+  --theme-accent-hover: #91a0ff;
+  --theme-accent-soft: #273354;
+  --theme-shadow: 0 0 0;
+  --theme-overlay: 3 7 18;
+  --theme-code: #0c1220;
+  --theme-code-text: #dbe4f0;
+  --theme-success-soft: #15352d;
+  --theme-warning-soft: #3b291b;
+  --theme-danger-soft: #3b2029;
+  --theme-info-soft: #172f50;
+  --theme-purple-soft: #2d2748;
+  --theme-info: #7da2ff;
+  --theme-success: #63d39a;
+  --theme-warning: #f2b766;
+  --theme-danger: #ff8da5;
 }
 
 body {
   margin: 0;
-  background: #f3f6fc;
-  color: #1f2933;
+  background: var(--theme-page);
+  color: var(--theme-text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.dark body {
+  background: var(--theme-page);
+  color: var(--theme-text);
+}
+
+.dark .prose-blog {
+  --article-text: #cbd5e1;
+  --article-muted: var(--theme-text-muted);
+  --article-heading: var(--theme-text-strong);
+  --article-border: var(--theme-border);
+  --article-surface: var(--theme-surface-muted);
+  --article-code-bg: var(--theme-code);
+}
+
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition-duration: 260ms !important;
+  transition-property: background-color, border-color, box-shadow, color, fill, stroke !important;
+  transition-timing-function: ease !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-reveal 460ms cubic-bezier(.2, .72, .2, 1) both;
+}
+
+@keyframes theme-reveal {
+  from { clip-path: circle(0 at var(--theme-switch-x, 95%) var(--theme-switch-y, 35px)); }
+  to { clip-path: circle(var(--theme-switch-radius, 150vmax) at var(--theme-switch-x, 95%) var(--theme-switch-y, 35px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root) { animation: none; }
+  html.theme-switching *,
+  html.theme-switching *::before,
+  html.theme-switching *::after { transition: none !important; }
+}
+
+.dark .prose-blog h4 {
+  color: #e2e8f0;
 }
 
 a {

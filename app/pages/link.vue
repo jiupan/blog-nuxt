@@ -176,7 +176,7 @@ useSeoMeta({
 <style scoped>
 .link-page {
   min-height: 70vh;
-  color: #263238;
+  color: var(--theme-text);
 }
 
 .link-hero,
@@ -196,11 +196,12 @@ useSeoMeta({
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid #dce3ea;
+  border: 1px solid var(--theme-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--theme-border);
+  background: color-mix(in srgb, var(--theme-surface) 72%, transparent);
   padding: 5px 12px;
-  color: #6c7680;
+  color: var(--theme-text-muted);
   font-size: 12px;
   font-weight: 800;
   box-shadow: 0 8px 20px rgba(38, 50, 56, 0.05);
@@ -209,12 +210,12 @@ useSeoMeta({
 .hero-pill svg {
   width: 14px;
   height: 14px;
-  color: #738392;
+  color: var(--theme-text-muted);
 }
 
 .link-hero h1 {
   margin: 18px 0 0;
-  color: #23313d;
+  color: var(--theme-text);
   font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
   font-size: clamp(42px, 7vw, 58px);
   font-weight: 650;
@@ -225,7 +226,7 @@ useSeoMeta({
 .link-hero p {
   max-width: 640px;
   margin: 18px 0 0;
-  color: #596674;
+  color: var(--theme-text-muted);
   font-size: 17px;
   line-height: 1.8;
 }
@@ -248,7 +249,7 @@ useSeoMeta({
 .group-heading h2,
 .exchange-panel h2 {
   margin: 0;
-  color: #263238;
+  color: var(--theme-text);
   font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
   font-size: 26px;
   font-weight: 550;
@@ -258,7 +259,7 @@ useSeoMeta({
 .group-heading span {
   height: 1px;
   flex: 1;
-  background: #dce3ea;
+  background: var(--theme-border);
 }
 
 .featured-grid {
@@ -270,12 +271,12 @@ useSeoMeta({
 .featured-card,
 .compact-card,
 .exchange-panel {
-  border: 1px solid #e8edf2;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  background: color-mix(in srgb, var(--theme-surface) 92%, transparent);
   box-shadow:
-    0 2px 12px rgba(38, 50, 56, 0.04),
-    0 16px 30px rgba(38, 50, 56, 0.03);
+    0 2px 12px rgb(var(--theme-shadow) / 6%),
+    0 16px 30px rgb(var(--theme-shadow) / 5%);
 }
 
 .featured-card {
@@ -289,10 +290,10 @@ useSeoMeta({
 
 .featured-card:hover,
 .compact-card:hover {
-  border-color: #cbd8d2;
+  border-color: color-mix(in srgb, #55b58c 54%, var(--theme-border));
   box-shadow:
-    0 4px 18px rgba(38, 50, 56, 0.07),
-    0 24px 42px rgba(38, 50, 56, 0.08);
+    0 4px 18px rgb(var(--theme-shadow) / 10%),
+    0 24px 42px rgb(var(--theme-shadow) / 14%);
   transform: translateY(-3px);
 }
 
@@ -321,7 +322,7 @@ useSeoMeta({
 .featured-copy strong,
 .compact-card strong {
   display: block;
-  color: #263238;
+  color: var(--theme-text);
   font-weight: 850;
   line-height: 1.35;
 }
@@ -333,7 +334,7 @@ useSeoMeta({
 .featured-copy small {
   display: block;
   margin-top: 8px;
-  color: #66717d;
+  color: var(--theme-text-muted);
   font-size: 14px;
   line-height: 1.75;
 }
@@ -342,9 +343,9 @@ useSeoMeta({
   display: inline-flex;
   margin-top: 12px;
   border-radius: 6px;
-  background: #eef4f0;
+  background: var(--theme-success-soft);
   padding: 5px 8px;
-  color: #647e73;
+  color: var(--theme-success);
   font-size: 12px;
   font-style: normal;
   font-weight: 800;
@@ -390,7 +391,7 @@ useSeoMeta({
 .compact-card small {
   display: block;
   margin-top: 4px;
-  color: #66717d;
+  color: var(--theme-text-muted);
   font-size: 13px;
 }
 
@@ -406,17 +407,17 @@ useSeoMeta({
 .exchange-copy p {
   max-width: 680px;
   margin: 14px 0 0;
-  color: #5d6875;
+  color: var(--theme-text-muted);
   line-height: 1.85;
 }
 
 .site-snippet {
   margin-top: 22px;
-  border: 1px solid #dce3ea;
+  border: 1px solid var(--theme-border);
   border-radius: 8px;
-  background: rgba(247, 249, 251, 0.82);
+  background: color-mix(in srgb, var(--theme-surface-muted) 88%, transparent);
   padding: 16px;
-  color: #53606d;
+  color: var(--theme-text-soft);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 1.65;
@@ -428,7 +429,7 @@ useSeoMeta({
 }
 
 .site-snippet span {
-  color: #45525f;
+  color: var(--theme-text);
   font-weight: 850;
 }
 
@@ -445,19 +446,26 @@ useSeoMeta({
   gap: 9px;
   min-height: 48px;
   border-radius: 8px;
-  background: #1f2933;
+  border: 1px solid color-mix(in srgb, #2f8f68 72%, var(--theme-border));
+  background: linear-gradient(135deg, #277a5b, #356f5b);
   padding: 0 20px;
   color: #ffffff;
   font-size: 14px;
   font-weight: 850;
-  box-shadow: 0 14px 28px rgba(31, 41, 51, 0.14);
-  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  box-shadow: 0 14px 28px rgb(20 83 62 / 18%);
+  transition: border-color 160ms ease, box-shadow 160ms ease, filter 160ms ease, transform 160ms ease;
 }
 
 .exchange-action a:hover {
-  background: #344150;
-  box-shadow: 0 18px 34px rgba(31, 41, 51, 0.18);
+  border-color: #55b58c;
+  box-shadow: 0 18px 34px rgb(47 143 104 / 24%);
+  filter: brightness(1.08);
   transform: translateY(-1px);
+}
+
+.exchange-action a:focus-visible {
+  outline: 3px solid color-mix(in srgb, #55b58c 32%, transparent);
+  outline-offset: 3px;
 }
 
 .exchange-action svg {
@@ -468,7 +476,7 @@ useSeoMeta({
 .exchange-action p {
   max-width: 190px;
   margin: 0;
-  color: #8a949d;
+  color: var(--theme-text-faint);
   font-size: 12px;
   line-height: 1.65;
   text-align: right;
@@ -479,7 +487,7 @@ useSeoMeta({
 }
 
 .avatar-blue {
-  background: linear-gradient(135deg, #1f2933, #738392);
+  background: linear-gradient(135deg, var(--theme-text-strong), var(--theme-text-muted));
 }
 
 .avatar-emerald {
