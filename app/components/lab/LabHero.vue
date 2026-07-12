@@ -17,7 +17,7 @@
 
     <h1>
       探索博客的
-      <span>智能边界</span>
+      <span data-text="智能边界">智能边界</span>
     </h1>
 
     <p>

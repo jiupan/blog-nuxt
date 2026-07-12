@@ -1055,6 +1055,11 @@ body.site-search-lock {
   transform: scale(1.12);
 }
 
+.footer-action.is-image-action:hover,
+.footer-action.is-image-action:focus-visible {
+  transform: none;
+}
+
 .footer-action::after,
 .back-top-button::after {
   position: absolute;
@@ -1114,8 +1119,7 @@ body.site-search-lock {
   color: var(--theme-text-soft);
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, 8px) scale(.97);
-  transform-origin: bottom center;
+  transform: translate(-50%, 6px);
   transition: opacity .18s ease, transform .18s ease;
 }
 
@@ -1134,13 +1138,13 @@ body.site-search-lock {
   .footer-action.is-image-action:hover .footer-action-image,
   .footer-action.is-image-action:focus-visible .footer-action-image {
     opacity: 1;
-    transform: translate(-50%, 0) scale(1);
+    transform: translate(-50%, 0);
   }
 }
 
 .footer-action.is-image-action.is-open .footer-action-image {
   opacity: 1;
-  transform: translate(-50%, 0) scale(1);
+  transform: translate(-50%, 0);
 }
 
 .back-top-button {

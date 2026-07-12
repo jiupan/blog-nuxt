@@ -6,7 +6,7 @@
           v-for="link in footerActionLeft"
           :key="`${link.label}-${link.to}`"
         >
-          <NuxtLink v-if="link.to" :to="link.to" class="footer-action" :aria-label="link.label" :data-tooltip="link.label">
+          <NuxtLink v-if="link.to" :to="link.to" :target="link.targetBlank ? '_blank' : undefined" :rel="link.targetBlank ? 'noopener noreferrer' : undefined" class="footer-action" :aria-label="link.label" :data-tooltip="link.label">
             <Icon :name="link.icon || 'i-simple-icons-linktree'" aria-hidden="true" />
           </NuxtLink>
           <button
@@ -34,7 +34,7 @@
           v-for="link in footerActionRight"
           :key="`${link.label}-${link.to}`"
         >
-          <NuxtLink v-if="link.to" :to="link.to" class="footer-action" :aria-label="link.label" :data-tooltip="link.label">
+          <NuxtLink v-if="link.to" :to="link.to" :target="link.targetBlank ? '_blank' : undefined" :rel="link.targetBlank ? 'noopener noreferrer' : undefined" class="footer-action" :aria-label="link.label" :data-tooltip="link.label">
             <Icon :name="link.icon || 'i-simple-icons-linktree'" aria-hidden="true" />
           </NuxtLink>
           <button

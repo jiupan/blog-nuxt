@@ -301,6 +301,12 @@
                 />
               </div>
 
+              <label class="settings-checkbox footer-action-target-option" :class="{ 'is-disabled': !item.to.trim() }">
+                <input v-model="item.targetBlank" type="checkbox" :disabled="!item.to.trim()">
+                <span>在新页面打开</span>
+                <small>{{ item.to.trim() ? (item.targetBlank ? '点击后将在新标签页打开' : '点击后在当前页面打开') : '填写跳转地址后可设置' }}</small>
+              </label>
+
               <div class="footer-action-image-editor">
                 <div v-if="item.image" class="footer-action-image-preview">
                   <img :src="item.image" :alt="`${item.label} 悬浮图片预览`">
@@ -414,6 +420,7 @@ type FooterActionItem = {
   to: string
   icon: string
   image: string
+  targetBlank: boolean
 }
 
 const defaultValue = (key: string) => {
@@ -477,6 +484,27 @@ const footerActionIconOptions = [
   { label: '知乎', name: 'i-simple-icons-zhihu' },
   { label: '掘金', name: 'i-simple-icons-juejin' },
   { label: 'CSDN', name: 'i-simple-icons-csdn' },
+  { label: 'QQ 空间', name: 'i-simple-icons-qzone' },
+  { label: '小红书', name: 'i-simple-icons-xiaohongshu' },
+  { label: '豆瓣', name: 'i-simple-icons-douban' },
+  { label: '快手', name: 'i-simple-icons-kuaishou' },
+  { label: 'DeepSeek', name: 'i-simple-icons-deepseek' },
+  { label: '支付宝', name: 'i-simple-icons-alipay' },
+  { label: '淘宝', name: 'i-simple-icons-taobao' },
+  { label: '阿里巴巴', name: 'i-simple-icons-alibabadotcom' },
+  { label: '美团', name: 'i-simple-icons-meituan' },
+  { label: '百度', name: 'i-simple-icons-baidu' },
+  { label: '字节跳动', name: 'i-simple-icons-bytedance' },
+  { label: '阿里云', name: 'i-simple-icons-alibabacloud' },
+  { label: '搜狗', name: 'i-simple-icons-sogou' },
+  { label: '华为', name: 'i-simple-icons-huawei' },
+  { label: '小米', name: 'i-simple-icons-xiaomi' },
+  { label: 'OPPO', name: 'i-simple-icons-oppo' },
+  { label: 'vivo', name: 'i-simple-icons-vivo' },
+  { label: '一加', name: 'i-simple-icons-oneplus' },
+  { label: '大疆', name: 'i-simple-icons-dji' },
+  { label: '联想', name: 'i-simple-icons-lenovo' },
+  { label: '携程 Trip.com', name: 'i-simple-icons-tripdotcom' },
   { label: 'Telegram', name: 'i-simple-icons-telegram' },
   { label: 'X', name: 'i-simple-icons-x' },
   { label: 'Facebook', name: 'i-simple-icons-facebook' },
@@ -559,11 +587,12 @@ watch(data, (val) => {
 
 async function save() {
   if (!form.value) return
-  form.value.footer_actions = JSON.stringify(footerActionItems.value.map(({ label, to, icon, image }) => ({
+  form.value.footer_actions = JSON.stringify(footerActionItems.value.map(({ label, to, icon, image, targetBlank }) => ({
     label: label.trim(),
     to: to.trim(),
     icon: icon.trim() || 'i-simple-icons-linktree',
-    image: image.trim()
+    image: image.trim(),
+    targetBlank
   })).filter((item) => item.label))
   saving.value = true
   saved.value = false
@@ -612,7 +641,8 @@ function parseFooterActionItems(value: string): FooterActionItem[] {
       label: String(item?.label || '').trim(),
       to: String(item?.to || '').trim(),
       icon: String(item?.icon || 'i-simple-icons-linktree').trim() || 'i-simple-icons-linktree',
-      image: String(item?.image || '').trim()
+      image: String(item?.image || '').trim(),
+      targetBlank: item?.targetBlank === true
     })).filter((item) => item.label)
     return items.length ? items : parseFooterActionItems(defaultFooterActions)
   } catch {
@@ -626,7 +656,8 @@ function addFooterAction() {
     label: '新入口',
     to: '',
     icon: 'i-simple-icons-linktree',
-    image: ''
+    image: '',
+    targetBlank: false
   })
 }
 
@@ -1052,6 +1083,21 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   border-radius: 0.65rem;
   background: #f8fafc;
   padding: 0.75rem;
+}
+
+.footer-action-target-option {
+  width: max-content;
+  max-width: 100%;
+}
+
+.footer-action-target-option small {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.footer-action-target-option.is-disabled {
+  opacity: 0.55;
 }
 
 .footer-action-image-preview {

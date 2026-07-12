@@ -134,11 +134,23 @@
   position: relative;
   display: inline-block;
   margin-left: 12px;
-  background: linear-gradient(90deg, #1f2937, var(--theme-text-muted), var(--theme-text-faint));
+  background: linear-gradient(90deg, var(--theme-text-soft), var(--theme-text-faint));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  transition: background .6s ease, filter .6s ease;
+}
+
+.lab-hero h1 span::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--theme-info), #7c83ee 55%, #42b8c8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  content: attr(data-text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .55s cubic-bezier(.22, .7, .22, 1);
 }
 
 .lab-hero h1 span::after {
@@ -154,11 +166,8 @@
   transition: width .6s ease;
 }
 
-.lab-hero h1:hover span {
-  background: linear-gradient(90deg, var(--theme-info), #6366f1, #0891b2);
-  -webkit-background-clip: text;
-  background-clip: text;
-  filter: drop-shadow(0 14px 28px rgb(37 99 235 / 13%));
+.lab-hero h1:hover span::before {
+  opacity: 1;
 }
 
 .lab-hero h1:hover span::after {
