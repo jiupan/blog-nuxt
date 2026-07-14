@@ -21,7 +21,7 @@
           </Transition>
           <div class="hero-copy">
             <h1>{{ activeHeroPost?.title || latest?.title || siteName }}</h1>
-            <p>{{ currentHeroPost?.isPinned ? '置顶推荐' : (latest ? '最新发布' : '暂无已发布文章') }}</p>
+            <p>{{ currentHeroPost?.isPinned ? '⭐ 置顶推荐' : (latest ? '⭐ 最新发布' : '暂无已发布文章') }}</p>
           </div>
         </NuxtLink>
 
@@ -328,6 +328,7 @@ const heroPosts = computed(() => {
       title: post.title,
       slug: post.slug,
       cover: post.cover,
+      isPinned: Boolean(post.isPinned),
       to: postPath(post.slug),
       icon: heroIconLabels[index] || 'i-lucide-file-text',
       memeIcon: heroMemeIcons.value.length ? heroMemeIcons.value[(index + heroMemeOffset.value) % heroMemeIcons.value.length] : ''
