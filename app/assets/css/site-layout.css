@@ -8,6 +8,22 @@
   transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 
+.site-header.has-page-gradient:not(.is-scrolled):not(.is-article-route)::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  z-index: -1;
+  height: 42px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--theme-page-soft) 92%, transparent),
+    transparent
+  );
+  content: '';
+  pointer-events: none;
+}
+
 .site-header.is-scrolled {
   border-color: transparent;
   background: transparent;
@@ -744,8 +760,10 @@ body.site-search-lock {
     box-shadow: none;
   }
 
-  .brand:hover,
-  .brand:focus-visible {
+  .site-header .brand:hover,
+  .site-header .brand:focus-visible,
+  .site-header.is-scrolled .brand:hover,
+  .site-header.is-scrolled .brand:focus-visible {
     background: transparent;
     box-shadow: none;
     color: var(--theme-text);
@@ -884,31 +902,6 @@ body.site-search-lock {
     line-height: 1;
   }
 
-  .mobile-green-card {
-    display: grid;
-    gap: 8px;
-    min-height: 118px;
-    align-content: center;
-    margin-top: 18px;
-    overflow: hidden;
-    border-radius: 10px;
-    background: linear-gradient(135deg, #91d855, #54b93d);
-    box-shadow: 0 16px 28px rgb(74 170 54 / 18%);
-    color: #fff;
-    padding: 20px 32px;
-  }
-
-  .mobile-green-card strong {
-    font-size: 24px;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .mobile-green-card span {
-    font-size: 13px;
-    font-weight: 800;
-  }
-
   .mobile-panel-group {
     margin-top: 18px;
   }
@@ -996,8 +989,24 @@ body.site-search-lock {
 }
 
 .home-footer.is-compact {
+  position: relative;
   margin-top: 0;
-  background: var(--theme-page-soft);
+  background: transparent;
+}
+
+.home-footer.is-compact::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 42px;
+  background: linear-gradient(180deg, transparent, var(--theme-surface-raised));
+  content: '';
+  pointer-events: none;
+}
+
+.home-footer.is-compact .footer-bottom {
+  border-top-color: transparent;
 }
 
 .footer-actions {

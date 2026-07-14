@@ -18,11 +18,6 @@
             </div>
           </section>
 
-          <NuxtLink to="/posts" class="mobile-green-card" @click="$emit('close')">
-            <strong>文章</strong>
-            <span>查看全部已发布内容</span>
-          </NuxtLink>
-
           <div class="mobile-panel-group">
             <h3>博客</h3>
             <div class="mobile-panel-grid">

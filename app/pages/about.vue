@@ -1,690 +1,614 @@
 <template>
-  <div class="about-page">
-    <section class="about-hero">
-      <div class="about-hero-copy">
-        <div class="status-pill">
-          <span aria-hidden="true"></span>
-          持续记录和打磨这个博客
+  <NuxtLayout name="default" force-standard-header compact-footer viewport-fit header-gradient>
+    <div class="about-stage">
+      <div class="about-backdrop" aria-hidden="true">
+        <canvas ref="canvasRef" class="particle-canvas" />
+        <div class="about-glow glow-one" />
+        <div class="about-glow glow-two" />
+      </div>
+
+      <section class="about-card" aria-labelledby="about-title">
+        <div class="portrait-shell">
+          <div class="portrait-glow" aria-hidden="true" />
+          <video v-if="authorAvatarIsVideo" :src="authorAvatar" autoplay muted loop playsinline preload="metadata" :aria-label="`${authorName} 的头像视频`" />
+          <img v-else-if="authorAvatar" :src="authorAvatar" :alt="authorName">
+          <span v-else>{{ authorInitial }}</span>
+          <i aria-hidden="true" />
         </div>
 
-        <h1>
-          你好，这里是
-          <span>{{ siteName }}</span>
-        </h1>
+        <div class="about-intro">
+          <p class="about-eyebrow">HELLO, NICE TO MEET YOU</p>
+          <h1 id="about-title">
+            你好，我是
+            <span>{{ siteName }}</span>
+          </h1>
+          <h2>{{ siteSubtitle }}</h2>
+          <p class="about-description">{{ siteDescription }}</p>
+        </div>
 
-        <p>
-          我把这里当作长期写作、技术整理和生活观察的空间。页面会围绕真实内容展开：最近在写什么、常用什么工具，以及这个站点如何被一点点维护起来。
-        </p>
+        <section class="stack-section" aria-labelledby="stack-title">
+          <p id="stack-title" class="section-label">技术栈</p>
+          <div class="stack-list">
+            <span v-for="tech in techStack" :key="tech.name" class="stack-chip">
+              <Icon :name="tech.icon" :class="tech.tone" aria-hidden="true" />
+              {{ tech.name }}
+            </span>
+          </div>
+        </section>
 
-        <div class="hero-actions">
-          <NuxtLink to="/archive" class="primary-action">
-            查看文章
-            <ArrowRightIcon aria-hidden="true" />
+        <div class="about-actions">
+          <nav class="social-links" aria-label="关于页快捷入口">
+            <NuxtLink to="/archive" aria-label="文章归档" data-tooltip="文章归档">
+              <Icon name="i-lucide-archive" aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink to="/link" aria-label="友情链接" data-tooltip="友情链接">
+              <Icon name="i-lucide-link" aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink to="/admin" aria-label="管理后台" data-tooltip="管理后台">
+              <Icon name="i-lucide-settings" aria-hidden="true" />
+            </NuxtLink>
+          </nav>
+
+          <NuxtLink to="/posts" class="posts-link">
+            浏览文章
+            <Icon name="i-lucide-external-link" aria-hidden="true" />
           </NuxtLink>
-          <div class="social-actions" aria-label="快捷入口">
-            <NuxtLink to="/archive" aria-label="归档" data-tooltip="归档">
-              <ArchiveIcon aria-hidden="true" />
-            </NuxtLink>
-            <NuxtLink to="/link" aria-label="友链" data-tooltip="友链">
-              <LinkIcon aria-hidden="true" />
-            </NuxtLink>
-            <NuxtLink to="/admin" aria-label="后台" data-tooltip="后台">
-              <SettingsIcon aria-hidden="true" />
-            </NuxtLink>
-          </div>
         </div>
-      </div>
-
-      <div class="about-portrait-wrap" aria-label="站点资料">
-        <div class="portrait-backdrop" aria-hidden="true"></div>
-        <div class="about-portrait">
-          <img :src="profileImage" :alt="siteName">
-        </div>
-        <div class="portrait-note">
-          <span>{{ totalPosts }}</span>
-          篇已发布文章
-        </div>
-      </div>
-    </section>
-
-    <section class="about-section article-section">
-      <div class="section-heading">
-        <div>
-          <h2>最新随笔</h2>
-          <p>从最近的发布里了解这里正在关注什么。</p>
-        </div>
-        <NuxtLink to="/posts" class="section-link">
-          查看全部
-          <ArrowRightIcon aria-hidden="true" />
-        </NuxtLink>
-      </div>
-
-      <div v-if="latestPosts.length" class="article-grid">
-        <article v-for="post in latestPosts" :key="post.id" class="article-card">
-          <div class="article-meta">
-            <time>{{ formatFullDate(post.publishedAt) }}</time>
-            <NuxtLink v-if="post.category" :to="`/categories/${post.category.slug}`">{{ post.category.name }}</NuxtLink>
-            <span v-else>未分类</span>
-          </div>
-          <NuxtLink :to="postPath(post.slug)" class="article-title">{{ post.title }}</NuxtLink>
-          <p>{{ post.summary || '这篇文章还没有摘要，点进去看看完整内容。' }}</p>
-        </article>
-      </div>
-
-      <div v-else class="empty-about-card">
-        <h3>还没有公开文章</h3>
-        <p>发布第一篇文章后，这里会自动显示最新内容。</p>
-      </div>
-    </section>
-
-    <section class="about-section skill-section">
-      <div class="skill-copy">
-        <h2>我所关注的</h2>
-        <p>
-          这个站点主要围绕写作、前端工程和内容管理展开。比起罗列复杂履历，我更愿意把能长期复用的经验沉淀成文章和工具。
-        </p>
-
-        <div class="skill-bars">
-          <div v-for="skill in skills" :key="skill.name" class="skill-row">
-            <div>
-              <span>{{ skill.name }}</span>
-              <strong>{{ skill.level }}%</strong>
-            </div>
-            <div class="skill-track">
-              <span :style="{ width: `${skill.level}%` }"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="tag-cloud" aria-label="标签">
-        <NuxtLink
-          v-for="tag in displayTags"
-          :key="tag.label"
-          :to="tag.to"
-          class="tag-chip"
-        >
-          {{ tag.label }}
-        </NuxtLink>
-      </div>
-    </section>
-  </div>
+      </section>
+    </div>
+  </NuxtLayout>
 </template>
 
 <script setup lang="ts">
-import {
-  Archive as ArchiveIcon,
-  ArrowRight as ArrowRightIcon,
-  Link as LinkIcon,
-  Settings as SettingsIcon
-} from '@lucide/vue'
+definePageMeta({ layout: false })
 
-type CategoryLite = {
-  name: string
-  slug: string
-}
-
-type TagLite = {
-  name: string
-  slug: string
-}
-
-type AboutPost = {
-  id: number
-  title: string
-  slug: string
-  summary?: string | null
-  cover?: string | null
-  publishedAt?: string | Date | null
-  category?: CategoryLite | null
-}
-
-type TaxonomyItem = {
-  id: number
-  name: string
-  slug: string
-  _count?: {
-    posts: number
-  }
-}
-
-type PostsPayload = {
-  items: AboutPost[]
-  total: number
+type Particle = {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  radius: number
+  alpha: number
+  targetAlpha: number
 }
 
 const config = useRuntimeConfig()
+const colorMode = useColorMode()
 const siteSettings = useSiteSettings()
+const canvasRef = ref<HTMLCanvasElement | null>(null)
 
-const [{ data: postData }, { data: tagData }] = await Promise.all([
-  useFetch<{ data: PostsPayload }>('/api/posts', { query: { page: 1, pageSize: 3 } }),
-  useFetch<{ data: TaxonomyItem[] }>('/api/tags')
-])
+const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan')
+const siteSubtitle = computed(() => siteSettings.value.site_subtitle || '全栈开发工程师 / 创作者 / 设计爱好者')
+const siteDescription = computed(() => siteSettings.value.seo_description || '热爱构建优雅的数字产品，专注于前端体验与工程实践，用代码记录思考，也把灵感一点点变成现实。')
+const authorName = computed(() => siteSettings.value.sidebar_author_name.trim() || siteName.value)
+const authorAvatar = computed(() => siteSettings.value.sidebar_author_avatar)
+const authorAvatarIsVideo = computed(() => /\.(?:mp4|webm)(?:$|[?#])/i.test(authorAvatar.value))
+const authorInitial = computed(() => authorName.value.slice(0, 1).toUpperCase())
 
-const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
-const latestPosts = computed(() => postData.value?.data.items || [])
-const totalPosts = computed(() => postData.value?.data.total || 0)
-const profileImage = computed(() => latestPosts.value.find((post) => post.cover)?.cover || siteSettings.value.site_logo || '/images/home-hero-ai.png')
-
-const skills = [
-  { name: '内容写作与整理', level: 88 },
-  { name: '前端开发与体验优化', level: 84 },
-  { name: '全栈博客维护', level: 76 }
+const techStack = [
+  { name: 'Nuxt', icon: 'i-simple-icons-nuxtdotjs', tone: 'is-green' },
+  { name: 'Vue.js', icon: 'i-simple-icons-vuedotjs', tone: 'is-emerald' },
+  { name: 'TypeScript', icon: 'i-simple-icons-typescript', tone: 'is-blue' },
+  { name: 'Node.js', icon: 'i-simple-icons-nodedotjs', tone: 'is-lime' },
+  { name: 'PostgreSQL', icon: 'i-simple-icons-postgresql', tone: 'is-indigo' },
+  { name: 'Prisma', icon: 'i-simple-icons-prisma', tone: 'is-violet' }
 ]
 
-const fallbackTags: TagLite[] = [
-  { name: 'Nuxt', slug: 'nuxt' },
-  { name: 'TypeScript', slug: 'typescript' },
-  { name: 'Markdown', slug: 'markdown' },
-  { name: 'PostgreSQL', slug: 'postgresql' },
-  { name: 'Prisma', slug: 'prisma' },
-  { name: 'Web Performance', slug: 'web-performance' },
-  { name: 'Writing', slug: 'writing' },
-  { name: 'Design', slug: 'design' }
-]
+let animationFrame = 0
+let removeResizeListener: (() => void) | undefined
 
-const displayTags = computed(() => {
-  const source = tagData.value?.data.length ? tagData.value.data.slice(0, 10) : fallbackTags
-  return source.map((tag) => ({
-    label: tag.name,
-    to: tagData.value?.data.length ? `/tags/${tag.slug}` : '/posts'
-  }))
+function startParticles() {
+  const canvas = canvasRef.value
+  if (!canvas) return
+
+  cancelAnimationFrame(animationFrame)
+  removeResizeListener?.()
+
+  const context = canvas.getContext('2d')
+  if (!context) return
+
+  let width = 0
+  let height = 0
+  let particles: Particle[] = []
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const resetParticle = (particle: Particle, initial = false) => {
+    particle.x = Math.random() * width
+    particle.y = initial ? Math.random() * height : height + Math.random() * 80
+    particle.vx = (Math.random() - 0.5) * 0.35
+    particle.vy = -(Math.random() * 0.35 + 0.12)
+    particle.radius = Math.random() * 1.7 + 0.45
+    particle.alpha = initial ? Math.random() * 0.42 + 0.08 : 0
+    particle.targetAlpha = Math.random() * 0.44 + 0.12
+  }
+
+  const resize = () => {
+    const ratio = Math.min(window.devicePixelRatio || 1, 2)
+    width = canvas.clientWidth
+    height = canvas.clientHeight
+    canvas.width = Math.round(width * ratio)
+    canvas.height = Math.round(height * ratio)
+    context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    particles = Array.from({ length: Math.min(Math.floor(width / 9), 160) }, () => {
+      const particle = {} as Particle
+      resetParticle(particle, true)
+      return particle
+    })
+  }
+
+  const draw = () => {
+    context.clearRect(0, 0, width, height)
+    const dark = colorMode.value === 'dark'
+    const rgb = dark ? '103, 232, 249' : '100, 116, 139'
+
+    for (const particle of particles) {
+      if (!reducedMotion) {
+        particle.x += particle.vx
+        particle.y += particle.vy
+        particle.alpha += particle.alpha < particle.targetAlpha ? 0.003 : -0.0012
+        if (particle.y < -5 || particle.alpha <= 0) resetParticle(particle)
+      }
+
+      context.beginPath()
+      context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2)
+      context.fillStyle = `rgba(${rgb}, ${Math.max(0, particle.alpha)})`
+      context.shadowBlur = dark ? 7 : 0
+      context.shadowColor = `rgba(${rgb}, ${particle.alpha * 0.45})`
+      context.fill()
+    }
+
+    context.shadowBlur = 0
+    if (!reducedMotion) animationFrame = requestAnimationFrame(draw)
+  }
+
+  resize()
+  draw()
+  window.addEventListener('resize', resize, { passive: true })
+  removeResizeListener = () => window.removeEventListener('resize', resize)
+}
+
+onMounted(startParticles)
+
+onBeforeUnmount(() => {
+  cancelAnimationFrame(animationFrame)
+  removeResizeListener?.()
 })
 
 useSeoMeta({
   title: () => `关于 - ${siteName.value}`,
-  description: () => siteSettings.value.seo_description || `${siteName.value} 的关于页面`
+  description: () => siteDescription.value
 })
-
-function formatFullDate(value?: string | Date | null) {
-  if (!value) {
-    return '未设置日期'
-  }
-
-  return new Date(value).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
 </script>
 
 <style scoped>
-.about-page {
-  min-height: 100vh;
-  color: var(--theme-text);
-}
-
-.about-hero,
-.about-section {
-  width: min(100% - 32px, 1040px);
-  margin: 0 auto;
-}
-
-.about-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
-  gap: 72px;
-  align-items: center;
-  padding: 112px 0 76px;
-}
-
-.about-hero-copy {
-  min-width: 0;
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #dbe6df;
-  border-radius: 999px;
-  background: var(--theme-success-soft);
-  padding: 5px 11px;
-  color: #5e8271;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.status-pill span {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: #70bd88;
-  box-shadow: 0 0 0 4px rgba(112, 189, 136, 0.16);
-}
-
-.about-hero h1 {
-  max-width: 720px;
-  margin: 24px 0 0;
-  color: var(--theme-text);
-  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
-  font-size: clamp(42px, 7vw, 72px);
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1.04;
-}
-
-.about-hero h1 span {
-  color: var(--theme-text-muted);
-  font-style: italic;
-}
-
-.about-hero p {
-  max-width: 620px;
-  margin: 24px 0 0;
-  color: var(--theme-text-muted);
-  font-size: 16px;
-  line-height: 1.9;
-}
-
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  align-items: center;
-  margin-top: 30px;
-}
-
-.primary-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 46px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, #2f8f68 72%, var(--theme-border));
-  background: linear-gradient(135deg, #277a5b, #356f5b);
-  padding: 0 18px;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 800;
-  box-shadow: 0 12px 26px rgb(20 83 62 / 18%);
-  transition: border-color 160ms ease, box-shadow 160ms ease, filter 160ms ease, transform 160ms ease;
-}
-
-.primary-action:hover {
-  border-color: #55b58c;
-  box-shadow: 0 16px 34px rgb(47 143 104 / 24%);
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-}
-
-.primary-action:focus-visible {
-  outline: 3px solid color-mix(in srgb, #55b58c 32%, transparent);
-  outline-offset: 3px;
-}
-
-.primary-action svg {
-  width: 17px;
-  height: 17px;
-}
-
-.social-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.social-actions a {
+.about-stage {
   position: relative;
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 100%;
+  min-height: 100%;
   place-items: center;
-  border-radius: 8px;
-  color: var(--theme-text-faint);
-  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+  overflow-x: clip;
+  overflow-y: visible;
+  background:
+    radial-gradient(circle at 18% 18%, rgb(96 165 250 / 13%), transparent 30%),
+    radial-gradient(circle at 83% 78%, rgb(129 140 248 / 13%), transparent 32%),
+    linear-gradient(145deg, #f8fafc, #f2f5fb 48%, #f8fafc);
+  padding: clamp(20px, 3.5vw, 34px) 12px;
+  isolation: isolate;
 }
 
-.social-actions a:hover {
-  background: var(--theme-success-soft);
-  color: var(--theme-text);
-  transform: translateY(-1px);
-}
-
-.social-actions svg {
-  width: 20px;
-  height: 20px;
-}
-
-.about-portrait-wrap {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  padding: 20px 0 42px;
-}
-
-.portrait-backdrop {
+.particle-canvas {
   position: absolute;
-  inset: 50px 12px 28px;
-  border: 1px solid #dde4df;
-  border-radius: 8px;
-  background: var(--theme-success-soft);
-  transform: rotate(-6deg);
-}
-
-.about-portrait {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 260px);
-  aspect-ratio: 1;
-  overflow: hidden;
-  border: 6px solid #ffffff;
-  border-radius: 8px;
-  background: #edf1f5;
-  box-shadow: 0 24px 44px rgba(38, 50, 56, 0.16);
-  transform: rotate(3deg);
-  transition: filter 300ms ease, transform 300ms ease;
-}
-
-.about-portrait:hover {
-  transform: rotate(0deg) translateY(-2px);
-}
-
-.about-portrait img {
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  filter: grayscale(1);
-  transition: filter 300ms ease;
+  pointer-events: none;
 }
 
-.about-portrait:hover img {
-  filter: grayscale(0);
-}
-
-.portrait-note {
+.about-backdrop {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  display: grid;
-  gap: 2px;
-  min-width: 126px;
-  border: 1px solid #e1e7e2;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  padding: 12px 14px;
-  color: #64748b;
-  font-size: 12px;
-  box-shadow: 0 16px 30px rgba(38, 50, 56, 0.12);
-  backdrop-filter: blur(12px);
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-.portrait-note span {
-  color: #263244;
-  font-size: 22px;
-  font-weight: 850;
-  line-height: 1;
+.about-glow {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: .2;
+  pointer-events: none;
 }
 
-.about-section {
-  padding: 68px 0;
+.glow-one {
+  top: -160px;
+  right: 8%;
+  background: #60a5fa;
 }
 
-.section-heading {
+.glow-two {
+  bottom: -190px;
+  left: 6%;
+  background: #a78bfa;
+}
+
+.about-card {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 32px;
+  width: min(100%, 530px);
+  align-items: center;
+  flex-direction: column;
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: 27px;
+  background: rgb(255 255 255 / 62%);
+  box-shadow: 0 20px 54px rgb(30 41 59 / 12%);
+  padding: clamp(26px, 4vw, 39px);
+  text-align: center;
+  backdrop-filter: blur(24px);
+  animation: card-arrive .8s cubic-bezier(.2, .78, .2, 1) both;
 }
 
-.section-heading h2,
-.skill-copy h2 {
-  margin: 0;
+.portrait-shell {
+  position: relative;
+  width: clamp(94px, 11vw, 104px);
+  height: clamp(94px, 11vw, 104px);
+}
+
+.portrait-glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #60a5fa, #818cf8, #c084fc);
+  filter: blur(5px);
+  opacity: .42;
+  transition: opacity .3s ease;
+}
+
+.portrait-shell:hover .portrait-glow {
+  opacity: .8;
+}
+
+.portrait-shell img,
+.portrait-shell video,
+.portrait-shell > span {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: 3px solid rgb(255 255 255 / 94%);
+  border-radius: 50%;
+  background: #f1f5f9;
+  object-fit: cover;
+  transition: transform .35s ease;
+}
+
+.portrait-shell > span {
+  display: grid;
+  place-items: center;
   color: var(--theme-text);
-  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
-  font-size: 34px;
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1.2;
+  font-family: Georgia, "Noto Serif SC", serif;
+  font-size: 28px;
+  font-weight: 700;
 }
 
-.section-heading p,
-.skill-copy p {
+.portrait-shell > i {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--theme-surface);
+  border-radius: 50%;
+  background: #4ade80;
+}
+
+.portrait-shell:hover img,
+.portrait-shell:hover video {
+  transform: scale(1.035);
+}
+
+.about-intro {
+  margin-top: 14px;
+}
+
+.about-eyebrow,
+.section-label {
+  margin: 0;
+  color: var(--theme-text-faint);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .18em;
+}
+
+.about-intro h1 {
   margin: 8px 0 0;
-  color: var(--theme-text-muted);
-  line-height: 1.8;
+  color: var(--theme-text);
+  font-size: clamp(27px, 4vw, 34px);
+  font-weight: 900;
+  letter-spacing: -.045em;
+  line-height: 1.15;
 }
 
-.section-link {
+.about-intro h1 span {
+  background: linear-gradient(100deg, #2563eb, #6366f1 55%, #8b5cf6);
+  background-clip: text;
+  color: transparent;
+}
+
+.about-intro h2 {
+  margin: 7px 0 0;
+  color: var(--theme-text-soft);
+  font-size: clamp(13px, 1.7vw, 14px);
+  font-weight: 650;
+}
+
+.about-description {
+  max-width: 390px;
+  margin: 7px auto 0;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.stack-section {
+  width: 100%;
+  margin-top: 17px;
+  padding-top: 14px;
+  border-top: 1px solid rgb(148 163 184 / 18%);
+}
+
+.stack-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.stack-chip {
   display: inline-flex;
+  min-height: 27px;
   align-items: center;
   gap: 6px;
-  color: var(--theme-text-muted);
-  font-size: 14px;
-  font-weight: 800;
-  white-space: nowrap;
-  transition: color 160ms ease, transform 160ms ease;
-}
-
-.section-link:hover {
-  color: var(--theme-text);
-  transform: translateX(2px);
-}
-
-.section-link svg {
-  width: 16px;
-  height: 16px;
-}
-
-.article-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-}
-
-.article-card,
-.empty-about-card {
-  border: 1px solid #edf0ed;
-  border-radius: 8px;
-  background: var(--theme-surface);
-  box-shadow:
-    0 2px 14px rgba(38, 50, 56, 0.05),
-    0 16px 30px rgba(38, 50, 56, 0.04);
-}
-
-.article-card {
-  min-height: 210px;
-  padding: 24px;
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
-}
-
-.article-card:hover {
-  border-color: var(--theme-border);
-  box-shadow:
-    0 4px 18px rgba(38, 50, 56, 0.07),
-    0 24px 42px rgba(38, 50, 56, 0.08);
-  transform: translateY(-3px);
-}
-
-.article-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  color: var(--theme-text-faint);
-  font-size: 12px;
-}
-
-.article-meta a,
-.article-meta span {
+  border: 1px solid rgb(148 163 184 / 20%);
   border-radius: 999px;
-  background: var(--theme-success-soft);
-  padding: 4px 9px;
-  color: #5d8270;
-  font-weight: 750;
-}
-
-.article-title {
-  display: block;
-  margin-top: 18px;
-  color: var(--theme-text);
-  font-size: 17px;
-  font-weight: 850;
-  line-height: 1.55;
-  transition: color 160ms ease;
-}
-
-.article-title:hover {
-  color: var(--theme-text-muted);
-}
-
-.article-card p,
-.empty-about-card p {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 12px 0 0;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  color: var(--theme-text-muted);
-  font-size: 14px;
-  line-height: 1.8;
-}
-
-.empty-about-card {
-  padding: 28px;
-}
-
-.empty-about-card h3 {
-  margin: 0;
-  color: var(--theme-text);
-  font-size: 18px;
-}
-
-.skill-section {
-  display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(280px, 1.08fr);
-  gap: 72px;
-  align-items: center;
-}
-
-.skill-copy p {
-  max-width: 520px;
-}
-
-.skill-bars {
-  display: grid;
-  gap: 18px;
-  margin-top: 28px;
-}
-
-.skill-row > div:first-child {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 7px;
+  background: rgb(255 255 255 / 68%);
+  box-shadow: 0 6px 16px rgb(30 41 59 / 5%);
   color: var(--theme-text-soft);
-  font-size: 13px;
-  font-weight: 800;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 750;
+  transition: background .2s ease, transform .2s ease;
 }
 
-.skill-row strong {
-  color: var(--theme-text-faint);
-  font-size: 12px;
+.stack-chip:hover {
+  background: rgb(255 255 255 / 94%);
+  transform: translateY(-2px);
 }
 
-.skill-track {
-  overflow: hidden;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--theme-border);
+.stack-chip svg {
+  width: 12px;
+  height: 12px;
 }
 
-.skill-track span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--theme-text-muted);
-}
+.is-green,
+.is-emerald,
+.is-lime { color: #16a34a; }
+.is-blue { color: #2563eb; }
+.is-indigo { color: #4f46e5; }
+.is-violet { color: #7c3aed; }
 
-.tag-cloud {
+.about-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-content: center;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 16px;
 }
 
-.tag-chip {
-  border: 1px solid var(--theme-border);
-  border-radius: 999px;
-  background: var(--theme-surface);
-  padding: 9px 15px;
+.social-links {
+  display: flex;
+  gap: 7px;
+}
+
+.social-links a {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 72%);
+  box-shadow: 0 7px 18px rgb(30 41 59 / 6%);
   color: var(--theme-text-muted);
-  font-size: 13px;
-  line-height: 1;
-  box-shadow: 0 7px 16px rgba(38, 50, 56, 0.04);
-  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  transition: color .2s ease, transform .2s ease, box-shadow .2s ease;
 }
 
-.tag-chip:hover {
-  border-color: var(--theme-border);
-  color: #4f7564;
-  transform: translateY(-1px);
+.social-links a:hover {
+  color: #4f46e5;
+  box-shadow: 0 12px 24px rgb(79 70 229 / 13%);
+  transform: translateY(-2px);
 }
 
-@media (max-width: 860px) {
-  .about-hero {
-    grid-template-columns: 1fr;
-    gap: 34px;
-    padding: 82px 0 56px;
-  }
+.social-links svg,
+.posts-link svg {
+  width: 14px;
+  height: 14px;
+}
 
-  .about-portrait-wrap {
-    order: -1;
-    width: min(100%, 340px);
-    margin: 0 auto;
-  }
+.posts-link {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  background: #172033;
+  box-shadow: 0 12px 26px rgb(15 23 42 / 20%);
+  color: #fff;
+  padding: 0 14px;
+  font-size: 10px;
+  font-weight: 800;
+  transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
+}
 
-  .about-hero h1 {
-    font-size: clamp(38px, 11vw, 54px);
-  }
+.posts-link:hover {
+  background: #26344d;
+  box-shadow: 0 16px 30px rgb(15 23 42 / 25%);
+  transform: translateY(-2px);
+}
 
-  .article-grid,
-  .skill-section {
-    grid-template-columns: 1fr;
-  }
+:global(.dark .about-stage) {
+  background:
+    radial-gradient(circle at 18% 18%, rgb(34 211 238 / 12%), transparent 30%),
+    radial-gradient(circle at 83% 78%, rgb(99 102 241 / 15%), transparent 32%),
+    linear-gradient(145deg, #020617, #070d1d 48%, #020617);
+}
 
-  .skill-section {
-    gap: 34px;
-  }
+:global(.dark .about-card) {
+  border-color: rgb(255 255 255 / 10%);
+  background: rgb(15 23 42 / 40%);
+  box-shadow: 0 30px 90px rgb(0 0 0 / 35%);
+}
+
+:global(.dark .portrait-shell img),
+:global(.dark .portrait-shell video),
+:global(.dark .portrait-shell > span) {
+  border-color: #1e293b;
+  background: #0f172a;
+}
+
+:global(.dark .about-eyebrow),
+:global(.dark .section-label) {
+  color: #64748b;
+}
+
+:global(.dark .about-intro h1) {
+  color: #f8fafc;
+}
+
+:global(.dark .about-intro h1 span) {
+  background-image: linear-gradient(100deg, #22d3ee, #60a5fa 55%, #818cf8);
+}
+
+:global(.dark .about-intro h2) {
+  color: #cbd5e1;
+}
+
+:global(.dark .about-description) {
+  color: #94a3b8;
+}
+
+:global(.dark .stack-section) {
+  border-color: rgb(51 65 85 / 62%);
+}
+
+:global(.dark .stack-chip) {
+  border-color: rgb(51 65 85 / 72%);
+  background: rgb(30 41 59 / 52%);
+  box-shadow: none;
+  color: #f1f5f9;
+}
+
+:global(.dark .social-links a) {
+  border-color: rgb(51 65 85 / 68%);
+  background: rgb(30 41 59 / 80%);
+  box-shadow: none;
+  color: #cbd5e1;
+}
+
+:global(.dark .stack-chip:hover),
+:global(.dark .social-links a:hover) {
+  background: #334155;
+}
+
+:global(.dark .social-links a:hover) {
+  color: #22d3ee;
+}
+
+:global(.dark .posts-link) {
+  background: #06b6d4;
+  box-shadow: 0 0 28px rgb(6 182 212 / 28%);
+  color: #020617;
+}
+
+:global(.dark .posts-link:hover) {
+  background: #22d3ee;
+}
+
+@keyframes card-arrive {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 640px) {
-  .about-hero,
-  .about-section {
-    width: min(100% - 24px, 1040px);
+  .about-stage {
+    padding: 20px 20px 24px;
   }
 
-  .about-hero {
-    padding-top: 62px;
+  .about-card {
+    border-radius: 24px;
+    padding: 26px 18px;
   }
 
-  .hero-actions,
-  .section-heading {
-    align-items: flex-start;
+  .about-intro {
+    margin-top: 13px;
+  }
+
+  .about-description {
+    font-size: 11px;
+  }
+
+  .stack-section {
+    margin-top: 16px;
+    padding-top: 13px;
+  }
+
+  .stack-chip {
+    min-height: 27px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .about-actions {
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .social-links {
+    justify-content: center;
+  }
+
+}
+
+@media (max-width: 380px) {
+  .about-stage {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .about-actions {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .primary-action {
-    width: 100%;
+  .posts-link { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-card {
+    animation: none;
   }
 
-  .section-heading h2,
-  .skill-copy h2 {
-    font-size: 30px;
-  }
-
-  .about-section {
-    padding: 52px 0;
-  }
-
-  .article-card {
-    min-height: 0;
+  .portrait-shell img,
+  .portrait-shell video,
+  .stack-chip,
+  .social-links a,
+  .posts-link {
+    transition: none;
   }
 }
 </style>

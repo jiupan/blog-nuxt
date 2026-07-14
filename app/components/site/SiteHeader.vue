@@ -1,5 +1,5 @@
 <template>
-  <header class="site-header" :class="{ 'is-scrolled': isScrolled, 'is-article-route': isArticleRoute }">
+  <header class="site-header" :class="{ 'is-scrolled': isScrolled, 'is-article-route': isArticleRoute, 'has-page-gradient': pageGradient }">
     <div class="header-inner">
       <NuxtLink to="/" class="brand" aria-label="返回博客主页" data-tooltip="返回博客主页" @click="$emit('brandClick')">
         <span
@@ -162,6 +162,7 @@ defineProps<{
   scrollTitle: string
   primaryMenuItems: MenuTreeItem[]
   mobilePanelOpen: boolean
+  pageGradient?: boolean
 }>()
 
 defineEmits<{

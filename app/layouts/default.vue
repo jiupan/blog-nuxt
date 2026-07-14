@@ -10,6 +10,7 @@
       :scroll-title="navigation.scrollTitle.value"
       :primary-menu-items="navigation.primaryMenuItems.value"
       :mobile-panel-open="navigation.mobilePanelOpen.value"
+      :page-gradient="headerGradient"
       @brand-click="navigation.handleBrandClick"
       @scroll-top="navigation.scrollToTop"
       @open-mobile-panel="navigation.openMobilePanel"
@@ -52,10 +53,11 @@ import SiteFooter from '~/components/site/SiteFooter.vue'
 import SiteHeader from '~/components/site/SiteHeader.vue'
 
 const navigation = await useSiteNavigation()
-const { forceStandardHeader = false, compactFooter = false, viewportFit = false } = defineProps<{
+const { forceStandardHeader = false, compactFooter = false, viewportFit = false, headerGradient = false } = defineProps<{
   forceStandardHeader?: boolean
   compactFooter?: boolean
   viewportFit?: boolean
+  headerGradient?: boolean
 }>()
 
 onMounted(() => {

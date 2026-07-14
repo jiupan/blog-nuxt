@@ -240,7 +240,7 @@ function coverWord(post: ArchivePost) {
 
 .archive-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -254,8 +254,10 @@ function coverWord(post: ArchivePost) {
 }
 
 .archive-main {
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
-  padding-right: 8px;
+  padding-left: 8px;
 }
 
 .archive-filters {
@@ -523,6 +525,8 @@ function coverWord(post: ArchivePost) {
   position: sticky;
   top: 84px;
   display: grid;
+  grid-column: 1;
+  grid-row: 1;
   gap: 10px;
 }
 
@@ -643,6 +647,16 @@ function coverWord(post: ArchivePost) {
     grid-template-columns: 1fr;
   }
 
+  .archive-main,
+  .archive-sidebar {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .archive-main {
+    padding-left: 0;
+  }
+
   .archive-sidebar {
     position: static;
   }
@@ -653,8 +667,6 @@ function coverWord(post: ArchivePost) {
     width: min(100% - 20px, 1290px);
     padding-top: 20px;
   }
-
-  .archive-main { padding-right: 0; }
 
   .archive-filters { border-radius: 20px; padding: 14px; }
 
