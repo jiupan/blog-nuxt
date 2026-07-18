@@ -1,7 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { extname, join, resolve } from 'node:path'
-import { KnowledgeSyncJobStatus, KnowledgeSyncJobType } from '@prisma/client'
 import { z } from 'zod'
 import { badRequest, conflict, notFound } from '../../utils/api-error'
 import { prisma } from '../../utils/prisma'
@@ -9,6 +8,7 @@ import { embedTexts, resolveEmbeddingConfig } from '../embeddings/embedding.serv
 import { chunkKnowledgeFile } from './file-chunker.service'
 import { replaceKnowledgeFileChunks } from './file-chunk.repository'
 import { parseKnowledgeFile } from './file-parser.service'
+import { enqueueKnowledgeJob } from '../knowledge/knowledge-job.service'
 
 const maxFileSize = 10 * 1024 * 1024
 const maxExtractedCharacters = 2_000_000
@@ -99,29 +99,7 @@ export async function deleteKnowledgeFile(id: number) {
 export async function queueKnowledgeFileSync(id: number) {
   const file = await requireKnowledgeFile(id)
   if (!file.enabled) throw badRequest('知识文件已停用')
-  const running = await prisma.knowledgeSyncJob.findFirst({
-    where: { type: KnowledgeSyncJobType.FILE_SYNC, status: KnowledgeSyncJobStatus.RUNNING, knowledgeFileId: id }
-  })
-  if (running) return { job: running, alreadyRunning: true }
-  const job = await prisma.knowledgeSyncJob.create({
-    data: { type: KnowledgeSyncJobType.FILE_SYNC, status: KnowledgeSyncJobStatus.RUNNING, knowledgeFileId: id, totalItems: 1, startedAt: new Date() }
-  })
-  setImmediate(() => { void runKnowledgeFileSync(job.id, id).catch(() => null) })
-  return { job, alreadyRunning: false }
-}
-
-async function runKnowledgeFileSync(jobId: number, id: number) {
-  try {
-    await syncKnowledgeFileContent(id)
-    await prisma.knowledgeSyncJob.update({ where: { id: jobId }, data: { status: 'COMPLETED', completedItems: 1, successItems: 1, finishedAt: new Date() } })
-  } catch (error) {
-    const message = error instanceof Error ? error.message.slice(0, 2000) : '未知文件同步错误'
-    await Promise.all([
-      prisma.knowledgeFile.updateMany({ where: { id }, data: { status: 'FAILED', lastError: message } }),
-      prisma.knowledgeSyncJob.update({ where: { id: jobId }, data: { status: 'FAILED', completedItems: 1, failedItems: 1, error: message, finishedAt: new Date() } })
-    ]).catch(() => undefined)
-    throw error
-  }
+  return enqueueKnowledgeJob({ type: 'FILE_SYNC', knowledgeFileId: id, totalItems: 1 })
 }
 
 export async function syncKnowledgeFileContent(id: number) {

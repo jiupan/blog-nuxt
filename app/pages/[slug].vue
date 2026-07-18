@@ -91,30 +91,8 @@
           <div ref="articleContentEl" class="prose-blog" v-html="post.rendered.html" />
         </div>
 
-        <section v-if="continueItems.length" class="continue-card">
-          <div class="continue-heading">
-            <span>继续阅读</span>
-            <small>{{ hasSavedRelations ? 'AI 辅助推荐' : '更多文章' }}</small>
-          </div>
-          <div class="continue-list">
-            <NuxtLink v-for="item in continueItems" :key="item.post.slug" :to="postPath(item.post.slug)" class="continue-item">
-              <span v-if="item.type" class="continue-type">{{ relationTypeLabel(item.type) }}</span>
-              <strong>{{ item.post.title }}</strong>
-              <p>{{ truncateText(item.reason || item.post.summary || '这篇文章也许值得继续阅读。', 100) }}</p>
-            </NuxtLink>
-          </div>
-        </section>
+        <TwikooComment :post-slug="post.slug" />
 
-        <nav v-if="post.previous || post.next" class="post-pager">
-          <NuxtLink v-if="post.previous" :to="postPath(post.previous.slug)" class="post-pager-prev">
-            <span>上一篇</span>
-            <strong>{{ post.previous.title }}</strong>
-          </NuxtLink>
-          <NuxtLink v-if="post.next" :to="postPath(post.next.slug)" class="post-pager-next">
-            <span>下一篇</span>
-            <strong>{{ post.next.title }}</strong>
-          </NuxtLink>
-        </nav>
       </main>
 
       <PublicSidebar
@@ -182,6 +160,7 @@ import {
   Eye as EyeIcon,
   FileText as FileTextIcon
 } from '@lucide/vue'
+import TwikooComment from '~/components/comment/TwikooComment.vue'
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -243,29 +222,9 @@ const summaryHistoryGroups = computed(() => {
   }
   return [...groups].map(([label, groupedItems]) => ({ label, items: groupedItems }))
 })
-const savedRelations = computed(() => post.value.relations || [])
-const hasSavedRelations = computed(() => savedRelations.value.length > 0)
-const continueItems = computed(() => {
-  if (hasSavedRelations.value) {
-    return savedRelations.value
-  }
-
-  return sidebarPosts.value.slice(0, 3).map((item: any) => ({
-    type: '',
-    reason: '',
-    post: item
-  }))
-})
 const coverWord = computed(() => {
   return post.value.category?.name || post.value.title.slice(0, 4)
 })
-
-function truncateText(value: string, maxLength: number) {
-  const characters = Array.from(value.trim())
-  return characters.length > maxLength
-    ? `${characters.slice(0, maxLength).join('')}…`
-    : characters.join('')
-}
 
 const heroGradients = [
   'linear-gradient(135deg, #5c2348, #8b2f6a)',
@@ -666,18 +625,6 @@ function formatDate(value?: string | Date | null) {
   return value ? new Date(value).toLocaleDateString('zh-CN') : ''
 }
 
-function relationTypeLabel(type: string) {
-  const labels: Record<string, string> = {
-    PREREQUISITE: '前置阅读',
-    EXTENSION: '延伸阅读',
-    SAME_TOPIC: '同主题',
-    PRACTICE: '实战补充',
-    BACKGROUND: '背景知识'
-  }
-
-  return labels[type] || '推荐'
-}
-
 function updatePostSidebarStickyTop() {
   const baseTop = 84
 
@@ -908,10 +855,8 @@ function updateTocIndicatorPosition() {
 
 .summary-card,
 .content-card,
-.continue-card,
 .toc-card,
-.info-card,
-.post-pager a {
+.info-card {
   border: 1px solid var(--theme-border);
   border-radius: 10px;
   background: var(--theme-surface);
@@ -1236,109 +1181,6 @@ function updateTocIndicatorPosition() {
 
 .post-main > .content-card:first-child {
   margin-top: 0;
-}
-
-.continue-card {
-  margin-top: 14px;
-  padding: 18px;
-}
-
-.continue-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.continue-heading span {
-  color: var(--theme-text);
-  font-size: 18px;
-  font-weight: 900;
-}
-
-.continue-heading small {
-  color: var(--theme-text-faint);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.continue-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.continue-item {
-  display: grid;
-  gap: 7px;
-  border: 1px solid #e6edf7;
-  border-radius: 8px;
-  background: var(--theme-surface-muted);
-  padding: 14px;
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
-}
-
-.continue-item:hover {
-  border-color: #c9d7ea;
-  background: var(--theme-surface);
-  transform: translateY(-1px);
-}
-
-.continue-type {
-  width: fit-content;
-  border-radius: 999px;
-  background: var(--theme-accent-soft);
-  color: #4f46e5;
-  padding: 3px 8px;
-  font-size: 12px;
-  font-weight: 850;
-}
-
-.continue-item strong {
-  color: var(--theme-text-strong);
-  font-size: 16px;
-}
-
-.continue-item p {
-  margin: 0;
-  color: #5f6673;
-  font-size: 14px;
-  line-height: 1.65;
-}
-
-.post-pager {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.post-pager a {
-  display: block;
-  padding: 18px;
-}
-
-.post-pager-prev {
-  grid-column: 1;
-}
-
-.post-pager-next {
-  grid-column: 2;
-  text-align: right;
-}
-
-.post-pager span {
-  color: var(--theme-text-faint);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.post-pager strong {
-  display: block;
-  margin-top: 6px;
-  color: var(--theme-text);
 }
 
 .post-sidebar {
@@ -1745,8 +1587,7 @@ function updateTocIndicatorPosition() {
   }
 
   .summary-body,
-  .summary-chat-form,
-  .post-pager {
+  .summary-chat-form {
     grid-template-columns: 1fr;
   }
 
@@ -1816,12 +1657,6 @@ function updateTocIndicatorPosition() {
   .summary-dialog-message.is-assistant { max-width: 96%; }
   .summary-dialog-message.is-user p { max-width: 88%; }
   .summary-dialog-footer { padding: 11px 12px 13px; }
-
-  .post-pager-prev,
-  .post-pager-next {
-    grid-column: auto;
-    text-align: left;
-  }
 
   .content-card {
     padding: 22px 14px;

@@ -18,8 +18,28 @@ model User {
   aiUsageLogs              AiUsageLog[]
   ragQueryLogs             RagQueryLog[]
   articleChatConversations ArticleChatConversation[]
+  operatedAuditLogs        AdminAuditLog[]           @relation("AuditOperator")
+  targetAuditLogs          AdminAuditLog[]           @relation("AuditTarget")
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
+}
+
+model AdminAuditLog {
+  id           Int      @id @default(autoincrement())
+  operatorId   Int?
+  targetUserId Int?
+  action       String
+  before       Json?
+  after        Json?
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  operator     User?    @relation("AuditOperator", fields: [operatorId], references: [id], onDelete: SetNull)
+  targetUser   User?    @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([operatorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action, createdAt])
 }
 
 model Post {
@@ -255,7 +275,14 @@ model KnowledgeSyncJob {
   completedItems  Int                    @default(0)
   successItems    Int                    @default(0)
   failedItems     Int                    @default(0)
+  attempts        Int                    @default(0)
+  maxAttempts     Int                    @default(3)
   error           String?
+  activeKey       String?                @unique
+  nextRunAt       DateTime               @default(now())
+  lockedAt        DateTime?
+  heartbeatAt     DateTime?
+  lockedBy        String?
   startedAt       DateTime?
   finishedAt      DateTime?
   createdAt       DateTime               @default(now())
@@ -263,7 +290,8 @@ model KnowledgeSyncJob {
   post            Post?                  @relation(fields: [postId], references: [id], onDelete: SetNull)
   knowledgeFile   KnowledgeFile?         @relation(fields: [knowledgeFileId], references: [id], onDelete: SetNull)
 
-  @@index([status, createdAt])
+  @@index([status, nextRunAt, createdAt])
+  @@index([status, heartbeatAt])
   @@index([postId, createdAt])
   @@index([knowledgeFileId, createdAt])
 }

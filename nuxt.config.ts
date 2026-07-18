@@ -14,6 +14,7 @@ export default defineNuxtConfig({
   security: {
     headers: {
       contentSecurityPolicy: {
+        'img-src': ["'self'", 'data:', 'https://owo.imaegoo.com'],
         'upgrade-insecure-requests': true
       }
     },
@@ -77,6 +78,10 @@ export default defineNuxtConfig({
     },
     uploadDir: process.env.UPLOAD_DIR || './uploads',
     knowledgeFileDir: process.env.KNOWLEDGE_FILE_DIR || './data/knowledge-files',
+    knowledgeWorkerEnabled: process.env.KNOWLEDGE_WORKER_ENABLED !== 'false',
+    knowledgeWorkerPollIntervalMs: Number(process.env.KNOWLEDGE_WORKER_POLL_INTERVAL_MS || 2000),
+    knowledgeWorkerHeartbeatIntervalMs: Number(process.env.KNOWLEDGE_WORKER_HEARTBEAT_INTERVAL_MS || 15000),
+    knowledgeWorkerLeaseTimeoutMs: Number(process.env.KNOWLEDGE_WORKER_LEASE_TIMEOUT_MS || 60000),
     aiApiKey: process.env.AI_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || '',
     aiBaseUrl: process.env.AI_BASE_URL || 'https://api.deepseek.com',
     aiModel: process.env.AI_MODEL || 'deepseek-v4-flash',
@@ -91,7 +96,9 @@ export default defineNuxtConfig({
     aiRerankTopN: process.env.AI_RERANK_TOP_N || '8',
     public: {
       siteUrl: process.env.SITE_URL || 'http://localhost:3000',
-      siteName: process.env.SITE_NAME || 'Jiupan Blog'
+      siteName: process.env.SITE_NAME || 'Jiupan Blog',
+      twikooEnvId: process.env.NUXT_PUBLIC_TWIKOO_ENV_ID || '',
+      twikooRegion: process.env.NUXT_PUBLIC_TWIKOO_REGION || ''
     }
   },
   sitemap: {

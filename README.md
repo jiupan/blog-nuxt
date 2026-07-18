@@ -10,6 +10,7 @@
 - AI 工具：摘要、写作辅助、SEO 检查、链接检查、相关文章和站内问答
 - 知识库：文章及文件分块、向量索引、混合检索与可选 rerank
 - 用户系统：Session 登录、角色权限和 AI 使用记录
+- 评论系统：Twikoo 评论、回复、审核和邮件通知
 - SEO：SSR 页面、动态 sitemap 和 `robots.txt`
 
 ## 技术栈
@@ -27,7 +28,7 @@
 
 - Node.js 22（项目提供 `.nvmrc`）
 - npm
-- Docker 与 Docker Compose（用于启动 PostgreSQL + pgvector）
+- Docker 与 Docker Compose（用于启动 PostgreSQL + pgvector 和 Twikoo）
 
 ### 1. 配置环境变量
 
@@ -44,17 +45,18 @@ ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="change-me-now"
 SITE_URL="http://localhost:3000"
 SITE_NAME="Jiupan Blog"
+NUXT_PUBLIC_TWIKOO_ENV_ID="http://localhost:8080"
 ```
 
 请将 `NUXT_SESSION_PASSWORD` 设置为至少 32 位的随机字符串，并修改默认管理员密码。
 
-### 2. 启动数据库
+### 2. 启动数据库和评论服务
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres twikoo
 ```
 
-本地数据库默认监听 `localhost:5432`。Compose 使用带 pgvector 扩展的 PostgreSQL 16 镜像。
+本地数据库默认监听 `localhost:5432`，Twikoo 默认监听 `localhost:8080`。Compose 使用带 pgvector 扩展的 PostgreSQL 16 镜像，并将 Twikoo 数据保存在独立持久化卷中。
 
 ### 3. 安装依赖并初始化
 
@@ -155,4 +157,4 @@ npm run build
 - [内容缓存策略](docs/content-cache-strategy.md)
 - [阿里云 ACR 自动部署](docs/deploy-acr.md)
 
-项目提供 `Dockerfile`、本地 `docker-compose.yml` 和服务器用 `docker-compose.server.yml`。生产环境请使用强密码与正式域名，并持久化 PostgreSQL、上传目录和知识库文件目录；完整发布流程参见 ACR 自动部署文档。
+项目提供 `Dockerfile`、本地 `docker-compose.yml` 和服务器用 `docker-compose.server.yml`。生产环境请使用强密码与正式域名，为 Twikoo 配置 HTTPS 反向代理，并持久化 PostgreSQL、Twikoo、上传目录和知识库文件目录；完整发布流程参见 ACR 自动部署文档。

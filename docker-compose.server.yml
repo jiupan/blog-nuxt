@@ -12,11 +12,22 @@ services:
     # ports:
     #   - "5432:5432"
 
+  twikoo:
+    image: imaegoo/twikoo
+    restart: unless-stopped
+    environment:
+      TWIKOO_THROTTLE: ${TWIKOO_THROTTLE:-1000}
+    volumes:
+      - twikoo-data:/app/data
+    ports:
+      - "127.0.0.1:8080:8080"
+
   app:
     image: ${APP_IMAGE}
     restart: unless-stopped
     depends_on:
       - postgres
+      - twikoo
     env_file:
       - .env
     environment:
@@ -30,5 +41,6 @@ services:
 
 volumes:
   postgres-data:
+  twikoo-data:
   uploads:
   knowledge-files:

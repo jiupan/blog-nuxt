@@ -19,9 +19,9 @@
       </div>
 
       <div class="auth-panel">
-        <NuxtLink to="/lab" class="auth-back">
+        <NuxtLink :to="redirectTarget" class="auth-back">
           <UIcon name="i-lucide-arrow-left" />
-          返回 Lab
+          {{ hasRedirect ? '返回原页面' : '返回 Lab' }}
         </NuxtLink>
 
         <div class="auth-heading">
@@ -86,7 +86,7 @@
 
         <p class="auth-switch">
           已经有账号？
-          <NuxtLink to="/login">登录</NuxtLink>
+          <NuxtLink :to="loginLink">登录</NuxtLink>
         </p>
       </div>
     </section>
@@ -96,15 +96,22 @@
 <script setup lang="ts">
 import '~/assets/css/auth-page.css'
 import { getApiErrorMessage } from '~/utils/api-error'
+import { resolveAuthRedirect } from '~/utils/auth-redirect'
 
 definePageMeta({
   layout: false
 })
 
+const route = useRoute()
+const hasRedirect = computed(() => typeof route.query.redirect === 'string')
+const redirectTarget = computed(() => resolveAuthRedirect(route.query.redirect))
+const loginLink = computed(() => hasRedirect.value
+  ? { path: '/login', query: { redirect: redirectTarget.value } }
+  : { path: '/login' })
 const { data: sessionData } = await useFetch('/api/auth/me')
 
 if (sessionData.value?.data.user) {
-  await navigateTo('/lab', { replace: true })
+  await navigateTo(redirectTarget.value, { replace: true })
 }
 
 const form = reactive({
@@ -126,7 +133,7 @@ async function register() {
       method: 'POST',
       body: form
     })
-    await navigateTo('/lab', { replace: true })
+    await navigateTo(redirectTarget.value, { replace: true })
   } catch (error: any) {
     errorMessage.value = getApiErrorMessage(error, { fallback: '注册失败' })
   } finally {

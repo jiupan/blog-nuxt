@@ -93,10 +93,12 @@ const navItems = [
   { label: '文章', to: '/admin/posts', icon: 'i-lucide-newspaper' },
   { label: '分类', to: '/admin/categories', icon: 'i-lucide-folder-tree' },
   { label: '标签', to: '/admin/tags', icon: 'i-lucide-tags' },
+  { label: '评论', to: '/admin/comments', icon: 'i-lucide-message-square-more' },
   { label: '菜单', to: '/admin/menus', icon: 'i-lucide-menu' },
   { label: '图库', to: '/admin/gallery', icon: 'i-lucide-images' },
   { label: '侧栏', to: '/admin/sidebar', icon: 'i-lucide-panel-right' },
   { label: 'AI 知识库', to: '/admin/knowledge', icon: 'i-lucide-brain-circuit' },
+  { label: '用户管理', to: '/admin/users', icon: 'i-lucide-users' },
   { label: '设置', to: '/admin/settings', icon: 'i-lucide-settings' }
 ]
 

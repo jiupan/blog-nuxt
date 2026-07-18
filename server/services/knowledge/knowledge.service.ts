@@ -1,7 +1,5 @@
 import {
   KnowledgeDocumentStatus,
-  KnowledgeSyncJobStatus,
-  KnowledgeSyncJobType,
   PostStatus
 } from '@prisma/client'
 import type { Prisma } from '@prisma/client'
@@ -11,6 +9,7 @@ import { prisma } from '~~/server/utils/prisma'
 import { hashPostKnowledgeSource, indexPost } from '~~/server/services/rag/indexer.service'
 import { refreshKnowledgeDocumentState } from './knowledge-state.service'
 import { syncKnowledgeFileContent } from '../knowledge-files/knowledge-file.service'
+import { enqueueKnowledgeJob } from './knowledge-job.service'
 
 const postInclude = {
   category: true,
@@ -116,110 +115,52 @@ export async function setKnowledgeEnabled(postId: number, enabled: boolean) {
 }
 
 export async function syncKnowledgePost(postId: number) {
-  const job = await prisma.knowledgeSyncJob.create({
-    data: { type: KnowledgeSyncJobType.SINGLE_POST, status: KnowledgeSyncJobStatus.RUNNING, postId, totalItems: 1, startedAt: new Date() }
-  })
-  return runSingleKnowledgePostSync(job.id, postId)
+  await getIndexablePost(postId)
+  return enqueueKnowledgeJob({ type: 'SINGLE_POST', postId, totalItems: 1 })
 }
 
 export async function queueKnowledgePostSync(postId: number) {
-  const runningJob = await prisma.knowledgeSyncJob.findFirst({
-    where: { type: KnowledgeSyncJobType.SINGLE_POST, status: KnowledgeSyncJobStatus.RUNNING, postId },
-    orderBy: { createdAt: 'desc' }
-  })
-  if (runningJob) return { job: runningJob, alreadyRunning: true }
-
-  const job = await prisma.knowledgeSyncJob.create({
-    data: { type: KnowledgeSyncJobType.SINGLE_POST, status: KnowledgeSyncJobStatus.RUNNING, postId, totalItems: 1, startedAt: new Date() }
-  })
-  setImmediate(() => {
-    void runSingleKnowledgePostSync(job.id, postId).catch(() => null)
-  })
-  return { job, alreadyRunning: false }
-}
-
-async function runSingleKnowledgePostSync(jobId: number, postId: number) {
-  try {
-    const result = await syncPostInternal(postId)
-    await prisma.knowledgeSyncJob.update({
-      where: { id: jobId },
-      data: { status: 'COMPLETED', completedItems: 1, successItems: 1, finishedAt: new Date() }
-    })
-    return { jobId, ...result }
-  } catch (error) {
-    const message = getErrorMessage(error)
-    await prisma.knowledgeSyncJob.update({
-      where: { id: jobId },
-      data: { status: 'FAILED', completedItems: 1, failedItems: 1, error: message, finishedAt: new Date() }
-    })
-    await prisma.knowledgeDocument.updateMany({ where: { postId }, data: { status: 'FAILED', lastError: message } })
-    throw error
-  }
+  return enqueueKnowledgeJob({ type: 'SINGLE_POST', postId, totalItems: 1 })
 }
 
 export async function queueAllKnowledgeDocumentsSync() {
-  const runningJob = await prisma.knowledgeSyncJob.findFirst({
-    where: { type: 'FULL_REBUILD', status: 'RUNNING' },
-    orderBy: { createdAt: 'desc' }
-  })
-  if (runningJob) return { job: runningJob, alreadyRunning: true }
+  const [documents, files] = await Promise.all([
+    prisma.knowledgeDocument.count({ where: { enabled: true } }),
+    prisma.knowledgeFile.count({ where: { enabled: true } })
+  ])
+  return enqueueKnowledgeJob({ type: 'FULL_REBUILD', totalItems: documents + files })
+}
 
+export async function executeFullKnowledgeSync(
+  onProgress: (progress: { completedItems: number, successItems: number, failedItems: number }) => Promise<void>
+) {
   const [documents, files] = await Promise.all([
     prisma.knowledgeDocument.findMany({ where: { enabled: true }, select: { postId: true } }),
     prisma.knowledgeFile.findMany({ where: { enabled: true }, select: { id: true } })
   ])
-  const job = await prisma.knowledgeSyncJob.create({
-    data: { type: 'FULL_REBUILD', status: 'RUNNING', totalItems: documents.length + files.length, startedAt: new Date() }
-  })
-
-  setImmediate(() => {
-    void runAllKnowledgeDocumentsSync(job.id, documents.map((item) => item.postId), files.map((item) => item.id))
-  })
-
-  return { job, alreadyRunning: false }
-}
-
-async function runAllKnowledgeDocumentsSync(jobId: number, postIds: number[], fileIds: number[]) {
   let successItems = 0
   let failedItems = 0
-  try {
-    for (const postId of postIds) {
-      try {
-        await syncPostInternal(postId)
-        successItems += 1
-      } catch (error) {
-        failedItems += 1
-        await prisma.knowledgeDocument.updateMany({ where: { postId }, data: { status: 'FAILED', lastError: getErrorMessage(error) } })
-      }
-      await prisma.knowledgeSyncJob.update({
-        where: { id: jobId },
-        data: { completedItems: successItems + failedItems, successItems, failedItems }
-      })
+  for (const { postId } of documents) {
+    try {
+      await executeKnowledgePostSync(postId)
+      successItems += 1
+    } catch (error) {
+      failedItems += 1
+      await prisma.knowledgeDocument.updateMany({ where: { postId }, data: { status: 'FAILED', lastError: getErrorMessage(error) } })
     }
-    for (const fileId of fileIds) {
-      try {
-        await syncKnowledgeFileContent(fileId)
-        successItems += 1
-      } catch (error) {
-        failedItems += 1
-        await prisma.knowledgeFile.updateMany({ where: { id: fileId }, data: { status: 'FAILED', lastError: getErrorMessage(error) } })
-      }
-      await prisma.knowledgeSyncJob.update({
-        where: { id: jobId },
-        data: { completedItems: successItems + failedItems, successItems, failedItems }
-      })
-    }
-    const status = failedItems ? (successItems ? 'PARTIAL_FAILED' : 'FAILED') : 'COMPLETED'
-    await prisma.knowledgeSyncJob.update({
-      where: { id: jobId },
-      data: { status, finishedAt: new Date() }
-    })
-  } catch (error) {
-    await prisma.knowledgeSyncJob.update({
-      where: { id: jobId },
-      data: { status: 'FAILED', error: getErrorMessage(error), finishedAt: new Date() }
-    }).catch(() => null)
+    await onProgress({ completedItems: successItems + failedItems, successItems, failedItems })
   }
+  for (const { id } of files) {
+    try {
+      await syncKnowledgeFileContent(id)
+      successItems += 1
+    } catch (error) {
+      failedItems += 1
+      await prisma.knowledgeFile.updateMany({ where: { id }, data: { status: 'FAILED', lastError: getErrorMessage(error) } })
+    }
+    await onProgress({ completedItems: successItems + failedItems, successItems, failedItems })
+  }
+  return { completedItems: successItems + failedItems, successItems, failedItems }
 }
 
 export async function listKnowledgeJobs() {
@@ -235,7 +176,7 @@ async function refreshAllKnowledgeStates() {
   await Promise.all(documents.map((item) => refreshKnowledgeDocumentState(item.postId)))
 }
 
-async function syncPostInternal(postId: number) {
+export async function executeKnowledgePostSync(postId: number) {
   const post = await getIndexablePost(postId)
   const sourceHash = hashPostKnowledgeSource(post)
   await prisma.knowledgeDocument.upsert({
@@ -244,6 +185,10 @@ async function syncPostInternal(postId: number) {
     update: { enabled: true, status: 'SYNCING', sourceHash, lastError: null }
   })
   const result = await indexPost(post)
+  const latestPost = await getIndexablePost(postId)
+  if (hashPostKnowledgeSource(latestPost) !== sourceHash) {
+    throw new Error('文章在同步期间发生更新，任务将自动重试')
+  }
   const chunks = await prisma.postChunk.aggregate({ where: { postId }, _count: { id: true }, _sum: { tokenCount: true } })
   const document = await prisma.knowledgeDocument.update({
     where: { postId },

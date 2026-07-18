@@ -4,5 +4,6 @@ import { syncKnowledgePost } from '~~/server/services/knowledge/knowledge.servic
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  return ok(await syncKnowledgePost(Number(getRouterParam(event, 'postId'))), '文章知识已同步')
+  const result = await syncKnowledgePost(Number(getRouterParam(event, 'postId')))
+  return ok(result, result.alreadyRunning ? '文章同步任务正在执行' : '文章同步任务已提交')
 })

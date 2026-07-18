@@ -120,6 +120,20 @@
         </section>
 
         <section class="dashboard-panel dashboard-notices">
+          <div class="dashboard-panel-head">
+            <div><h2>最近注册</h2><p>最新加入的站点用户</p></div>
+            <UButton color="neutral" variant="ghost" size="xs" to="/admin/users">管理</UButton>
+          </div>
+          <div class="notice-list">
+            <div v-for="user in recentUsers" :key="user.id" class="notice-item">
+              <span class="notice-icon is-indigo"><UIcon name="i-lucide-user-round" class="size-4" /></span>
+              <span><strong>{{ user.username }}</strong><small>{{ user.email || '未设置邮箱' }} · {{ formatDate(user.createdAt) }}</small></span>
+            </div>
+            <div v-if="!recentUsers.length" class="notice-item"><span><small>暂无注册用户</small></span></div>
+          </div>
+        </section>
+
+        <section class="dashboard-panel dashboard-notices">
           <h2>系统通知</h2>
           <div class="notice-list">
             <div class="notice-item">
@@ -171,6 +185,9 @@ type AdminPost = {
   updatedAt: string
 }
 
+type DashboardUser = { id: number, username: string, email: string | null, createdAt: string }
+type UserOverview = { total: number, active: number, disabled: number, admins: number, newThisMonth: number, aiUsageThisMonth: number }
+
 const searchText = ref('')
 
 const { data: postData } = await useFetch<{ data: { items: AdminPost[], total: number } }>('/api/admin/posts', {
@@ -180,13 +197,13 @@ const { data: postData } = await useFetch<{ data: { items: AdminPost[], total: n
     sort: 'updatedAt_desc'
   }
 })
-const { data: categoryData } = await useFetch<{ data: Taxonomy[] }>('/api/admin/categories')
-const { data: tagData } = await useFetch<{ data: Taxonomy[] }>('/api/admin/tags')
+const { data: userOverviewData } = await useFetch<{ data: UserOverview }>('/api/admin/users/overview')
+const { data: recentUserData } = await useFetch<{ data: { items: DashboardUser[], total: number } }>('/api/admin/users', { query: { page: 1, pageSize: 5, sort: 'createdAt_desc' } })
 
 const posts = computed(() => postData.value?.data.items || [])
 const postTotal = computed(() => postData.value?.data.total || 0)
-const categories = computed(() => categoryData.value?.data || [])
-const tags = computed(() => tagData.value?.data || [])
+const userOverview = computed(() => userOverviewData.value?.data || { total: 0, active: 0, disabled: 0, admins: 0, newThisMonth: 0, aiUsageThisMonth: 0 })
+const recentUsers = computed(() => recentUserData.value?.data.items || [])
 const publishedCount = computed(() => posts.value.filter((post) => post.status === 'PUBLISHED').length)
 const draftCount = computed(() => posts.value.filter((post) => post.status !== 'PUBLISHED').length)
 const totalViews = computed(() => posts.value.reduce((sum, post) => sum + (post.viewCount || 0), 0))
@@ -213,23 +230,23 @@ const statCards = computed(() => [
     trendClass: 'is-up'
   },
   {
-    title: '分类数量',
-    value: formatNumber(categories.value.length),
-    hint: '用于组织文章频道',
-    icon: 'i-lucide-folder-tree',
+    title: '用户总数',
+    value: formatNumber(userOverview.value.total),
+    hint: `${userOverview.value.active} 位正常，${userOverview.value.disabled} 位已禁用`,
+    icon: 'i-lucide-users',
     iconClass: 'is-emerald',
-    trend: '结构',
-    trendIcon: 'i-lucide-network',
+    trend: `+${userOverview.value.newThisMonth} 本月`,
+    trendIcon: 'i-lucide-user-plus',
     trendClass: 'is-flat'
   },
   {
-    title: '标签数量',
-    value: formatNumber(tags.value.length),
-    hint: '用于内容检索和聚合',
-    icon: 'i-lucide-tags',
+    title: '本月 AI 使用',
+    value: formatNumber(userOverview.value.aiUsageThisMonth),
+    hint: `${userOverview.value.admins} 位正常管理员`,
+    icon: 'i-lucide-sparkles',
     iconClass: 'is-rose',
-    trend: '聚合',
-    trendIcon: 'i-lucide-hash',
+    trend: '本月',
+    trendIcon: 'i-lucide-calendar-days',
     trendClass: 'is-flat'
   }
 ])
@@ -237,7 +254,7 @@ const statCards = computed(() => [
 const quickActions = [
   { label: '写文章', icon: 'i-lucide-plus', to: '/admin/posts/create' },
   { label: '文章管理', icon: 'i-lucide-file-text', to: '/admin/posts' },
-  { label: '菜单配置', icon: 'i-lucide-menu', to: '/admin/menus' },
+  { label: '用户管理', icon: 'i-lucide-users', to: '/admin/users' },
   { label: '站点设置', icon: 'i-lucide-settings', to: '/admin/settings' }
 ]
 
