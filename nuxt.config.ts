@@ -54,6 +54,14 @@ export default defineNuxtConfig({
         xssValidator: false
       }
     },
+    '/api/resumes/**': {
+      cors: false,
+      security: {
+        requestSizeLimiter: {
+          maxRequestSizeInBytes: 10 * 1024 * 1024,
+        }
+      }
+    },
     '/api/admin/knowledge/files/**': {
       cors: false,
       security: {
