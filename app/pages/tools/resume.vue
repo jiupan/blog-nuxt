@@ -53,11 +53,11 @@
             <input type="file" accept="image/png,image/jpeg,image/webp" @change="handleAvatar">
           </label>
           <div class="form-grid">
-            <EditorField v-model="resume.content.basic.name" label="姓名" placeholder="麻得雨" />
-            <EditorField v-model="resume.content.basic.birth" label="出生年月" placeholder="2001-12" />
+            <EditorField v-model="resume.content.basic.name" label="姓名" placeholder="请输入姓名" />
+            <EditorField v-model="resume.content.basic.birth" label="出生年月" placeholder="YYYY-MM" />
             <EditorField v-model="resume.content.basic.gender" label="性别" placeholder="男" />
             <EditorField v-model="resume.content.basic.politicalStatus" label="政治面貌" placeholder="共青团员" />
-            <EditorField v-model="resume.content.basic.hometown" label="籍贯" placeholder="陕西渭南" />
+            <EditorField v-model="resume.content.basic.hometown" label="籍贯" placeholder="省 / 市" />
             <EditorField v-model="resume.content.basic.phone" label="电话" placeholder="138 0000 0000" />
             <EditorField v-model="resume.content.basic.email" class="wide" label="邮箱" placeholder="hello@example.com" />
           </div>
@@ -75,7 +75,7 @@
               <input v-model.number="resume.layout.lineHeight" type="range" min="1.1" max="2" step="0.05">
             </label>
             <label>
-              <span><b>页面边距</b><output>{{ resume.layout.pageMargin.toFixed(1) }} mm</output></span>
+              <span><b>左右边距</b><output>{{ resume.layout.pageMargin.toFixed(1) }} mm</output></span>
               <input v-model.number="resume.layout.pageMargin" type="range" min="3" max="18" step="0.5">
             </label>
             <label>

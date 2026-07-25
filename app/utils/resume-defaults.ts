@@ -19,7 +19,7 @@ export function createEmptySectionItem(): ResumeSectionItem {
 
 export function createDefaultResume(): ResumeDocument {
   return {
-    title: '麻得雨的个人简历',
+    title: '林知夏的示例简历',
     layout: {
       sectionGap: 2.2,
       lineHeight: 1.5,
@@ -28,13 +28,13 @@ export function createDefaultResume(): ResumeDocument {
     },
     content: {
       basic: {
-        name: '麻得雨',
-        birth: '2001-12',
-        gender: '男',
-        politicalStatus: '共青团员',
-        hometown: '陕西渭南',
-        phone: '15706078767',
-        email: '1765527@qq.com',
+        name: '林知夏',
+        birth: '2000-08',
+        gender: '女',
+        politicalStatus: '群众',
+        hometown: '浙江杭州',
+        phone: '138 0000 0000',
+        email: 'lin.zhixia@example.com',
         avatar: ''
       },
       sections: [
@@ -44,16 +44,17 @@ export function createDefaultResume(): ResumeDocument {
           items: [
             {
               ...createEmptySectionItem(),
-              range: '2024-09 ~ 2027-06',
-              heading: '西北大学（双一流 211）',
+              range: '2022-09 ~ 2025-06',
+              heading: '海川大学（示例院校）',
               tag: '软件工程（硕士）',
-              intro: '专业成绩：GPA 3.30 / 4.00｜考研成绩前18%　主修课程：软件工程、分布式系统设计、算法设计与分析'
+              intro: '专业成绩：GPA 3.72 / 4.00｜专业前 10%　主修课程：软件工程、分布式系统、算法设计与分析、数据库系统'
             },
             {
               ...createEmptySectionItem(),
-              range: '2019-09 ~ 2024-06',
-              heading: '西北大学（双一流 211）',
-              tag: '生物科学（本科）'
+              range: '2018-09 ~ 2022-06',
+              heading: '远航理工大学（示例院校）',
+              tag: '计算机科学（本科）',
+              intro: '获得校级优秀毕业生、一等奖学金，参与学院开源技术社团。'
             }
           ]
         },
@@ -62,7 +63,7 @@ export function createDefaultResume(): ResumeDocument {
           title: '技能特长',
           items: [{
             ...createEmptySectionItem(),
-            bullets: '通过大学英语六级（CET-6）考试，能够快速阅读英文文档和书籍，能用英语进行日常交流。\nJava：熟悉 Java 并发编程，了解 JVM、线程池、AQS、CAS。\n框架：熟悉 Spring MVC / Spring Boot，了解 IOC、AOP。\n存储与缓存：熟悉 MySQL / MyBatis，了解事务、索引与锁；熟悉 Redis 数据结构与分布式锁。\n工程工具：熟悉 IDEA、Maven、Git、JUnit、Postman，掌握常用 Linux 命令。\n大模型应用：RAG 检索增强生成、Function Calling、Prompt Engineering、多轮对话管理。'
+            bullets: '编程语言：熟悉 Java、TypeScript，具备良好的面向对象设计与编码能力。\n后端框架：熟悉 Spring Boot、MyBatis，了解微服务治理与常见设计模式。\n前端开发：熟悉 Vue 3、Nuxt、TailwindCSS，能够独立完成响应式页面开发。\n存储与缓存：熟悉 PostgreSQL、MySQL、Redis，了解索引优化、事务与分布式锁。\n工程实践：熟悉 Git、Docker、Linux、单元测试及持续集成流程。\n大模型应用：了解 RAG、Function Calling、Prompt Engineering 与多轮对话管理。'
           }]
         },
         {
@@ -71,31 +72,34 @@ export function createDefaultResume(): ResumeDocument {
           items: [
             {
               ...createEmptySectionItem(),
-              range: '2025-08 ~ 2026-01',
-              heading: 'AskFlow - 智能问答引擎',
-              tag: '后端开发',
-              intro: 'AskFlow 是一个企业级 RAG 智能体平台，面向企业文档知识库问答与智能检索场景。',
-              stack: 'Spring Boot、MyBatis-Plus、Milvus、Redis、LangChain4j、Sa-Token',
-              bullets: '设计双路召回检索架构，基于向量检索与关键词检索并结合重排序提升检索精准度。\n基于 Redis 信号量与 ZSET 实现分布式队列限流，通过 Lua 保证原子操作。\n实现三态熔断器与优先级降级链，自动切换故障模型，保障多模型服务高可用。'
+              range: '2024-08 ~ 2025-03',
+              heading: 'FlowDesk - 团队知识工作台',
+              tag: '全栈开发',
+              intro: '面向中小团队的知识管理与智能问答平台，支持文档接入、语义检索、引用溯源和对话管理。',
+              stack: 'Nuxt、TypeScript、Spring Boot、PostgreSQL、Redis、Docker',
+              bullets: '设计文档解析、分块与混合检索流程，提升长文档问答的召回准确率。\n使用 Redis 实现任务状态缓存与访问限流，降低高峰期数据库压力。\n封装统一的权限校验与异常处理模块，减少重复代码并提升接口一致性。\n通过容器化部署和自动化流水线，实现测试环境的一键发布。'
             },
             {
               ...createEmptySectionItem(),
-              range: '2025-01 ~ 2025-06',
-              heading: '云券 - 优惠券系统',
+              range: '2024-02 ~ 2024-07',
+              heading: 'CloudCoupon - 营销活动平台',
               tag: '后端开发',
-              intro: '面向高并发优惠券领取与平台级分发场景，支持秒杀、分发、结算及搜索等业务。',
-              stack: 'Spring Boot 3、Spring Cloud Alibaba、RocketMQ、Redis、MySQL、Sentinel',
-              bullets: '基于责任链模式校验商家创建优惠券参数，提升校验逻辑的内聚性与扩展性。\n采用 ShardingSphere 分库分表支撑大规模优惠券模板的高效存储与查询。\n基于 RocketMQ 5.x 延时消息实现用户预约抢券与精准提醒。'
+              intro: '用于创建、投放和核销营销权益的示例平台，覆盖领取、库存、结算和数据统计等业务。',
+              stack: 'Spring Boot、MyBatis-Plus、Redis、RabbitMQ、MySQL',
+              bullets: '使用责任链模式拆分活动创建校验规则，提升业务规则的可扩展性。\n通过缓存预热与 Lua 脚本保证库存扣减原子性，避免超发问题。\n引入消息队列异步处理发放记录，缩短核心领取接口响应时间。\n建立关键链路监控指标，便于快速定位库存与消息积压异常。'
             }
           ]
         },
         {
           id: createResumeId(),
-          title: '科研经历',
+          title: '实习经历',
           items: [{
             ...createEmptySectionItem(),
-            stack: 'Python、PyTorch、CUDA、Point-MAE、Point Transformer、TensorBoard',
-            bullets: 'Point-ESC: Encoder-Driven Soft Clustering for 3D Point Cloud Pretraining（审核中，IEEE TNNLS）\nPoint-SDCL: Self-Distillation Contrastive Learning via Positive-Negative Interaction and Probabilistic Modeling（审核中，IEEE TVCG）'
+            range: '2023-07 ~ 2023-12',
+            heading: '云舟科技（示例公司）',
+            tag: '研发实习生',
+            intro: '参与企业协作产品的功能开发、接口联调和线上问题排查。',
+            bullets: '完成消息中心与个人设置模块开发，按期交付并通过代码评审。\n整理常见故障排查文档，帮助团队缩短重复问题的处理时间。'
           }]
         },
         {
@@ -103,10 +107,10 @@ export function createDefaultResume(): ResumeDocument {
           title: '校园经历',
           items: [{
             ...createEmptySectionItem(),
-            range: '2021-06 ~ 2022-09',
-            heading: '秦岭野生动植物调查项目',
-            tag: '组长',
-            bullets: '组织野生植物调查数据的整理、统计与可视化分析，对接项目合作单位，同步调查进展与阶段性成果。'
+            range: '2020-09 ~ 2021-09',
+            heading: '校园开源技术协会',
+            tag: '项目负责人',
+            bullets: '组织入门分享与结对编程活动，维护协会示例项目和技术文档。'
           }]
         }
       ]

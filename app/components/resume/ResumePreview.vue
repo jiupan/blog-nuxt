@@ -70,7 +70,7 @@ function isProjectSection(title: string) {
 .resume-paper {
   width: 210mm;
   min-height: 297mm;
-  padding: var(--resume-page-margin);
+  padding: 5mm var(--resume-page-margin);
   overflow: hidden;
   background: #fff;
   box-shadow: 0 20px 60px rgb(15 23 42 / 14%);
