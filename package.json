@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "predev": "prisma generate",
     "generate": "nuxt generate",
     "lint": "eslint .",
     "preview": "nuxt preview",

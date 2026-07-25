@@ -68,7 +68,7 @@
             <p>{{ tool.description }}</p>
 
             <span class="tool-action">
-              Coming Soon
+              {{ tool.href ? '立即使用' : 'Coming Soon' }}
               <ArrowRightIcon aria-hidden="true" />
             </span>
           </button>
@@ -125,6 +125,7 @@ import {
   ArrowRight as ArrowRightIcon,
   BookOpen as BookOpenIcon,
   Bot as BotIcon,
+  FilePenLine as FilePenLineIcon,
   Image as ImageIcon,
   LayoutDashboard as LayoutDashboardIcon,
   Link as LinkIcon,
@@ -146,6 +147,7 @@ type ToolItem = {
   category: ToolCategory
   tone: ToolTone
   icon: Component
+  href?: string
 }
 
 const categories: Array<{ label: string, value: CategoryValue }> = [
@@ -157,6 +159,15 @@ const categories: Array<{ label: string, value: CategoryValue }> = [
 ]
 
 const tools: ToolItem[] = [
+  {
+    id: 'resume-studio',
+    title: '简历工坊',
+    description: '编辑结构化简历，实时切换模板并导出清晰的 A4 PDF。',
+    category: 'content',
+    tone: 'blue',
+    icon: FilePenLineIcon,
+    href: '/tools/resume'
+  },
   {
     id: 'ai-lab',
     title: 'AI 创作实验室',
@@ -224,6 +235,7 @@ const tools: ToolItem[] = [
 ]
 
 const keyword = ref('')
+const router = useRouter()
 const activeCategory = ref<CategoryValue>('all')
 const searchInput = ref<HTMLInputElement | null>(null)
 const selectedTool = ref<ToolItem | null>(null)
@@ -252,6 +264,10 @@ function resetFilters() {
 }
 
 function openTool(tool: ToolItem) {
+  if (tool.href) {
+    router.push(tool.href)
+    return
+  }
   selectedTool.value = tool
 }
 

@@ -20,8 +20,22 @@ model User {
   articleChatConversations ArticleChatConversation[]
   operatedAuditLogs        AdminAuditLog[]           @relation("AuditOperator")
   targetAuditLogs          AdminAuditLog[]           @relation("AuditTarget")
+  resumes                  Resume[]
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
+}
+
+model Resume {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  content   Json
+  layout    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
 }
 
 model AdminAuditLog {
