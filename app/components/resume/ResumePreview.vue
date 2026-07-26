@@ -21,11 +21,13 @@
           <strong>{{ item.heading }}</strong>
           <strong>{{ item.tag }}</strong>
         </div>
-        <p v-if="item.secondary" class="secondary">{{ item.secondary }}</p>
-        <p v-if="item.intro"><b v-if="isProjectSection(section.title)">项目描述：</b>{{ item.intro }}</p>
-        <p v-if="item.stack"><b>技术栈：</b>{{ item.stack }}</p>
+        <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
+        <p v-if="item.intro">
+          <b v-if="section.type === 'project'">项目描述：</b><InlineRichText :text="item.intro" />
+        </p>
+        <p v-if="item.stack"><b>{{ stackLabel(section.type) }}：</b><InlineRichText :text="item.stack" /></p>
         <ul v-if="bulletLines(item.bullets).length">
-          <li v-for="(line, index) in bulletLines(item.bullets)" :key="index">{{ line }}</li>
+          <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
         </ul>
       </div>
     </section>
@@ -33,8 +35,10 @@
 </template>
 
 <script setup lang="ts">
+import '@fontsource-variable/noto-sans-sc'
 import { UserRound as UserRoundIcon } from '@lucide/vue'
-import type { ResumeContent, ResumeLayout } from '~/types/resume'
+import type { ResumeContent, ResumeLayout, ResumeSectionType } from '~/types/resume'
+import InlineRichText from './InlineRichText.vue'
 
 const props = defineProps<{ data: ResumeContent, layout: ResumeLayout }>()
 
@@ -61,8 +65,8 @@ function bulletLines(value: string) {
   return value.split('\n').map(line => line.trim().replace(/^[•·]\s*/, '')).filter(Boolean)
 }
 
-function isProjectSection(title: string) {
-  return /项目/.test(title)
+function stackLabel(type: ResumeSectionType) {
+  return type === 'research' ? '方法与工具' : '技术栈'
 }
 </script>
 
@@ -76,9 +80,11 @@ function isProjectSection(title: string) {
   box-shadow: 0 20px 60px rgb(15 23 42 / 14%);
   color: #29313a;
   color-scheme: light;
-  font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+  font-family: "Noto Sans SC Variable", sans-serif;
   font-size: var(--resume-font-size);
   line-height: var(--resume-line-height);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 }
 .resume-header {
   position: relative;
@@ -87,6 +93,7 @@ function isProjectSection(title: string) {
   align-items: flex-start;
   justify-content: center;
   padding: 0 38mm 4mm 0;
+  break-inside: avoid;
 }
 .identity { width: 100%; text-align: center; }
 .identity h1 { margin: 0 0 3mm; color: #121820; font-size: 20pt; font-weight: 800; letter-spacing: .04em; }
@@ -109,11 +116,16 @@ function isProjectSection(title: string) {
 .resume-section h2 {
   margin: 0 0 1.6mm;
   padding-bottom: .6mm;
-  border-bottom: .55mm solid #0874d1;
+  border-bottom: .40mm solid #0874d1;
   color: #0874d1;
   font-size: 12pt;
   font-weight: 800;
   line-height: 1.2;
+  break-after: avoid;
+}
+.resume-entry {
+  orphans: 2;
+  widows: 2;
 }
 .resume-entry + .resume-entry { margin-top: 1.8mm; }
 .entry-heading {
@@ -122,6 +134,7 @@ function isProjectSection(title: string) {
   align-items: baseline;
   gap: 3mm;
   color: #181d23;
+  break-after: avoid;
 }
 .entry-heading strong:nth-child(2) { text-align: center; }
 .entry-heading strong:last-child { text-align: right; }
@@ -134,10 +147,18 @@ function isProjectSection(title: string) {
   padding-left: 5mm;
   list-style: disc outside !important;
 }
-.resume-entry li { margin: .25mm 0; padding-left: .5mm; }
+.resume-entry li { margin: .25mm 0; padding-left: .5mm; break-inside: avoid; }
 .resume-entry li::marker { color: #3f4853; font-size: .72em; }
 
 @media print {
-  .resume-paper { box-shadow: none; }
+  .resume-paper {
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: visible;
+    box-shadow: none;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
 }
 </style>
