@@ -23,6 +23,8 @@ services:
 
   app:
     build: .
+    init: true
+    ipc: host
     restart: unless-stopped
     depends_on:
       - postgres

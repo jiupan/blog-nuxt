@@ -24,6 +24,8 @@ services:
 
   app:
     image: ${APP_IMAGE}
+    init: true
+    ipc: host
     restart: unless-stopped
     depends_on:
       - postgres

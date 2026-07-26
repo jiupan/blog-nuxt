@@ -1,4 +1,4 @@
-import type { ResumeDocument, ResumeSectionItem } from '~/types/resume'
+import type { ResumeDocument, ResumeSectionItem, ResumeSectionType } from '~/types/resume'
 
 export function createResumeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -15,6 +15,15 @@ export function createEmptySectionItem(): ResumeSectionItem {
     stack: '',
     bullets: ''
   }
+}
+
+export function inferResumeSectionType(title: string): ResumeSectionType {
+  if (/教育|学历|学习/.test(title)) return 'education'
+  if (/技能|特长|能力/.test(title)) return 'skills'
+  if (/项目/.test(title)) return 'project'
+  if (/科研|论文|研究/.test(title)) return 'research'
+  if (/校园|社团|学生/.test(title)) return 'campus'
+  return 'experience'
 }
 
 export function createDefaultResume(): ResumeDocument {
@@ -41,6 +50,7 @@ export function createDefaultResume(): ResumeDocument {
         {
           id: createResumeId(),
           title: '教育背景',
+          type: 'education',
           items: [
             {
               ...createEmptySectionItem(),
@@ -61,6 +71,7 @@ export function createDefaultResume(): ResumeDocument {
         {
           id: createResumeId(),
           title: '技能特长',
+          type: 'skills',
           items: [{
             ...createEmptySectionItem(),
             bullets: '编程语言：熟悉 Java、TypeScript，具备良好的面向对象设计与编码能力。\n后端框架：熟悉 Spring Boot、MyBatis，了解微服务治理与常见设计模式。\n前端开发：熟悉 Vue 3、Nuxt、TailwindCSS，能够独立完成响应式页面开发。\n存储与缓存：熟悉 PostgreSQL、MySQL、Redis，了解索引优化、事务与分布式锁。\n工程实践：熟悉 Git、Docker、Linux、单元测试及持续集成流程。\n大模型应用：了解 RAG、Function Calling、Prompt Engineering 与多轮对话管理。'
@@ -69,6 +80,7 @@ export function createDefaultResume(): ResumeDocument {
         {
           id: createResumeId(),
           title: '项目经验',
+          type: 'project',
           items: [
             {
               ...createEmptySectionItem(),
@@ -93,6 +105,7 @@ export function createDefaultResume(): ResumeDocument {
         {
           id: createResumeId(),
           title: '实习经历',
+          type: 'experience',
           items: [{
             ...createEmptySectionItem(),
             range: '2023-07 ~ 2023-12',
@@ -105,6 +118,7 @@ export function createDefaultResume(): ResumeDocument {
         {
           id: createResumeId(),
           title: '校园经历',
+          type: 'campus',
           items: [{
             ...createEmptySectionItem(),
             range: '2020-09 ~ 2021-09',
@@ -123,9 +137,12 @@ export function normalizeResume(value: Partial<ResumeDocument> | null | undefine
   if (!value || typeof value !== 'object') return fallback
 
   const sections = Array.isArray(value.content?.sections)
-    ? value.content.sections.map(section => ({
+      ? value.content.sections.map(section => ({
         id: typeof section.id === 'string' ? section.id : createResumeId(),
         title: typeof section.title === 'string' ? section.title : '未命名栏目',
+        type: ['education', 'skills', 'project', 'experience', 'research', 'campus'].includes(section.type)
+          ? section.type as ResumeSectionType
+          : inferResumeSectionType(section.title || ''),
         items: Array.isArray(section.items)
           ? section.items.map(item => ({ ...createEmptySectionItem(), ...item }))
           : []

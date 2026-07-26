@@ -25,6 +25,7 @@ const sectionItemSchema = z.object({
 const sectionSchema = z.object({
   id: z.string().min(1).max(100),
   title: z.string().trim().min(1, '栏目名称不能为空').max(100),
+  type: z.enum(['education', 'skills', 'project', 'experience', 'research', 'campus']),
   items: z.array(sectionItemSchema).max(30)
 })
 
@@ -43,3 +44,5 @@ export const saveResumeSchema = z.object({
     fontSize: z.number().min(7).max(16)
   })
 })
+
+export type SaveResumeInput = z.infer<typeof saveResumeSchema>

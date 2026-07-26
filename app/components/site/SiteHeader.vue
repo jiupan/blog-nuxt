@@ -39,9 +39,9 @@
 
       <div class="header-actions">
         <nav class="tool-nav" aria-label="快捷入口">
-          <button type="button" class="tool-button random-post-button" aria-label="随机前往一个文章" data-tooltip="随机前往一个文章" @click="navigateToRandomPost">
-            <LibraryIcon aria-hidden="true" />
-          </button>
+          <NuxtLink to="/tools" class="tool-button tools-page-button" aria-label="工具" data-tooltip="工具">
+            <WrenchIcon aria-hidden="true" />
+          </NuxtLink>
           <button type="button" class="tool-button" aria-label="归档" data-tooltip="归档" @click="navigateTo('/archive')">
             <ArchiveIcon aria-hidden="true" />
           </button>
@@ -140,11 +140,11 @@ import {
   Archive as ArchiveIcon,
   ChevronRight as ChevronRightIcon,
   FileText as FileTextIcon,
-  Library as LibraryIcon,
   Menu as MenuIcon,
   Moon as MoonIcon,
   Search as SearchIcon,
   Sun as SunIcon,
+  Wrench as WrenchIcon,
   X as XIcon
 } from '@lucide/vue'
 import type { ApiResult } from '~~/types/api'
@@ -179,7 +179,6 @@ const searchQuery = ref('')
 const searchLoading = ref(false)
 const searchResults = ref<PostSummary[]>([])
 const searchInputRef = ref<HTMLInputElement | null>(null)
-const randomPostLoading = ref(false)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 function applyColorMode() {
@@ -220,7 +219,6 @@ const [{ data: recentPostData }, { data: tagData }] = await Promise.all([
 ])
 
 const recentPosts = computed(() => recentPostData.value?.data.items || [])
-const totalPublishedPosts = computed(() => recentPostData.value?.data.total || recentPosts.value.length)
 const tagSuggestions = computed(() => (tagData.value?.data || []).slice(0, 4))
 const displaySearchPosts = computed(() => searchQuery.value.trim() ? searchResults.value : recentPosts.value)
 
@@ -273,26 +271,6 @@ function openSearch() {
 
 function closeSearch() {
   searchOpen.value = false
-}
-
-async function navigateToRandomPost() {
-  if (randomPostLoading.value) return
-  const total = totalPublishedPosts.value
-  if (!total) return
-
-  randomPostLoading.value = true
-  try {
-    const page = Math.floor(Math.random() * total) + 1
-    const response = await $fetch<ApiResult<PublicPostListPayload>>('/api/posts', {
-      query: { page, pageSize: 1 }
-    })
-    const post = response.data.items[0]
-    if (post) {
-      await navigateTo(postPath(post.slug))
-    }
-  } finally {
-    randomPostLoading.value = false
-  }
 }
 
 function handleSearchKeydown(event: KeyboardEvent) {

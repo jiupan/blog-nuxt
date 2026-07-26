@@ -746,7 +746,7 @@ body.site-search-lock {
     color: var(--theme-text);
   }
 
-  .tool-nav .random-post-button {
+  .tool-nav .tools-page-button {
     display: none;
   }
 

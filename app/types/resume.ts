@@ -20,9 +20,18 @@ export type ResumeSectionItem = {
   bullets: string
 }
 
+export type ResumeSectionType =
+  | 'education'
+  | 'skills'
+  | 'project'
+  | 'experience'
+  | 'research'
+  | 'campus'
+
 export type ResumeSection = {
   id: string
   title: string
+  type: ResumeSectionType
   items: ResumeSectionItem[]
 }
 
