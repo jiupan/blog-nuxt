@@ -223,14 +223,6 @@ const tools: ToolItem[] = [
     category: 'manage',
     tone: 'indigo',
     icon: ImageIcon
-  },
-  {
-    id: 'settings',
-    title: '站点设置',
-    description: '维护博客基础信息、展示偏好和搜索引擎配置。',
-    category: 'manage',
-    tone: 'slate',
-    icon: SettingsIcon
   }
 ]
 

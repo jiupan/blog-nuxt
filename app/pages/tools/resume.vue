@@ -4,6 +4,10 @@
 
     <header class="workspace-bar">
       <div class="document-name">
+        <NuxtLink class="back-to-tools" to="/tools" aria-label="返回工具页" title="返回工具页">
+          <ArrowLeftIcon aria-hidden="true" />
+          <span>返回</span>
+        </NuxtLink>
         <FileTextIcon />
         <input v-model="resume.title" aria-label="简历名称">
       </div>
@@ -221,6 +225,7 @@ import type { Component } from 'vue'
 import type { ResumeDocument, ResumeLibraryItem, ResumeSectionItem, ResumeSectionType } from '~/types/resume'
 import {
   ArrowDown as ArrowDownIcon,
+  ArrowLeft as ArrowLeftIcon,
   ArrowUp as ArrowUpIcon,
   BriefcaseBusiness as BriefcaseBusinessIcon,
   ChevronDown as ChevronDownIcon,
@@ -264,7 +269,7 @@ const workspaceBody = ref<HTMLElement | null>(null)
 const previewDocument = ref<HTMLElement | null>(null)
 const editorWidth = ref('43%')
 const resizing = ref(false)
-const defaultZoom = 72
+const defaultZoom = 100
 const minZoom = 40
 const maxZoom = 120
 const continuationTopExtra = 4
@@ -629,6 +634,13 @@ useSeoMeta({
   box-shadow: 0 3px 14px rgb(32 42 62 / 5%); backdrop-filter: blur(12px);
 }
 .document-name { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.back-to-tools {
+  display: inline-flex; height: 34px; flex: 0 0 auto; align-items: center; gap: 5px; padding: 0 9px;
+  border: 1px solid #dce2e9; border-radius: 8px; background: #fff; color: #5f6b7c; font-size: 10px; font-weight: 750;
+  transition: border-color .16s ease, background-color .16s ease, color .16s ease;
+}
+.back-to-tools:hover, .back-to-tools:focus-visible { border-color: #9bc7eb; outline: 0; background: #f2f8fd; color: #0874d1; }
+.back-to-tools svg { width: 14px; }
 .document-name > svg { width: 18px; color: #0874d1; }
 .document-name input { width: min(300px, 28vw); border: 0; outline: 0; background: transparent; color: #1b2431; font-size: 14px; font-weight: 750; }
 .library-control { display: flex; align-items: center; gap: 6px; }
@@ -650,7 +662,7 @@ useSeoMeta({
 .print-button:disabled { cursor: wait; opacity: .7; }
 .spin { animation: spin .8s linear infinite; }
 .workspace-body { display: grid; height: calc(100vh - 62px); min-height: 700px; grid-template-columns: minmax(360px, var(--editor-width)) 8px minmax(360px, 1fr); }
-.resume-editor { min-width: 0; overflow-y: auto; padding: 26px 28px 60px; background: #f9fafc; }
+.resume-editor { min-width: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 26px 28px 60px; background: #f9fafc; }
 .editor-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
 .editor-heading span { color: #0874d1; font: 750 8px "JetBrains Mono", monospace; letter-spacing: .14em; }
 .editor-heading h1 { margin: 4px 0 0; color: #192230; font-size: 22px; }
@@ -691,8 +703,8 @@ useSeoMeta({
 .section-name input { width: min(210px, 100%); padding: 3px 5px; border: 1px solid transparent; border-radius: 5px; outline: 0; background: transparent; color: #0874d1; font-size: 12px; font-weight: 800; }
 .section-name input:focus { border-color: #b7d8f4; background: #fff; }
 .section-name small {
-  flex: 0 0 auto; padding: 3px 6px; border-radius: 5px; background: #eaf4fc; color: #4383b9;
-  font-size: 7px; font-weight: 750; white-space: nowrap;
+  flex: 0 0 auto; padding: 4px 7px; border-radius: 5px; background: #eaf4fc; color: #3477ae;
+  font-size: 10px; font-weight: 750; white-space: nowrap;
 }
 .card-actions { display: flex; align-items: center; gap: 5px; }
 .card-actions button { display: inline-flex; height: 28px; align-items: center; gap: 4px; padding: 0 7px; border: 1px solid #dce2e9; border-radius: 7px; background: #fff; color: #5f6b7c; cursor: pointer; font-size: 9px; font-weight: 700; }
@@ -705,7 +717,7 @@ useSeoMeta({
 .entry-editor { padding: 12px 0 14px; }
 .entry-editor + .entry-editor { border-top: 1px dashed #dfe3e9; }
 .entry-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; padding: 0 16px; }
-.entry-label strong { color: #7e8897; font-size: 8px; }
+.entry-label strong { color: #697587; font-size: 10px; }
 .entry-label button { display: grid; width: 22px; height: 22px; place-items: center; border: 0; border-radius: 6px; background: #fff1f3; color: #c05869; cursor: pointer; }
 .entry-label svg { width: 11px; }
 .empty-section { padding: 24px; color: #9aa3af; font-size: 10px; text-align: center; }
@@ -753,7 +765,7 @@ useSeoMeta({
 .preview-zoom button:disabled { cursor: not-allowed; opacity: .35; }
 .preview-zoom button svg { width: 12px; }
 .preview-zoom .zoom-value { min-width: 48px; font-family: "JetBrains Mono", monospace; }
-.preview-scroll { flex: 1; overflow: auto; padding: 28px; }
+.preview-scroll { flex: 1; overflow: auto; scrollbar-gutter: stable; padding: 28px; }
 .preview-document { position: relative; width: 210mm; margin: 0 auto; transform-origin: top center; }
 .page-break-marker {
   position: absolute; z-index: 5; right: 0; left: 0; height: 0; border-top: 1px dashed #e16b78;
@@ -770,6 +782,8 @@ useSeoMeta({
 
 @media (max-width: 1100px) {
   .workspace-actions > span, .library-control label > span { display: none; }
+  .back-to-tools { width: 34px; justify-content: center; padding: 0; }
+  .back-to-tools span { display: none; }
   .resume-editor { padding-inline: 18px; }
   .card-actions > button:not(.danger, .collapse-button) { width: 28px; padding: 0; overflow: hidden; font-size: 0; justify-content: center; }
 }

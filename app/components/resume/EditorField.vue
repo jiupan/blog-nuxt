@@ -74,20 +74,20 @@ function handleKeydown(event: KeyboardEvent) {
 </script>
 
 <style scoped>
-label { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-label > span { color: #687384; font-size: 7.5px; font-weight: 700; }
-input, textarea { width: 100%; border: 1px solid #dfe4eb; border-radius: 6px; outline: 0; background: #fbfcfd; color: #303a49; font: 8px/1.4 inherit; transition: border-color .18s, box-shadow .18s; }
-input { height: 29px; padding: 0 7px; }
-textarea { min-height: 54px; resize: vertical; padding: 6px 7px; }
+label { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+label > span { color: #596577; font-size: 10px; font-weight: 750; }
+input, textarea { width: 100%; border: 1px solid #dfe4eb; border-radius: 6px; outline: 0; background: #fbfcfd; color: #303a49; font: 11px/1.5 inherit; transition: border-color .18s, box-shadow .18s; }
+input { height: 34px; padding: 0 9px; }
+textarea { min-height: 72px; resize: vertical; padding: 8px 9px; }
 .textarea-shell { min-width: 0; }
 .textarea-shell.rich { overflow: hidden; border: 1px solid #dfe4eb; border-radius: 7px; background: #fbfcfd; transition: border-color .18s, box-shadow .18s; }
 .textarea-shell.rich:focus-within { border-color: #74afe1; box-shadow: 0 0 0 3px rgb(8 116 209 / 8%); background: #fff; }
 .textarea-shell.rich textarea { display: block; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 .textarea-shell.rich textarea:focus { border: 0; box-shadow: none; background: transparent; }
-.field-toolbar { display: flex; height: 24px; align-items: center; gap: 5px; padding: 0 5px; border-bottom: 1px solid #e6e9ee; background: #f6f8fa; }
-.field-toolbar button { display: grid; width: 18px; height: 17px; place-items: center; border: 1px solid #d9dfe7; border-radius: 4px; background: #fff; color: #303a49; cursor: pointer; font: 10px Georgia, serif; }
+.field-toolbar { display: flex; height: 30px; align-items: center; gap: 7px; padding: 0 7px; border-bottom: 1px solid #e6e9ee; background: #f6f8fa; }
+.field-toolbar button { display: grid; width: 21px; height: 21px; place-items: center; border: 1px solid #d9dfe7; border-radius: 4px; background: #fff; color: #303a49; cursor: pointer; font: 12px Georgia, serif; }
 .field-toolbar button:hover { border-color: #8fbee5; color: #0874d1; }
-.field-toolbar small { color: #9aa3af; font-size: 6.5px; }
+.field-toolbar small { color: #7f8997; font-size: 9px; }
 input:focus, textarea:focus { border-color: #74afe1; box-shadow: 0 0 0 3px rgb(8 116 209 / 8%); background: #fff; }
 input::placeholder, textarea::placeholder { color: #abb2bc; }
 </style>

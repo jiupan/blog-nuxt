@@ -108,7 +108,7 @@ html.theme-switching *::after {
 
 ::view-transition-new(root) {
   z-index: 2;
-  animation: theme-reveal 460ms cubic-bezier(.2, .72, .2, 1) both;
+  animation: theme-reveal 320ms cubic-bezier(.42, 0, 1, 1) both;
 }
 
 @keyframes theme-reveal {

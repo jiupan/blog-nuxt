@@ -194,7 +194,12 @@ function toggleColorMode(event: MouseEvent) {
   const rect = target?.getBoundingClientRect()
   const x = rect ? rect.left + rect.width / 2 : window.innerWidth * .95
   const y = rect ? rect.top + rect.height / 2 : 35
-  const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
+  const viewportWidth = document.documentElement.clientWidth
+  const viewportHeight = document.documentElement.clientHeight
+  const radius = Math.ceil(Math.hypot(
+    Math.max(x, viewportWidth - x),
+    Math.max(y, viewportHeight - y)
+  )) + 2
   root.style.setProperty('--theme-switch-x', `${x}px`)
   root.style.setProperty('--theme-switch-y', `${y}px`)
   root.style.setProperty('--theme-switch-radius', `${radius}px`)
