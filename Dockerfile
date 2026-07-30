@@ -16,6 +16,8 @@ FROM mcr.microsoft.com/playwright:v1.61.0-noble AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npm install --global prisma@6.19.3 \
+  && npm cache clean --force
 RUN apt-get update \
   && apt-get install -y --no-install-recommends fonts-noto-cjk \
   && rm -rf /var/lib/apt/lists/*

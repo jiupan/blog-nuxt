@@ -337,7 +337,7 @@ SSH 到服务器，执行 /opt/blog-nuxt/deploy.sh。
 生产环境迁移只用：
 
 ```bash
-npx --package prisma@6 prisma migrate deploy
+prisma migrate deploy
 ```
 
 不要用：
@@ -551,7 +551,7 @@ cd /opt/blog-nuxt
 手动执行迁移：
 
 ```bash
-docker compose -f docker-compose.server.yml run --rm --no-deps app npx --yes --package prisma@6.19.3 prisma migrate deploy
+docker compose -f docker-compose.server.yml run --rm --no-deps app prisma migrate deploy
 ```
 
 数据库备份：

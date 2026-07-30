@@ -38,7 +38,7 @@ echo "=== 等待数据库就绪 ==="
 docker compose -f docker-compose.server.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 echo "=== 执行数据库迁移 ==="
-docker compose -f docker-compose.server.yml run --rm --no-deps app npx --yes --package prisma@6.19.3 prisma migrate deploy
+timeout --foreground 10m docker compose -f docker-compose.server.yml run --rm --no-deps app prisma migrate deploy
 
 echo "=== 启动/更新应用容器 ==="
 docker compose -f docker-compose.server.yml up -d app
