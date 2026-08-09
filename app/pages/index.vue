@@ -14,14 +14,25 @@
         </NuxtLink>
       </div>
 
-      <div class="hero-board" :class="{ 'has-no-posts': !latest }" :style="heroBoardStyle" data-page-enter style="--page-enter-order: 0">
-        <NuxtLink :to="activeHeroPost ? postPath(activeHeroPost.slug) : (latest ? postPath(latest.slug) : '/posts')" class="hero-main">
+      <div class="hero-board" :class="{ 'has-no-posts': !latest }" data-page-enter style="--page-enter-order: 0">
+        <NuxtLink :to="currentHeroPost ? postPath(currentHeroPost.slug) : '/posts'" class="hero-main">
           <Transition name="hero-fade">
-            <img :key="heroImage" :src="heroImage" :alt="heroImageAlt" class="hero-image">
+            <img
+              :key="heroTransitionKey"
+              :src="heroImage"
+              :alt="heroImageAlt"
+              class="hero-image"
+              decoding="async"
+              fetchpriority="high"
+            >
           </Transition>
           <div class="hero-copy">
-            <h1>{{ activeHeroPost?.title || latest?.title || siteName }}</h1>
-            <p>{{ currentHeroPost?.isPinned ? '⭐ 置顶推荐' : (latest ? '⭐ 最新发布' : '暂无已发布文章') }}</p>
+            <Transition name="hero-copy" mode="out-in">
+              <div :key="heroTransitionKey" class="hero-copy-content">
+                <h1>{{ currentHeroPost?.title || siteName }}</h1>
+                <p>{{ currentHeroPost?.isPinned ? '⭐ 置顶推荐' : (latest ? '⭐ 最新发布' : '暂无已发布文章') }}</p>
+              </div>
+            </Transition>
           </div>
         </NuxtLink>
 
@@ -32,7 +43,9 @@
             :to="item.to"
             class="hero-link"
             :class="{ 'is-active': item.id === (activeHeroPost?.id || heroPosts[0]?.id) }"
-            @mouseenter.prevent="activeHeroPost = item"
+            @mouseenter="scheduleHeroChange(item)"
+            @mouseleave="cancelHeroChange"
+            @focus="setActiveHeroPost(item)"
           >
             <span class="hero-link-icon">
               <img v-if="item.memeIcon" :src="item.memeIcon" alt="" aria-hidden="true">
@@ -304,9 +317,7 @@ const latest = computed(() => heroAll.value[0])
 const currentHeroPost = computed(() => activeHeroPost.value || latest.value)
 const heroImage = computed(() => currentHeroPost.value?.cover || '/images/home-hero-ai.png')
 const heroImageAlt = computed(() => currentHeroPost.value?.title || '')
-const heroBoardStyle = computed(() => ({
-  backgroundImage: `url("${heroImage.value}")`
-}))
+const heroTransitionKey = computed(() => currentHeroPost.value?.id || 'hero-empty')
 const homeSeoTitle = computed(() => {
   const subtitle = siteSettings.value.site_subtitle?.trim()
   return subtitle ? `${siteName.value} - ${subtitle}` : siteName.value
@@ -382,6 +393,37 @@ const mobileHeroPosts = computed(() => {
 })
 
 const activeHeroPost = ref<PostSummary | null>(null)
+let heroChangeTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelHeroChange() {
+  if (!heroChangeTimer) return
+  clearTimeout(heroChangeTimer)
+  heroChangeTimer = null
+}
+
+function setActiveHeroPost(post: PostSummary) {
+  cancelHeroChange()
+  activeHeroPost.value = post
+}
+
+function scheduleHeroChange(post: PostSummary) {
+  cancelHeroChange()
+  if (post.id === currentHeroPost.value?.id) return
+  heroChangeTimer = setTimeout(() => {
+    activeHeroPost.value = post
+    heroChangeTimer = null
+  }, 30)
+}
+
+function preloadHeroImages() {
+  const covers = new Set(heroPosts.value.map(post => post.cover).filter((cover): cover is string => Boolean(cover)))
+  covers.forEach((cover) => {
+    const image = new Image()
+    image.decoding = 'async'
+    image.src = cover
+  })
+}
+
 const topicTooltip = reactive({
   visible: false,
   label: '',
@@ -429,6 +471,7 @@ function hideTopicTooltip() {
 }
 
 function resetHomeState() {
+  cancelHeroChange()
   categorySlug.value = ''
   currentPage.value = 1
   activeHeroPost.value = null
@@ -437,10 +480,12 @@ function resetHomeState() {
 }
 
 onMounted(() => {
+  preloadHeroImages()
   window.addEventListener('home:reset', resetHomeState)
 })
 
 onBeforeUnmount(() => {
+  cancelHeroChange()
   window.removeEventListener('home:reset', resetHomeState)
 })
 
@@ -522,7 +567,9 @@ function formatDate(value?: string | Date | null) {
 
 .hero-fade-enter-active,
 .hero-fade-leave-active {
-  transition: opacity .32s ease;
+  transition:
+    opacity 480ms cubic-bezier(.22, 1, .36, 1),
+    transform 650ms cubic-bezier(.22, 1, .36, 1);
 }
 
 .hero-fade-enter-from,
@@ -530,9 +577,18 @@ function formatDate(value?: string | Date | null) {
   opacity: 0;
 }
 
+.hero-fade-enter-from {
+  transform: scale(1.025);
+}
+
+.hero-fade-leave-to {
+  transform: scale(1.008);
+}
+
 .hero-fade-enter-to,
 .hero-fade-leave-from {
   opacity: 1;
+  transform: scale(1);
 }
 
 .hero-main::after {
@@ -550,6 +606,25 @@ function formatDate(value?: string | Date | null) {
   bottom: 28px;
   max-width: 620px;
   color: white;
+}
+
+.hero-copy-content {
+  transform-origin: left bottom;
+}
+
+.hero-copy-enter-active,
+.hero-copy-leave-active {
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.hero-copy-enter-from {
+  opacity: 0;
+  transform: translateY(7px);
+}
+
+.hero-copy-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .hero-copy h1 {
@@ -585,6 +660,7 @@ function formatDate(value?: string | Date | null) {
   color: rgb(255 255 255 / 82%);
   font-size: 16px;
   font-weight: 500;
+  transition: background-color 240ms ease, color 240ms ease;
 }
 
 .hero-link.is-active {
@@ -1318,6 +1394,23 @@ function formatDate(value?: string | Date | null) {
 
   .post-tags time {
     margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-fade-enter-active,
+  .hero-fade-leave-active,
+  .hero-copy-enter-active,
+  .hero-copy-leave-active,
+  .hero-link {
+    transition: none;
+  }
+
+  .hero-fade-enter-from,
+  .hero-fade-leave-to,
+  .hero-copy-enter-from,
+  .hero-copy-leave-to {
+    transform: none;
   }
 }
 </style>
