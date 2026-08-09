@@ -251,6 +251,8 @@
 }
 
 .tool-nav {
+  --tool-nav-color: var(--theme-text);
+
   display: flex;
   align-items: center;
   gap: 2px;
@@ -258,10 +260,10 @@
   padding: 6px 6px;
   border-radius: 999px;
   background: transparent;
-  color: var(--theme-text);
+  color: var(--tool-nav-color);
   font-size: 22px;
   font-weight: 900;
-  transition: background .2s ease, box-shadow .2s ease, color .2s ease;
+  transition: background .2s ease, box-shadow .2s ease;
 }
 
 .tool-nav a,
@@ -274,7 +276,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: inherit;
+  color: var(--tool-nav-color);
   cursor: pointer;
   font: inherit;
   padding: 0;
@@ -661,6 +663,10 @@ body.site-search-lock {
 .site-header.is-article-route:not(.is-scrolled) .main-nav,
 .site-header.is-article-route:not(.is-scrolled) .tool-nav {
   color: white;
+}
+
+.site-header.is-article-route:not(.is-scrolled) .tool-nav {
+  --tool-nav-color: white;
 }
 
 .site-header.is-scrolled .brand {
