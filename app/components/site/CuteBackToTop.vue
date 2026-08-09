@@ -1,47 +1,35 @@
 <template>
   <button
-    class="cute-back-to-top"
-    :class="{ 'is-visible': visible, 'is-launching': launching, 'is-resetting': resetting }"
+    class="elegant-back-to-top"
+    :class="{ 'is-visible': visible }"
     type="button"
     aria-label="返回顶部"
     title="返回顶部"
-    @click="launch"
+    @click="emit('scrollTop')"
   >
-    <span class="cat-container" aria-hidden="true">
-      <span class="cute-tooltip">嗖~</span>
-      <svg class="cat-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M 25,35 L 12,12 L 38,22 Q 50,15 62,22 L 88,12 L 75,35 A 35,35 0 1,1 25,35 Z"
-          fill="#ffffff"
-          stroke="#5c4e4e"
-          stroke-width="4.5"
-          stroke-linejoin="round"
-          stroke-linecap="round"
-        />
-        <polygon points="19,17 32,24 25,31" fill="#ff9ebb" />
-        <polygon points="81,17 68,24 75,31" fill="#ff9ebb" />
-        <ellipse class="cat-blush" cx="25" cy="62" rx="8" ry="5" fill="#ffb3c6" />
-        <ellipse class="cat-blush" cx="75" cy="62" rx="8" ry="5" fill="#ffb3c6" />
-        <g class="cat-eye-normal">
-          <circle cx="34" cy="55" r="4.5" fill="#5c4e4e" />
-          <circle cx="66" cy="55" r="4.5" fill="#5c4e4e" />
-        </g>
-        <g class="cat-eye-happy">
-          <path d="M 28 57 Q 34 49 40 57" fill="none" stroke="#5c4e4e" stroke-width="4" stroke-linecap="round" />
-          <path d="M 60 57 Q 66 49 72 57" fill="none" stroke="#5c4e4e" stroke-width="4" stroke-linecap="round" />
-        </g>
-        <path
-          d="M 45 61 Q 50 67 50 61 Q 50 67 55 61"
-          fill="none"
-          stroke="#5c4e4e"
-          stroke-width="3.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-        <ellipse cx="33" cy="85" rx="7" ry="5" fill="#ffffff" stroke="#5c4e4e" stroke-width="3.5" />
-        <ellipse cx="67" cy="85" rx="7" ry="5" fill="#ffffff" stroke="#5c4e4e" stroke-width="3.5" />
-      </svg>
-    </span>
+    <svg class="progress-ring" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="back-to-top-progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop class="progress-gradient-start" offset="0%" />
+          <stop class="progress-gradient-end" offset="100%" />
+        </linearGradient>
+      </defs>
+      <circle class="progress-ring-track" cx="32" cy="32" r="28" />
+      <circle
+        class="progress-ring-circle"
+        cx="32"
+        cy="32"
+        r="28"
+        :style="{
+          strokeDasharray: `${circumference} ${circumference}`,
+          strokeDashoffset: dashOffset
+        }"
+      />
+    </svg>
+
+    <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
   </button>
 </template>
 
@@ -50,226 +38,225 @@ const emit = defineEmits<{
   scrollTop: []
 }>()
 
+const radius = 28
+const circumference = 2 * Math.PI * radius
 const visible = ref(false)
-const launching = ref(false)
-const resetting = ref(false)
+const progress = ref(0)
+const dashOffset = computed(() => circumference * (1 - progress.value))
 
-function syncVisible() {
-  if (launching.value || resetting.value) return
-  visible.value = window.scrollY > 300
+let updateFrame = 0
+
+function syncScrollProgress() {
+  updateFrame = 0
+
+  const scrollPosition = window.scrollY
+  const scrollableHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight
+
+  visible.value = scrollPosition > 150
+  progress.value = scrollableHeight > 0
+    ? Math.max(0, Math.min(1, scrollPosition / scrollableHeight))
+    : 0
 }
 
-function launch() {
-  if (launching.value) return
-  launching.value = true
-  visible.value = true
-
-  window.setTimeout(() => {
-    emit('scrollTop')
-  }, 200)
-
-  window.setTimeout(() => {
-    visible.value = false
-    resetting.value = true
-    launching.value = false
-    waitForTopThenReset()
-  }, 880)
-}
-
-function waitForTopThenReset(start = performance.now()) {
-  const done = window.scrollY <= 20 || performance.now() - start > 1200
-
-  if (done) {
-    window.setTimeout(() => {
-      resetting.value = false
-      syncVisible()
-    }, 120)
-    return
-  }
-
-  window.requestAnimationFrame(() => waitForTopThenReset(start))
+function scheduleScrollProgressSync() {
+  if (updateFrame) return
+  updateFrame = window.requestAnimationFrame(syncScrollProgress)
 }
 
 onMounted(() => {
-  syncVisible()
-  window.addEventListener('scroll', syncVisible, { passive: true })
+  syncScrollProgress()
+  window.addEventListener('scroll', scheduleScrollProgressSync, { passive: true })
+  window.addEventListener('resize', scheduleScrollProgressSync, { passive: true })
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', syncVisible)
+  window.removeEventListener('scroll', scheduleScrollProgressSync)
+  window.removeEventListener('resize', scheduleScrollProgressSync)
+  if (updateFrame) window.cancelAnimationFrame(updateFrame)
 })
 </script>
 
 <style scoped>
-.cute-back-to-top {
+.elegant-back-to-top {
+  --back-to-top-bg: rgb(255 255 255 / 78%);
+  --back-to-top-border: rgb(99 102 241 / 18%);
+  --back-to-top-track: rgb(79 70 229 / 12%);
+  --back-to-top-arrow: #4f46e5;
+  --back-to-top-arrow-hover: #7c3aed;
+  --back-to-top-gradient-start: #0891b2;
+  --back-to-top-gradient-end: #7c3aed;
+
   position: fixed;
   right: 40px;
   bottom: 40px;
   z-index: 80;
-  width: 70px;
-  height: 70px;
-  border: 0;
-  background: transparent;
+  display: flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--back-to-top-border);
+  border-radius: 50%;
+  backdrop-filter: blur(12px);
+  background: var(--back-to-top-bg);
+  box-shadow:
+    0 8px 24px rgb(71 85 105 / 14%),
+    inset 0 1px 0 rgb(255 255 255 / 82%);
   cursor: pointer;
   opacity: 0;
-  padding: 0;
-  transform: translateY(40px);
-  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), visibility 0.5s ease;
+  pointer-events: none;
+  transform: translateY(20px) scale(0.9);
+  transition:
+    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
   visibility: hidden;
+  -webkit-backdrop-filter: blur(12px);
   -webkit-tap-highlight-color: transparent;
 }
 
-.cute-back-to-top.is-visible {
+.elegant-back-to-top.is-visible {
   opacity: 1;
-  transform: translateY(0);
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
   visibility: visible;
 }
 
-.cute-back-to-top.is-resetting {
-  opacity: 0 !important;
-  transform: translateY(40px) !important;
-  transition: none !important;
-  visibility: hidden !important;
+.elegant-back-to-top.is-visible:hover,
+.elegant-back-to-top.is-visible:focus-visible {
+  border-color: rgb(124 58 237 / 30%);
+  box-shadow:
+    0 12px 26px -8px rgb(124 58 237 / 28%),
+    0 8px 18px -10px rgb(8 145 178 / 24%),
+    inset 0 1px 0 rgb(255 255 255 / 90%);
+  transform: translateY(-5px) scale(1.05);
 }
 
-.cute-back-to-top.is-resetting .cat-container {
-  animation: none !important;
-}
-
-.cat-container {
-  position: relative;
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  animation: cat-floating 3s ease-in-out infinite;
-  filter: drop-shadow(0 12px 16px rgb(255 158 187 / 35%));
-}
-
-.cute-tooltip {
-  position: absolute;
-  top: -45px;
-  left: 50%;
-  padding: 6px 14px;
-  border-radius: 20px;
-  background: #ff9ebb;
-  color: white;
-  font-size: 14px;
-  font-weight: 800;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateX(-50%) translateY(10px);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  white-space: nowrap;
-}
-
-.cute-tooltip::after {
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  border-width: 6px 6px 0;
-  border-style: solid;
-  border-color: #ff9ebb transparent transparent;
-  content: "";
-  transform: translateX(-50%);
-}
-
-.cat-svg {
-  width: 100%;
-  height: 100%;
-  transition: transform 0.3s ease;
-}
-
-.cute-back-to-top:hover .cat-container,
-.cute-back-to-top:focus-visible .cat-container {
-  animation-play-state: paused;
-}
-
-.cute-back-to-top:hover .cat-svg,
-.cute-back-to-top:focus-visible .cat-svg {
-  transform: scale(1.05) translateY(-5px);
-}
-
-.cute-back-to-top:hover .cute-tooltip,
-.cute-back-to-top:focus-visible .cute-tooltip {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.cat-eye-normal,
-.cat-eye-happy,
-.cat-blush {
-  transition: opacity 0.2s ease;
-}
-
-.cat-eye-happy,
-.cat-blush {
-  opacity: 0;
-}
-
-.cute-back-to-top:hover .cat-eye-normal,
-.cute-back-to-top:focus-visible .cat-eye-normal {
-  opacity: 0;
-}
-
-.cute-back-to-top:hover .cat-eye-happy,
-.cute-back-to-top:focus-visible .cat-eye-happy,
-.cute-back-to-top:hover .cat-blush,
-.cute-back-to-top:focus-visible .cat-blush {
-  opacity: 1;
-}
-
-.cute-back-to-top.is-launching .cat-container {
-  animation: jelly-launch 0.9s cubic-bezier(0.5, 0, 0.2, 1) forwards;
-}
-
-.cute-back-to-top.is-launching .cute-tooltip {
-  display: none;
-}
-
-.cute-back-to-top:focus-visible {
-  outline: 3px solid rgb(255 158 187 / 45%);
+.elegant-back-to-top:focus-visible {
+  outline: 3px solid rgb(139 92 246 / 32%);
   outline-offset: 4px;
 }
 
-@keyframes cat-floating {
-  0%,
-  100% {
+.progress-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.progress-ring-track,
+.progress-ring-circle {
+  fill: none;
+}
+
+.progress-ring-track {
+  stroke: var(--back-to-top-track);
+  stroke-width: 2;
+}
+
+.progress-gradient-start {
+  stop-color: var(--back-to-top-gradient-start);
+}
+
+.progress-gradient-end {
+  stop-color: var(--back-to-top-gradient-end);
+}
+
+.progress-ring-circle {
+  stroke: url("#back-to-top-progress-gradient");
+  stroke-linecap: round;
+  stroke-width: 2.5;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.15s linear;
+}
+
+.arrow-icon {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+  stroke: var(--back-to-top-arrow);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.elegant-back-to-top.is-visible:hover .arrow-icon,
+.elegant-back-to-top.is-visible:focus-visible .arrow-icon {
+  animation: arrow-shoot-up 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  stroke: var(--back-to-top-arrow-hover);
+}
+
+:global(.dark .elegant-back-to-top) {
+  --back-to-top-bg: rgb(30 41 59 / 40%);
+  --back-to-top-border: rgb(255 255 255 / 10%);
+  --back-to-top-track: rgb(255 255 255 / 8%);
+  --back-to-top-arrow: #fff;
+  --back-to-top-arrow-hover: #a78bfa;
+  --back-to-top-gradient-start: #2dd4bf;
+  --back-to-top-gradient-end: #8b5cf6;
+
+  box-shadow: none;
+}
+
+:global(.dark .elegant-back-to-top.is-visible:hover),
+:global(.dark .elegant-back-to-top.is-visible:focus-visible) {
+  border-color: rgb(139 92 246 / 40%);
+  box-shadow:
+    0 10px 25px -5px rgb(139 92 246 / 40%),
+    0 8px 10px -6px rgb(139 92 246 / 20%);
+}
+
+@keyframes arrow-shoot-up {
+  0% {
+    opacity: 1;
     transform: translateY(0);
   }
 
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes jelly-launch {
-  0% {
-    transform: scale(1, 1) translateY(0);
+  40% {
+    opacity: 0;
+    transform: translateY(-20px);
   }
 
-  20% {
-    transform: scale(1.3, 0.7) translateY(15px);
+  41% {
+    opacity: 0;
+    transform: translateY(20px);
   }
 
   100% {
-    transform: scale(0.6, 1.4) translateY(-120vh);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 @media (max-width: 768px) {
-  .cute-back-to-top {
+  .elegant-back-to-top {
     right: 22px;
     bottom: 22px;
-    width: 55px;
-    height: 55px;
+    width: 54px;
+    height: 54px;
   }
 
-  .cute-tooltip {
-    top: -38px;
-    padding: 4px 10px;
-    font-size: 12px;
+  .arrow-icon {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .elegant-back-to-top,
+  .progress-ring-circle {
+    transition-duration: 0.01ms;
+  }
+
+  .elegant-back-to-top.is-visible:hover .arrow-icon,
+  .elegant-back-to-top.is-visible:focus-visible .arrow-icon {
+    animation: none;
   }
 }
 </style>
