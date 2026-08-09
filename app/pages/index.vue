@@ -1,7 +1,7 @@
 <template>
   <div class="home-page">
     <section class="home-shell pt-2">
-      <div v-if="mobileHeroPosts.length" class="mobile-hero-carousel" aria-label="精选文章">
+      <div v-if="mobileHeroPosts.length" class="mobile-hero-carousel" aria-label="精选文章" data-page-enter style="--page-enter-order: 0">
         <NuxtLink
           v-for="item in mobileHeroPosts"
           :key="`mobile-hero-${item.id}`"
@@ -14,7 +14,7 @@
         </NuxtLink>
       </div>
 
-      <div class="hero-board" :class="{ 'has-no-posts': !latest }" :style="heroBoardStyle">
+      <div class="hero-board" :class="{ 'has-no-posts': !latest }" :style="heroBoardStyle" data-page-enter style="--page-enter-order: 0">
         <NuxtLink :to="activeHeroPost ? postPath(activeHeroPost.slug) : (latest ? postPath(latest.slug) : '/posts')" class="hero-main">
           <Transition name="hero-fade">
             <img :key="heroImage" :src="heroImage" :alt="heroImageAlt" class="hero-image">
@@ -43,13 +43,14 @@
         </div>
       </div>
 
-      <nav v-if="topicTabs.length" class="topic-tabs" aria-label="文章分类">
+      <nav v-if="topicTabs.length" class="topic-tabs" aria-label="文章分类" data-page-enter style="--page-enter-order: 1">
         <button
           v-for="tab in topicTabs"
           :key="tab.label"
           type="button"
           class="topic-tab"
           :class="{ 'is-active': tab.active }"
+          :disabled="listPending"
           :aria-label="tab.label"
           @mouseenter="showTopicTooltip($event, tab.tooltip)"
           @mouseleave="hideTopicTooltip"
@@ -71,46 +72,71 @@
       </div>
 
       <div class="content-layout">
-        <main>
-          <div v-if="displayPosts.length" class="post-grid">
-            <article v-for="(post, index) in displayPosts" :key="post.key" class="post-card">
-              <NuxtLink :to="post.to" class="post-cover" :class="!post.cover && post.coverClass">
-                <img v-if="post.cover" :src="post.cover" :alt="post.title" class="cover-image" />
-                <span v-if="post.cover" class="cover-overlay"></span>
-                <span class="cover-word">{{ post.coverWord }}</span>
-                <span class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
-                  <img v-if="post.memeIcon" :src="post.memeIcon" :alt="`${post.title} 表情包图标`" loading="lazy" />
-                  <component v-else :is="homeIcon(post.icon, FileTextIcon)" aria-hidden="true" />
-                </span>
-              </NuxtLink>
-              <div class="post-body">
-                <div class="post-meta">
-                  <span v-if="post.isPinned" class="post-pinned-mark">
-                    <PinIcon aria-hidden="true" />
-                    置顶
-                  </span>
-                  <span>{{ post.category }}</span>
-                  <span v-if="index < 2 && !post.isPinned">最新</span>
-                </div>
-                <NuxtLink :to="post.to" class="post-title">
-                  <span>{{ post.title }}</span>
-                  <span class="read-more-cue" aria-hidden="true">→</span>
-                </NuxtLink>
-                <div class="post-tags">
-                  <span v-for="tag in post.tags" :key="tag"># {{ tag }}</span>
-                  <time>{{ post.date }}</time>
-                </div>
-              </div>
-            </article>
+        <main data-page-enter style="--page-enter-order: 2" :aria-busy="listPending">
+          <template v-if="showListSkeleton">
+            <div v-if="useArchiveCardStyle" class="home-archive-list home-archive-desktop" role="status" aria-label="正在加载文章">
+              <PostCardSkeleton variant="archive" :count="pageSize" />
+            </div>
+            <div class="post-grid" :class="{ 'home-grid-mobile': useArchiveCardStyle }" role="status" aria-label="正在加载文章">
+              <PostCardSkeleton variant="grid" :count="pageSize" />
+            </div>
+          </template>
+
+          <div v-else-if="listError" class="empty-card list-error" role="alert">
+            <h2>文章加载失败</h2>
+            <p>网络似乎开了个小差，请稍后重试。</p>
+            <button type="button" @click="refreshPosts()">重新加载</button>
           </div>
+
+          <template v-else-if="displayPosts.length">
+            <div v-if="useArchiveCardStyle" class="home-archive-list home-archive-desktop">
+              <CardReveal v-for="post in posts" :key="post.id" variant="archive">
+                <ArchivePostCard :post="post" />
+              </CardReveal>
+            </div>
+
+            <div class="post-grid" :class="{ 'home-grid-mobile': useArchiveCardStyle }">
+              <CardReveal v-for="(post, index) in displayPosts" :key="post.key" variant="grid">
+                <article class="post-card">
+                  <NuxtLink :to="post.to" class="post-cover" :class="!post.cover && post.coverClass">
+                    <img v-if="post.cover" :src="post.cover" :alt="post.title" class="cover-image" loading="lazy" decoding="async" />
+                    <span v-if="post.cover" class="cover-overlay"></span>
+                    <span class="cover-word">{{ post.coverWord }}</span>
+                    <span class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
+                      <img v-if="post.memeIcon" :src="post.memeIcon" :alt="`${post.title} 表情包图标`" loading="lazy" decoding="async" />
+                      <component v-else :is="homeIcon(post.icon, FileTextIcon)" aria-hidden="true" />
+                    </span>
+                  </NuxtLink>
+                  <div class="post-body">
+                    <div class="post-meta">
+                      <span v-if="post.isPinned" class="post-pinned-mark">
+                        <PinIcon aria-hidden="true" />
+                        置顶
+                      </span>
+                      <span>{{ post.category }}</span>
+                      <span v-if="index < 2 && !post.isPinned">最新</span>
+                    </div>
+                    <NuxtLink :to="post.to" class="post-title">
+                      <span>{{ post.title }}</span>
+                      <span class="read-more-cue" aria-hidden="true">→</span>
+                    </NuxtLink>
+                    <div class="post-tags">
+                      <span v-for="tag in post.tags" :key="tag"># {{ tag }}</span>
+                      <time>{{ post.date }}</time>
+                    </div>
+                  </div>
+                </article>
+              </CardReveal>
+            </div>
+          </template>
 
           <div v-else class="empty-card">
             <h2>暂无文章</h2>
             <p>后台发布文章后，这里会自动显示最新内容。</p>
           </div>
 
-          <div v-if="totalPages > 1" class="pager">
-            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">
+          <div v-if="totalPages > 1 && !listError" class="pager">
+            <button class="page-dot" :disabled="currentPage <= 1 || listPending" @click="goToPage(currentPage - 1)">
               <ChevronLeftIcon aria-hidden="true" />
             </button>
             <template v-for="item in visiblePageItems" :key="item.key">
@@ -119,11 +145,12 @@
                 v-else
                 class="page-dot"
                 :class="{ 'is-active': item.page === currentPage }"
+                :disabled="listPending"
                 :aria-current="item.page === currentPage ? 'page' : undefined"
                 @click="goToPage(item.page)"
               >{{ item.page }}</button>
             </template>
-            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">
+            <button class="page-dot" :disabled="currentPage >= totalPages || listPending" @click="goToPage(currentPage + 1)">
               <ChevronRightIcon aria-hidden="true" />
             </button>
           </div>
@@ -131,6 +158,8 @@
 
         <PublicSidebar
           class="sidebar"
+          data-page-enter
+          style="--page-enter-order: 3"
           :site-name="siteName"
           :description="siteSettings.sidebar_description"
           :categories="categories"
@@ -147,6 +176,7 @@ import type { Component } from 'vue'
 import type { ApiResult, GalleryImagePayload } from '~~/types/api'
 import type { PostSummary, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
+import CardReveal from '~/components/CardReveal.vue'
 import {
   Archive as ArchiveIcon,
   BadgeCheck as BadgeCheckIcon,
@@ -233,10 +263,11 @@ function homeIcon(icon: string | null | undefined, fallback: Component) {
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
-const pageSize = 8
+const useArchiveCardStyle = computed(() => siteSettings.value.home_post_card_style === 'archive')
+const pageSize = 12
 const currentPage = ref(1)
 const categorySlug = ref('')
-const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }, { data: heroMemeData }] = await Promise.all([
+const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }, { data: heroMemeData }] = await Promise.all([
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 6 } }),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
@@ -246,6 +277,8 @@ const [{ data }, { data: heroData }, { data: categoryData }, { data: tagData }, 
 ])
 
 const posts = computed(() => data.value?.data.items || [])
+const listPending = computed(() => listStatus.value === 'pending')
+const showListSkeleton = useDelayedPending(listPending)
 const heroAll = computed(() => heroData.value?.data.items || [])
 const totalPosts = computed(() => data.value?.data.total || posts.value.length)
 const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
@@ -650,6 +683,8 @@ function formatDate(value?: string | Date | null) {
   box-shadow: 0 0 0 3px rgb(73 100 244 / 18%);
 }
 
+.topic-tab:disabled { cursor: wait; }
+
 .topic-tooltip {
   position: fixed;
   z-index: 80;
@@ -682,12 +717,22 @@ function formatDate(value?: string | Date | null) {
   gap: 12px;
 }
 
+.home-archive-list {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.home-grid-mobile { display: none; }
+
 .post-card {
   overflow: hidden;
   border: 1px solid var(--theme-border-soft);
   border-radius: 8px;
   background: var(--theme-surface);
   box-shadow: 0 14px 34px rgb(42 59 91 / 7%);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 350px;
   transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
 
@@ -1125,6 +1170,19 @@ function formatDate(value?: string | Date | null) {
   color: var(--theme-text-muted);
 }
 
+.list-error button {
+  margin-top: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--theme-text);
+  color: var(--theme-surface);
+  padding: 9px 16px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 @media (max-width: 1100px) {
   .hero-board,
   .content-layout {
@@ -1216,10 +1274,16 @@ function formatDate(value?: string | Date | null) {
   }
 
   .hero-list,
-  .post-grid,
   .sidebar {
     grid-template-columns: 1fr;
   }
+
+  .post-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-archive-desktop { display: none; }
+  .home-grid-mobile { display: grid; }
 
   .sidebar {
     display: none;

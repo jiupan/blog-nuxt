@@ -1,6 +1,6 @@
 <template>
   <div class="mx-auto px-4 py-10" style="width: min(100% - 32px, 1290px)">
-    <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 md:flex-row md:items-end md:justify-between">
+    <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 md:flex-row md:items-end md:justify-between" data-page-enter style="--page-enter-order: 0">
       <div>
         <h1 class="text-3xl font-semibold text-gray-950">文章</h1>
         <p class="mt-2 text-gray-600">记录技术、项目和想法。</p>
@@ -11,6 +11,8 @@
     <div class="mt-6 grid gap-8 md:grid-cols-[260px_1fr]">
       <PublicSidebar
         class="posts-sidebar"
+        data-page-enter
+        style="--page-enter-order: 1"
         :site-name="siteName"
         :description="siteSettings.sidebar_description"
         :categories="categories"
@@ -18,7 +20,7 @@
         :posts="posts"
       />
 
-      <div class="grid gap-4">
+      <div class="grid gap-4" data-page-enter style="--page-enter-order: 2">
         <article v-for="post in posts" :key="post.id" class="rounded-lg border border-gray-200 bg-white p-5">
           <div class="post-list-title-row">
             <NuxtLink :to="postPath(post.slug)" class="text-xl font-semibold text-gray-950">{{ post.title }}</NuxtLink>

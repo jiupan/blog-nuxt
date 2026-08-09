@@ -1,66 +1,64 @@
 <template>
-  <NuxtLayout name="default" force-standard-header compact-footer viewport-fit header-gradient>
-    <div class="about-stage">
-      <div class="about-backdrop" aria-hidden="true">
-        <canvas ref="canvasRef" class="particle-canvas" />
-        <div class="about-glow glow-one" />
-        <div class="about-glow glow-two" />
+  <div class="about-stage">
+    <div class="about-backdrop" aria-hidden="true">
+      <canvas ref="canvasRef" class="particle-canvas" />
+      <div class="about-glow glow-one" />
+      <div class="about-glow glow-two" />
+    </div>
+
+    <section class="about-card" aria-labelledby="about-title">
+      <div class="portrait-shell">
+        <div class="portrait-glow" aria-hidden="true" />
+        <video v-if="authorAvatarIsVideo" :src="authorAvatar" autoplay muted loop playsinline preload="metadata" :aria-label="`${authorName} 的头像视频`" />
+        <img v-else-if="authorAvatar" :src="authorAvatar" :alt="authorName">
+        <span v-else>{{ authorInitial }}</span>
+        <i aria-hidden="true" />
       </div>
 
-      <section class="about-card" aria-labelledby="about-title">
-        <div class="portrait-shell">
-          <div class="portrait-glow" aria-hidden="true" />
-          <video v-if="authorAvatarIsVideo" :src="authorAvatar" autoplay muted loop playsinline preload="metadata" :aria-label="`${authorName} 的头像视频`" />
-          <img v-else-if="authorAvatar" :src="authorAvatar" :alt="authorName">
-          <span v-else>{{ authorInitial }}</span>
-          <i aria-hidden="true" />
-        </div>
+      <div class="about-intro">
+        <p class="about-eyebrow">HELLO, NICE TO MEET YOU</p>
+        <h1 id="about-title">
+          你好，我是
+          <span>{{ siteName }}</span>
+        </h1>
+        <h2>{{ siteSubtitle }}</h2>
+        <p class="about-description">{{ siteDescription }}</p>
+      </div>
 
-        <div class="about-intro">
-          <p class="about-eyebrow">HELLO, NICE TO MEET YOU</p>
-          <h1 id="about-title">
-            你好，我是
-            <span>{{ siteName }}</span>
-          </h1>
-          <h2>{{ siteSubtitle }}</h2>
-          <p class="about-description">{{ siteDescription }}</p>
-        </div>
-
-        <section class="stack-section" aria-labelledby="stack-title">
-          <p id="stack-title" class="section-label">技术栈</p>
-          <div class="stack-list">
-            <span v-for="tech in techStack" :key="tech.name" class="stack-chip">
-              <Icon :name="tech.icon" :class="tech.tone" aria-hidden="true" />
-              {{ tech.name }}
-            </span>
-          </div>
-        </section>
-
-        <div class="about-actions">
-          <nav class="social-links" aria-label="关于页快捷入口">
-            <NuxtLink to="/archive" aria-label="文章归档" data-tooltip="文章归档">
-              <Icon name="i-lucide-archive" aria-hidden="true" />
-            </NuxtLink>
-            <NuxtLink to="/link" aria-label="友情链接" data-tooltip="友情链接">
-              <Icon name="i-lucide-link" aria-hidden="true" />
-            </NuxtLink>
-            <NuxtLink to="/admin" aria-label="管理后台" data-tooltip="管理后台">
-              <Icon name="i-lucide-settings" aria-hidden="true" />
-            </NuxtLink>
-          </nav>
-
-          <NuxtLink to="/posts" class="posts-link">
-            浏览文章
-            <Icon name="i-lucide-external-link" aria-hidden="true" />
-          </NuxtLink>
+      <section class="stack-section" aria-labelledby="stack-title">
+        <p id="stack-title" class="section-label">技术栈</p>
+        <div class="stack-list">
+          <span v-for="tech in techStack" :key="tech.name" class="stack-chip">
+            <Icon :name="tech.icon" :class="tech.tone" aria-hidden="true" />
+            {{ tech.name }}
+          </span>
         </div>
       </section>
-    </div>
-  </NuxtLayout>
+
+      <div class="about-actions">
+        <nav class="social-links" aria-label="关于页快捷入口">
+          <NuxtLink to="/archive" aria-label="文章归档" data-tooltip="文章归档">
+            <Icon name="i-lucide-archive" aria-hidden="true" />
+          </NuxtLink>
+          <NuxtLink to="/link" aria-label="友情链接" data-tooltip="友情链接">
+            <Icon name="i-lucide-link" aria-hidden="true" />
+          </NuxtLink>
+          <NuxtLink to="/admin" aria-label="管理后台" data-tooltip="管理后台">
+            <Icon name="i-lucide-settings" aria-hidden="true" />
+          </NuxtLink>
+        </nav>
+
+        <NuxtLink to="/posts" class="posts-link">
+          浏览文章
+          <Icon name="i-lucide-external-link" aria-hidden="true" />
+        </NuxtLink>
+      </div>
+    </section>
+  </div>
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: false })
+definePageMeta({ layout: 'default' })
 
 type Particle = {
   x: number

@@ -3,13 +3,14 @@
     <section class="archive-shell">
       <div class="archive-layout">
         <main class="archive-main">
-          <section class="archive-filters" aria-label="文章筛选">
+          <section class="archive-filters" aria-label="文章筛选" data-page-enter style="--page-enter-order: 0">
             <div class="filter-row category-filters">
               <button
                 v-for="filter in categoryFilters"
                 :key="filter.key"
                 type="button"
                 :class="{ 'is-active': activeCategory === filter.key }"
+                :disabled="listPending"
                 @click="selectCategory(filter.key)"
               >
                 <UIcon :name="filter.icon" class="filter-icon" aria-hidden="true" />
@@ -22,6 +23,7 @@
                 :key="year"
                 type="button"
                 :class="{ 'is-active': activeYear === year }"
+                :disabled="listPending"
                 @click="selectYear(year)"
               >
                 {{ year === 'all' ? '全部' : year }}
@@ -29,34 +31,31 @@
             </div>
           </section>
 
-          <div class="archive-list">
-            <NuxtLink v-for="post in pagedPosts" :key="post.id" :to="postPath(post.slug)" class="archive-item">
-              <span class="archive-thumb" :class="!post.cover && coverFallbackClass(post.id)">
-                <img v-if="post.cover" :src="post.cover" :alt="post.title">
-                <span v-else>{{ coverWord(post) }}</span>
-              </span>
-              <div class="archive-copy">
-                <h2>{{ post.title }}</h2>
-                <p><strong>{{ post.category?.name || '未分类' }}</strong><span>/</span>{{ post.summary || '这篇文章暂时没有摘要，点击阅读全文。' }}</p>
-                <div class="archive-meta">
-                  <span>
-                    <CalendarIcon aria-hidden="true" />
-                    {{ formatArchiveDate(post.publishedAt) }}
-                  </span>
-                  <span>
-                    <EyeIcon aria-hidden="true" />
-                    {{ formatViews(post.viewCount) }}
-                  </span>
-                </div>
-              </div>
-              <span class="archive-arrow" aria-hidden="true">
-                <ChevronRightIcon />
-              </span>
-            </NuxtLink>
+          <div
+            v-if="showListSkeleton"
+            class="archive-list"
+            role="status"
+            aria-label="正在加载文章"
+            data-page-enter
+            style="--page-enter-order: 1"
+          >
+            <PostCardSkeleton variant="archive" :count="pageSize" />
           </div>
 
-          <div v-if="totalPages > 1" class="pager">
-            <button class="page-dot" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">
+          <div v-else-if="listError" class="archive-empty is-error" role="alert" data-page-enter style="--page-enter-order: 1">
+            <strong>文章加载失败</strong>
+            <span>网络似乎开了个小差，请稍后重试。</span>
+            <button type="button" @click="refreshArchive()">重新加载</button>
+          </div>
+
+          <div v-else class="archive-list" :aria-busy="listPending" data-page-enter style="--page-enter-order: 1">
+            <CardReveal v-for="post in pagedPosts" :key="post.id" variant="archive">
+              <ArchivePostCard :post="post" />
+            </CardReveal>
+          </div>
+
+          <div v-if="totalPages > 1 && !listError" class="pager" data-page-enter style="--page-enter-order: 2">
+            <button class="page-dot" :disabled="currentPage <= 1 || listPending" @click="goToPage(currentPage - 1)">
               <ChevronLeftIcon aria-hidden="true" />
             </button>
             <template v-for="item in visiblePageItems" :key="item.key">
@@ -65,22 +64,25 @@
                 v-else
                 class="page-dot"
                 :class="{ 'is-active': item.page === currentPage }"
+                :disabled="listPending"
                 :aria-current="item.page === currentPage ? 'page' : undefined"
                 @click="goToPage(item.page)"
               >{{ item.page }}</button>
             </template>
-            <button class="page-dot" :disabled="currentPage >= totalPages" @click="goToPage(currentPage + 1)">
+            <button class="page-dot" :disabled="currentPage >= totalPages || listPending" @click="goToPage(currentPage + 1)">
               <ChevronRightIcon aria-hidden="true" />
             </button>
           </div>
 
-          <div v-if="!posts.length" class="archive-empty">
+          <div v-if="!listPending && !listError && !posts.length" class="archive-empty" data-page-enter style="--page-enter-order: 1">
             暂无归档文章
           </div>
         </main>
 
         <PublicSidebar
           class="archive-sidebar"
+          data-page-enter
+          style="--page-enter-order: 1"
           :site-name="siteName"
           :description="siteSettings.sidebar_description"
           :categories="categories"
@@ -97,26 +99,11 @@
 import type { ApiResult } from '~~/types/api'
 import type { PublicArchivePayload, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
+import CardReveal from '~/components/CardReveal.vue'
 import {
-  Calendar as CalendarIcon,
   ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  Eye as EyeIcon
+  ChevronRight as ChevronRightIcon
 } from '@lucide/vue'
-
-type ArchivePost = {
-  id: number
-  title: string
-  slug: string
-  summary?: string | null
-  cover?: string | null
-  publishedAt?: string | Date | null
-  viewCount?: number | null
-  category?: {
-    name: string
-    slug: string
-  } | null
-}
 
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
@@ -132,7 +119,7 @@ const archiveQuery = computed(() => ({
   year: activeYear.value === 'all' ? undefined : activeYear.value
 }))
 
-const [{ data }, { data: categoryData }, { data: tagData }, { data: sidebarPostData }] = await Promise.all([
+const [{ data, status: listStatus, error: listError, refresh: refreshArchive }, { data: categoryData }, { data: tagData }, { data: sidebarPostData }] = await Promise.all([
   useFetch<ApiResult<PublicArchivePayload>>('/api/archive', { query: archiveQuery }),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/tags'),
@@ -141,6 +128,8 @@ const [{ data }, { data: categoryData }, { data: tagData }, { data: sidebarPostD
 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const posts = computed(() => data.value?.data.items || [])
+const listPending = computed(() => listStatus.value === 'pending')
+const showListSkeleton = useDelayedPending(listPending)
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 
@@ -198,32 +187,6 @@ useSeoMeta({
   description: '博客文章归档'
 })
 
-function formatArchiveDate(value?: string | Date | null) {
-  if (!value) {
-    return '未设置'
-  }
-
-  const date = new Date(value)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}年${month}月${day}日`
-}
-
-function formatViews(value?: number | null) {
-  const views = value || 0
-  return views >= 1000 ? `${(views / 1000).toFixed(1).replace('.0', '')}k` : String(views)
-}
-
-const coverFallbackClasses = ['cover-pink', 'cover-blue', 'cover-green', 'cover-orange', 'cover-gray', 'cover-coral']
-
-function coverFallbackClass(id: number) {
-  return coverFallbackClasses[id % coverFallbackClasses.length]
-}
-
-function coverWord(post: ArchivePost) {
-  return (post.category?.name || post.title).slice(0, 4)
-}
 </script>
 
 <style scoped>
@@ -336,133 +299,6 @@ function coverWord(post: ArchivePost) {
   gap: 14px;
 }
 
-.archive-item {
-  display: flex;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  gap: 22px;
-  align-items: center;
-  overflow: hidden;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--theme-border) 68%, transparent);
-  border-radius: 24px;
-  background: var(--theme-surface);
-  box-shadow: 0 4px 20px rgb(var(--theme-shadow) / 4%);
-  transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
-}
-
-.archive-item:hover {
-  border-color: color-mix(in srgb, var(--theme-accent) 34%, var(--theme-border));
-  box-shadow: 0 15px 34px rgb(var(--theme-shadow) / 13%);
-  transform: translateY(-4px) scale(1.005);
-}
-
-.archive-thumb {
-  display: grid;
-  flex: 0 0 160px;
-  width: 160px;
-  height: 120px;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 16px;
-  background: var(--theme-text);
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 23px;
-  font-weight: 900;
-  box-shadow: 0 10px 24px rgb(var(--theme-shadow) / 8%);
-}
-
-.archive-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 420ms ease;
-}
-
-.archive-item:hover .archive-thumb img {
-  transform: scale(1.05);
-}
-
-.cover-pink { background: linear-gradient(135deg, #5c2348, #8b2f6a); }
-.cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
-.cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
-.cover-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
-.cover-gray { background: linear-gradient(135deg, var(--theme-text), #5d6470); }
-.cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
-
-.archive-copy h2 {
-  overflow: hidden;
-  margin: 0;
-  color: var(--theme-text);
-  font-size: 20px;
-  font-weight: 850;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  transition: color 180ms ease;
-  white-space: nowrap;
-}
-
-.archive-item:hover .archive-copy h2 { color: var(--theme-accent); }
-
-.archive-copy p {
-  overflow: hidden;
-  margin: 10px 0 0;
-  color: var(--theme-text-muted);
-  font-size: 14px;
-  line-height: 1.6;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.archive-copy p strong { color: var(--theme-text-soft); }
-.archive-copy p span { margin: 0 7px; color: var(--theme-text-faint); }
-
-.archive-meta {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  margin-top: 12px;
-  color: var(--theme-text-faint);
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.archive-meta span {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-}
-
-.archive-meta svg {
-  width: 14px;
-  height: 14px;
-}
-
-.archive-copy { flex: 1 1 auto; min-width: 0; }
-
-.archive-arrow {
-  display: grid;
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  margin-right: 4px;
-  border-radius: 999px;
-  background: var(--theme-surface-muted);
-  color: var(--theme-text-faint);
-  transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
-}
-
-.archive-arrow svg { width: 20px; height: 20px; }
-
-.archive-item:hover .archive-arrow {
-  background: color-mix(in srgb, var(--theme-accent) 12%, var(--theme-surface));
-  color: var(--theme-accent);
-  transform: translateX(3px);
-}
-
 .pager {
   display: flex;
   align-items: center;
@@ -520,6 +356,29 @@ function coverWord(post: ArchivePost) {
   color: var(--theme-text-muted);
   text-align: center;
 }
+
+.archive-empty.is-error {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.archive-empty.is-error strong { color: var(--theme-text); font-size: 17px; }
+.archive-empty.is-error span { font-size: 13px; }
+.archive-empty.is-error button {
+  margin-top: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--theme-text);
+  color: var(--theme-surface);
+  padding: 9px 16px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.filter-row button:disabled { cursor: wait; }
 
 .archive-sidebar {
   position: sticky;
@@ -670,43 +529,9 @@ function coverWord(post: ArchivePost) {
 
   .archive-filters { border-radius: 20px; padding: 14px; }
 
-  .archive-item {
-    display: grid;
-    grid-template-columns: 104px minmax(0, 1fr);
-    gap: 14px;
-    border-radius: 18px;
-    padding: 9px;
-  }
-
-  .archive-thumb {
-    width: 104px;
-    height: 88px;
-    border-radius: 13px;
-    font-size: 17px;
-  }
-
-  .archive-copy h2 { font-size: 16px; }
-  .archive-copy p { margin-top: 6px; font-size: 12px; }
-  .archive-meta { gap: 10px; margin-top: 7px; font-size: 10px; }
-  .archive-meta svg { width: 12px; height: 12px; }
-
-  .archive-arrow { display: none; }
-
   .pager {
     gap: 8px;
   }
 }
 
-@media (max-width: 420px) {
-  .archive-item { grid-template-columns: 86px minmax(0, 1fr); gap: 11px; }
-  .archive-thumb { width: 86px; height: 78px; }
-  .archive-copy p { display: none; }
-  .archive-copy h2 {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    white-space: normal;
-  }
-}
 </style>

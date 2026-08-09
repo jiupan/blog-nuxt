@@ -127,7 +127,8 @@
 
 .nav-item > a:hover,
 .nav-item > a:focus-visible,
-.nav-item:hover > a {
+.nav-item:hover > a,
+.nav-item.is-click-held > a {
   background: var(--theme-accent);
   box-shadow: 0 14px 28px rgb(79 103 245 / 24%);
   color: #fff;

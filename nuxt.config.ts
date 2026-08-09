@@ -2,6 +2,16 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-06-28',
   srcDir: 'app',
   devtools: { enabled: true },
+  app: {
+    pageTransition: {
+      name: 'route-page',
+      mode: 'out-in',
+      duration: {
+        enter: 680,
+        leave: 0
+      }
+    }
+  },
   css: ['~/assets/css/main.css', '~/assets/css/site-layout.css', '~/assets/css/lab.css', 'md-editor-v3/lib/style.css'],
   modules: [
     '@nuxt/eslint',

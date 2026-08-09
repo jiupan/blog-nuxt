@@ -94,6 +94,18 @@
           <p v-if="memeGroupsError" class="text-xs text-red-500">分组加载失败，请刷新页面或重新登录后重试。</p>
           <p class="text-xs text-slate-400">轮播文章左侧图标将从该分组随机选取；不选择或分组为空时使用默认图标。</p>
         </div>
+
+        <div class="settings-row">
+          <label class="settings-checkbox">
+            <input
+              type="checkbox"
+              :checked="form.home_post_card_style === 'archive'"
+              @change="toggleHomePostCardStyle"
+            >
+            <span>首页使用归档卡片样式</span>
+          </label>
+          <p class="text-sm text-slate-500">开启后，电脑端使用与归档页一致的横向列表卡片；手机端仍使用原来的单列大图卡片。</p>
+        </div>
       </div>
 
       <div v-else-if="activeTab === 'seo'" class="settings-form">
@@ -398,6 +410,7 @@ type SettingsForm = {
   site_logo: string
   site_favicon: string
   hero_meme_group: string
+  home_post_card_style: string
   seo_noindex: string
   seo_keywords: string
   seo_description: string
@@ -447,6 +460,7 @@ const defaultValue = (key: string) => {
     site_logo: '',
     site_favicon: '',
     hero_meme_group: '',
+    home_post_card_style: 'grid',
     seo_noindex: 'false',
     seo_keywords: '',
     seo_description: '',
@@ -477,7 +491,7 @@ const settingTabs = [
 ] as const
 
 const siteSettingKeys = [
-  'site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon', 'hero_meme_group',
+  'site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon', 'hero_meme_group', 'home_post_card_style',
   'seo_noindex', 'seo_keywords', 'seo_description', 'footer_copyright', 'footer_bottom_links', 'footer_actions'
 ] as const satisfies readonly (keyof SettingsForm)[]
 
@@ -594,6 +608,7 @@ watch(data, (val) => {
       site_logo: val.data.site_logo || defaultValue('site_logo'),
       site_favicon: val.data.site_favicon || defaultValue('site_favicon'),
       hero_meme_group: val.data.hero_meme_group || defaultValue('hero_meme_group'),
+      home_post_card_style: val.data.home_post_card_style || defaultValue('home_post_card_style'),
       seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),
       seo_keywords: val.data.seo_keywords || defaultValue('seo_keywords'),
       seo_description: val.data.seo_description || defaultValue('seo_description'),
@@ -656,6 +671,12 @@ function toggleNoindex(event: Event) {
   if (!form.value) return
   const input = event.target as HTMLInputElement
   form.value.seo_noindex = input.checked ? 'true' : 'false'
+}
+
+function toggleHomePostCardStyle(event: Event) {
+  if (!form.value) return
+  const input = event.target as HTMLInputElement
+  form.value.home_post_card_style = input.checked ? 'archive' : 'grid'
 }
 
 function toggleRerank(event: Event) {

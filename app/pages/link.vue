@@ -1,6 +1,6 @@
 <template>
   <div class="link-page">
-    <section class="link-hero">
+    <section class="link-hero" data-page-enter style="--page-enter-order: 0">
       <div class="hero-pill">
         <LinkIcon aria-hidden="true" />
         Blogroll
@@ -12,7 +12,7 @@
     </section>
 
     <section class="link-shell">
-      <div class="link-group">
+      <div class="link-group" data-page-enter style="--page-enter-order: 1">
         <div class="group-heading">
           <h2>星标推荐</h2>
           <span aria-hidden="true"></span>
@@ -37,7 +37,7 @@
         </div>
       </div>
 
-      <div class="link-group">
+      <div class="link-group" data-page-enter style="--page-enter-order: 2">
         <div class="group-heading">
           <h2>技术与工具</h2>
           <span aria-hidden="true"></span>
@@ -61,7 +61,7 @@
         </div>
       </div>
 
-      <section class="exchange-panel">
+      <section class="exchange-panel" data-page-enter style="--page-enter-order: 3">
         <div class="exchange-copy">
           <h2>申请交换链接</h2>
           <p>

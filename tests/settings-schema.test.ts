@@ -14,6 +14,7 @@ describe('settings defaults', () => {
   it('keeps public settings free of sensitive AI keys', () => {
     expect(publicSettingKeys).toContain('site_title')
     expect(publicSettingKeys).toContain('footer_actions')
+    expect(publicSettingKeys).toContain('home_post_card_style')
     expect(publicSettingKeys.some((key) => key.startsWith('ai_'))).toBe(false)
   })
 
@@ -75,6 +76,11 @@ describe('settingsInputSchema', () => {
   it('rejects boolean-like values outside the persisted true/false format', () => {
     expect(settingsInputSchema.safeParse({ seo_noindex: '1' }).success).toBe(false)
     expect(settingsInputSchema.safeParse({ ai_rerank_enabled: 'yes' }).success).toBe(false)
+  })
+
+  it('only accepts supported home post card styles', () => {
+    expect(settingsInputSchema.safeParse({ home_post_card_style: 'archive' }).success).toBe(true)
+    expect(settingsInputSchema.safeParse({ home_post_card_style: 'magazine' }).success).toBe(false)
   })
 
   it('rejects non-string numeric settings because settings are persisted as KV strings', () => {

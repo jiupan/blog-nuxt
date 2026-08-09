@@ -110,6 +110,8 @@ export async function listPublicArchive(query: PublicArchiveQuery) {
       where,
       include: postInclude,
       orderBy: [
+        { isPinned: 'desc' },
+        { pinnedAt: { sort: 'desc', nulls: 'last' } },
         { publishedAt: { sort: 'desc', nulls: 'last' } },
         { id: 'desc' }
       ],

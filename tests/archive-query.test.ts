@@ -29,7 +29,7 @@ describe('public archive query', () => {
     expect(() => publicArchiveQuerySchema.parse({ year: 1969 })).toThrow()
   })
 
-  it('filters by category and UTC year, then sorts by publication date', async () => {
+  it('filters by category and UTC year, then puts pinned posts before publication date order', async () => {
     const publishedAt = new Date('2025-08-03T10:00:00.000Z')
     prismaMock.post.findMany.mockResolvedValueOnce([{
         id: 9,
@@ -59,6 +59,8 @@ describe('public archive query', () => {
         }
       },
       orderBy: [
+        { isPinned: 'desc' },
+        { pinnedAt: { sort: 'desc', nulls: 'last' } },
         { publishedAt: { sort: 'desc', nulls: 'last' } },
         { id: 'desc' }
       ],

@@ -4,7 +4,7 @@
     <div class="tools-scanline" aria-hidden="true" />
 
     <main class="tools-shell">
-      <header class="tools-hero">
+      <header class="tools-hero" data-page-enter style="--page-enter-order: 0">
         <div class="tools-kicker">
           <span class="tools-kicker-mark">T</span>
           <span>TOOLS / 工具集合</span>
@@ -30,7 +30,7 @@
         </div>
       </header>
 
-      <section class="tools-content" aria-labelledby="tools-list-title">
+      <section class="tools-content" aria-labelledby="tools-list-title" data-page-enter style="--page-enter-order: 1">
         <h2 id="tools-list-title" class="sr-only">工具列表</h2>
 
         <div class="tools-filter" aria-label="工具分类">

@@ -1,8 +1,8 @@
 <template>
-  <div class="default-layout" :class="{ 'is-viewport-fit': viewportFit }">
+  <div class="default-layout" :class="{ 'is-viewport-fit': useViewportFit }">
     <SiteHeader
-      :is-scrolled="forceStandardHeader ? false : navigation.isScrolled.value"
-      :is-article-route="forceStandardHeader ? false : navigation.isArticleRoute.value"
+      :is-scrolled="useStandardHeader ? false : navigation.isScrolled.value"
+      :is-article-route="useStandardHeader ? false : navigation.isArticleRoute.value"
       :site-settings="navigation.siteSettings.value"
       :site-settings-loaded="navigation.siteSettingsLoaded.value"
       :brand-text="navigation.brandText.value"
@@ -10,7 +10,7 @@
       :scroll-title="navigation.scrollTitle.value"
       :primary-menu-items="navigation.primaryMenuItems.value"
       :mobile-panel-open="navigation.mobilePanelOpen.value"
-      :page-gradient="headerGradient"
+      :page-gradient="useHeaderGradient"
       @brand-click="navigation.handleBrandClick"
       @scroll-top="navigation.scrollToTop"
       @open-mobile-panel="navigation.openMobilePanel"
@@ -32,7 +32,7 @@
     />
 
     <SiteFooter
-      :compact="compactFooter"
+      :compact="useCompactFooter"
       :footer-action-left="navigation.footerActionLeft.value"
       :footer-action-right="navigation.footerActionRight.value"
       :footer-groups="navigation.footerGroups.value"
@@ -53,12 +53,18 @@ import SiteFooter from '~/components/site/SiteFooter.vue'
 import SiteHeader from '~/components/site/SiteHeader.vue'
 
 const navigation = await useSiteNavigation()
+const route = useRoute()
 const { forceStandardHeader = false, compactFooter = false, viewportFit = false, headerGradient = false } = defineProps<{
   forceStandardHeader?: boolean
   compactFooter?: boolean
   viewportFit?: boolean
   headerGradient?: boolean
 }>()
+const isAboutRoute = computed(() => route.path === '/about')
+const useStandardHeader = computed(() => forceStandardHeader || isAboutRoute.value)
+const useCompactFooter = computed(() => compactFooter || isAboutRoute.value)
+const useViewportFit = computed(() => viewportFit || isAboutRoute.value)
+const useHeaderGradient = computed(() => headerGradient || isAboutRoute.value)
 
 onMounted(() => {
   navigation.syncHeaderState()

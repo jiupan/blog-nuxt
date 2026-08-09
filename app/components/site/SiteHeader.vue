@@ -17,8 +17,19 @@
       </button>
 
       <nav class="main-nav" aria-label="主导航">
-        <div v-for="item in primaryMenuItems" :key="item.id" class="nav-item" :class="{ 'has-children': item.children.length }">
-          <NuxtLink :to="item.url || '/'" :target="item.targetBlank ? '_blank' : undefined" :rel="item.targetBlank ? 'noopener noreferrer' : undefined">
+        <div
+          v-for="item in primaryMenuItems"
+          :key="item.id"
+          class="nav-item"
+          :class="{ 'has-children': item.children.length, 'is-click-held': heldMenuItemId === item.id }"
+          @pointerleave="releaseMenuClick(item.id)"
+        >
+          <NuxtLink
+            :to="item.url || '/'"
+            :target="item.targetBlank ? '_blank' : undefined"
+            :rel="item.targetBlank ? 'noopener noreferrer' : undefined"
+            @click="holdMenuClick(item.id)"
+          >
             {{ item.title }}
             <Icon v-if="item.children.length" name="i-lucide-chevron-down" aria-hidden="true" />
           </NuxtLink>
@@ -172,6 +183,7 @@ defineEmits<{
 }>()
 
 const searchOpen = ref(false)
+const heldMenuItemId = useState<number | null>('site-header-held-menu-item', () => null)
 const colorMode = useColorMode()
 const isDarkMode = computed(() => colorMode.value === 'dark')
 const themeToggleLabel = computed(() => isDarkMode.value ? '切换到白天模式' : '切换到夜间模式')
@@ -180,6 +192,19 @@ const searchLoading = ref(false)
 const searchResults = ref<PostSummary[]>([])
 const searchInputRef = ref<HTMLInputElement | null>(null)
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+let menuHoldTimer: ReturnType<typeof setTimeout> | undefined
+
+function holdMenuClick(itemId: number) {
+  heldMenuItemId.value = itemId
+  if (menuHoldTimer) clearTimeout(menuHoldTimer)
+  menuHoldTimer = setTimeout(() => {
+    if (heldMenuItemId.value === itemId) heldMenuItemId.value = null
+  }, 2000)
+}
+
+function releaseMenuClick(itemId: number) {
+  if (heldMenuItemId.value === itemId) heldMenuItemId.value = null
+}
 
 function applyColorMode() {
   const currentMode = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
@@ -266,6 +291,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (searchTimer) clearTimeout(searchTimer)
+  if (menuHoldTimer) clearTimeout(menuHoldTimer)
+  heldMenuItemId.value = null
   document.body.classList.remove('site-search-lock')
   window.removeEventListener('keydown', handleSearchKeydown)
 })
