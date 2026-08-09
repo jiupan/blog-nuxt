@@ -74,6 +74,7 @@ const config = useRuntimeConfig()
 const colorMode = useColorMode()
 const siteSettings = useSiteSettings()
 const canvasRef = ref<HTMLCanvasElement | null>(null)
+const aboutLayoutActive = useState<boolean>('about-layout-active', () => false)
 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan')
 const siteSubtitle = computed(() => siteSettings.value.site_subtitle || '全栈开发工程师 / 创作者 / 设计爱好者')
@@ -165,11 +166,18 @@ function startParticles() {
   removeResizeListener = () => window.removeEventListener('resize', resize)
 }
 
-onMounted(startParticles)
+onMounted(() => {
+  aboutLayoutActive.value = true
+  startParticles()
+})
 
 onBeforeUnmount(() => {
   cancelAnimationFrame(animationFrame)
   removeResizeListener?.()
+})
+
+onUnmounted(() => {
+  aboutLayoutActive.value = false
 })
 
 useSeoMeta({

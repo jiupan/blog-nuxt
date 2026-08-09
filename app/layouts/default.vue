@@ -54,17 +54,17 @@ import SiteHeader from '~/components/site/SiteHeader.vue'
 
 const navigation = await useSiteNavigation()
 const route = useRoute()
+const aboutLayoutActive = useState<boolean>('about-layout-active', () => route.path === '/about')
 const { forceStandardHeader = false, compactFooter = false, viewportFit = false, headerGradient = false } = defineProps<{
   forceStandardHeader?: boolean
   compactFooter?: boolean
   viewportFit?: boolean
   headerGradient?: boolean
 }>()
-const isAboutRoute = computed(() => route.path === '/about')
-const useStandardHeader = computed(() => forceStandardHeader || isAboutRoute.value)
-const useCompactFooter = computed(() => compactFooter || isAboutRoute.value)
-const useViewportFit = computed(() => viewportFit || isAboutRoute.value)
-const useHeaderGradient = computed(() => headerGradient || isAboutRoute.value)
+const useStandardHeader = computed(() => forceStandardHeader || aboutLayoutActive.value)
+const useCompactFooter = computed(() => compactFooter || aboutLayoutActive.value)
+const useViewportFit = computed(() => viewportFit || aboutLayoutActive.value)
+const useHeaderGradient = computed(() => headerGradient || aboutLayoutActive.value)
 
 onMounted(() => {
   navigation.syncHeaderState()
