@@ -130,7 +130,7 @@
                     :href="`#${item.id}`"
                     :data-toc-id="item.id"
                     :class="{ 'is-child': item.level === 3, 'is-active': item.id === activeTocId }"
-                    @click="activeTocId = item.id"
+                    @click.prevent="scrollToTocHeading(item.id)"
                   >
                     {{ item.text }}
                   </a>
@@ -205,7 +205,8 @@ const summaryMessagesEl = ref<HTMLElement | null>(null)
 const articleContentEl = ref<HTMLElement | null>(null)
 let summaryDialogController: AbortController | null = null
 let sidebarResizeObserver: ResizeObserver | undefined
-let tocObserver: IntersectionObserver | undefined
+let tocUpdateFrame: number | undefined
+let tocHeadings: Array<{ id: string, element: HTMLElement }> = []
 const sidebarCategories = computed(() => categoryData.value?.data || [])
 const sidebarTags = computed(() => tagData.value?.data || [])
 const sidebarPosts = computed(() => {
@@ -242,22 +243,24 @@ layoutScrollTitle.value = post.value.title
 onBeforeUnmount(() => {
   layoutScrollTitle.value = ''
   document.body.style.overflow = ''
-  window.removeEventListener('resize', updatePostSidebarStickyTop)
+  window.removeEventListener('scroll', scheduleTocUpdate)
+  window.removeEventListener('resize', handleViewportResize)
   window.removeEventListener('keydown', handleSummaryDialogEscape)
   sidebarResizeObserver?.disconnect()
-  tocObserver?.disconnect()
+  if (tocUpdateFrame !== undefined) cancelAnimationFrame(tocUpdateFrame)
 })
 
 onMounted(() => {
   updatePostSidebarStickyTop()
-  setupTocObserver()
+  setupTocTracking()
   nextTick(() => requestAnimationFrame(setupCollapsibleCodeBlocks))
-  window.addEventListener('resize', updatePostSidebarStickyTop)
+  window.addEventListener('scroll', scheduleTocUpdate, { passive: true })
+  window.addEventListener('resize', handleViewportResize)
   window.addEventListener('keydown', handleSummaryDialogEscape)
   const sidebar = document.querySelector<HTMLElement>('.post-sidebar')
 
   if (sidebar && 'ResizeObserver' in window) {
-    sidebarResizeObserver = new ResizeObserver(() => updatePostSidebarStickyTop())
+    sidebarResizeObserver = new ResizeObserver(updatePostSidebarStickyTop)
     sidebarResizeObserver.observe(sidebar)
   }
 })
@@ -360,7 +363,10 @@ watch(activeTocId, () => {
 })
 
 watch(() => post.value.rendered.html, () => {
-  nextTick(() => requestAnimationFrame(setupCollapsibleCodeBlocks))
+  nextTick(() => requestAnimationFrame(() => {
+    setupCollapsibleCodeBlocks()
+    setupTocTracking()
+  }))
 })
 
 useSeoMeta({
@@ -626,6 +632,11 @@ function formatDate(value?: string | Date | null) {
   return value ? new Date(value).toLocaleDateString('zh-CN') : ''
 }
 
+function handleViewportResize() {
+  updatePostSidebarStickyTop()
+  scheduleTocUpdate()
+}
+
 function updatePostSidebarStickyTop() {
   const baseTop = 84
 
@@ -647,63 +658,53 @@ function updatePostSidebarStickyTop() {
   postSidebarStickyTop.value = `${baseTop - (tocTop - sidebarTop)}px`
 }
 
-function setupTocObserver() {
+function setupTocTracking() {
   const tocItems = post.value.rendered.toc || []
-  if (!tocItems.length || !('IntersectionObserver' in window)) {
-    activeTocId.value = tocItems[0]?.id || ''
-    return
-  }
-
-  const visibleHeadingIds = new Set<string>()
-  const headingMap = new Map<string, Element>()
-
-  tocObserver?.disconnect()
-  activeTocId.value = tocItems[0]?.id || ''
-
-  for (const item of tocItems) {
-    const heading = document.getElementById(item.id)
-    if (!heading) continue
-    headingMap.set(item.id, heading)
-  }
-
-  tocObserver = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      const id = entry.target.id
-      if (!id) continue
-
-      if (entry.isIntersecting) {
-        visibleHeadingIds.add(id)
-      } else {
-        visibleHeadingIds.delete(id)
-      }
-    }
-
-    const activeId = [...visibleHeadingIds].sort((a, b) => {
-      const headingA = headingMap.get(a)
-      const headingB = headingMap.get(b)
-      if (!headingA || !headingB) return 0
-      return headingA.compareDocumentPosition(headingB) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
-    })[0]
-
-    if (activeId) {
-      activeTocId.value = activeId
-      return
-    }
-
-    const passedHeading = [...headingMap.entries()]
-      .filter(([, heading]) => heading.getBoundingClientRect().top <= 120)
-      .pop()
-    activeTocId.value = passedHeading?.[0] || tocItems[0]?.id || ''
-  }, {
-    rootMargin: '-12% 0px -58% 0px',
-    threshold: [0, 1]
+  tocHeadings = tocItems.flatMap((item) => {
+    const element = document.getElementById(item.id)
+    return element ? [{ id: item.id, element }] : []
   })
+  activeTocId.value = tocHeadings[0]?.id || ''
+  scheduleTocUpdate()
+}
 
-  for (const heading of headingMap.values()) {
-    tocObserver.observe(heading)
+function scheduleTocUpdate() {
+  if (tocUpdateFrame !== undefined) return
+  tocUpdateFrame = requestAnimationFrame(() => {
+    tocUpdateFrame = undefined
+    updateActiveToc()
+  })
+}
+
+function updateActiveToc() {
+  if (!tocHeadings.length) return
+
+  const activationTop = 121
+  let activeId = tocHeadings[0]!.id
+
+  for (const heading of tocHeadings) {
+    if (heading.element.getBoundingClientRect().top > activationTop) break
+    activeId = heading.id
   }
 
-  nextTick(updateTocIndicatorPosition)
+  const pageBottom = window.scrollY + window.innerHeight
+  const documentBottom = document.documentElement.scrollHeight
+  if (pageBottom >= documentBottom - 2) {
+    activeId = tocHeadings.at(-1)!.id
+  }
+
+  if (activeTocId.value !== activeId) activeTocId.value = activeId
+}
+
+function scrollToTocHeading(id: string) {
+  const heading = document.getElementById(id)
+  if (!heading) return
+
+  const scrollOffset = window.matchMedia('(max-width: 760px)').matches ? 88 : 120
+  const targetTop = window.scrollY + heading.getBoundingClientRect().top - scrollOffset
+  activeTocId.value = id
+  window.history.pushState(null, '', `#${encodeURIComponent(id)}`)
+  window.scrollTo({ top: targetTop, behavior: 'smooth' })
 }
 
 function updateTocIndicatorPosition() {
