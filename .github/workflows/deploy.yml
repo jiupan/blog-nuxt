@@ -33,6 +33,8 @@ jobs:
           context: .
           push: true
           tags: ${{ env.IMAGE }}
+          provenance: false
+          sbom: false
 
       - name: Sync deploy files
         uses: appleboy/scp-action@v0.1.7
