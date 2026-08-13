@@ -102,14 +102,35 @@
           </div>
 
           <template v-else-if="displayPosts.length">
-            <div v-if="useArchiveCardStyle" class="home-archive-list home-archive-desktop">
-              <CardReveal v-for="post in posts" :key="post.id" variant="archive">
+            <div
+              v-if="useArchiveCardStyle"
+              :key="`archive-${topicRevealVersion}`"
+              class="home-archive-list home-archive-desktop"
+              :class="{ 'is-topic-revealing': topicRevealVersion > 0 }"
+            >
+              <CardReveal
+                v-for="(post, index) in posts"
+                :key="post.id"
+                class="topic-card-reveal"
+                :style="{ '--topic-card-order': index }"
+                variant="archive"
+              >
                 <ArchivePostCard :post="post" />
               </CardReveal>
             </div>
 
-            <div class="post-grid" :class="{ 'home-grid-mobile': useArchiveCardStyle }">
-              <CardReveal v-for="(post, index) in displayPosts" :key="post.key" variant="grid">
+            <div
+              :key="`grid-${topicRevealVersion}`"
+              class="post-grid"
+              :class="{ 'home-grid-mobile': useArchiveCardStyle, 'is-topic-revealing': topicRevealVersion > 0 }"
+            >
+              <CardReveal
+                v-for="(post, index) in displayPosts"
+                :key="post.key"
+                class="topic-card-reveal"
+                :style="{ '--topic-card-order': index }"
+                variant="grid"
+              >
                 <article class="post-card">
                   <NuxtLink :to="post.to" class="post-cover" :class="!post.cover && post.coverClass">
                     <img v-if="post.cover" :src="post.cover" :alt="post.title" class="cover-image" loading="lazy" decoding="async" />
@@ -292,6 +313,15 @@ const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { 
 const posts = computed(() => data.value?.data.items || [])
 const listPending = computed(() => listStatus.value === 'pending')
 const showListSkeleton = useDelayedPending(listPending)
+const topicRevealVersion = ref(0)
+let revealTopicCardsOnNextResult = false
+
+watch(listStatus, (status) => {
+  if (!revealTopicCardsOnNextResult || status === 'pending' || status === 'idle') return
+  revealTopicCardsOnNextResult = false
+  if (status === 'success') topicRevealVersion.value += 1
+})
+
 const heroAll = computed(() => heroData.value?.data.items || [])
 const totalPosts = computed(() => data.value?.data.total || posts.value.length)
 const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
@@ -443,6 +473,12 @@ const topicTabs = computed(() => [
 ])
 
 function selectCategory(slug: string) {
+  if (slug === categorySlug.value) {
+    hideTopicTooltip()
+    return
+  }
+
+  revealTopicCardsOnNextResult = true
   categorySlug.value = slug
   currentPage.value = 1
   hideTopicTooltip()
@@ -797,6 +833,16 @@ function formatDate(value?: string | Date | null) {
   display: grid;
   min-width: 0;
   gap: 14px;
+}
+
+.is-topic-revealing .topic-card-reveal {
+  animation: topic-card-enter 420ms cubic-bezier(.2, .78, .2, 1) both;
+  animation-delay: calc(var(--topic-card-order, 0) * 35ms);
+}
+
+@keyframes topic-card-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .home-grid-mobile { display: none; }
@@ -1411,6 +1457,10 @@ function formatDate(value?: string | Date | null) {
   .hero-copy-enter-from,
   .hero-copy-leave-to {
     transform: none;
+  }
+
+  .is-topic-revealing .topic-card-reveal {
+    animation: none;
   }
 }
 </style>
