@@ -759,7 +759,7 @@ function formatDate(value?: string | Date | null) {
   box-shadow: 0 0 0 3px rgb(73 100 244 / 18%);
 }
 
-.topic-tab:disabled { cursor: wait; }
+.topic-tab:disabled { cursor: default; }
 
 .topic-tooltip {
   position: fixed;
