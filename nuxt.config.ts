@@ -1,7 +1,7 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-06-28',
   srcDir: 'app',
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV !== 'production' },
   app: {
     pageTransition: {
       name: 'route-page',
