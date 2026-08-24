@@ -29,6 +29,22 @@
 
       <div class="workspace-actions">
         <span v-if="statusMessage" :class="{ error: statusError }">{{ statusMessage }}</span>
+        <input
+          ref="jsonFileInput"
+          class="json-file-input"
+          type="file"
+          accept=".json,.resume.json,application/json"
+          aria-label="选择要导入的简历 JSON 文件"
+          @change="importResumeJson"
+        >
+        <button class="json-button" type="button" title="导入可编辑的简历 JSON" @click="jsonFileInput?.click()">
+          <FileUpIcon />
+          导入 JSON
+        </button>
+        <button class="json-button" type="button" title="导出可交给 AI 编辑的简历 JSON" @click="exportResumeJson">
+          <FileJsonIcon />
+          导出 JSON
+        </button>
         <button v-if="user" class="save-button" type="button" :disabled="saving" @click="saveResume">
           <LoaderCircleIcon v-if="saving" class="spin" />
           <SaveIcon v-else />
@@ -230,7 +246,9 @@ import {
   BriefcaseBusiness as BriefcaseBusinessIcon,
   ChevronDown as ChevronDownIcon,
   FileDown as FileDownIcon,
+  FileJson as FileJsonIcon,
   FileText as FileTextIcon,
+  FileUp as FileUpIcon,
   FlaskConical as FlaskConicalIcon,
   FolderKanban as FolderKanbanIcon,
   GraduationCap as GraduationCapIcon,
@@ -249,6 +267,7 @@ import {
 } from '@lucide/vue'
 import EditorField from '~/components/resume/EditorField.vue'
 import { createDefaultResume, createEmptySectionItem, createResumeId, normalizeResume } from '~/utils/resume-defaults'
+import { createPortableResume, parsePortableResume, PORTABLE_RESUME_MAX_BYTES } from '~/utils/resume-portable'
 
 definePageMeta({ layout: false })
 
@@ -267,6 +286,7 @@ const sectionPickerOpen = ref(false)
 const collapsedSections = reactive<Record<string, boolean>>({})
 const workspaceBody = ref<HTMLElement | null>(null)
 const previewDocument = ref<HTMLElement | null>(null)
+const jsonFileInput = ref<HTMLInputElement | null>(null)
 const editorWidth = ref('43%')
 const resizing = ref(false)
 const defaultZoom = 100
@@ -458,7 +478,7 @@ function deleteSection(index: number) {
   const title = resume.content.sections[index]?.title || '此栏目'
   if (window.confirm(`确定删除“${title}”及其中全部内容吗？`)) {
     const [removed] = resume.content.sections.splice(index, 1)
-    if (removed) delete collapsedSections[removed.id]
+    if (removed) Reflect.deleteProperty(collapsedSections, removed.id)
   }
 }
 
@@ -575,6 +595,56 @@ function handleAvatar(event: Event) {
   reader.readAsDataURL(file)
 }
 
+function safeFileName(value: string) {
+  return Array.from(value.trim() || 'resume', (character) => {
+    const codePoint = character.codePointAt(0) ?? 0
+    return '<>:"/\\|?*'.includes(character) || codePoint < 32 ? '_' : character
+  }).join('')
+}
+
+function exportResumeJson() {
+  const json = JSON.stringify(createPortableResume(resume), null, 2)
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `${safeFileName(resume.title)}.resume.json`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
+  showStatus('可编辑 JSON 已导出（不含证件照）')
+}
+
+async function importResumeJson(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  try {
+    if (file.size > PORTABLE_RESUME_MAX_BYTES) {
+      throw new Error('文件不能超过 2MB')
+    }
+
+    let value: unknown
+    try {
+      value = JSON.parse(await file.text())
+    } catch {
+      throw new Error('文件不是有效的 JSON')
+    }
+
+    const importedResume = parsePortableResume(value, resume.content.basic.avatar)
+    currentResumeId.value = null
+    replaceResume(importedResume)
+    Object.keys(collapsedSections).forEach(id => Reflect.deleteProperty(collapsedSections, id))
+    showStatus('JSON 已导入，证件照已保留；确认后可保存')
+  } catch (error) {
+    showStatus(`导入失败：${error instanceof Error ? error.message : '文件格式错误'}`, true)
+  } finally {
+    input.value = ''
+  }
+}
+
 async function exportPdf() {
   if (!user.value) {
     showStatus('请先登录后再导出无页眉 PDF', true)
@@ -596,7 +666,7 @@ async function exportPdf() {
     })
     const url = URL.createObjectURL(pdf)
     const anchor = document.createElement('a')
-    const fileName = (resume.title || 'resume').replace(/[<>:"/\\|?*]/g, '_')
+    const fileName = safeFileName(resume.title)
     anchor.href = url
     anchor.download = `${fileName}.pdf`
     anchor.click()
@@ -654,8 +724,11 @@ useSeoMeta({
 .workspace-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .workspace-actions > span { color: #16805d; font-size: 9px; }
 .workspace-actions > span.error { color: #c04f61; }
+.json-file-input { display: none; }
 .workspace-actions button { display: inline-flex; height: 35px; align-items: center; gap: 6px; padding: 0 11px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 750; }
 .workspace-actions button svg { width: 14px; }
+.json-button { border: 1px solid #cbd4df; background: #fff; color: #485466; }
+.json-button:hover { border-color: #9bc7eb; background: #f2f8fd; color: #0874d1; }
 .save-button { border: 1px solid #cbd4df; background: #fff; color: #485466; }
 .save-button:disabled { cursor: wait; opacity: .65; }
 .print-button { border: 1px solid #0874d1; background: #0874d1; box-shadow: 0 5px 12px rgb(8 116 209 / 18%); color: #fff; }
@@ -785,6 +858,7 @@ useSeoMeta({
   .back-to-tools { width: 34px; justify-content: center; padding: 0; }
   .back-to-tools span { display: none; }
   .resume-editor { padding-inline: 18px; }
+  .workspace-actions .json-button { width: 35px; justify-content: center; padding: 0; overflow: hidden; font-size: 0; }
   .card-actions > button:not(.danger, .collapse-button) { width: 28px; padding: 0; overflow: hidden; font-size: 0; justify-content: center; }
 }
 @media (max-width: 760px) {
