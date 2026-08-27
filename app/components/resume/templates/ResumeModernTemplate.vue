@@ -165,6 +165,19 @@ function stackLabel(type: ResumeSectionType) {
 
 .resume-template-modern .resume-section h2 {
   color: #0874d1;
+  font-weight: 750;
+}
+
+.resume-template-modern .identity h1 {
+  font-weight: 750;
+}
+
+.resume-template-modern .resume-entry b {
+  font-weight: 700;
+}
+
+.resume-template-modern :deep(.inline-rich-text strong) {
+  font-weight: 700;
 }
 
 .resume-template-modern .resume-entry ul {
@@ -199,7 +212,7 @@ function stackLabel(type: ResumeSectionType) {
 .education-school {
   flex: 0 0 auto;
   color: #0e1e32;
-  font-weight: 850;
+  font-weight: 750;
 }
 
 .education-badge,
@@ -215,7 +228,7 @@ function stackLabel(type: ResumeSectionType) {
 .education-major {
   flex: 0 0 auto;
   color: #152842;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .education-direction {
@@ -254,7 +267,7 @@ function stackLabel(type: ResumeSectionType) {
 
 .detail-identity strong {
   color: #102037;
-  font-weight: 850;
+  font-weight: 750;
 }
 
 .detail-range {
@@ -306,7 +319,7 @@ function stackLabel(type: ResumeSectionType) {
 .experience-project-title {
   margin-top: 1.8mm !important;
   color: #102037;
-  font-weight: 850;
+  font-weight: 750;
 }
 
 .experience-background {
