@@ -19,6 +19,30 @@ export function createEmptySectionItem(): ResumeSectionItem {
   }
 }
 
+function unwrapBoldLine(value: string) {
+  const trimmed = value.trim()
+  const match = trimmed.match(/^\*\*(.*?)\*\*$/)
+  return (match?.[1] || trimmed).trim()
+}
+
+export function parseExperienceDetails(intro: string, secondary = '') {
+  const lines = intro.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+  const firstLine = unwrapBoldLine(lines[0] || '')
+  if (!/^工作描述\s*[：:]/.test(firstLine)) {
+    return { title: intro.trim(), background: secondary.trim() }
+  }
+
+  const title = firstLine.replace(/^工作描述\s*[：:]\s*/, '').trim()
+  const backgroundLines = lines.slice(1).map(line => (
+    line.replace(/^\*\*背景\s*[：:]\*\*\s*/, '').replace(/^背景\s*[：:]\s*/, '').trim()
+  )).filter(Boolean)
+
+  return {
+    title,
+    background: secondary.trim() || backgroundLines.join('\n')
+  }
+}
+
 export function inferResumeSectionType(title: string): ResumeSectionType {
   if (/教育|学历|学习/.test(title)) return 'education'
   if (/技能|特长|能力/.test(title)) return 'skills'
@@ -118,7 +142,9 @@ export function createDefaultResume(): ResumeDocument {
             range: '2023-07 ~ 2023-12',
             heading: '云舟科技（示例公司）',
             tag: '研发实习生',
-            intro: '参与企业协作产品的功能开发、接口联调和线上问题排查。',
+            intro: '企业协作产品功能迭代',
+            secondary: '参与企业协作产品的功能开发、接口联调和线上问题排查。',
+            stack: 'Vue、TypeScript、Spring Boot、MySQL、Redis',
             bullets: '完成消息中心与个人设置模块开发，按期交付并通过代码评审。\n整理常见故障排查文档，帮助团队缩短重复问题的处理时间。'
           }]
         },
@@ -144,16 +170,30 @@ export function normalizeResume(value: Partial<ResumeDocument> | null | undefine
   if (!value || typeof value !== 'object') return fallback
 
   const sections = Array.isArray(value.content?.sections)
-      ? value.content.sections.map(section => ({
+      ? value.content.sections.map(section => {
+        const items = Array.isArray(section.items)
+          ? section.items.map(item => ({ ...createEmptySectionItem(), ...item }))
+          : []
+
+        if (section.type === 'experience' && items.length) {
+          const sharedStack = items.find(item => item.stack.trim())?.stack || ''
+          items.forEach((item, index) => {
+            const details = parseExperienceDetails(item.intro, item.secondary)
+            item.intro = details.title
+            item.secondary = details.background
+            item.stack = index === 0 ? sharedStack : ''
+          })
+        }
+
+        return {
         id: typeof section.id === 'string' ? section.id : createResumeId(),
         title: typeof section.title === 'string' ? section.title : '未命名栏目',
         type: ['education', 'skills', 'project', 'experience', 'research', 'campus'].includes(section.type)
           ? section.type as ResumeSectionType
           : inferResumeSectionType(section.title || ''),
-        items: Array.isArray(section.items)
-          ? section.items.map(item => ({ ...createEmptySectionItem(), ...item }))
-          : []
-      }))
+        items
+        }
+      })
     : fallback.content.sections
 
   return {

@@ -15,7 +15,7 @@
     <section v-for="section in data.sections" :key="section.id" class="resume-section">
       <h2>{{ section.title || '未命名栏目' }}</h2>
 
-      <div v-for="item in section.items" :key="item.id" class="resume-entry" :class="{ 'education-entry': section.type === 'education' }">
+      <div v-for="(item, itemIndex) in section.items" :key="item.id" class="resume-entry" :class="{ 'education-entry': section.type === 'education', 'experience-entry': section.type === 'experience' }">
         <template v-if="section.type === 'education'">
           <div class="education-main">
             <div class="education-identity">
@@ -33,6 +33,31 @@
           </ul>
         </template>
 
+        <template v-else-if="section.type === 'experience'">
+          <template v-if="itemIndex === 0">
+            <div class="detail-heading">
+              <div class="detail-identity">
+                <strong v-if="item.heading">{{ item.heading }}</strong>
+                <span v-if="item.tag" class="detail-role">{{ item.tag }}</span>
+              </div>
+              <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
+            </div>
+
+            <div v-if="stackItems(experienceStack(section.items)).length" class="detail-stack experience-stack">
+              <b>技术栈：</b>
+              <span v-for="technology in stackItems(experienceStack(section.items))" :key="technology">{{ technology }}</span>
+            </div>
+          </template>
+
+          <div v-if="experienceTitle(item) || experienceBackground(item) || bulletLines(item.bullets).length" class="experience-project">
+            <p v-if="experienceTitle(item)" class="experience-project-title"><InlineRichText :text="experienceTitle(item)" /></p>
+            <p v-if="experienceBackground(item)" class="experience-background"><b>背景：</b><InlineRichText :text="experienceBackground(item)" /></p>
+            <ul v-if="bulletLines(item.bullets).length">
+              <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
+            </ul>
+          </div>
+        </template>
+
         <template v-else-if="isDetailSection(section.type)">
           <div class="detail-heading">
             <div class="detail-identity">
@@ -42,17 +67,12 @@
             <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
           </div>
 
-          <div v-if="section.type === 'experience' && stackItems(item.stack).length" class="detail-stack">
-            <b>技术栈：</b>
-            <span v-for="technology in stackItems(item.stack)" :key="technology">{{ technology }}</span>
-          </div>
-
           <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
           <p v-if="item.intro" class="detail-description">
-            <template v-if="section.type === 'project'"><b>项目描述：</b></template><InlineRichText :text="item.intro" />
+            <b>项目描述：</b><InlineRichText :text="item.intro" />
           </p>
 
-          <div v-if="section.type === 'project' && stackItems(item.stack).length" class="detail-stack">
+          <div v-if="stackItems(item.stack).length" class="detail-stack">
             <b>技术栈：</b>
             <span v-for="technology in stackItems(item.stack)" :key="technology">{{ technology }}</span>
           </div>
@@ -84,7 +104,8 @@
 
 <script setup lang="ts">
 import { UserRound as UserRoundIcon } from '@lucide/vue'
-import type { ResumeContent, ResumeLayout, ResumeSectionType } from '~/types/resume'
+import type { ResumeContent, ResumeLayout, ResumeSectionItem, ResumeSectionType } from '~/types/resume'
+import { parseExperienceDetails } from '~/utils/resume-defaults'
 import InlineRichText from '../InlineRichText.vue'
 
 const props = defineProps<{ data: ResumeContent, layout: ResumeLayout }>()
@@ -114,6 +135,18 @@ function bulletLines(value: string) {
 
 function stackItems(value: string) {
   return value.split(/[、,，|｜]+/).map(item => item.trim()).filter(Boolean)
+}
+
+function experienceStack(items: ResumeSectionItem[]) {
+  return items.find(item => item.stack.trim())?.stack || ''
+}
+
+function experienceTitle(item: ResumeSectionItem) {
+  return parseExperienceDetails(item.intro, item.secondary).title
+}
+
+function experienceBackground(item: ResumeSectionItem) {
+  return parseExperienceDetails(item.intro, item.secondary).background
 }
 
 function isDetailSection(type: ResumeSectionType) {
@@ -256,6 +289,28 @@ function stackLabel(type: ResumeSectionType) {
   background: #f4f6f8;
   color: #344b68;
   line-height: 1.35;
+}
+
+.experience-entry + .experience-entry {
+  margin-top: 3mm;
+}
+
+.experience-stack {
+  margin-top: 1.3mm;
+}
+
+.experience-project {
+  color: #30445f;
+}
+
+.experience-project-title {
+  margin-top: 1.8mm !important;
+  color: #102037;
+  font-weight: 850;
+}
+
+.experience-background {
+  margin-top: .8mm !important;
 }
 
 </style>

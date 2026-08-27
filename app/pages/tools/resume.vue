@@ -151,7 +151,7 @@
                 <button type="button" title="上移栏目" :disabled="sectionIndex === 0" @click="moveSection(sectionIndex, -1)"><ArrowUpIcon /></button>
                 <button type="button" title="下移栏目" :disabled="sectionIndex === resume.content.sections.length - 1" @click="moveSection(sectionIndex, 1)"><ArrowDownIcon /></button>
               </span>
-              <button type="button" @click="addSectionItem(sectionIndex)"><PlusIcon /> 添加条目</button>
+              <button type="button" @click="addSectionItem(sectionIndex)"><PlusIcon /> {{ section.type === 'experience' ? '添加项目' : '添加条目' }}</button>
               <button class="danger" type="button" title="删除栏目" @click="deleteSection(sectionIndex)"><Trash2Icon /></button>
               <button class="collapse-button" type="button" :aria-expanded="!isSectionCollapsed(section.id)" title="折叠或展开栏目" @click="toggleSection(section.id)">
                 <ChevronDownIcon :class="{ collapsed: isSectionCollapsed(section.id) }" />
@@ -161,28 +161,56 @@
 
           <div v-show="!isSectionCollapsed(section.id)">
             <div v-if="!section.items.length" class="empty-section">
-              此栏目还没有内容，点击“添加条目”开始填写。
+              此栏目还没有内容，点击“{{ section.type === 'experience' ? '添加项目' : '添加条目' }}”开始填写。
             </div>
 
-            <article v-for="(item, itemIndex) in section.items" :key="item.id" class="entry-editor">
-              <div class="entry-label">
-                <strong>条目 {{ itemIndex + 1 }}</strong>
-                <button type="button" title="删除条目" @click="section.items.splice(itemIndex, 1)"><XIcon /></button>
+            <template v-if="section.type === 'experience' && section.items[0]">
+              <div class="experience-company-editor">
+                <div class="entry-label">
+                  <strong>公司信息与共用技术栈</strong>
+                </div>
+                <div class="form-grid">
+                  <EditorField v-model="section.items[0].heading" label="公司 / 组织" placeholder="公司或组织名称" />
+                  <EditorField v-model="section.items[0].tag" label="职位" placeholder="软件开发实习生" />
+                  <EditorField v-model="section.items[0].range" class="wide" label="任职时间" placeholder="2026-05 ~ 2026-08" />
+                  <EditorField v-model="section.items[0].stack" class="wide" label="共用技术栈" placeholder="Java、Spring Boot、MySQL、Redis" />
+                </div>
               </div>
-              <div class="form-grid">
-                <EditorField
-                  v-for="field in sectionFields(section.type)"
-                  :key="field.key"
-                  :model-value="item[field.key]"
-                  :class="{ wide: field.wide }"
-                  :label="field.label"
-                  :placeholder="field.placeholder"
-                  :textarea="field.textarea"
-                  :rich="field.rich"
-                  @update:model-value="item[field.key] = $event"
-                />
-              </div>
-            </article>
+
+              <article v-for="(item, itemIndex) in section.items" :key="item.id" class="entry-editor experience-project-editor">
+                <div class="entry-label">
+                  <strong>项目 {{ itemIndex + 1 }}</strong>
+                  <button type="button" title="删除项目" @click="deleteExperienceProject(sectionIndex, itemIndex)"><XIcon /></button>
+                </div>
+                <div class="form-grid">
+                  <EditorField v-model="item.intro" class="wide" label="项目名称" placeholder="项目一：骑手事故处置 AI Agent" />
+                  <EditorField v-model="item.secondary" class="wide" label="项目背景" placeholder="项目背景、业务问题和建设目标" textarea rich />
+                  <EditorField v-model="item.bullets" class="wide" label="工作内容与成果（每行一项）" placeholder="描述你的工作、解决的问题和量化结果" textarea rich />
+                </div>
+              </article>
+            </template>
+
+            <template v-else>
+              <article v-for="(item, itemIndex) in section.items" :key="item.id" class="entry-editor">
+                <div class="entry-label">
+                  <strong>条目 {{ itemIndex + 1 }}</strong>
+                  <button type="button" title="删除条目" @click="section.items.splice(itemIndex, 1)"><XIcon /></button>
+                </div>
+                <div class="form-grid">
+                  <EditorField
+                    v-for="field in sectionFields(section.type)"
+                    :key="field.key"
+                    :model-value="item[field.key]"
+                    :class="{ wide: field.wide }"
+                    :label="field.label"
+                    :placeholder="field.placeholder"
+                    :textarea="field.textarea"
+                    :rich="field.rich"
+                    @update:model-value="item[field.key] = $event"
+                  />
+                </div>
+              </article>
+            </template>
           </div>
         </section>
 
@@ -363,14 +391,7 @@ const sectionFieldMap: Record<ResumeSectionType, SectionField[]> = {
     { key: 'stack', label: '技术栈', placeholder: 'Nuxt、Spring Boot、PostgreSQL、Redis', wide: true },
     { key: 'bullets', label: '项目成果（每行一项）', placeholder: '描述你的工作、解决的问题和量化结果', wide: true, textarea: true, rich: true }
   ],
-  experience: [
-    { key: 'range', label: '任职时间', placeholder: '2023-07 ~ 2023-12' },
-    { key: 'heading', label: '公司 / 组织', placeholder: '公司或组织名称' },
-    { key: 'tag', label: '职位', placeholder: '研发实习生' },
-    { key: 'intro', label: '职责概述', placeholder: '负责的业务方向和工作范围', wide: true, textarea: true, rich: true },
-    { key: 'stack', label: '相关技术', placeholder: 'Spring Boot、MySQL、Redis', wide: true },
-    { key: 'bullets', label: '工作成果（每行一项）', placeholder: '填写具体工作、改进与成果', wide: true, textarea: true, rich: true }
-  ],
+  experience: [],
   research: [
     { key: 'range', label: '研究时间', placeholder: '2023-09 ~ 至今' },
     { key: 'heading', label: '课题 / 论文名称', placeholder: '研究课题或论文名称' },
@@ -514,6 +535,28 @@ function isSectionCollapsed(id: string) {
 
 function addSectionItem(index: number) {
   resume.content.sections[index]?.items.push(createEmptySectionItem())
+}
+
+function deleteExperienceProject(sectionIndex: number, itemIndex: number) {
+  const section = resume.content.sections[sectionIndex]
+  if (!section || section.type !== 'experience') return
+
+  const item = section.items[itemIndex]
+  if (!item) return
+  if (section.items.length === 1) {
+    item.intro = ''
+    item.secondary = ''
+    item.bullets = ''
+    return
+  }
+
+  const [removed] = section.items.splice(itemIndex, 1)
+  if (itemIndex !== 0 || !removed || !section.items[0]) return
+
+  section.items[0].heading = removed.heading
+  section.items[0].tag = removed.tag
+  section.items[0].range = removed.range
+  section.items[0].stack = removed.stack
 }
 
 function changeZoom(delta: number) {
@@ -811,6 +854,10 @@ useSeoMeta({
 .order-actions button + button { border-left: 1px solid #e3e7ed; }
 .entry-editor { padding: 12px 0 14px; }
 .entry-editor + .entry-editor { border-top: 1px dashed #dfe3e9; }
+.experience-company-editor { padding: 13px 0 16px; border-bottom: 1px solid #dfe4eb; background: #f8fbfe; }
+.experience-company-editor .entry-label strong { color: #3477ae; }
+.experience-project-editor { margin: 10px 12px 0; padding: 12px 0 14px; border: 1px solid #e2e7ed; border-radius: 9px; background: #fff; }
+.experience-project-editor + .experience-project-editor { border-top: 1px solid #e2e7ed; }
 .entry-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; padding: 0 16px; }
 .entry-label strong { color: #697587; font-size: 10px; }
 .entry-label button { display: grid; width: 22px; height: 22px; place-items: center; border: 0; border-radius: 6px; background: #fff1f3; color: #c05869; cursor: pointer; }
