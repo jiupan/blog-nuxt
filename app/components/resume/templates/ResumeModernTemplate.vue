@@ -41,14 +41,22 @@
             </div>
             <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
           </div>
-          <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
-          <p v-if="item.intro" class="detail-description">
-            <b>{{ section.type === 'project' ? '项目描述' : '工作描述' }}：</b><InlineRichText :text="item.intro" />
-          </p>
-          <div v-if="stackItems(item.stack).length" class="detail-stack">
+
+          <div v-if="section.type === 'experience' && stackItems(item.stack).length" class="detail-stack">
             <b>技术栈：</b>
             <span v-for="technology in stackItems(item.stack)" :key="technology">{{ technology }}</span>
           </div>
+
+          <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
+          <p v-if="item.intro" class="detail-description">
+            <template v-if="section.type === 'project'"><b>项目描述：</b></template><InlineRichText :text="item.intro" />
+          </p>
+
+          <div v-if="section.type === 'project' && stackItems(item.stack).length" class="detail-stack">
+            <b>技术栈：</b>
+            <span v-for="technology in stackItems(item.stack)" :key="technology">{{ technology }}</span>
+          </div>
+
           <ul v-if="bulletLines(item.bullets).length">
             <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
           </ul>
@@ -231,7 +239,7 @@ function stackLabel(type: ResumeSectionType) {
 .detail-stack {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 1.3mm 2mm;
   margin-top: 1.4mm;
   break-inside: avoid;
