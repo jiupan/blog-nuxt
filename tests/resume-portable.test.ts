@@ -29,6 +29,8 @@ function sampleResume(): ResumeDocument {
           id: 'project-item-1',
           range: '2025-01 ~ 2025-06',
           heading: '营销平台',
+          badge: '',
+          direction: '',
           secondary: '',
           tag: '后端开发',
           intro: '高并发营销系统',
@@ -38,6 +40,7 @@ function sampleResume(): ResumeDocument {
       }]
     },
     layout: {
+      template: 'classic',
       sectionGap: 2.2,
       lineHeight: 1.5,
       pageMargin: 5,
@@ -63,6 +66,14 @@ describe('portable resume JSON', () => {
     expect(imported.title).toBe(source.title)
     expect(imported.content.sections).toEqual(source.content.sections)
     expect(imported.content.basic.avatar).toBe('existing-avatar')
+    expect(imported.layout.template).toBe('classic')
+  })
+
+  it('defaults older portable files to the classic template', () => {
+    const portable = createPortableResume(sampleResume())
+    delete portable.layout.template
+
+    expect(parsePortableResume(portable).layout.template).toBe('classic')
   })
 
   it('fills missing IDs and replaces duplicate IDs from AI edits', () => {

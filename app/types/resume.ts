@@ -13,6 +13,8 @@ export type ResumeSectionItem = {
   id: string
   range: string
   heading: string
+  badge: string
+  direction: string
   secondary: string
   tag: string
   intro: string
@@ -40,7 +42,10 @@ export type ResumeContent = {
   sections: ResumeSection[]
 }
 
+export type ResumeTemplate = 'classic' | 'modern'
+
 export type ResumeLayout = {
+  template: ResumeTemplate
   sectionGap: number
   lineHeight: number
   pageMargin: number

@@ -1,4 +1,4 @@
-import type { ResumeDocument, ResumeSectionItem, ResumeSectionType } from '~/types/resume'
+import type { ResumeDocument, ResumeSectionItem, ResumeSectionType, ResumeTemplate } from '~/types/resume'
 
 export function createResumeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -9,6 +9,8 @@ export function createEmptySectionItem(): ResumeSectionItem {
     id: createResumeId(),
     range: '',
     heading: '',
+    badge: '',
+    direction: '',
     secondary: '',
     tag: '',
     intro: '',
@@ -30,6 +32,7 @@ export function createDefaultResume(): ResumeDocument {
   return {
     title: '林知夏的示例简历',
     layout: {
+      template: 'classic',
       sectionGap: 2.2,
       lineHeight: 1.5,
       pageMargin: 5,
@@ -56,6 +59,8 @@ export function createDefaultResume(): ResumeDocument {
               ...createEmptySectionItem(),
               range: '2022-09 ~ 2025-06',
               heading: '海川大学（示例院校）',
+              badge: '双一流 211',
+              direction: '研究方向：智能软件工程',
               tag: '软件工程（硕士）',
               intro: '专业成绩：GPA 3.72 / 4.00｜专业前 10%　主修课程：软件工程、分布式系统、算法设计与分析、数据库系统'
             },
@@ -63,6 +68,8 @@ export function createDefaultResume(): ResumeDocument {
               ...createEmptySectionItem(),
               range: '2018-09 ~ 2022-06',
               heading: '远航理工大学（示例院校）',
+              badge: '省重点',
+              direction: '',
               tag: '计算机科学（本科）',
               intro: '获得校级优秀毕业生、一等奖学金，参与学院开源技术社团。'
             }
@@ -152,6 +159,9 @@ export function normalizeResume(value: Partial<ResumeDocument> | null | undefine
   return {
     title: typeof value.title === 'string' ? value.title : fallback.title,
     layout: {
+      template: ['classic', 'modern'].includes(value.layout?.template || '')
+        ? value.layout?.template as ResumeTemplate
+        : fallback.layout.template,
       sectionGap: Number.isFinite(value.layout?.sectionGap) ? Number(value.layout?.sectionGap) : fallback.layout.sectionGap,
       lineHeight: Number.isFinite(value.layout?.lineHeight) ? Number(value.layout?.lineHeight) : fallback.layout.lineHeight,
       pageMargin: Number.isFinite(value.layout?.pageMargin) ? Number(value.layout?.pageMargin) : fallback.layout.pageMargin,

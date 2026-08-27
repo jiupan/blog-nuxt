@@ -1,0 +1,101 @@
+.resume-paper {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 5mm var(--resume-page-margin);
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 20px 60px rgb(15 23 42 / 14%);
+  color: #29313a;
+  color-scheme: light;
+  font-family: "Noto Sans SC Variable", sans-serif;
+  font-size: var(--resume-font-size);
+  line-height: var(--resume-line-height);
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+.resume-paper .resume-header {
+  position: relative;
+  display: flex;
+  min-height: 31mm;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0 38mm 4mm 0;
+  break-inside: avoid;
+}
+
+.resume-paper .identity { width: 100%; text-align: center; }
+.resume-paper .identity h1 { margin: 0 0 3mm; color: #121820; font-size: 20pt; font-weight: 800; letter-spacing: .04em; }
+.resume-paper .identity p { margin: 0 0 1.2mm; white-space: pre-wrap; }
+
+.resume-paper .portrait {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  width: 27mm;
+  height: 31mm;
+  place-items: center;
+  overflow: hidden;
+  background: #eef1f5;
+  color: #a5acb6;
+}
+
+.resume-paper .portrait img { width: 100%; height: 100%; object-fit: cover; }
+.resume-paper .portrait svg { width: 12mm; height: 12mm; }
+.resume-paper .resume-section + .resume-section { margin-top: var(--resume-section-gap); }
+
+.resume-paper .resume-section h2 {
+  margin: 0 0 1.6mm;
+  padding-bottom: .6mm;
+  border-bottom: .40mm solid #0874d1;
+  color: #0874d1;
+  font-size: 12pt;
+  font-weight: 800;
+  line-height: 1.2;
+  break-after: avoid;
+}
+
+.resume-paper .resume-entry {
+  orphans: 2;
+  widows: 2;
+}
+
+.resume-paper .resume-entry + .resume-entry { margin-top: 1.8mm; }
+
+.resume-paper .entry-heading {
+  display: grid;
+  grid-template-columns: minmax(36mm, 1fr) minmax(56mm, 1.4fr) minmax(38mm, 1.2fr);
+  align-items: baseline;
+  gap: 3mm;
+  color: #181d23;
+  break-after: avoid;
+}
+
+.resume-paper .entry-heading strong:nth-child(2) { text-align: center; }
+.resume-paper .entry-heading strong:last-child { text-align: right; }
+.resume-paper .resume-entry p { margin: .45mm 0; white-space: pre-line; }
+.resume-paper .resume-entry b { color: #1b222a; font-weight: 800; }
+.resume-paper .secondary { color: #4f5964; }
+
+.resume-paper .resume-entry ul {
+  display: block;
+  margin: .3mm 0 0;
+  padding-left: 5mm;
+  list-style: disc outside !important;
+}
+
+.resume-paper .resume-entry li { margin: .25mm 0; padding-left: .5mm; break-inside: avoid; }
+.resume-paper .resume-entry li::marker { color: #3f4853; font-size: .72em; }
+
+@media print {
+  .resume-paper {
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: visible;
+    box-shadow: none;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+}

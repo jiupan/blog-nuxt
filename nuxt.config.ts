@@ -31,6 +31,12 @@ export default defineNuxtConfig({
     rateLimiter: false
   },
   fonts: {
+    families: [
+      {
+        name: 'Noto Sans SC Variable',
+        provider: 'none'
+      }
+    ],
     providers: {
       google: false,
       googleicons: false,

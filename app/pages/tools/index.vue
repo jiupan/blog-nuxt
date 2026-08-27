@@ -47,10 +47,12 @@
         </div>
 
         <div v-if="filteredTools.length" class="tools-grid">
-          <button
+          <component
+            :is="tool.href ? 'a' : 'button'"
             v-for="tool in filteredTools"
             :key="tool.id"
-            type="button"
+            :href="tool.href"
+            :type="tool.href ? undefined : 'button'"
             class="tool-card"
             :class="`tone-${tool.tone}`"
             @click="openTool(tool)"
@@ -71,7 +73,7 @@
               {{ tool.href ? '立即使用' : 'Coming Soon' }}
               <ArrowRightIcon aria-hidden="true" />
             </span>
-          </button>
+          </component>
         </div>
 
         <div v-else class="tools-empty">
@@ -227,7 +229,6 @@ const tools: ToolItem[] = [
 ]
 
 const keyword = ref('')
-const router = useRouter()
 const activeCategory = ref<CategoryValue>('all')
 const searchInput = ref<HTMLInputElement | null>(null)
 const selectedTool = ref<ToolItem | null>(null)
@@ -256,10 +257,7 @@ function resetFilters() {
 }
 
 function openTool(tool: ToolItem) {
-  if (tool.href) {
-    router.push(tool.href)
-    return
-  }
+  if (tool.href) return
   selectedTool.value = tool
 }
 
@@ -545,6 +543,7 @@ useSeoMeta({
   color: inherit;
   cursor: pointer;
   font: inherit;
+  text-decoration: none;
   text-align: left;
   transition: border-color .28s ease, box-shadow .28s ease, transform .28s cubic-bezier(.4, 0, .2, 1);
 }

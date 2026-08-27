@@ -15,6 +15,8 @@ const sectionItemSchema = z.object({
   id: z.string().min(1).max(100),
   range: z.string().max(100),
   heading: z.string().max(300),
+  badge: z.string().max(100).optional().default(''),
+  direction: z.string().max(500).optional().default(''),
   secondary: z.string().max(500),
   tag: z.string().max(200),
   intro: z.string().max(5000),
@@ -38,6 +40,7 @@ export const saveResumeSchema = z.object({
   title: z.string().trim().min(1, '简历名称不能为空').max(150),
   content: resumeContentSchema,
   layout: z.object({
+    template: z.enum(['classic', 'modern']).optional().default('classic'),
     sectionGap: z.number().min(0).max(12),
     lineHeight: z.number().min(1).max(2.2),
     pageMargin: z.number().min(3).max(24),

@@ -22,6 +22,8 @@ const portableSectionItemSchema = z.object({
   id: z.string().min(1).max(100).optional(),
   range: optionalText(100),
   heading: optionalText(300),
+  badge: optionalText(100),
+  direction: optionalText(500),
   secondary: optionalText(500),
   tag: optionalText(200),
   intro: optionalText(5000),
@@ -45,6 +47,7 @@ const portableResumeSchema = z.object({
     sections: z.array(portableSectionSchema).max(30)
   }),
   layout: z.object({
+    template: z.enum(['classic', 'modern']).optional().default('classic'),
     sectionGap: z.number().min(0).max(12),
     lineHeight: z.number().min(1).max(2.2),
     pageMargin: z.number().min(3).max(24),

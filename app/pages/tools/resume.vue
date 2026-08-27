@@ -68,6 +68,44 @@
           <small>栏目可自由增删与改名</small>
         </div>
 
+        <section class="editor-card layout-card">
+          <header>
+            <span>页面排版</span>
+            <span class="layout-card-meta">
+              <label class="template-control">
+                <span>模板</span>
+                <select v-model="resume.layout.template" aria-label="选择简历模板">
+                  <option v-for="option in resumeTemplateOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <small>设置会同步到打印结果</small>
+              <button class="collapse-button" type="button" :aria-expanded="!layoutCollapsed" aria-label="折叠或展开页面排版" @click="layoutCollapsed = !layoutCollapsed">
+                <ChevronDownIcon :class="{ collapsed: layoutCollapsed }" />
+              </button>
+            </span>
+          </header>
+          <div v-show="!layoutCollapsed" class="layout-settings">
+            <label>
+              <span><b>模块上下间距</b><output>{{ resume.layout.sectionGap.toFixed(1) }} mm</output></span>
+              <input v-model.number="resume.layout.sectionGap" type="range" min="0" max="8" step="0.2">
+            </label>
+            <label>
+              <span><b>正文行间距</b><output>{{ resume.layout.lineHeight.toFixed(2) }}</output></span>
+              <input v-model.number="resume.layout.lineHeight" type="range" min="1.1" max="2" step="0.05">
+            </label>
+            <label>
+              <span><b>页面边距</b><output>{{ resume.layout.pageMargin.toFixed(1) }} mm</output></span>
+              <input v-model.number="resume.layout.pageMargin" type="range" min="3" max="18" step="0.5">
+            </label>
+            <label>
+              <span><b>正文字号</b><output>{{ resume.layout.fontSize.toFixed(1) }} pt</output></span>
+              <input v-model.number="resume.layout.fontSize" type="range" min="8" max="14" step="0.1">
+            </label>
+          </div>
+        </section>
+
         <section class="editor-card basic-card">
           <header>
             <span>基本信息</span>
@@ -93,36 +131,6 @@
               <EditorField v-model="resume.content.basic.phone" label="电话" placeholder="138 0000 0000" />
               <EditorField v-model="resume.content.basic.email" class="wide" label="邮箱" placeholder="hello@example.com" />
             </div>
-          </div>
-        </section>
-
-        <section class="editor-card layout-card">
-          <header>
-            <span>页面排版</span>
-            <span class="layout-card-meta">
-              <small>设置会同步到打印结果</small>
-              <button class="collapse-button" type="button" :aria-expanded="!layoutCollapsed" aria-label="折叠或展开页面排版" @click="layoutCollapsed = !layoutCollapsed">
-                <ChevronDownIcon :class="{ collapsed: layoutCollapsed }" />
-              </button>
-            </span>
-          </header>
-          <div v-show="!layoutCollapsed" class="layout-settings">
-            <label>
-              <span><b>模块上下间距</b><output>{{ resume.layout.sectionGap.toFixed(1) }} mm</output></span>
-              <input v-model.number="resume.layout.sectionGap" type="range" min="0" max="8" step="0.2">
-            </label>
-            <label>
-              <span><b>正文行间距</b><output>{{ resume.layout.lineHeight.toFixed(2) }}</output></span>
-              <input v-model.number="resume.layout.lineHeight" type="range" min="1.1" max="2" step="0.05">
-            </label>
-            <label>
-              <span><b>页面边距</b><output>{{ resume.layout.pageMargin.toFixed(1) }} mm</output></span>
-              <input v-model.number="resume.layout.pageMargin" type="range" min="3" max="18" step="0.5">
-            </label>
-            <label>
-              <span><b>正文字号</b><output>{{ resume.layout.fontSize.toFixed(1) }} pt</output></span>
-              <input v-model.number="resume.layout.fontSize" type="range" min="8" max="14" step="0.1">
-            </label>
           </div>
         </section>
 
@@ -238,7 +246,7 @@
 <script setup lang="ts">
 import type { ApiResult } from '~~/types/api'
 import type { Component } from 'vue'
-import type { ResumeDocument, ResumeLibraryItem, ResumeSectionItem, ResumeSectionType } from '~/types/resume'
+import type { ResumeDocument, ResumeLibraryItem, ResumeSectionItem, ResumeSectionType, ResumeTemplate } from '~/types/resume'
 import {
   ArrowDown as ArrowDownIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -330,12 +338,18 @@ const sectionTypeOptions: SectionTypeOption[] = [
   { type: 'research', title: '科研经历', description: '课题、论文与研究成果', icon: FlaskConicalIcon },
   { type: 'campus', title: '校园经历', description: '组织、角色与活动成果', icon: UsersIcon }
 ]
+const resumeTemplateOptions: Array<{ value: ResumeTemplate, label: string }> = [
+  { value: 'classic', label: '经典模板' },
+  { value: 'modern', label: '新模板' }
+]
 
 const sectionFieldMap: Record<ResumeSectionType, SectionField[]> = {
   education: [
     { key: 'range', label: '就读时间', placeholder: '2022-09 ~ 2025-06' },
     { key: 'heading', label: '院校名称', placeholder: '学校名称' },
+    { key: 'badge', label: '院校标签', placeholder: '双一流 211' },
     { key: 'tag', label: '专业与学历', placeholder: '软件工程（硕士）' },
+    { key: 'direction', label: '研究方向', placeholder: '研究方向：计算机视觉', wide: true },
     { key: 'intro', label: '成绩、课程与荣誉', placeholder: 'GPA、排名、主修课程、奖学金等', wide: true, textarea: true, rich: true }
   ],
   skills: [
@@ -354,6 +368,7 @@ const sectionFieldMap: Record<ResumeSectionType, SectionField[]> = {
     { key: 'heading', label: '公司 / 组织', placeholder: '公司或组织名称' },
     { key: 'tag', label: '职位', placeholder: '研发实习生' },
     { key: 'intro', label: '职责概述', placeholder: '负责的业务方向和工作范围', wide: true, textarea: true, rich: true },
+    { key: 'stack', label: '相关技术', placeholder: 'Spring Boot、MySQL、Redis', wide: true },
     { key: 'bullets', label: '工作成果（每行一项）', placeholder: '填写具体工作、改进与成果', wide: true, textarea: true, rich: true }
   ],
   research: [
@@ -748,6 +763,13 @@ useSeoMeta({
 .layout-card > header span { color: #263140; font-size: 12px; font-weight: 800; }
 .layout-card > header small { color: #98a0ac; font-size: 8px; }
 .layout-card-meta { display: inline-flex; align-items: center; gap: 8px; }
+.template-control { display: inline-flex; align-items: center; gap: 5px; }
+.template-control > span { color: #7f8997 !important; font-size: 8px !important; font-weight: 700 !important; }
+.template-control select {
+  height: 28px; padding: 0 24px 0 8px; border: 1px solid #dce2e9; border-radius: 7px; outline: 0;
+  background: #fff; color: #455061; font-size: 9px; font-weight: 700; cursor: pointer;
+}
+.template-control select:focus { border-color: #74afe1; box-shadow: 0 0 0 3px rgb(8 116 209 / 8%); }
 .collapse-button {
   display: grid !important; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; padding: 0 !important;
   border: 1px solid #dce2e9; border-radius: 7px; background: #fff; color: #778292; cursor: pointer;
