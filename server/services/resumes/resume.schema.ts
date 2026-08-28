@@ -44,8 +44,12 @@ export const saveResumeSchema = z.object({
     sectionGap: z.number().min(0).max(12),
     lineHeight: z.number().min(1).max(2.2),
     pageMargin: z.number().min(3).max(24),
+    verticalMargin: z.number().min(3).max(24).optional(),
     fontSize: z.number().min(7).max(16)
-  })
+  }).transform(layout => ({
+    ...layout,
+    verticalMargin: layout.verticalMargin ?? layout.pageMargin
+  }))
 })
 
 export type SaveResumeInput = z.infer<typeof saveResumeSchema>

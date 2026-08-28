@@ -22,7 +22,7 @@ if (error.value || !data.value?.data) {
 const resume = computed(() => data.value?.data ?? null)
 const continuationTopExtra = 4
 const printPageCss = computed(() => {
-  const margin = resume.value?.layout.pageMargin ?? 5
+  const margin = resume.value?.layout.verticalMargin ?? resume.value?.layout.pageMargin ?? 5
   return `@media print {
     @page {
       size: A4;

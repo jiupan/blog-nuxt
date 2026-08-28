@@ -44,6 +44,7 @@ function sampleResume(): ResumeDocument {
       sectionGap: 2.2,
       lineHeight: 1.5,
       pageMargin: 5,
+      verticalMargin: 6,
       fontSize: 10.3
     }
   }
@@ -67,6 +68,14 @@ describe('portable resume JSON', () => {
     expect(imported.content.sections).toEqual(source.content.sections)
     expect(imported.content.basic.avatar).toBe('existing-avatar')
     expect(imported.layout.template).toBe('classic')
+    expect(imported.layout.verticalMargin).toBe(6)
+  })
+
+  it('uses the legacy page margin as the vertical margin', () => {
+    const portable = createPortableResume(sampleResume())
+    const { verticalMargin: _verticalMargin, ...legacyLayout } = portable.layout
+
+    expect(parsePortableResume({ ...portable, layout: legacyLayout }).layout.verticalMargin).toBe(5)
   })
 
   it('defaults older portable files to the classic template', () => {

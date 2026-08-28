@@ -122,6 +122,7 @@ const layoutStyle = computed(() => ({
   '--resume-section-gap': `${props.layout.sectionGap}mm`,
   '--resume-line-height': String(props.layout.lineHeight),
   '--resume-page-margin': `${props.layout.pageMargin}mm`,
+  '--resume-vertical-margin': `${props.layout.verticalMargin}mm`,
   '--resume-font-size': `${props.layout.fontSize}pt`
 }))
 
@@ -166,13 +167,13 @@ function stackLabel(type: ResumeSectionType) {
 
 .resume-template-modern .identity h1 {
   margin-bottom: 3.2mm;
-  font-size: 27pt;
+  font-size: 20pt;
   font-weight: 750;
   letter-spacing: .02em;
 }
 
 .resume-template-modern .resume-header {
-  min-height: 37mm;
+  min-height: 30mm;
   align-items: center;
   justify-content: flex-start;
   padding: 2mm 39mm 2mm 4mm;
@@ -213,7 +214,7 @@ function stackLabel(type: ResumeSectionType) {
 }
 
 .resume-template-modern .portrait {
-  top: 3mm;
+  top: 0;
   width: 27mm;
   height: 31mm;
   background: #e7ecf4;

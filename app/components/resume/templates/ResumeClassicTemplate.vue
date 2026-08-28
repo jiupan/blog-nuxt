@@ -45,6 +45,7 @@ const layoutStyle = computed(() => ({
   '--resume-section-gap': `${props.layout.sectionGap}mm`,
   '--resume-line-height': String(props.layout.lineHeight),
   '--resume-page-margin': `${props.layout.pageMargin}mm`,
+  '--resume-vertical-margin': `${props.layout.verticalMargin}mm`,
   '--resume-font-size': `${props.layout.fontSize}pt`
 }))
 

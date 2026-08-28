@@ -49,6 +49,7 @@ export type ResumeLayout = {
   sectionGap: number
   lineHeight: number
   pageMargin: number
+  verticalMargin: number
   fontSize: number
 }
 

@@ -60,6 +60,7 @@ export function createDefaultResume(): ResumeDocument {
       sectionGap: 2.2,
       lineHeight: 1.5,
       pageMargin: 5,
+      verticalMargin: 5,
       fontSize: 10.3
     },
     content: {
@@ -205,6 +206,9 @@ export function normalizeResume(value: Partial<ResumeDocument> | null | undefine
       sectionGap: Number.isFinite(value.layout?.sectionGap) ? Number(value.layout?.sectionGap) : fallback.layout.sectionGap,
       lineHeight: Number.isFinite(value.layout?.lineHeight) ? Number(value.layout?.lineHeight) : fallback.layout.lineHeight,
       pageMargin: Number.isFinite(value.layout?.pageMargin) ? Number(value.layout?.pageMargin) : fallback.layout.pageMargin,
+      verticalMargin: Number.isFinite(value.layout?.verticalMargin)
+        ? Number(value.layout?.verticalMargin)
+        : Number.isFinite(value.layout?.pageMargin) ? Number(value.layout?.pageMargin) : fallback.layout.verticalMargin,
       fontSize: Number.isFinite(value.layout?.fontSize) ? Number(value.layout?.fontSize) : fallback.layout.fontSize
     },
     content: {

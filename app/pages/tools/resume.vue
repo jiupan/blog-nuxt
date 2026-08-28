@@ -96,8 +96,12 @@
               <input v-model.number="resume.layout.lineHeight" type="range" min="1.1" max="2" step="0.05">
             </label>
             <label>
-              <span><b>页面边距</b><output>{{ resume.layout.pageMargin.toFixed(1) }} mm</output></span>
+              <span><b>左右边距</b><output>{{ resume.layout.pageMargin.toFixed(1) }} mm</output></span>
               <input v-model.number="resume.layout.pageMargin" type="range" min="3" max="18" step="0.5">
+            </label>
+            <label>
+              <span><b>上下边距</b><output>{{ resume.layout.verticalMargin.toFixed(1) }} mm</output></span>
+              <input v-model.number="resume.layout.verticalMargin" type="range" min="3" max="18" step="0.5">
             </label>
             <label>
               <span><b>正文字号</b><output>{{ resume.layout.fontSize.toFixed(1) }} pt</output></span>
@@ -335,10 +339,10 @@ const splitStyle = computed(() => ({ '--editor-width': editorWidth.value }))
 const printPageCss = computed(() => `@media print {
   @page {
     size: A4;
-    margin: ${resume.layout.pageMargin + continuationTopExtra}mm 0 ${resume.layout.pageMargin}mm;
+    margin: ${resume.layout.verticalMargin + continuationTopExtra}mm 0 ${resume.layout.verticalMargin}mm;
   }
   @page :first {
-    margin-top: ${resume.layout.pageMargin}mm;
+    margin-top: ${resume.layout.verticalMargin}mm;
   }
 }`)
 
@@ -615,19 +619,19 @@ function updatePageCount() {
   const paper = previewDocument.value?.querySelector<HTMLElement>('.resume-paper')
   if (!paper) return
   const pixelsPerMillimeter = paper.offsetWidth / 210
-  const previewVerticalPadding = 10 * pixelsPerMillimeter
+  const previewVerticalPadding = resume.layout.verticalMargin * 2 * pixelsPerMillimeter
   const contentHeight = Math.max(0, paper.scrollHeight - previewVerticalPadding)
-  const firstPageHeight = Math.max(1, (297 - resume.layout.pageMargin * 2) * pixelsPerMillimeter)
-  const continuationPageHeight = Math.max(1, (297 - resume.layout.pageMargin * 2 - continuationTopExtra) * pixelsPerMillimeter)
+  const firstPageHeight = Math.max(1, (297 - resume.layout.verticalMargin * 2) * pixelsPerMillimeter)
+  const continuationPageHeight = Math.max(1, (297 - resume.layout.verticalMargin * 2 - continuationTopExtra) * pixelsPerMillimeter)
   pageCount.value = contentHeight <= firstPageHeight
     ? 1
     : 1 + Math.ceil((contentHeight - firstPageHeight - 1) / continuationPageHeight)
 }
 
 function pageBreakTop(page: number) {
-  const firstPageHeight = 297 - resume.layout.pageMargin * 2
+  const firstPageHeight = 297 - resume.layout.verticalMargin * 2
   const continuationPageHeight = firstPageHeight - continuationTopExtra
-  return `${5 + firstPageHeight + Math.max(0, page - 1) * continuationPageHeight}mm`
+  return `${resume.layout.verticalMargin + firstPageHeight + Math.max(0, page - 1) * continuationPageHeight}mm`
 }
 
 function observePreviewPages() {
@@ -741,7 +745,7 @@ onMounted(() => {
   loadLibrary()
   nextTick(observePreviewPages)
 })
-watch(() => resume.layout.pageMargin, () => nextTick(updatePageCount))
+watch(() => resume.layout.verticalMargin, () => nextTick(updatePageCount))
 onBeforeUnmount(() => {
   clearTimeout(messageTimer)
   previewResizeObserver?.disconnect()
