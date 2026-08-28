@@ -3,8 +3,16 @@
     <header class="resume-header">
       <div class="identity">
         <h1>{{ data.basic.name || '你的名字' }}</h1>
-        <p>{{ firstMetaLine }}</p>
-        <p>{{ secondMetaLine }}</p>
+        <p class="personal-meta-row">
+          <span v-if="data.basic.birth">{{ data.basic.birth }}</span>
+          <span v-if="data.basic.gender">{{ data.basic.gender }}</span>
+          <span v-if="data.basic.politicalStatus">{{ data.basic.politicalStatus }}</span>
+          <span v-if="data.basic.hometown">{{ data.basic.hometown }}</span>
+        </p>
+        <p class="personal-contact-row">
+          <span v-if="data.basic.phone"><PhoneIcon />{{ data.basic.phone }}</span>
+          <span v-if="data.basic.email"><MailIcon />{{ data.basic.email }}</span>
+        </p>
       </div>
       <div class="portrait">
         <img v-if="data.basic.avatar" :src="data.basic.avatar" alt="">
@@ -103,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { UserRound as UserRoundIcon } from '@lucide/vue'
+import { Mail as MailIcon, Phone as PhoneIcon, UserRound as UserRoundIcon } from '@lucide/vue'
 import type { ResumeContent, ResumeLayout, ResumeSectionItem, ResumeSectionType } from '~/types/resume'
 import { parseExperienceDetails } from '~/utils/resume-defaults'
 import InlineRichText from '../InlineRichText.vue'
@@ -116,18 +124,6 @@ const layoutStyle = computed(() => ({
   '--resume-page-margin': `${props.layout.pageMargin}mm`,
   '--resume-font-size': `${props.layout.fontSize}pt`
 }))
-
-const firstMetaLine = computed(() => [
-  props.data.basic.birth,
-  props.data.basic.gender,
-  props.data.basic.politicalStatus,
-  props.data.basic.hometown
-].filter(Boolean).join('  |  '))
-
-const secondMetaLine = computed(() => [
-  props.data.basic.phone,
-  props.data.basic.email
-].filter(Boolean).join('  |  '))
 
 function bulletLines(value: string) {
   return value.split('\n').map(line => line.trim().replace(/^[•·]\s*/, '')).filter(Boolean)
@@ -169,7 +165,59 @@ function stackLabel(type: ResumeSectionType) {
 }
 
 .resume-template-modern .identity h1 {
+  margin-bottom: 3.2mm;
+  font-size: 27pt;
   font-weight: 750;
+  letter-spacing: .02em;
+}
+
+.resume-template-modern .resume-header {
+  min-height: 37mm;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2mm 39mm 2mm 4mm;
+}
+
+.resume-template-modern .identity {
+  text-align: left;
+}
+
+.resume-template-modern .identity p {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.8mm;
+  color: #405673;
+  font-size: 10.5pt;
+  white-space: nowrap;
+}
+
+.resume-template-modern .identity p > span {
+  display: inline-flex;
+  align-items: center;
+}
+
+.resume-template-modern .identity p > span + span::before {
+  width: .25mm;
+  height: 4.2mm;
+  margin: 0 3mm;
+  background: #ccd4df;
+  content: "";
+}
+
+.resume-template-modern .personal-contact-row svg {
+  width: 3.7mm;
+  height: 3.7mm;
+  margin-right: 1.5mm;
+  color: #9aa7b8;
+  stroke-width: 1.8;
+}
+
+.resume-template-modern .portrait {
+  top: 3mm;
+  width: 27mm;
+  height: 31mm;
+  background: #e7ecf4;
+  color: #8e9db1;
 }
 
 .resume-template-modern .resume-entry b {
