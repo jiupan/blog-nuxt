@@ -8,7 +8,7 @@ const basicSchema = z.object({
   hometown: z.string().max(100),
   phone: z.string().max(50),
   email: z.string().max(200),
-  avatar: z.string().max(3_000_000)
+  avatar: z.string().max(14_000_000)
 })
 
 const sectionItemSchema = z.object({

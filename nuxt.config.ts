@@ -74,7 +74,8 @@ export default defineNuxtConfig({
       cors: false,
       security: {
         requestSizeLimiter: {
-          maxRequestSizeInBytes: 10 * 1024 * 1024,
+          // A 10MB avatar becomes roughly 13.4MB after Base64 encoding.
+          maxRequestSizeInBytes: 15 * 1024 * 1024,
         }
       }
     },

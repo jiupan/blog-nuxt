@@ -119,7 +119,7 @@
                 <img v-if="resume.content.basic.avatar" :src="resume.content.basic.avatar" alt="">
                 <UserRoundIcon v-else />
               </span>
-              <span><strong>证件照</strong><small>点击上传，小于 2MB</small></span>
+              <span><strong>证件照</strong><small>点击上传，不超过 10MB</small></span>
               <input type="file" accept="image/png,image/jpeg,image/webp" @change="handleAvatar">
             </label>
             <div class="form-grid">
@@ -643,8 +643,8 @@ function handleAvatar(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) {
-    showStatus('图片不能超过 2MB', true)
+  if (file.size > 10 * 1024 * 1024) {
+    showStatus('图片不能超过 10MB', true)
     input.value = ''
     return
   }
