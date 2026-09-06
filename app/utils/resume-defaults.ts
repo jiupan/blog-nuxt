@@ -13,6 +13,7 @@ export function createEmptySectionItem(): ResumeSectionItem {
     direction: '',
     secondary: '',
     tag: '',
+    projectRole: '',
     intro: '',
     stack: '',
     bullets: ''
@@ -143,6 +144,7 @@ export function createDefaultResume(): ResumeDocument {
             range: '2023-07 ~ 2023-12',
             heading: '云舟科技（示例公司）',
             tag: '研发实习生',
+            projectRole: '全栈开发',
             intro: '企业协作产品功能迭代',
             secondary: '参与企业协作产品的功能开发、接口联调和线上问题排查。',
             stack: 'Vue、TypeScript、Spring Boot、MySQL、Redis',

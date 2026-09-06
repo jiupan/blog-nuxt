@@ -26,6 +26,7 @@ const portableSectionItemSchema = z.object({
   direction: optionalText(500),
   secondary: optionalText(500),
   tag: optionalText(200),
+  projectRole: optionalText(200),
   intro: optionalText(5000),
   stack: optionalText(3000),
   bullets: optionalText(15000)

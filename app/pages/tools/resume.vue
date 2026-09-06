@@ -187,7 +187,8 @@
                   <button type="button" title="删除项目" @click="deleteExperienceProject(sectionIndex, itemIndex)"><XIcon /></button>
                 </div>
                 <div class="form-grid">
-                  <EditorField v-model="item.intro" class="wide" label="项目名称" placeholder="项目一：骑手事故处置 AI Agent" />
+                  <EditorField v-model="item.intro" label="项目名称" placeholder="项目一：骑手事故处置 AI Agent" />
+                  <EditorField v-model="item.projectRole" label="项目角色" placeholder="后端开发 / 全栈开发" />
                   <EditorField v-model="item.secondary" class="wide" label="项目背景" placeholder="项目背景、业务问题和建设目标" textarea rich />
                   <EditorField v-model="item.bullets" class="wide" label="工作内容与成果（每行一项）" placeholder="描述你的工作、解决的问题和量化结果" textarea rich />
                 </div>

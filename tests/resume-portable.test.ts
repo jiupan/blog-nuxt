@@ -33,6 +33,7 @@ function sampleResume(): ResumeDocument {
           direction: '',
           secondary: '',
           tag: '后端开发',
+          projectRole: '',
           intro: '高并发营销系统',
           stack: 'Java、Redis',
           bullets: '将接口耗时降低 40%'

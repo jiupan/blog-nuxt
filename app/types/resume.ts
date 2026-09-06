@@ -17,6 +17,7 @@ export type ResumeSectionItem = {
   direction: string
   secondary: string
   tag: string
+  projectRole: string
   intro: string
   stack: string
   bullets: string

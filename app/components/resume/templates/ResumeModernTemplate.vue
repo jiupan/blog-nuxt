@@ -57,8 +57,11 @@
             </div>
           </template>
 
-          <div v-if="experienceTitle(item) || experienceBackground(item) || bulletLines(item.bullets).length" class="experience-project">
-            <p v-if="experienceTitle(item)" class="experience-project-title"><InlineRichText :text="experienceTitle(item)" /></p>
+          <div v-if="experienceTitle(item) || item.projectRole || experienceBackground(item) || bulletLines(item.bullets).length" class="experience-project">
+            <div v-if="experienceTitle(item) || item.projectRole" class="experience-project-heading">
+              <p v-if="experienceTitle(item)" class="experience-project-title"><InlineRichText :text="experienceTitle(item)" /></p>
+              <span v-if="item.projectRole" class="experience-project-role">{{ item.projectRole }}</span>
+            </div>
             <p v-if="experienceBackground(item)" class="experience-background"><b>背景：</b><InlineRichText :text="experienceBackground(item)" /></p>
             <ul v-if="bulletLines(item.bullets).length">
               <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
@@ -365,10 +368,27 @@ function stackLabel(type: ResumeSectionType) {
   color: #30445f;
 }
 
+.experience-project-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5mm;
+  margin-top: 1.8mm;
+  break-after: avoid;
+}
+
 .experience-project-title {
-  margin-top: 1.8mm !important;
+  min-width: 0;
+  margin: 0 !important;
   color: #102037;
   font-weight: 750;
+}
+
+.experience-project-role {
+  flex: 0 0 auto;
+  color: #102037;
+  font-weight: 750;
+  white-space: nowrap;
 }
 
 .experience-background {

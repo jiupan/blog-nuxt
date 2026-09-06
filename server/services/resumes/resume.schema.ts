@@ -19,6 +19,7 @@ const sectionItemSchema = z.object({
   direction: z.string().max(500).optional().default(''),
   secondary: z.string().max(500),
   tag: z.string().max(200),
+  projectRole: z.string().max(200).optional().default(''),
   intro: z.string().max(5000),
   stack: z.string().max(3000),
   bullets: z.string().max(15000)

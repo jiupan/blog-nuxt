@@ -47,4 +47,14 @@ describe('resume experience structure', () => {
       stack: ''
     })
   })
+
+  it('provides an independent role for each internship project', () => {
+    const item = createEmptySectionItem()
+
+    expect(item.projectRole).toBe('')
+
+    const resume = createDefaultResume()
+    const experience = resume.content.sections.find(section => section.type === 'experience')!
+    expect(experience.items[0]?.projectRole).toBe('全栈开发')
+  })
 })
