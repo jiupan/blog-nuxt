@@ -58,7 +58,7 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
       h4: ['id'],
       h5: ['id'],
       h6: ['id'],
-      img: ['src', 'alt', 'title', 'loading'],
+      img: ['src', 'alt', 'title', 'loading', 'decoding'],
       pre: ['class', 'data-lang', 'style', 'tabindex'],
       span: ['class', 'style'],
       td: ['align', 'colspan', 'rowspan'],
@@ -67,7 +67,7 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
     transformTags: {
       a: sanitizeHtml.simpleTransform('a', { rel: 'nofollow noopener noreferrer', target: '_blank' }),
-      img: sanitizeHtml.simpleTransform('img', { loading: 'lazy' })
+      img: sanitizeHtml.simpleTransform('img', { loading: 'lazy', decoding: 'async' })
     }
   })
 

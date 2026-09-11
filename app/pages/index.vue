@@ -3,12 +3,19 @@
     <section class="home-shell pt-2">
       <div v-if="mobileHeroPosts.length" class="mobile-hero-carousel" aria-label="精选文章" data-page-enter style="--page-enter-order: 0">
         <NuxtLink
-          v-for="item in mobileHeroPosts"
+          v-for="(item, index) in mobileHeroPosts"
           :key="`mobile-hero-${item.id}`"
           :to="item.to"
           class="mobile-hero-slide"
         >
-          <img :src="item.cover || '/images/home-hero-ai.png'" :alt="item.title" class="mobile-hero-image">
+          <img
+            :src="item.cover || '/images/home-hero-ai.png'"
+            :alt="item.title"
+            class="mobile-hero-image"
+            :loading="index === 0 ? 'eager' : 'lazy'"
+            decoding="async"
+            :fetchpriority="index === 0 ? 'high' : 'low'"
+          >
           <span class="mobile-hero-shade" aria-hidden="true"></span>
           <span class="mobile-hero-title">{{ item.title }}</span>
         </NuxtLink>
@@ -132,12 +139,28 @@
                 variant="grid"
               >
                 <article class="post-card">
-                  <NuxtLink :to="post.to" class="post-cover" :class="!post.cover && post.coverClass">
-                    <img v-if="post.cover" :src="post.cover" :alt="post.title" class="cover-image" loading="lazy" decoding="async" />
-                    <span v-if="post.cover" class="cover-overlay"></span>
-                    <span class="cover-word">{{ post.coverWord }}</span>
-                    <span class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
-                      <img v-if="post.memeIcon" :src="post.memeIcon" :alt="`${post.title} 表情包图标`" loading="lazy" decoding="async" />
+                  <NuxtLink
+                    :to="post.to"
+                    class="post-cover"
+                    :class="{
+                      'has-loaded-image': post.cover && loadedCoverUrls.has(post.cover)
+                    }"
+                  >
+                    <img
+                      v-if="post.cover && !failedCoverUrls.has(post.cover)"
+                      :src="post.cover"
+                      :alt="post.title"
+                      class="cover-image"
+                      loading="lazy"
+                      decoding="async"
+                      fetchpriority="low"
+                      @load="loadedCoverUrls.add(post.cover)"
+                      @error="failedCoverUrls.add(post.cover)"
+                    >
+                    <span v-if="post.cover && !failedCoverUrls.has(post.cover)" class="cover-overlay"></span>
+                    <span v-if="post.cover" class="cover-word">{{ post.coverWord }}</span>
+                    <span v-if="post.cover" class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
+                      <img v-if="post.memeIcon" :src="post.memeIcon" :alt="`${post.title} 表情包图标`" loading="lazy" decoding="async">
                       <component v-else :is="homeIcon(post.icon, FileTextIcon)" aria-hidden="true" />
                     </span>
                   </NuxtLink>
@@ -363,12 +386,12 @@ function memeIconForPost(id: number) {
 }
 
 const coverStyles = [
-  { coverClass: 'cover-pink', icon: 'i-lucide-sparkles' },
-  { coverClass: 'cover-blue', icon: 'i-lucide-brain-circuit' },
-  { coverClass: 'cover-green', icon: 'i-lucide-leaf' },
-  { coverClass: 'cover-orange', icon: 'i-lucide-smile-plus' },
-  { coverClass: 'cover-gray', icon: 'i-lucide-badge-check' },
-  { coverClass: 'cover-coral', icon: 'i-lucide-flame' }
+  { icon: 'i-lucide-sparkles' },
+  { icon: 'i-lucide-brain-circuit' },
+  { icon: 'i-lucide-leaf' },
+  { icon: 'i-lucide-smile-plus' },
+  { icon: 'i-lucide-badge-check' },
+  { icon: 'i-lucide-flame' }
 ]
 
 const displayPosts = computed(() => {
@@ -423,6 +446,8 @@ const mobileHeroPosts = computed(() => {
 })
 
 const activeHeroPost = ref<PostSummary | null>(null)
+const loadedCoverUrls = reactive(new Set<string>())
+const failedCoverUrls = reactive(new Set<string>())
 let heroChangeTimer: ReturnType<typeof setTimeout> | null = null
 
 function cancelHeroChange() {
@@ -443,15 +468,6 @@ function scheduleHeroChange(post: PostSummary) {
     activeHeroPost.value = post
     heroChangeTimer = null
   }, 30)
-}
-
-function preloadHeroImages() {
-  const covers = new Set(heroPosts.value.map(post => post.cover).filter((cover): cover is string => Boolean(cover)))
-  covers.forEach((cover) => {
-    const image = new Image()
-    image.decoding = 'async'
-    image.src = cover
-  })
 }
 
 const topicTooltip = reactive({
@@ -516,7 +532,6 @@ function resetHomeState() {
 }
 
 onMounted(() => {
-  preloadHeroImages()
   window.addEventListener('home:reset', resetHomeState)
 })
 
@@ -871,7 +886,7 @@ function formatDate(value?: string | Date | null) {
   place-items: center;
   overflow: hidden;
   isolation: isolate;
-  background: var(--theme-accent-soft);
+  background: linear-gradient(135deg, var(--theme-surface), var(--theme-surface-muted));
 }
 
 .cover-image {
@@ -896,6 +911,15 @@ function formatDate(value?: string | Date | null) {
   position: absolute;
   inset: 0;
   background: linear-gradient(0deg, rgb(0 0 0 / 45%), rgb(0 0 0 / 15%));
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.post-cover.has-loaded-image .cover-overlay { opacity: 1; }
+
+.post-cover:not(.has-loaded-image) .cover-word,
+.post-cover:not(.has-loaded-image) .cover-icon {
+  opacity: 0;
 }
 
 .cover-word {
@@ -947,13 +971,6 @@ function formatDate(value?: string | Date | null) {
 .post-card:focus-within .cover-icon {
   box-shadow: 0 20px 38px rgb(0 0 0 / 22%);
 }
-
-.cover-pink { background: linear-gradient(135deg, #5c2348, #8b2f6a); }
-.cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
-.cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
-.cover-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
-.cover-gray { background: linear-gradient(135deg, var(--theme-text), #5d6470); }
-.cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
 
 .post-body {
   padding: 20px 30px 22px;

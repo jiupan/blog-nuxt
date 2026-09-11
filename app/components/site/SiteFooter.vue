@@ -21,7 +21,7 @@
           >
             <Icon :name="link.icon || 'i-simple-icons-linktree'" aria-hidden="true" />
             <span v-if="link.image" class="footer-action-image" role="tooltip">
-              <img :src="link.image" :alt="`${link.label} 图片`">
+              <img :src="link.image" :alt="`${link.label} 图片`" loading="lazy" decoding="async">
             </span>
           </button>
         </template>
@@ -49,7 +49,7 @@
           >
             <Icon :name="link.icon || 'i-simple-icons-linktree'" aria-hidden="true" />
             <span v-if="link.image" class="footer-action-image" role="tooltip">
-              <img :src="link.image" :alt="`${link.label} 图片`">
+              <img :src="link.image" :alt="`${link.label} 图片`" loading="lazy" decoding="async">
             </span>
           </button>
         </template>

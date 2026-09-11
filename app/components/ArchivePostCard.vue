@@ -1,8 +1,20 @@
 <template>
   <article class="archive-item">
-    <span class="archive-thumb" :class="!post.cover && coverFallbackClass(post.id)">
-      <img v-if="post.cover" :src="post.cover" :alt="post.title" loading="lazy" decoding="async">
-      <span v-else>{{ coverWord }}</span>
+    <span
+      class="archive-thumb"
+      :class="{ 'is-loading': post.cover && !coverLoaded && !coverFailed }"
+    >
+      <img
+        v-if="post.cover && !coverFailed"
+        ref="coverImage"
+        :src="post.cover"
+        :alt="post.title"
+        loading="lazy"
+        decoding="async"
+        fetchpriority="low"
+        @load="coverLoaded = true"
+        @error="coverFailed = true"
+      >
     </span>
     <div class="archive-copy">
       <span v-if="post.isPinned" class="archive-pinned">
@@ -53,9 +65,9 @@ const props = defineProps<{
   post: PostSummary
 }>()
 
-const coverFallbackClasses = ['cover-pink', 'cover-blue', 'cover-green', 'cover-orange', 'cover-gray', 'cover-coral']
-const coverFallbackClass = (id: number) => coverFallbackClasses[id % coverFallbackClasses.length]
-const coverWord = computed(() => (props.post.category?.name || props.post.title).slice(0, 4))
+const coverImage = ref<HTMLImageElement | null>(null)
+const coverLoaded = ref(false)
+const coverFailed = ref(false)
 const categoryPath = computed(() => props.post.category ? `/categories/${encodeURIComponent(props.post.category.slug)}` : '')
 const visibleTags = computed(() => props.post.tags?.slice(0, 3) || [])
 const tagPath = (slug: string) => `/tags/${encodeURIComponent(slug)}`
@@ -70,6 +82,18 @@ const formattedDate = computed(() => {
 const formattedViews = computed(() => {
   const views = props.post.viewCount || 0
   return views >= 1000 ? `${(views / 1000).toFixed(1).replace('.0', '')}k` : String(views)
+})
+
+watch(() => props.post.cover, () => {
+  coverLoaded.value = false
+  coverFailed.value = false
+})
+
+onMounted(() => {
+  if (coverImage.value?.complete) {
+    coverLoaded.value = coverImage.value.naturalWidth > 0
+    coverFailed.value = coverImage.value.naturalWidth === 0
+  }
 })
 </script>
 
@@ -102,6 +126,7 @@ const formattedViews = computed(() => {
 }
 
 .archive-thumb {
+  position: relative;
   display: grid;
   flex: 0 0 176px;
   width: 176px;
@@ -109,14 +134,24 @@ const formattedViews = computed(() => {
   place-items: center;
   overflow: hidden;
   border-radius: 16px;
-  background: var(--theme-text);
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 23px;
-  font-weight: 900;
+  background: linear-gradient(135deg, var(--theme-surface), var(--theme-surface-muted));
   box-shadow: 0 10px 24px rgb(var(--theme-shadow) / 8%);
 }
 
+.archive-thumb.is-loading::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 28%, rgb(255 255 255 / 34%) 46%, transparent 64%);
+  content: "";
+  transform: translateX(-100%);
+  animation: cover-placeholder-shimmer 1.4s ease-in-out infinite;
+}
+
 .archive-thumb img {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -126,12 +161,13 @@ const formattedViews = computed(() => {
 .archive-item:hover .archive-thumb img,
 .archive-item:focus-within .archive-thumb img { transform: scale(1.025); }
 
-.cover-pink { background: linear-gradient(135deg, #5c2348, #8b2f6a); }
-.cover-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
-.cover-green { background: linear-gradient(135deg, #29462c, #4e7433); }
-.cover-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
-.cover-gray { background: linear-gradient(135deg, var(--theme-text), #5d6470); }
-.cover-coral { background: linear-gradient(135deg, #68312e, #a9463e); }
+@keyframes cover-placeholder-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archive-thumb.is-loading::before { animation: none; }
+}
 
 .archive-copy { flex: 1 1 auto; min-width: 0; }
 

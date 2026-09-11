@@ -36,10 +36,17 @@
         <h3>精选阅读</h3>
         <TrendingUpIcon aria-hidden="true" />
       </div>
-      <NuxtLink v-for="(post, index) in visiblePosts" :key="post.slug" :to="postPath(post.slug)" class="featured-link">
-        <span class="featured-thumb" :class="!post.cover && topicTone(index)">
-          <img v-if="post.cover" :src="post.cover" :alt="post.title">
-          <span v-else>{{ coverWord(post) }}</span>
+      <NuxtLink v-for="post in visiblePosts" :key="post.slug" :to="postPath(post.slug)" class="featured-link">
+        <span class="featured-thumb">
+          <img
+            v-if="post.cover"
+            :src="post.cover"
+            :alt="post.title"
+            loading="lazy"
+            decoding="async"
+            fetchpriority="low"
+            @error="hideBrokenImage"
+          >
         </span>
         <span class="featured-copy">
           <em>{{ post.category?.name || '文章' }}</em>
@@ -196,9 +203,11 @@ function topicTone(index: number) {
   return topicTones[index % topicTones.length]
 }
 
-function coverWord(post: SidebarPost) {
-  return (post.category?.name || post.title).slice(0, 2)
+function hideBrokenImage(event: Event) {
+  const image = event.currentTarget
+  if (image instanceof HTMLImageElement) image.hidden = true
 }
+
 </script>
 
 <style scoped>
@@ -561,13 +570,12 @@ function coverWord(post: SidebarPost) {
   place-items: center;
   overflow: hidden;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.84);
-  font-size: 17px;
-  font-weight: 850;
+  background: linear-gradient(135deg, var(--theme-surface), var(--theme-surface-muted));
 }
 
 .featured-thumb::after {
   position: absolute;
+  z-index: 2;
   inset: 0;
   background: rgba(15, 23, 42, 0.1);
   content: "";
@@ -579,6 +587,9 @@ function coverWord(post: SidebarPost) {
 }
 
 .featured-thumb img {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -641,20 +652,6 @@ function coverWord(post: SidebarPost) {
 .tone-purple { background: var(--theme-purple-soft); color: #8b5cf6; }
 .tone-orange { background: var(--theme-warning-soft); color: #f97316; }
 .tone-slate { background: var(--theme-surface-muted); color: var(--theme-text-muted); }
-
-.featured-thumb.tone-blue,
-.featured-thumb.tone-green,
-.featured-thumb.tone-purple,
-.featured-thumb.tone-orange,
-.featured-thumb.tone-slate {
-  color: rgba(255, 255, 255, 0.86);
-}
-
-.featured-thumb.tone-blue { background: linear-gradient(135deg, #18345f, #1f5d91); }
-.featured-thumb.tone-green { background: linear-gradient(135deg, #29462c, #4e7433); }
-.featured-thumb.tone-purple { background: linear-gradient(135deg, #5c2348, #8b2f6a); }
-.featured-thumb.tone-orange { background: linear-gradient(135deg, #5a3517, #9a5a1d); }
-.featured-thumb.tone-slate { background: linear-gradient(135deg, var(--theme-text), #5d6470); }
 
 :deep(.toc-card),
 :deep(.info-card) {
