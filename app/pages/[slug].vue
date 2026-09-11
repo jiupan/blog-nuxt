@@ -117,12 +117,6 @@
 
               <div v-if="post.rendered.toc.length" class="toc-list-wrap">
                 <span class="toc-guide" aria-hidden="true"></span>
-                <span
-                  v-if="activeTocId"
-                  class="toc-active-line"
-                  :style="{ transform: `translateY(${activeTocOffset}px)` }"
-                  aria-hidden="true"
-                ></span>
                 <nav class="toc-list" aria-label="文章目录">
                   <a
                     v-for="item in post.rendered.toc"
@@ -182,7 +176,6 @@ const siteName = computed(() => siteSettings.value.site_title || config.public.s
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const postSidebarStickyTop = ref('84px')
 const activeTocId = ref('')
-const activeTocOffset = ref(0)
 const summaryQuestion = ref('')
 const summaryDialogDraft = ref('')
 const summaryDialogOpen = ref(false)
@@ -357,10 +350,6 @@ async function copyText(value: string) {
   textarea.remove()
   if (!copied) throw new Error('Copy command failed')
 }
-
-watch(activeTocId, () => {
-  nextTick(updateTocIndicatorPosition)
-})
 
 watch(() => post.value.rendered.html, () => {
   nextTick(() => requestAnimationFrame(() => {
@@ -707,16 +696,6 @@ function scrollToTocHeading(id: string) {
   window.scrollTo({ top: targetTop, behavior: 'smooth' })
 }
 
-function updateTocIndicatorPosition() {
-  if (!activeTocId.value) return
-
-  const links = document.querySelectorAll<HTMLElement>('.toc-card-elegant .toc-list a')
-  const activeLink = Array.from(links).find((link) => link.dataset.tocId === activeTocId.value)
-  if (!activeLink) return
-
-  const indicatorHeight = 20
-  activeTocOffset.value = activeLink.offsetTop + (activeLink.offsetHeight - indicatorHeight) / 2
-}
 </script>
 
 <style scoped>
@@ -1326,18 +1305,6 @@ function updateTocIndicatorPosition() {
   background: var(--theme-surface-hover);
 }
 
-.toc-card-elegant .toc-active-line {
-  position: absolute;
-  top: 0;
-  left: 7px;
-  z-index: 2;
-  width: 2px;
-  height: 20px;
-  border-radius: 999px;
-  background: #9b7e7a;
-  transition: transform .24s cubic-bezier(.4, 0, .2, 1);
-}
-
 .toc-card-elegant .toc-list {
   position: relative;
   z-index: 3;
@@ -1375,9 +1342,13 @@ function updateTocIndicatorPosition() {
 }
 
 .toc-card-elegant .toc-list a:hover,
-.toc-card-elegant .toc-list a:focus-visible,
-.toc-card-elegant .toc-list a.is-active {
+.toc-card-elegant .toc-list a:focus-visible {
   background: var(--theme-surface-muted);
+  color: #826561;
+  outline: none;
+}
+
+.toc-card-elegant .toc-list a.is-active {
   color: #826561;
   outline: none;
 }
