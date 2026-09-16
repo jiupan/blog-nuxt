@@ -9,26 +9,28 @@
           <span>返回</span>
         </NuxtLink>
         <FileTextIcon />
-        <input v-model="resume.title" aria-label="简历名称">
+        <div class="document-details">
+          <input v-model="resume.title" aria-label="简历名称">
+          <small class="draft-state" role="status">{{ draftLabel }}</small>
+        </div>
       </div>
 
       <div v-if="user" class="library-control">
         <label>
           <span>我的简历</span>
-          <select :value="currentResumeId ?? ''" @change="selectResume">
+          <select :value="currentResumeId ?? ''" :disabled="saving" @change="selectResume">
             <option value="">未保存的新简历</option>
             <option v-for="item in library" :key="item.id" :value="item.id">{{ item.title }}</option>
           </select>
         </label>
-        <button type="button" title="新建简历" @click="newResume"><PlusIcon /></button>
-        <button v-if="currentResumeId" class="danger" type="button" title="删除当前简历" @click="removeResume"><Trash2Icon /></button>
+        <button type="button" title="新建简历" :disabled="saving" @click="newResume()"><PlusIcon /></button>
+        <button v-if="currentResumeId" class="danger" type="button" title="删除当前简历" :disabled="saving" @click="removeResume"><Trash2Icon /></button>
       </div>
-      <NuxtLink v-else class="login-tip" :to="{ path: '/login', query: { redirect: '/tools/resume' } }">
+      <button v-else class="login-tip" type="button" @click="loginWithDraft">
         登录后保存到简历库
-      </NuxtLink>
+      </button>
 
       <div class="workspace-actions">
-        <span v-if="statusMessage" :class="{ error: statusError }">{{ statusMessage }}</span>
         <input
           ref="jsonFileInput"
           class="json-file-input"
@@ -37,7 +39,7 @@
           aria-label="选择要导入的简历 JSON 文件"
           @change="importResumeJson"
         >
-        <button class="json-button" type="button" title="导入可编辑的简历 JSON" @click="jsonFileInput?.click()">
+        <button class="json-button" type="button" title="导入可编辑的简历 JSON" :disabled="saving" @click="jsonFileInput?.click()">
           <FileUpIcon />
           导入 JSON
         </button>
@@ -53,13 +55,43 @@
         <button class="print-button" type="button" :disabled="exporting" @click="exportPdf">
           <LoaderCircleIcon v-if="exporting" class="spin" />
           <FileDownIcon v-else />
-          {{ exporting ? '生成中' : '导出 PDF' }}
+          {{ exporting ? '生成中' : user ? '导出 PDF' : '登录并导出 PDF' }}
         </button>
       </div>
     </header>
 
-    <div ref="workspaceBody" class="workspace-body" :style="splitStyle">
-      <aside class="resume-editor">
+    <div v-if="statusMessage" class="status-toast" :class="{ error: statusError }" :role="statusError ? 'alert' : 'status'">
+      <span>{{ statusMessage }}</span>
+      <button type="button" aria-label="关闭提示" @click="statusMessage = ''"><XIcon /></button>
+    </div>
+    <dialog ref="discardDialog" class="discard-dialog" aria-labelledby="discard-title" @cancel.prevent="!saving && resolveDiscard(false)">
+      <h2 id="discard-title">保留当前修改？</h2>
+      <p>继续后将离开或替换当前草稿。可以先保存，再继续操作。</p>
+      <p v-if="!user">JSON 备份不包含证件照。</p>
+      <p v-if="statusError && statusMessage" class="dialog-error" role="alert">{{ statusMessage }}</p>
+      <div class="discard-actions">
+        <button type="button" :disabled="saving" @click="resolveDiscard(false)">取消</button>
+        <button type="button" :disabled="saving" @click="resolveDiscard(true)">放弃修改</button>
+        <button v-if="user" class="primary" type="button" :disabled="saving" @click="saveAndContinue">{{ saving ? '保存中…' : '保存并继续' }}</button>
+        <button v-else class="primary" type="button" @click="exportResumeJson(); resolveDiscard(true)">导出 JSON 并继续</button>
+      </div>
+    </dialog>
+    <dialog ref="entryDeleteDialog" class="discard-dialog entry-delete-dialog" aria-labelledby="entry-delete-title" @close="pendingEntryDelete = null">
+      <div class="delete-dialog-icon" aria-hidden="true"><Trash2Icon /></div>
+      <h2 id="entry-delete-title">删除{{ pendingEntryDelete?.kind }}？</h2>
+      <p v-if="pendingEntryDelete">“{{ pendingEntryDelete.label }}”{{ pendingEntryDelete.description }}</p>
+      <div class="discard-actions">
+        <button type="button" autofocus @click="closeEntryDeleteDialog">取消</button>
+        <button class="danger-confirm" type="button" @click="confirmEntryDelete">确认删除</button>
+      </div>
+    </dialog>
+
+    <div class="mobile-view-tabs" role="group" aria-label="工作区视图">
+      <button type="button" :aria-pressed="mobileView === 'editor'" @click="mobileView = 'editor'">编辑内容</button>
+      <button type="button" :aria-pressed="mobileView === 'preview'" @click="mobileView = 'preview'">预览简历</button>
+    </div>
+    <div ref="workspaceBody" class="workspace-body" :data-view="mobileView" :style="splitStyle">
+      <aside ref="resumeEditor" class="resume-editor">
         <div class="editor-heading">
           <div>
             <span>RESUME EDITOR</span>
@@ -141,20 +173,39 @@
         <section
           v-for="(section, sectionIndex) in resume.content.sections"
           :key="section.id"
+          :data-section-id="section.id"
           class="editor-card section-card"
+          :class="{
+            'is-dragging': draggedSectionId === section.id,
+            'is-drag-over': dragOverSectionId === section.id
+          }"
         >
           <header>
             <div class="section-name">
-              <GripVerticalIcon />
-              <input v-model="section.title" aria-label="栏目名称" placeholder="栏目名称">
-              <PencilIcon class="section-pencil" />
-              <small>{{ sectionTypeLabel(section.type) }}</small>
+              <button
+                class="section-drag-handle"
+                type="button"
+                :aria-label="`拖动调整“${section.title || '未命名栏目'}”的位置`"
+                title="拖动调整顺序；也可用上下方向键"
+                @pointerdown="startSectionDrag($event, section.id)"
+                @keydown="reorderSectionWithKeyboard($event, section.id)"
+              >
+                <GripVerticalIcon aria-hidden="true" />
+              </button>
+              <label class="section-title-editor" title="点击修改栏目名称">
+                <PencilIcon aria-hidden="true" />
+                <input
+                  v-model="section.title"
+                  :size="sectionTitleInputSize(section.title)"
+                  aria-label="栏目名称"
+                  placeholder="栏目名称"
+                >
+              </label>
+              <small v-if="section.title.trim() !== sectionTypeLabel(section.type)" title="栏目类型">
+                {{ sectionTypeLabel(section.type) }}
+              </small>
             </div>
             <div class="card-actions">
-              <span class="order-actions">
-                <button type="button" title="上移栏目" :disabled="sectionIndex === 0" @click="moveSection(sectionIndex, -1)"><ArrowUpIcon /></button>
-                <button type="button" title="下移栏目" :disabled="sectionIndex === resume.content.sections.length - 1" @click="moveSection(sectionIndex, 1)"><ArrowDownIcon /></button>
-              </span>
               <button type="button" @click="addSectionItem(sectionIndex)"><PlusIcon /> {{ section.type === 'experience' ? '添加项目' : '添加条目' }}</button>
               <button class="danger" type="button" title="删除栏目" @click="deleteSection(sectionIndex)"><Trash2Icon /></button>
               <button class="collapse-button" type="button" :aria-expanded="!isSectionCollapsed(section.id)" title="折叠或展开栏目" @click="toggleSection(section.id)">
@@ -176,15 +227,16 @@
                 <div class="form-grid">
                   <EditorField v-model="section.items[0].heading" label="公司 / 组织" placeholder="公司或组织名称" />
                   <EditorField v-model="section.items[0].tag" label="职位" placeholder="软件开发实习生" />
-                  <EditorField v-model="section.items[0].range" class="wide" label="任职时间" placeholder="2026-05 ~ 2026-08" />
+                  <EditorField v-model="section.items[0].range" label="任职时间" placeholder="2026-05 ~ 2026-08" />
+                  <EditorField v-model="section.items[0].badge" label="荣誉 / 亮点" placeholder="优秀实习生 / 最佳新人" />
                   <EditorField v-model="section.items[0].stack" class="wide" label="共用技术栈" placeholder="Java、Spring Boot、MySQL、Redis" />
                 </div>
               </div>
 
-              <article v-for="(item, itemIndex) in section.items" :key="item.id" class="entry-editor experience-project-editor">
+              <article v-for="(item, itemIndex) in section.items" :key="item.id" :data-item-id="item.id" class="entry-editor experience-project-editor">
                 <div class="entry-label">
                   <strong>项目 {{ itemIndex + 1 }}</strong>
-                  <button type="button" title="删除项目" @click="deleteExperienceProject(sectionIndex, itemIndex)"><XIcon /></button>
+                  <button type="button" title="删除项目" :aria-label="`删除项目 ${itemIndex + 1}`" @click="requestEntryDelete(sectionIndex, itemIndex)"><XIcon /></button>
                 </div>
                 <div class="form-grid">
                   <EditorField v-model="item.intro" label="项目名称" placeholder="项目一：骑手事故处置 AI Agent" />
@@ -196,10 +248,10 @@
             </template>
 
             <template v-else>
-              <article v-for="(item, itemIndex) in section.items" :key="item.id" class="entry-editor">
+              <article v-for="(item, itemIndex) in section.items" :key="item.id" :data-item-id="item.id" class="entry-editor">
                 <div class="entry-label">
                   <strong>条目 {{ itemIndex + 1 }}</strong>
-                  <button type="button" title="删除条目" @click="section.items.splice(itemIndex, 1)"><XIcon /></button>
+                  <button type="button" title="删除条目" :aria-label="`删除条目 ${itemIndex + 1}`" @click="requestEntryDelete(sectionIndex, itemIndex)"><XIcon /></button>
                 </div>
                 <div class="form-grid">
                   <EditorField
@@ -252,10 +304,13 @@
           <span>实时预览</span>
           <div class="preview-zoom" aria-label="预览缩放">
             <button type="button" aria-label="缩小预览" :disabled="previewZoom <= minZoom" @click="changeZoom(-10)"><MinusIcon /></button>
-            <button class="zoom-value" type="button" title="恢复默认比例" @click="previewZoom = defaultZoom">{{ previewZoom }}%</button>
+            <button class="zoom-value" type="button" title="显示原始比例" @click="zoomMode = 'manual'; previewZoom = 100">{{ previewZoom }}%</button>
             <button type="button" aria-label="放大预览" :disabled="previewZoom >= maxZoom" @click="changeZoom(10)"><PlusIcon /></button>
           </div>
-          <small>A4 · {{ pageCount }} 页</small>
+          <div class="preview-options">
+            <button type="button" :aria-pressed="zoomMode === 'fit'" @click="fitPreview">适应宽度</button>
+            <small>A4 · {{ pageCount }} 页</small>
+          </div>
         </div>
         <div class="preview-scroll">
           <div ref="previewDocument" class="preview-document" :style="{ zoom: previewZoom / 100 }">
@@ -281,9 +336,7 @@ import type { ApiResult } from '~~/types/api'
 import type { Component } from 'vue'
 import type { ResumeDocument, ResumeLibraryItem, ResumeSectionItem, ResumeSectionType, ResumeTemplate } from '~/types/resume'
 import {
-  ArrowDown as ArrowDownIcon,
   ArrowLeft as ArrowLeftIcon,
-  ArrowUp as ArrowUpIcon,
   BriefcaseBusiness as BriefcaseBusinessIcon,
   ChevronDown as ChevronDownIcon,
   FileDown as FileDownIcon,
@@ -321,21 +374,111 @@ const saving = ref(false)
 const exporting = ref(false)
 const statusMessage = ref('')
 const statusError = ref(false)
-const basicCollapsed = ref(true)
+const basicCollapsed = ref(false)
 const layoutCollapsed = ref(true)
 const sectionPickerOpen = ref(false)
 const collapsedSections = reactive<Record<string, boolean>>({})
 const workspaceBody = ref<HTMLElement | null>(null)
+const resumeEditor = ref<HTMLElement | null>(null)
 const previewDocument = ref<HTMLElement | null>(null)
 const jsonFileInput = ref<HTMLInputElement | null>(null)
 const editorWidth = ref('43%')
 const resizing = ref(false)
 const defaultZoom = 100
-const minZoom = 40
+const minZoom = 20
 const maxZoom = 120
 const continuationTopExtra = 4
 const previewZoom = ref(defaultZoom)
+const zoomMode = ref<'fit' | 'manual'>('fit')
+const mobileView = ref<'editor' | 'preview'>('editor')
+const draggedSectionId = ref<string | null>(null)
+const dragOverSectionId = ref<string | null>(null)
 const pageCount = ref(1)
+const savedSnapshot = ref(JSON.stringify(resume))
+const dirty = computed(() => JSON.stringify(resume) !== savedSnapshot.value)
+const draftStored = ref(false)
+const draftReady = ref(false)
+const draftKey = computed(() => `resume-draft-v1:${user.value?.id ?? 'guest'}`)
+const draftLabel = computed(() => dirty.value
+  ? draftStored.value ? '草稿已存本机 · 未保存到简历库' : '未保存'
+  : currentResumeId.value ? '已保存到简历库' : '示例简历')
+const discardDialog = ref<HTMLDialogElement | null>(null)
+const entryDeleteDialog = ref<HTMLDialogElement | null>(null)
+const pendingEntryDelete = ref<{
+  sectionId: string
+  itemId: string
+  kind: '条目' | '项目'
+  label: string
+  description: string
+} | null>(null)
+let discardResolver: ((value: boolean) => void) | undefined
+let draftTimer: ReturnType<typeof setTimeout> | undefined
+let viewportObserver: ResizeObserver | undefined
+
+function persistDraft() {
+  clearTimeout(draftTimer)
+  if (!draftReady.value) return false
+  try {
+    localStorage.setItem(draftKey.value, JSON.stringify({ document: resume, id: currentResumeId.value, savedSnapshot: savedSnapshot.value }))
+    draftStored.value = true
+    return true
+  } catch {
+    draftStored.value = false
+    showStatus('本机草稿保存失败，请保存到简历库或导出 JSON 备份', true)
+    return false
+  }
+}
+
+function resolveDiscard(continueAction: boolean) {
+  discardDialog.value?.close()
+  discardResolver?.(continueAction)
+  discardResolver = undefined
+}
+
+function confirmReplace() {
+  if (!dirty.value) return Promise.resolve(true)
+  if (discardResolver) return Promise.resolve(false)
+  return new Promise<boolean>((resolve) => {
+    discardResolver = resolve
+    discardDialog.value?.showModal()
+  })
+}
+
+async function loginWithDraft() {
+  if (!persistDraft()) return
+  try {
+    sessionStorage.setItem('resume-transfer-guest', '1')
+  } catch {
+    showStatus('无法保留登录前的草稿，请先导出 JSON 备份', true)
+    return
+  }
+  await navigateTo({ path: '/login', query: { redirect: '/tools/resume' } })
+}
+
+async function saveAndContinue() {
+  if (await saveResume()) resolveDiscard(true)
+}
+
+function protectUnload(event: BeforeUnloadEvent) {
+  if (dirty.value && !persistDraft()) {
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+
+onBeforeRouteLeave(async () => {
+  if (!dirty.value) return true
+  if (persistDraft()) return true
+  // A failed local backup must not silently lose edits, including on the way to login.
+  return await confirmReplace()
+})
+
+watch(resume, () => {
+  if (!draftReady.value) return
+  draftStored.value = false
+  clearTimeout(draftTimer)
+  draftTimer = setTimeout(persistDraft, 300)
+}, { deep: true })
 const splitStyle = computed(() => ({ '--editor-width': editorWidth.value }))
 const printPageCss = computed(() => `@media print {
   @page {
@@ -419,7 +562,7 @@ function showStatus(message: string, error = false) {
   statusMessage.value = message
   statusError.value = error
   clearTimeout(messageTimer)
-  messageTimer = setTimeout(() => { statusMessage.value = '' }, 3000)
+  if (!error) messageTimer = setTimeout(() => { statusMessage.value = '' }, 5000)
 }
 
 function replaceResume(value: ResumeDocument) {
@@ -432,16 +575,19 @@ async function loadLibrary() {
     const result = await $fetch<ApiResult<ResumeLibraryItem[]>>('/api/resumes')
     library.value = result.data
   } catch {
-    showStatus('简历库加载失败，请确认数据库迁移已执行', true)
+    showStatus('简历库加载失败，请稍后刷新重试；当前内容仍可导出 JSON', true)
   }
 }
 
 async function selectResume(event: Event) {
-  const id = Number((event.target as HTMLSelectElement).value)
+  const select = event.target as HTMLSelectElement
+  const id = Number(select.value)
+  select.value = String(currentResumeId.value ?? '')
   if (!id) {
-    newResume()
+    await newResume()
     return
   }
+  if (!await confirmReplace()) return
   try {
     const result = await $fetch<ApiResult<{ id: number, title: string, content: ResumeDocument['content'], layout?: ResumeDocument['layout'] }>>(`/api/resumes/${id}`)
     currentResumeId.value = result.data.id
@@ -450,33 +596,43 @@ async function selectResume(event: Event) {
       content: result.data.content,
       layout: result.data.layout || createDefaultResume().layout
     })
+    savedSnapshot.value = JSON.stringify(resume)
+    persistDraft()
     showStatus('简历已载入')
   } catch {
     showStatus('简历载入失败', true)
   }
 }
 
-function newResume() {
+async function newResume(skipConfirmation = false) {
+  if (skipConfirmation !== true && !await confirmReplace()) return
   currentResumeId.value = null
   replaceResume(createDefaultResume())
   resume.title = '未命名简历'
-  showStatus('已新建空白副本')
+  savedSnapshot.value = JSON.stringify(resume)
+  persistDraft()
+  showStatus('已新建示例副本，可修改为你的简历')
 }
 
 async function saveResume() {
   if (!user.value || saving.value) return
   saving.value = true
+  const snapshot = JSON.stringify(resume)
   try {
     const path = currentResumeId.value ? `/api/resumes/${currentResumeId.value}` : '/api/resumes'
     const result = await $fetch<ApiResult<{ id: number }>>(path, {
       method: currentResumeId.value ? 'PUT' : 'POST',
-      body: { title: resume.title, content: resume.content, layout: resume.layout }
+      body: JSON.parse(snapshot)
     })
     currentResumeId.value = result.data.id
     await loadLibrary()
+    savedSnapshot.value = snapshot
+    persistDraft()
     showStatus('已保存到个人简历库')
+    return true
   } catch {
-    showStatus('保存失败，请检查栏目名称和内容', true)
+    showStatus('保存失败，请检查栏目名称和内容后重试', true)
+    return false
   } finally {
     saving.value = false
   }
@@ -486,7 +642,7 @@ async function removeResume() {
   if (!currentResumeId.value || !window.confirm('确定删除这份简历吗？此操作无法撤销。')) return
   try {
     await $fetch(`/api/resumes/${currentResumeId.value}`, { method: 'DELETE' })
-    newResume()
+    await newResume(true)
     await loadLibrary()
     showStatus('简历已删除')
   } catch {
@@ -500,6 +656,10 @@ function sectionFields(type: ResumeSectionType) {
 
 function sectionTypeLabel(type: ResumeSectionType) {
   return sectionTypeOptions.find(option => option.type === type)?.title || '自定义栏目'
+}
+
+function sectionTitleInputSize(title: string) {
+  return Math.max(4, Math.min(Array.from(title.trim()).length || 4, 14))
 }
 
 function addSection(type: ResumeSectionType) {
@@ -530,6 +690,174 @@ function moveSection(index: number, offset: -1 | 1) {
   if (section) resume.content.sections.splice(targetIndex, 0, section)
 }
 
+let draggedSectionMoved = false
+let sectionDragPointerId: number | null = null
+let sectionDragGhost: HTMLElement | null = null
+let sectionDragOffsetX = 0
+let sectionDragOffsetY = 0
+const sectionMoveAnimations = new Map<string, Animation>()
+
+function startSectionDrag(event: PointerEvent, sectionId: string) {
+  if (event.button !== 0) return
+  event.preventDefault()
+  ;(event.currentTarget as HTMLElement).focus({ preventScroll: true })
+  draggedSectionId.value = sectionId
+  dragOverSectionId.value = sectionId
+  draggedSectionMoved = false
+  sectionDragPointerId = event.pointerId
+  createSectionDragGhost(event, sectionId)
+  document.body.style.cursor = 'grabbing'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('pointermove', handleSectionDrag, { passive: false })
+  window.addEventListener('pointerup', stopSectionDrag)
+  window.addEventListener('pointercancel', stopSectionDrag)
+}
+
+function handleSectionDrag(event: PointerEvent) {
+  if (event.pointerId !== sectionDragPointerId || !draggedSectionId.value) return
+  event.preventDefault()
+  positionSectionDragGhost(event.clientX, event.clientY)
+  autoScrollSectionList(event.clientY)
+
+  const targetCard = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-section-id]')
+  const targetId = targetCard?.dataset.sectionId
+  if (!targetCard || !targetId) return
+  dragOverSectionId.value = targetId
+  if (targetId === draggedSectionId.value) return
+
+  const currentIndex = resume.content.sections.findIndex(section => section.id === draggedSectionId.value)
+  const targetIndex = resume.content.sections.findIndex(section => section.id === targetId)
+  if (currentIndex < 0 || targetIndex < 0) return
+
+  const insertAfterTarget = event.clientY > targetCard.getBoundingClientRect().top + targetCard.offsetHeight / 2
+  let nextIndex = targetIndex + (insertAfterTarget ? 1 : 0)
+  if (nextIndex > currentIndex) nextIndex -= 1
+  if (nextIndex === currentIndex) return
+
+  const previousPositions = sectionCardPositions()
+  const [section] = resume.content.sections.splice(currentIndex, 1)
+  if (section) {
+    resume.content.sections.splice(nextIndex, 0, section)
+    draggedSectionMoved = true
+    nextTick(() => animateSectionCards(previousPositions))
+  }
+}
+
+function createSectionDragGhost(event: PointerEvent, sectionId: string) {
+  const source = resumeEditor.value?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(sectionId)}"]`)
+  const sourceHeader = source?.querySelector<HTMLElement>(':scope > header')
+  if (!source || !sourceHeader) return
+
+  sectionDragGhost?.remove()
+  const sourceRect = source.getBoundingClientRect()
+  sectionDragOffsetX = event.clientX - sourceRect.left
+  sectionDragOffsetY = event.clientY - sourceRect.top
+
+  const ghost = document.createElement('section')
+  ghost.className = 'editor-card section-card section-drag-ghost'
+  ghost.setAttribute('aria-hidden', 'true')
+  Array.from(source.attributes).forEach((attribute) => {
+    if (attribute.name.startsWith('data-v-')) ghost.setAttribute(attribute.name, '')
+  })
+  const header = sourceHeader.cloneNode(true) as HTMLElement
+  const sourceInputs = sourceHeader.querySelectorAll<HTMLInputElement>('input')
+  header.querySelectorAll<HTMLInputElement>('input').forEach((input, index) => {
+    input.value = sourceInputs[index]?.value || ''
+  })
+  header.querySelectorAll<HTMLElement>('button, input').forEach((element) => { element.tabIndex = -1 })
+  ghost.appendChild(header)
+  ghost.style.width = `${sourceRect.width}px`
+  document.body.appendChild(ghost)
+  sectionDragGhost = ghost
+  positionSectionDragGhost(event.clientX, event.clientY)
+  requestAnimationFrame(() => ghost.classList.add('is-visible'))
+}
+
+function positionSectionDragGhost(clientX: number, clientY: number) {
+  if (!sectionDragGhost) return
+  sectionDragGhost.style.transform = `translate3d(${clientX - sectionDragOffsetX}px, ${clientY - sectionDragOffsetY}px, 0) rotate(.35deg) scale(1.015)`
+}
+
+function sectionCardPositions() {
+  return new Map(Array.from(resumeEditor.value?.querySelectorAll<HTMLElement>('[data-section-id]') || []).map(card => (
+    [card.dataset.sectionId || '', card.getBoundingClientRect().top]
+  )))
+}
+
+function animateSectionCards(previousPositions: Map<string, number>) {
+  resumeEditor.value?.querySelectorAll<HTMLElement>('[data-section-id]').forEach((card) => {
+    const id = card.dataset.sectionId || ''
+    const previousTop = previousPositions.get(id)
+    if (previousTop === undefined) return
+    const delta = previousTop - card.getBoundingClientRect().top
+    if (Math.abs(delta) < 1) return
+    sectionMoveAnimations.get(id)?.cancel()
+    const animation = card.animate(
+      [{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }],
+      { duration: 190, easing: 'cubic-bezier(.2, .8, .2, 1)' }
+    )
+    sectionMoveAnimations.set(id, animation)
+    animation.addEventListener('finish', () => sectionMoveAnimations.delete(id), { once: true })
+  })
+}
+
+function autoScrollSectionList(clientY: number) {
+  const edgeSize = 72
+  if (window.matchMedia('(max-width: 760px)').matches) {
+    if (clientY < edgeSize) window.scrollBy(0, -12)
+    else if (clientY > window.innerHeight - edgeSize) window.scrollBy(0, 12)
+    return
+  }
+
+  const editor = resumeEditor.value
+  if (!editor) return
+  const rect = editor.getBoundingClientRect()
+  if (clientY < rect.top + edgeSize) editor.scrollBy(0, -12)
+  else if (clientY > rect.bottom - edgeSize) editor.scrollBy(0, 12)
+}
+
+function stopSectionDrag(event?: PointerEvent) {
+  if (event && event.pointerId !== sectionDragPointerId) return
+  const moved = draggedSectionMoved
+  const droppedSectionId = draggedSectionId.value
+  draggedSectionId.value = null
+  dragOverSectionId.value = null
+  draggedSectionMoved = false
+  sectionDragPointerId = null
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  window.removeEventListener('pointermove', handleSectionDrag)
+  window.removeEventListener('pointerup', stopSectionDrag)
+  window.removeEventListener('pointercancel', stopSectionDrag)
+  finishSectionDragGhost(droppedSectionId)
+  if (moved) showStatus('栏目顺序已调整')
+}
+
+function finishSectionDragGhost(sectionId: string | null) {
+  const ghost = sectionDragGhost
+  if (!ghost) return
+  sectionDragGhost = null
+  const destination = sectionId
+    ? resumeEditor.value?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(sectionId)}"]`)?.getBoundingClientRect()
+    : null
+  ghost.style.transition = 'transform 140ms cubic-bezier(.2, .8, .2, 1), opacity 120ms ease'
+  ghost.style.opacity = '0'
+  if (destination) {
+    ghost.style.transform = `translate3d(${destination.left}px, ${destination.top}px, 0) rotate(0) scale(.985)`
+  }
+  window.setTimeout(() => ghost.remove(), 150)
+}
+
+function reorderSectionWithKeyboard(event: KeyboardEvent, sectionId: string) {
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+  event.preventDefault()
+  const index = resume.content.sections.findIndex(section => section.id === sectionId)
+  const offset = event.key === 'ArrowUp' ? -1 : 1
+  if (index < 0 || index + offset < 0 || index + offset >= resume.content.sections.length) return
+  moveSection(index, offset)
+  showStatus(`“${resume.content.sections[index + offset]?.title || '栏目'}”已${offset < 0 ? '上移' : '下移'}`)
+}
+
 function toggleSection(id: string) {
   collapsedSections[id] = !isSectionCollapsed(id)
 }
@@ -538,34 +866,99 @@ function isSectionCollapsed(id: string) {
   return collapsedSections[id] ?? true
 }
 
-function addSectionItem(index: number) {
-  resume.content.sections[index]?.items.push(createEmptySectionItem())
+async function addSectionItem(index: number) {
+  const section = resume.content.sections[index]
+  if (!section) return
+  const item = createEmptySectionItem()
+  section.items.push(item)
+  collapsedSections[section.id] = false
+  await nextTick()
+  const entry = Array.from(workspaceBody.value?.querySelectorAll<HTMLElement>('[data-item-id]') || [])
+    .find(element => element.dataset.itemId === item.id)
+  entry?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  entry?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea')?.focus({ preventScroll: true })
 }
 
-function deleteExperienceProject(sectionIndex: number, itemIndex: number) {
+function requestEntryDelete(sectionIndex: number, itemIndex: number) {
   const section = resume.content.sections[sectionIndex]
-  if (!section || section.type !== 'experience') return
+  const item = section?.items[itemIndex]
+  if (!section || !item) return
+  const kind = section.type === 'experience' ? '项目' : '条目'
+  const preferredName = section.type === 'experience' ? item.intro || item.heading : item.heading || item.intro
+  const name = preferredName.split(/\r?\n/)[0]?.trim()
+  pendingEntryDelete.value = {
+    sectionId: section.id,
+    itemId: item.id,
+    kind,
+    label: name ? `${kind} ${itemIndex + 1} · ${name.slice(0, 28)}` : `${kind} ${itemIndex + 1}`,
+    description: section.type === 'experience' && section.items.length === 1
+      ? '的项目内容将被清空，公司信息与共用技术栈会保留。'
+      : '及其中填写的内容将被删除，此操作无法撤销。'
+  }
+  nextTick(() => entryDeleteDialog.value?.showModal())
+}
+
+function closeEntryDeleteDialog() {
+  entryDeleteDialog.value?.close()
+  pendingEntryDelete.value = null
+}
+
+function confirmEntryDelete() {
+  const pending = pendingEntryDelete.value
+  if (!pending) return
+  const section = resume.content.sections.find(candidate => candidate.id === pending.sectionId)
+  const itemIndex = section?.items.findIndex(item => item.id === pending.itemId) ?? -1
+  if (!section || itemIndex < 0) {
+    closeEntryDeleteDialog()
+    return
+  }
+
+  if (section.type !== 'experience') {
+    section.items.splice(itemIndex, 1)
+    closeEntryDeleteDialog()
+    showStatus('条目已删除')
+    return
+  }
 
   const item = section.items[itemIndex]
-  if (!item) return
+  if (!item) {
+    closeEntryDeleteDialog()
+    return
+  }
   if (section.items.length === 1) {
     item.intro = ''
     item.secondary = ''
     item.bullets = ''
+    item.projectRole = ''
+    closeEntryDeleteDialog()
+    showStatus('最后一个项目的内容已清空')
     return
   }
 
   const [removed] = section.items.splice(itemIndex, 1)
-  if (itemIndex !== 0 || !removed || !section.items[0]) return
-
-  section.items[0].heading = removed.heading
-  section.items[0].tag = removed.tag
-  section.items[0].range = removed.range
-  section.items[0].stack = removed.stack
+  if (itemIndex === 0 && removed && section.items[0]) {
+    section.items[0].heading = removed.heading
+    section.items[0].tag = removed.tag
+    section.items[0].range = removed.range
+    section.items[0].badge = removed.badge
+    section.items[0].stack = removed.stack
+  }
+  closeEntryDeleteDialog()
+  showStatus('项目已删除')
 }
 
 function changeZoom(delta: number) {
+  zoomMode.value = 'manual'
   previewZoom.value = Math.min(maxZoom, Math.max(minZoom, previewZoom.value + delta))
+}
+
+function fitPreview() {
+  zoomMode.value = 'fit'
+  const container = workspaceBody.value?.querySelector<HTMLElement>('.preview-scroll')
+  if (!container?.clientWidth || !previewDocument.value?.offsetWidth) return
+  const style = getComputedStyle(container)
+  const available = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+  previewZoom.value = Math.max(minZoom, Math.min(100, Math.floor(available / previewDocument.value.offsetWidth * 100)))
 }
 
 function setEditorWidth(clientX: number) {
@@ -618,7 +1011,7 @@ function resizeWithKeyboard(event: KeyboardEvent) {
 
 function updatePageCount() {
   const paper = previewDocument.value?.querySelector<HTMLElement>('.resume-paper')
-  if (!paper) return
+  if (!paper?.offsetWidth) return
   const pixelsPerMillimeter = paper.offsetWidth / 210
   const previewVerticalPadding = resume.layout.verticalMargin * 2 * pixelsPerMillimeter
   const contentHeight = Math.max(0, paper.scrollHeight - previewVerticalPadding)
@@ -697,8 +1090,10 @@ async function importResumeJson(event: Event) {
     }
 
     const importedResume = parsePortableResume(value, resume.content.basic.avatar)
+    if (!await confirmReplace()) return
     currentResumeId.value = null
     replaceResume(importedResume)
+    persistDraft()
     Object.keys(collapsedSections).forEach(id => Reflect.deleteProperty(collapsedSections, id))
     showStatus('JSON 已导入，证件照已保留；确认后可保存')
   } catch (error) {
@@ -710,7 +1105,7 @@ async function importResumeJson(event: Event) {
 
 async function exportPdf() {
   if (!user.value) {
-    showStatus('请先登录后再导出无页眉 PDF', true)
+    await loginWithDraft()
     return
   }
   if (exporting.value) return
@@ -743,13 +1138,54 @@ async function exportPdf() {
 }
 
 onMounted(() => {
+  try {
+    // Carry the guest draft through login without attaching it to another user's saved document.
+    const transferGuest = !!user.value && sessionStorage.getItem('resume-transfer-guest') === '1'
+    const stored = localStorage.getItem(transferGuest ? 'resume-draft-v1:guest' : draftKey.value)
+    if (stored) {
+      const draft = JSON.parse(stored)
+      if (draft.document?.content?.basic && Array.isArray(draft.document.content.sections)) {
+        replaceResume(draft.document)
+        currentResumeId.value = !transferGuest && Number.isSafeInteger(draft.id) && draft.id > 0 ? draft.id : null
+        savedSnapshot.value = typeof draft.savedSnapshot === 'string' ? draft.savedSnapshot : savedSnapshot.value
+        draftStored.value = true
+        if (transferGuest) {
+          localStorage.setItem(draftKey.value, JSON.stringify({ ...draft, id: null }))
+          sessionStorage.removeItem('resume-transfer-guest')
+        }
+        showStatus('已恢复上次编辑的本机草稿')
+      }
+    }
+  } catch {
+    showStatus('无法恢复本机草稿，可以导入此前备份的 JSON', true)
+  }
+  nextTick(() => {
+    draftReady.value = true
+    observePreviewPages()
+    viewportObserver = new ResizeObserver(() => { if (zoomMode.value === 'fit') fitPreview() })
+    const container = workspaceBody.value?.querySelector('.preview-scroll')
+    if (container) viewportObserver.observe(container)
+    fitPreview()
+  })
+  window.addEventListener('beforeunload', protectUnload)
   loadLibrary()
-  nextTick(observePreviewPages)
 })
 watch(() => resume.layout.verticalMargin, () => nextTick(updatePageCount))
+watch(() => resume.layout.template, () => nextTick(observePreviewPages))
+watch(mobileView, async () => {
+  await nextTick()
+  workspaceBody.value?.scrollIntoView({ block: 'start' })
+})
 onBeforeUnmount(() => {
+  persistDraft()
+  clearTimeout(draftTimer)
   clearTimeout(messageTimer)
+  window.removeEventListener('beforeunload', protectUnload)
+  resolveDiscard(false)
+  closeEntryDeleteDialog()
+  viewportObserver?.disconnect()
   previewResizeObserver?.disconnect()
+  stopSectionDrag()
   stopResize()
 })
 
@@ -760,9 +1196,9 @@ useSeoMeta({
 </script>
 
 <style scoped>
-.resume-workspace { min-height: 100vh; background: #edf0f5; color: #273142; }
+.resume-workspace { display: flex; flex-direction: column; height: 100dvh; min-height: 0; background: #edf0f5; color: #273142; }
 .workspace-bar {
-  position: sticky; z-index: 20; top: 0; display: grid; min-height: 62px; grid-template-columns: 1fr auto 1fr;
+  flex: 0 0 auto; position: sticky; z-index: 20; top: 0; display: grid; min-height: 62px; grid-template-columns: 1fr auto 1fr;
   align-items: center; gap: 16px; padding: 9px 22px; border-bottom: 1px solid #dfe4ec; background: rgb(255 255 255 / 96%);
   box-shadow: 0 3px 14px rgb(32 42 62 / 5%); backdrop-filter: blur(12px);
 }
@@ -774,8 +1210,9 @@ useSeoMeta({
 }
 .back-to-tools:hover, .back-to-tools:focus-visible { border-color: #9bc7eb; outline: 0; background: #f2f8fd; color: #0874d1; }
 .back-to-tools svg { width: 14px; }
-.document-name > svg { width: 18px; color: #0874d1; }
-.document-name input { width: min(300px, 28vw); border: 0; outline: 0; background: transparent; color: #1b2431; font-size: 14px; font-weight: 750; }
+.document-name > svg { flex: 0 0 18px; width: 18px; color: #0874d1; }
+.document-details { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.document-name input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #1b2431; font-size: 14px; font-weight: 750; }
 .library-control { display: flex; align-items: center; gap: 6px; }
 .library-control label { display: flex; align-items: center; gap: 7px; }
 .library-control label > span { color: #778191; font-size: 10px; font-weight: 700; }
@@ -783,10 +1220,8 @@ useSeoMeta({
 .library-control button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid #dce1e8; border-radius: 8px; background: #fff; color: #667183; cursor: pointer; }
 .library-control button svg { width: 14px; }
 .library-control button.danger { color: #bc5263; }
-.login-tip { padding: 7px 11px; border-radius: 8px; background: #edf6ff; color: #0874d1; font-size: 10px; font-weight: 700; }
+.login-tip { cursor: pointer; padding: 7px 11px; border-radius: 8px; background: #edf6ff; color: #0874d1; font-size: 10px; font-weight: 700; }
 .workspace-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
-.workspace-actions > span { color: #16805d; font-size: 9px; }
-.workspace-actions > span.error { color: #c04f61; }
 .json-file-input { display: none; }
 .workspace-actions button { display: inline-flex; height: 35px; align-items: center; gap: 6px; padding: 0 11px; border-radius: 8px; cursor: pointer; font-size: 10px; font-weight: 750; }
 .workspace-actions button svg { width: 14px; }
@@ -797,7 +1232,7 @@ useSeoMeta({
 .print-button { border: 1px solid #0874d1; background: #0874d1; box-shadow: 0 5px 12px rgb(8 116 209 / 18%); color: #fff; }
 .print-button:disabled { cursor: wait; opacity: .7; }
 .spin { animation: spin .8s linear infinite; }
-.workspace-body { display: grid; height: calc(100vh - 62px); min-height: 700px; grid-template-columns: minmax(360px, var(--editor-width)) 8px minmax(360px, 1fr); }
+.workspace-body { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(360px, var(--editor-width)) 8px minmax(360px, 1fr); }
 .resume-editor { min-width: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 26px 28px 60px; background: #f9fafc; }
 .editor-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
 .editor-heading span { color: #0874d1; font: 750 8px "JetBrains Mono", monospace; letter-spacing: .14em; }
@@ -841,10 +1276,36 @@ useSeoMeta({
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; padding: 0 16px; }
 .form-grid :deep(.wide) { grid-column: 1 / -1; }
 .section-name { display: flex; min-width: 0; flex: 1; align-items: center; gap: 7px; }
-.section-name > svg:first-child { width: 14px; color: #a5adba; }
-.section-name .section-pencil { width: 11px; height: 11px; flex: 0 0 11px; color: #9aa3b0; }
-.section-name input { width: min(210px, 100%); padding: 3px 5px; border: 1px solid transparent; border-radius: 5px; outline: 0; background: transparent; color: #0874d1; font-size: 12px; font-weight: 800; }
-.section-name input:focus { border-color: #b7d8f4; background: #fff; }
+.section-drag-handle {
+  display: grid; width: 26px; height: 30px; flex: 0 0 26px; place-items: center; padding: 0; border: 0;
+  border-radius: 6px; background: transparent; color: #9aa6b5; cursor: grab; touch-action: none;
+}
+.section-drag-handle:hover, .section-drag-handle:focus-visible { outline: 0; background: #edf5fc; color: #0874d1; }
+.section-drag-handle:active { cursor: grabbing; }
+.section-drag-handle svg { width: 14px; pointer-events: none; }
+.section-card { transition: border-color .16s ease, box-shadow .16s ease, opacity .16s ease; }
+.section-card.is-dragging { border-color: #9bc7eb; box-shadow: none; opacity: .28; }
+.section-card.is-drag-over:not(.is-dragging) { border-color: #9bc7eb; }
+:global(.section-drag-ghost) {
+  position: fixed; z-index: 200; top: 0; left: 0; max-width: calc(100vw - 16px); margin: 0 !important;
+  overflow: hidden; border-color: #74afe1 !important; background: #fff; box-shadow: 0 18px 42px rgb(31 55 84 / 24%) !important;
+  opacity: 0; pointer-events: none; will-change: transform;
+}
+:global(.section-drag-ghost.is-visible) { opacity: .97; }
+:global(.section-drag-ghost > header) { border-bottom: 0 !important; }
+.section-title-editor {
+  display: inline-flex; min-width: 0; max-width: 190px; align-items: center; gap: 5px; padding: 4px 7px;
+  border: 1px solid #dce5ee; border-radius: 6px; background: #fff; cursor: text;
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+.section-title-editor:hover { border-color: #a9cdeb; background: #f8fbfe; }
+.section-title-editor:focus-within { border-color: #74afe1; background: #fff; box-shadow: 0 0 0 3px rgb(8 116 209 / 8%); }
+.section-title-editor > svg { width: 11px; height: 11px; flex: 0 0 11px; color: #8292a5; }
+.section-title-editor:hover > svg, .section-title-editor:focus-within > svg { color: #0874d1; }
+.section-title-editor input {
+  min-width: 4em; max-width: 155px; padding: 0; border: 0; outline: 0; background: transparent;
+  color: #0874d1; font-size: 12px; font-weight: 800;
+}
 .section-name small {
   flex: 0 0 auto; padding: 4px 7px; border-radius: 5px; background: #eaf4fc; color: #3477ae;
   font-size: 10px; font-weight: 750; white-space: nowrap;
@@ -854,18 +1315,21 @@ useSeoMeta({
 .card-actions button svg { width: 11px; }
 .card-actions button:disabled { cursor: not-allowed; opacity: .35; }
 .card-actions button.danger { width: 28px; padding: 0; justify-content: center; color: #bd5968; }
-.order-actions { display: inline-flex; overflow: hidden; border: 1px solid #dce2e9; border-radius: 7px; }
-.order-actions button { width: 27px; padding: 0; justify-content: center; border: 0; border-radius: 0; }
-.order-actions button + button { border-left: 1px solid #e3e7ed; }
-.entry-editor { padding: 12px 0 14px; }
-.entry-editor + .entry-editor { border-top: 1px dashed #dfe3e9; }
+.entry-editor {
+  margin: 12px; padding: 0 0 14px; overflow: hidden; border: 1px solid #e0e6ed; border-radius: 10px;
+  background: #fbfcfe; box-shadow: 0 2px 7px rgb(35 48 68 / 3%);
+}
+.entry-editor + .entry-editor { margin-top: 14px; }
 .experience-company-editor { padding: 13px 0 16px; border-bottom: 1px solid #dfe4eb; background: #f8fbfe; }
 .experience-company-editor .entry-label strong { color: #3477ae; }
-.experience-project-editor { margin: 10px 12px 0; padding: 12px 0 14px; border: 1px solid #e2e7ed; border-radius: 9px; background: #fff; }
-.experience-project-editor + .experience-project-editor { border-top: 1px solid #e2e7ed; }
+.experience-project-editor { background: #fff; }
+.entry-editor > .entry-label {
+  min-height: 42px; margin-bottom: 12px; padding: 8px 12px 8px 14px; border-bottom: 1px solid #e4e9ef; background: #f5f8fb;
+}
 .entry-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; padding: 0 16px; }
 .entry-label strong { color: #697587; font-size: 10px; }
-.entry-label button { display: grid; width: 22px; height: 22px; place-items: center; border: 0; border-radius: 6px; background: #fff1f3; color: #c05869; cursor: pointer; }
+.entry-label button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #fecdd3; border-radius: 7px; background: #fff; color: #c05869; cursor: pointer; }
+.entry-label button:hover, .entry-label button:focus-visible { outline: 0; border-color: #fda4af; background: #fff1f3; }
 .entry-label svg { width: 11px; }
 .empty-section { padding: 24px; color: #9aa3af; font-size: 10px; text-align: center; }
 .add-section-wrap { position: relative; }
@@ -904,7 +1368,7 @@ useSeoMeta({
 .preview-area { display: flex; min-width: 0; overflow: hidden; flex-direction: column; background: #e9ecf2; }
 .preview-caption { display: grid; height: 45px; flex: 0 0 45px; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 0 20px; border-bottom: 1px solid #dadee6; background: #f3f5f8; }
 .preview-caption span { color: #4f5968; font-size: 10px; font-weight: 750; }
-.preview-caption small { justify-self: end; color: #8b94a2; font-size: 8px; }
+.preview-caption small { white-space: nowrap; justify-self: end; color: #8b94a2; font-size: 8px; }
 .preview-zoom { display: inline-flex; overflow: hidden; border: 1px solid #d6dce5; border-radius: 7px; background: #fff; box-shadow: 0 2px 6px rgb(36 47 67 / 5%); }
 .preview-zoom button { display: grid; height: 28px; min-width: 29px; place-items: center; padding: 0; border: 0; background: #fff; color: #657183; cursor: pointer; font-size: 9px; font-weight: 750; }
 .preview-zoom button + button { border-left: 1px solid #e2e6ec; }
@@ -928,7 +1392,7 @@ useSeoMeta({
 }
 
 @media (max-width: 1100px) {
-  .workspace-actions > span, .library-control label > span { display: none; }
+  .library-control label > span { display: none; }
   .back-to-tools { width: 34px; justify-content: center; padding: 0; }
   .back-to-tools span { display: none; }
   .resume-editor { padding-inline: 18px; }
@@ -936,25 +1400,56 @@ useSeoMeta({
   .card-actions > button:not(.danger, .collapse-button) { width: 28px; padding: 0; overflow: hidden; font-size: 0; justify-content: center; }
 }
 @media (max-width: 760px) {
+  .resume-workspace { height: auto; min-height: 100dvh; }
   .workspace-bar { position: relative; grid-template-columns: 1fr auto; padding: 9px 12px; }
   .library-control { grid-row: 2; grid-column: 1 / -1; justify-content: center; }
   .library-control select { width: 230px; }
-  .document-name input { width: 190px; }
-  .workspace-actions .save-button { font-size: 0; }
-  .workspace-body { height: auto; min-height: 0; grid-template-columns: 1fr; }
+  .workspace-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .workspace-actions .save-button { font-size: 12px; }
+  .workspace-body { height: auto; min-height: 0; grid-template-columns: 1fr; scroll-margin-top: 56px; }
   .workspace-divider { display: none; }
   .resume-editor { overflow: visible; padding: 22px 13px 40px; }
   .preview-area { min-height: 650px; }
   .preview-scroll { padding: 18px 8px; }
 }
 @media (max-width: 430px) {
-  .document-name input { width: 140px; }
-  .workspace-actions .print-button { padding: 0 9px; font-size: 0; }
+  .workspace-actions .print-button { padding: 0 9px; font-size: 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .form-grid :deep(.wide) { grid-column: auto; }
   .layout-settings { grid-template-columns: 1fr; }
   .section-picker { grid-template-columns: 1fr; }
 }
+.mobile-view-tabs { display: none; }
+@media (max-width: 760px) {
+  .mobile-view-tabs { position: sticky; top: 0; z-index: 10; display: flex; gap: 6px; padding: 8px 12px; background: #f9fafc; border-bottom: 1px solid #dfe4eb; }
+  .mobile-view-tabs button { flex: 1; min-height: 40px; border-radius: 8px; color: #64748b; font-size: 14px; cursor: pointer; }
+  .mobile-view-tabs button[aria-pressed="true"] { background: #e5f2ff; color: #0874d1; font-weight: 700; }
+  .workspace-body[data-view="editor"] .preview-area, .workspace-body[data-view="preview"] .resume-editor { display: none; }
+  .preview-caption { gap: 6px; padding-inline: 12px; }
+}
+.draft-state { overflow: hidden; color: #64748b; font-size: 11px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.status-toast { position: fixed; z-index: 100; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; width: max-content; max-width: calc(100vw - 32px); padding: 14px 18px; border: 1px solid #b9decd; border-radius: 10px; background: #f0fdf4; color: #166534; box-shadow: 0 8px 28px #172b4d26; font-size: 14px; }
+.status-toast.error { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+.status-toast button { flex: 0 0 28px; width: 28px; height: 28px; cursor: pointer; }
+.status-toast svg { width: 18px; }
+.discard-dialog { margin: auto; width: min(460px, calc(100vw - 32px)); padding: 24px; border: 1px solid #dfe4eb; border-radius: 14px; background: white; color: #273142; }
+.discard-dialog::backdrop { background: #0f172a66; }
+.discard-dialog h2 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+.dialog-error { color: #9f1239; margin-top: 12px; }
+.discard-dialog p { font-size: 14px; line-height: 1.7; }
+.discard-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.discard-actions button, .preview-options button { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-size: 12px; }
+.discard-actions .primary { background: #0874d1; color: white; }
+.discard-actions .danger-confirm { border-color: #e11d48; background: #e11d48; color: #fff; }
+.discard-actions .danger-confirm:hover { background: #be123c; }
+.discard-actions button:disabled { opacity: .6; cursor: wait; }
+.entry-delete-dialog { text-align: center; }
+.delete-dialog-icon { display: grid; width: 44px; height: 44px; margin: 0 auto 14px; place-items: center; border-radius: 50%; background: #fff1f2; color: #be123c; }
+.delete-dialog-icon svg { width: 20px; }
+.preview-options { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.preview-options button { padding: 5px 7px; white-space: nowrap; }
+.preview-options button[aria-pressed="true"] { background: #e5f2ff; color: #0874d1; border-color: #9bc7eb; }
+@media print { .status-toast, .discard-dialog, .mobile-view-tabs { display: none !important; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media print {

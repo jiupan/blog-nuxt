@@ -47,6 +47,7 @@
               <div class="detail-identity">
                 <strong v-if="item.heading">{{ item.heading }}</strong>
                 <span v-if="item.tag" class="detail-role">{{ item.tag }}</span>
+                <strong v-if="item.badge" class="experience-honor">{{ item.badge }}</strong>
               </div>
               <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
             </div>
@@ -276,6 +277,8 @@ function stackLabel(type: ResumeSectionType) {
   color: #60738c;
   line-height: 1.35;
 }
+
+.experience-honor { flex: 0 0 auto; white-space: nowrap; }
 
 .education-major {
   flex: 0 0 auto;

@@ -16,10 +16,13 @@
       <h2>{{ section.title || '未命名栏目' }}</h2>
 
       <div v-for="item in section.items" :key="item.id" class="resume-entry">
-        <div v-if="item.range || item.heading || item.tag" class="entry-heading">
+        <div v-if="item.range || item.heading || item.tag || (section.type === 'experience' && item.badge)" class="entry-heading">
           <strong>{{ item.range }}</strong>
           <strong>{{ item.heading }}</strong>
-          <strong>{{ item.tag }}</strong>
+          <strong class="entry-heading-tail">
+            <span>{{ item.tag }}</span>
+            <span v-if="section.type === 'experience' && item.badge" class="experience-honor">{{ item.badge }}</span>
+          </strong>
         </div>
         <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
         <p v-if="item.intro">
@@ -69,3 +72,14 @@ function stackLabel(type: ResumeSectionType) {
   return type === 'research' ? '方法与工具' : '技术栈'
 }
 </script>
+
+<style scoped>
+.entry-heading-tail {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 2mm;
+}
+
+.experience-honor { flex: 0 0 auto; white-space: nowrap; }
+</style>
