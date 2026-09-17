@@ -7,3 +7,10 @@ node_modules_broken
 dist
 *.log
 blog-app.tar
+
+# Local planning and session notes
+/会话总结.md
+/实现方案.md
+/架构治理计划.md
+/用户管理设计方案.md
+/评论系统设计方案.md
