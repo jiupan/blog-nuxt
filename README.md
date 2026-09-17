@@ -2,9 +2,9 @@
 
 # Jiupan Blog
 
-**A full-stack blog, a lightweight CMS, and an AI knowledge base — all in one Nuxt application.**
+**A self-hosted Nuxt content platform with CMS, RAG search, article chat, and built-in tools.**
 
-一个基于 Nuxt 4 的全栈动态博客：面向读者的 SSR 站点、面向创作者的内容后台，以及由 PostgreSQL + pgvector 驱动的 AI 知识库。
+一个可自托管的 Nuxt 4 个人内容平台：在常规博客与 CMS 之上，整合 AI 内容工作流、RAG 知识库、文章对话和简历工坊。
 
 [![Nuxt](https://img.shields.io/badge/Nuxt-4.4-00DC82?style=flat-square&logo=nuxt.js&logoColor=white)](https://nuxt.com/)
 [![Vue](https://img.shields.io/badge/Vue-3-42B883?style=flat-square&logo=vue.js&logoColor=white)](https://vuejs.org/)
@@ -20,26 +20,32 @@
 
 ## ✨ 项目亮点
 
-Jiupan Blog 不是只有文章列表的静态模板。它把内容创作、站点管理、用户体系、AI 工具和可自托管部署放进了同一套应用中。
+Jiupan Blog 以文章系统为基础，重点覆盖内容的创作、发布与后续复用：辅助写作、语义检索、站内问答、文章对话以及独立文件知识库。
 
-| 内容与阅读 | AI 与知识库 | 管理与安全 | 互动与工具 |
-| --- | --- | --- | --- |
-| Markdown 写作与实时预览 | 站内问答与文章对话 | 完整的内容管理后台 | Twikoo 评论、回复与审核 |
-| 草稿、发布、置顶与 SEO | 语义搜索与混合检索 | Session 认证与角色权限 | 简历编辑、模板与 PDF 导出 |
-| 分类、标签、归档与动态菜单 | Markdown / TXT / PDF / DOCX 入库 | 用户、图库、设置与知识库管理 | 响应式界面与深浅色主题 |
-| SSR、Sitemap 与 `robots.txt` | 可选 Rerank 与可靠任务队列 | 限流、安全响应头与审计记录 | JSON 导入导出与个人简历库 |
+| 模块 | 已实现能力 |
+| --- | --- |
+| 博客与 CMS | Markdown 编辑、草稿/发布、分类标签、归档、动态菜单、图库、SEO 与 Sitemap |
+| AI 内容工作流 | 写作建议、摘要生成、SEO 检查、外链检查、关联文章、草稿整理、站点洞察与月度回顾 |
+| RAG 知识库 | 文章和 Markdown / TXT / PDF / DOCX 文件分块，pgvector 向量检索、关键词检索、可选 Rerank |
+| 问答与对话 | 带参考来源的站内问答，文章级流式对话，对话历史、重命名与删除 |
+| 管理与安全 | 用户和角色管理、实时权限校验、操作审计、登录/注册/AI 限流 |
+| 互动与工具 | Twikoo 评论；简历的结构化编辑、模板切换、JSON 导入导出、在线保存和 PDF 导出 |
 
-### 从写作到发布，不需要重新构建
+### 一组贯穿内容生命周期的 AI 工具
 
-文章、菜单和站点设置均保存在数据库中。在后台发布内容后，前台会通过 SSR 和 Nitro API 直接读取最新数据，无需为每篇文章重新构建站点。
+AI 能力不只是一个聊天入口。它分布在选题、草稿、发布、SEO、旧文关联和内容复盘等环节。各功能复用统一的模型客户端和错误解析；面向普通用户的入口另有频率与每日配额限制。
 
-### 让博客内容变成可检索、可对话的知识库
+### 一套可观测、可恢复的知识索引流程
 
-已发布文章和私有知识文件可以经过分块、Embedding 和 pgvector 索引后用于语义搜索、站内问答和文章对话。对话模型、Embedding 和 Rerank 都可分别配置兼容服务。
+后台可以管理文章和外部文件的入库状态、同步任务、查询记录与检索测试。异步 Worker 处理任务认领、心跳、超时恢复和失败重试，避免长时间索引操作阻塞管理请求。
 
-### 从公开站点到管理后台的完整闭环
+### 把 AI 放进具体的阅读上下文
 
-项目包含文章、分类、标签、菜单、图库、侧边栏、用户、评论和知识库管理界面，不需要另外组装 CMS。
+除了面向整站的问答和语义搜索，每篇文章还可以建立独立对话。服务端只在当前文章的索引片段内检索并流式回答，同时保留会话历史，而不是让读者离开文章去使用一个孤立聊天页。
+
+### 一个与博客共享账户体系的简历工坊
+
+简历工坊支持结构化编辑、自定义栏目、实时 A4 预览、版式参数调整、JSON 备份和服务端 PDF 导出；登录后可以管理多份简历。
 
 <a id="preview"></a>
 
