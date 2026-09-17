@@ -160,6 +160,8 @@ html {
   overflow-y: scroll;
   scroll-behavior: smooth;
   scrollbar-gutter: stable;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -192,6 +194,8 @@ body[style*="padding-right"] {
   --article-code-bg: #f1f5f9;
   --article-code-text: #ec4899;
 
+  width: 100%;
+  min-width: 0;
   max-width: 860px;
   margin: 0 auto;
   color: var(--article-text);
@@ -424,7 +428,10 @@ body[style*="padding-right"] {
 
 .prose-blog pre code {
   display: block;
-  overflow-x: auto;
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  overflow: visible;
   padding: 1em;
   border-radius: 0 0 5px 5px;
   background: #282c34;
@@ -432,17 +439,30 @@ body[style*="padding-right"] {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 14px;
   line-height: 1.6;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: pre;
 }
 
 .prose-blog pre {
   position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
   margin: 0;
   padding: 0;
   background: #282c34 !important;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .prose-blog .md-editor-code {
   position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   margin: 20px 0;
   border-radius: 5px;
@@ -550,7 +570,9 @@ body[style*="padding-right"] {
 }
 
 .prose-blog .md-editor-code pre {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x pan-y;
 }
 
 .prose-blog .md-editor-code pre::before {

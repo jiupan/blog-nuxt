@@ -70,11 +70,11 @@
 
         <Teleport to="body">
           <Transition name="summary-dialog-backdrop">
-            <div v-if="summaryDialogOpen" class="summary-dialog-backdrop" @click="closeSummaryDialog" />
+            <div v-if="summaryDialogOpen && summaryDialogModal" class="summary-dialog-backdrop" @click="closeSummaryDialog" />
           </Transition>
           <Transition name="summary-dialog-panel" @after-enter="focusSummaryDialogInput">
             <div v-if="summaryDialogOpen" class="summary-dialog-stage">
-              <section class="summary-dialog" role="dialog" aria-modal="true" aria-labelledby="summary-dialog-title">
+              <section class="summary-dialog" role="dialog" :aria-modal="summaryDialogModal ? 'true' : undefined" aria-labelledby="summary-dialog-title">
                 <header class="summary-dialog-header"><div class="summary-dialog-identity"><span><Icon name="i-lucide-sparkles" /></span><div><strong id="summary-dialog-title">DyuGPT</strong><small>当前文章智能助手</small></div></div><div class="summary-dialog-head-actions"><button type="button" aria-label="历史会话" title="历史会话" :class="{ 'is-active': summaryHistoryOpen }" @click="toggleSummaryHistory"><Icon name="i-lucide-history" /></button><button v-if="summaryConversationId" type="button" aria-label="新建对话" title="新建对话" @click="resetSummaryConversation"><Icon name="i-lucide-message-square-plus" /></button><button type="button" aria-label="关闭对话" @click="closeSummaryDialog"><Icon name="i-lucide-x" /></button></div></header>
                 <div class="summary-dialog-rule" />
                 <Transition name="summary-history">
@@ -179,6 +179,7 @@ const activeTocId = ref('')
 const summaryQuestion = ref('')
 const summaryDialogDraft = ref('')
 const summaryDialogOpen = ref(false)
+const summaryDialogModal = ref(true)
 type ArticleChatCitation = { chunkId?: number, headingPath?: string | null, excerpt?: string }
 type ArticleChatMessage = { id: number | string, role: 'USER' | 'ASSISTANT', content: string, status: string, citations?: ArticleChatCitation[], error?: string | null }
 type ArticleConversationItem = { id: number, status: 'ACTIVE' | 'ARCHIVED', title: string, messageCount: number, lastMessageAt: string, createdAt: string }
@@ -197,6 +198,7 @@ const summaryDialogInput = ref<HTMLTextAreaElement | null>(null)
 const summaryMessagesEl = ref<HTMLElement | null>(null)
 const articleContentEl = ref<HTMLElement | null>(null)
 let summaryDialogController: AbortController | null = null
+let summaryDialogMediaQuery: MediaQueryList | undefined
 let sidebarResizeObserver: ResizeObserver | undefined
 let tocUpdateFrame: number | undefined
 let tocHeadings: Array<{ id: string, element: HTMLElement }> = []
@@ -239,11 +241,15 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', scheduleTocUpdate)
   window.removeEventListener('resize', handleViewportResize)
   window.removeEventListener('keydown', handleSummaryDialogEscape)
+  summaryDialogMediaQuery?.removeEventListener('change', syncSummaryDialogViewportMode)
   sidebarResizeObserver?.disconnect()
   if (tocUpdateFrame !== undefined) cancelAnimationFrame(tocUpdateFrame)
 })
 
 onMounted(() => {
+  summaryDialogMediaQuery = window.matchMedia('(max-width: 640px)')
+  syncSummaryDialogViewportMode()
+  summaryDialogMediaQuery.addEventListener('change', syncSummaryDialogViewportMode)
   updatePostSidebarStickyTop()
   setupTocTracking()
   nextTick(() => requestAnimationFrame(setupCollapsibleCodeBlocks))
@@ -370,7 +376,7 @@ async function openSummaryDialog() {
   const question = summaryQuestion.value.trim()
   if (!question) return
   summaryDialogOpen.value = true
-  document.body.style.overflow = 'hidden'
+  syncSummaryDialogViewportMode()
   if (!summaryMessages.value.length) await restoreSummaryConversation()
   await submitSummaryQuestion(question)
   summaryQuestion.value = ''
@@ -381,6 +387,11 @@ function closeSummaryDialog() {
   summaryHistoryOpen.value = false
   summaryDialogOpen.value = false
   document.body.style.overflow = ''
+}
+
+function syncSummaryDialogViewportMode() {
+  summaryDialogModal.value = summaryDialogMediaQuery?.matches ?? window.matchMedia('(max-width: 640px)').matches
+  document.body.style.overflow = summaryDialogOpen.value && summaryDialogModal.value ? 'hidden' : ''
 }
 
 async function toggleSummaryHistory() {
@@ -1109,11 +1120,16 @@ function scrollToTocHeading(id: string) {
 @keyframes summary-dialog-dot { 0%,70%,100% { transform: translateY(0); opacity: .42; } 35% { transform: translateY(-4px); opacity: 1; } }
 
 .content-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   margin-top: 14px;
   padding: 40px 24px;
 }
 
 .content-card :deep(.prose-blog) {
+  width: 100%;
+  min-width: 0;
   max-width: 94ch;
 }
 
