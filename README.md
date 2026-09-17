@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="./public/images/home-hero-ai.png" alt="Jiupan Blog AI banner" width="100%">
-
 # Jiupan Blog
 
 **A full-stack blog, a lightweight CMS, and an AI knowledge base — all in one Nuxt application.**
