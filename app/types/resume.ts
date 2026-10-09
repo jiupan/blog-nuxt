@@ -36,6 +36,7 @@ export type ResumeSection = {
   title: string
   type: ResumeSectionType
   items: ResumeSectionItem[]
+  sharedStack?: string
   presentation?: ResumeSectionPresentation
 }
 

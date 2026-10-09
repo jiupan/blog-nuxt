@@ -23,6 +23,10 @@
     <section v-for="section in data.sections" :key="section.id" class="resume-section">
       <h2>{{ section.title || '未命名栏目' }}</h2>
 
+      <div v-if="section.type === 'project' && projectStack(section) && sectionBlocks(section, 'modern').some(block => block.visible)" class="resume-entry">
+        <ResumeTextBlock v-for="block in sectionBlocks(section, 'modern')" :key="block.key" :block="block" :value="projectStack(section)" />
+      </div>
+
       <div v-for="(item, itemIndex) in section.items" :key="item.id" class="resume-entry" :class="{ 'education-entry': section.type === 'education', 'experience-entry': section.type === 'experience' }">
         <template v-if="section.type === 'education'">
           <template v-for="block in sectionBlocks(section, 'modern')" :key="block.key">
@@ -46,6 +50,7 @@
                 <div class="detail-identity">
                   <strong v-if="item.heading">{{ item.heading }}</strong>
                   <span v-if="item.tag" class="detail-role">{{ item.tag }}</span>
+                  <strong v-if="item.badge" class="experience-honor">{{ item.badge }}</strong>
                 </div>
                 <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
               </div>
@@ -66,12 +71,11 @@
         </template>
 
         <template v-else-if="section.type === 'project'">
-          <template v-for="block in sectionBlocks(section, 'modern')" :key="block.key">
+          <template v-for="block in sectionBlocks(section, 'modern', 'projectBlocks')" :key="block.key">
             <div v-if="block.key === 'heading' && block.visible" class="detail-heading">
               <div class="detail-identity">
                 <strong v-if="item.heading">{{ item.heading }}</strong>
                 <span v-if="item.tag" class="detail-role">{{ item.tag }}</span>
-                <strong v-if="item.badge" class="experience-honor">{{ item.badge }}</strong>
               </div>
               <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
             </div>
@@ -99,7 +103,7 @@
 import { Mail as MailIcon, Phone as PhoneIcon, UserRound as UserRoundIcon } from '@lucide/vue'
 import type { ResumeContent, ResumeLayout, ResumeSectionItem } from '~/types/resume'
 import { parseExperienceDetails } from '~/utils/resume-defaults'
-import { bulletLines, sectionBlocks } from '~/utils/resume-section-layout'
+import { bulletLines, projectStack, sectionBlocks } from '~/utils/resume-section-layout'
 import InlineRichText from '../InlineRichText.vue'
 import ResumeTextBlock from '../ResumeTextBlock.vue'
 

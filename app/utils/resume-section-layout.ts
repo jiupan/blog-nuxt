@@ -23,10 +23,10 @@ export function defaultSectionBlocks(section: ResumeSection, template: ResumeTem
   let keys: ResumeBlockKey[] = ['heading', 'secondary', 'intro', 'stack', 'bullets']
   if (section.type === 'experience') {
     keys = scope === 'blocks' ? ['heading', 'stack'] : ['heading', 'secondary', 'bullets']
+  } else if (section.type === 'project') {
+    keys = scope === 'blocks' ? ['stack'] : ['heading', 'secondary', 'intro', 'bullets']
   } else if (template === 'modern' && section.type === 'education') {
     keys = ['heading', 'intro', 'secondary', 'bullets']
-  } else if (template === 'modern' && section.type === 'project') {
-    keys = ['heading', 'stack', 'secondary', 'intro', 'bullets']
   }
 
   return keys.map(key => ({
@@ -40,13 +40,19 @@ export function defaultSectionBlocks(section: ResumeSection, template: ResumeTem
 }
 
 export function sectionBlocks(section: ResumeSection, template: ResumeTemplate, scope: ResumeBlockScope = 'blocks') {
+  if (section.type === 'project' && section.presentation) {
+    // Earlier layouts kept the stack among the blocks repeated for each project.
+    return scope === 'blocks'
+      ? section.presentation.blocks.filter(block => block.key === 'stack')
+      : (section.presentation.projectBlocks ?? section.presentation.blocks).filter(block => block.key !== 'stack')
+  }
   return section.presentation?.[scope] ?? defaultSectionBlocks(section, template, scope)
 }
 
 export function createSectionPresentation(section: ResumeSection, template: ResumeTemplate): ResumeSectionPresentation {
   return {
     blocks: sectionBlocks(section, template).map(block => ({ ...block })),
-    ...(section.type === 'experience' ? { projectBlocks: sectionBlocks(section, template, 'projectBlocks').map(block => ({ ...block })) } : {})
+    ...(['experience', 'project'].includes(section.type) ? { projectBlocks: sectionBlocks(section, template, 'projectBlocks').map(block => ({ ...block })) } : {})
   }
 }
 
@@ -56,4 +62,15 @@ export function bulletLines(value: string) {
 
 export function stackItems(value: string) {
   return value.split(/[、,，|｜]+/).map(item => item.trim()).filter(Boolean)
+}
+
+export function projectStack(section: ResumeSection) {
+  if (typeof section.sharedStack === 'string') return section.sharedStack
+  const seen = new Set<string>()
+  return section.items.flatMap(item => stackItems(item.stack)).filter(technology => {
+    const key = technology.toLocaleLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }).join('、')
 }

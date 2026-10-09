@@ -1,5 +1,5 @@
 import type { ResumeDocument, ResumeSectionItem, ResumeSectionType, ResumeTemplate } from '~/types/resume'
-import { resumeSectionPresentationSchema } from './resume-section-layout'
+import { projectStack, resumeSectionPresentationSchema } from './resume-section-layout'
 
 export function createResumeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -115,6 +115,7 @@ export function createDefaultResume(): ResumeDocument {
           id: createResumeId(),
           title: '项目经验',
           type: 'project',
+          sharedStack: 'Nuxt、TypeScript、Spring Boot、PostgreSQL、Redis、Docker、MyBatis-Plus、RabbitMQ、MySQL',
           items: [
             {
               ...createEmptySectionItem(),
@@ -122,7 +123,6 @@ export function createDefaultResume(): ResumeDocument {
               heading: 'FlowDesk - 团队知识工作台',
               tag: '全栈开发',
               intro: '面向中小团队的知识管理与智能问答平台，支持文档接入、语义检索、引用溯源和对话管理。',
-              stack: 'Nuxt、TypeScript、Spring Boot、PostgreSQL、Redis、Docker',
               bullets: '设计文档解析、分块与混合检索流程，提升长文档问答的召回准确率。\n使用 Redis 实现任务状态缓存与访问限流，降低高峰期数据库压力。\n封装统一的权限校验与异常处理模块，减少重复代码并提升接口一致性。\n通过容器化部署和自动化流水线，实现测试环境的一键发布。'
             },
             {
@@ -131,7 +131,6 @@ export function createDefaultResume(): ResumeDocument {
               heading: 'CloudCoupon - 营销活动平台',
               tag: '后端开发',
               intro: '用于创建、投放和核销营销权益的示例平台，覆盖领取、库存、结算和数据统计等业务。',
-              stack: 'Spring Boot、MyBatis-Plus、Redis、RabbitMQ、MySQL',
               bullets: '使用责任链模式拆分活动创建校验规则，提升业务规则的可扩展性。\n通过缓存预热与 Lua 脚本保证库存扣减原子性，避免超发问题。\n引入消息队列异步处理发放记录，缩短核心领取接口响应时间。\n建立关键链路监控指标，便于快速定位库存与消息积压异常。'
             }
           ]
@@ -191,6 +190,8 @@ export function normalizeResume(value: Partial<ResumeDocument> | null | undefine
         }
 
         const presentation = resumeSectionPresentationSchema.safeParse(section.presentation)
+        const sharedStack = section.type === 'project' ? projectStack({ ...section, items }) : undefined
+        if (section.type === 'project') items.forEach(item => { item.stack = '' })
         return {
         id: typeof section.id === 'string' ? section.id : createResumeId(),
         title: typeof section.title === 'string' ? section.title : '未命名栏目',
@@ -198,6 +199,7 @@ export function normalizeResume(value: Partial<ResumeDocument> | null | undefine
           ? section.type as ResumeSectionType
           : inferResumeSectionType(section.title || ''),
         items,
+        ...(sharedStack !== undefined ? { sharedStack } : {}),
         ...(presentation.success ? { presentation: presentation.data } : {})
         }
       })

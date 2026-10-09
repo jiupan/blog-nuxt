@@ -15,6 +15,10 @@
     <section v-for="section in data.sections" :key="section.id" class="resume-section">
       <h2>{{ section.title || '未命名栏目' }}</h2>
 
+      <div v-if="section.type === 'project' && projectStack(section) && sectionBlocks(section, 'classic').some(block => block.visible)" class="resume-entry">
+        <ResumeTextBlock v-for="block in sectionBlocks(section, 'classic')" :key="block.key" :block="block" :value="projectStack(section)" />
+      </div>
+
       <div v-for="(item, itemIndex) in section.items" :key="item.id" class="resume-entry">
         <template v-if="section.type === 'experience' && section.presentation">
           <template v-if="itemIndex === 0">
@@ -60,7 +64,7 @@
 import { UserRound as UserRoundIcon } from '@lucide/vue'
 import type { ResumeContent, ResumeLayout, ResumeSection, ResumeSectionItem } from '~/types/resume'
 import { parseExperienceDetails } from '~/utils/resume-defaults'
-import { sectionBlocks } from '~/utils/resume-section-layout'
+import { projectStack, sectionBlocks } from '~/utils/resume-section-layout'
 import InlineRichText from '../InlineRichText.vue'
 import ResumeTextBlock from '../ResumeTextBlock.vue'
 
@@ -87,6 +91,7 @@ const secondMetaLine = computed(() => [
 ].filter(Boolean).join('  |  '))
 
 function flatBlocks(section: ResumeSection) {
+  if (section.type === 'project') return sectionBlocks(section, 'classic', 'projectBlocks')
   // Older classic internships rendered each item as a flat entry.
   return sectionBlocks(section.type === 'experience' ? { ...section, type: 'campus' } : section, 'classic')
 }

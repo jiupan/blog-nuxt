@@ -31,6 +31,7 @@ const sectionSchema = z.object({
   title: z.string().trim().min(1, '栏目名称不能为空').max(100),
   type: z.enum(['education', 'skills', 'project', 'experience', 'research', 'campus']),
   items: z.array(sectionItemSchema).max(30),
+  sharedStack: z.string().max(100_000).optional(),
   presentation: resumeSectionPresentationSchema.optional()
 })
 

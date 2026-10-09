@@ -7,7 +7,7 @@
         <button type="button" @click="emit('reset')">恢复默认</button>
       </div>
       <div v-for="group in groups" :key="group.scope" class="block-group">
-        <strong v-if="section.type === 'experience'" class="group-title">{{ group.scope === 'blocks' ? '公司信息' : '每个项目' }}</strong>
+        <strong v-if="section.type === 'experience' || section.type === 'project'" class="group-title">{{ group.scope === 'projectBlocks' ? '每个项目' : section.type === 'experience' ? '公司信息' : '共用技术栈' }}</strong>
         <div
           v-for="(block, index) in sectionBlocks(section, template, group.scope)"
           :key="block.key"
@@ -62,7 +62,7 @@ const props = defineProps<{ section: ResumeSection, template: ResumeTemplate }>(
 const emit = defineEmits<{ change: [presentation: ResumeSectionPresentation], reset: [] }>()
 const drag = ref<{ scope: ResumeBlockScope, key: ResumeBlockKey } | null>(null)
 const dropTarget = ref<{ scope: ResumeBlockScope, key: ResumeBlockKey } | null>(null)
-const groups = computed(() => props.section.type === 'experience'
+const groups = computed(() => ['experience', 'project'].includes(props.section.type)
   ? [{ scope: 'blocks' as const }, { scope: 'projectBlocks' as const }]
   : [{ scope: 'blocks' as const }])
 

@@ -38,6 +38,7 @@ const portableSectionSchema = z.object({
   title: z.string().trim().min(1, '栏目名称不能为空').max(100),
   type: z.enum(['education', 'skills', 'project', 'experience', 'research', 'campus']),
   items: z.array(portableSectionItemSchema).max(30).optional().default([]),
+  sharedStack: z.string().max(100_000).optional(),
   presentation: resumeSectionPresentationSchema.optional()
 })
 
@@ -84,6 +85,7 @@ export function createPortableResume(resume: ResumeDocument): PortableResumeFile
         id: section.id,
         title: section.title,
         type: section.type,
+        ...(section.sharedStack !== undefined ? { sharedStack: section.sharedStack } : {}),
         ...(section.presentation ? { presentation: {
           blocks: section.presentation.blocks.map(block => ({ ...block })),
           ...(section.presentation.projectBlocks ? { projectBlocks: section.presentation.projectBlocks.map(block => ({ ...block })) } : {})
@@ -117,6 +119,7 @@ export function parsePortableResume(value: unknown, avatar = ''): ResumeDocument
         id: uniqueId(section.id, sectionIds),
         title: section.title,
         type: section.type,
+        ...(section.sharedStack !== undefined ? { sharedStack: section.sharedStack } : {}),
         ...(section.presentation ? { presentation: section.presentation } : {}),
         items: section.items.map((item): ResumeSectionItem => ({
           ...item,

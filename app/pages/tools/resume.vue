@@ -216,6 +216,12 @@
 
           <div v-show="!isSectionCollapsed(section.id)">
             <SectionLayoutEditor :section="section" :template="resume.layout.template" @change="section.presentation = $event" @reset="delete section.presentation" />
+            <div v-if="section.type === 'project'" class="experience-company-editor">
+              <div class="entry-label"><strong>本栏目共用技术栈</strong></div>
+              <div class="form-grid">
+                <EditorField :model-value="projectStack(section)" class="wide" label="共用技术栈" placeholder="Java、Spring Boot、MySQL、Redis" @update:model-value="section.sharedStack = $event" />
+              </div>
+            </div>
             <div v-if="!section.items.length" class="empty-section">
               此栏目还没有内容，点击“{{ section.type === 'experience' ? '添加项目' : '添加条目' }}”开始填写。
             </div>
@@ -362,6 +368,7 @@ import {
 } from '@lucide/vue'
 import EditorField from '~/components/resume/EditorField.vue'
 import SectionLayoutEditor from '~/components/resume/SectionLayoutEditor.vue'
+import { projectStack } from '~/utils/resume-section-layout'
 import { createDefaultResume, createEmptySectionItem, createResumeId, normalizeResume } from '~/utils/resume-defaults'
 import { createPortableResume, parsePortableResume, PORTABLE_RESUME_MAX_BYTES } from '~/utils/resume-portable'
 
@@ -538,7 +545,6 @@ const sectionFieldMap: Record<ResumeSectionType, SectionField[]> = {
     { key: 'heading', label: '项目名称', placeholder: '项目名称' },
     { key: 'tag', label: '项目角色', placeholder: '后端开发 / 项目负责人' },
     { key: 'intro', label: '项目描述', placeholder: '项目背景、目标和主要能力', wide: true, textarea: true, rich: true },
-    { key: 'stack', label: '技术栈', placeholder: 'Nuxt、Spring Boot、PostgreSQL、Redis', wide: true },
     { key: 'bullets', label: '项目成果（每行一项）', placeholder: '描述你的工作、解决的问题和量化结果', wide: true, textarea: true, rich: true }
   ],
   experience: [],
