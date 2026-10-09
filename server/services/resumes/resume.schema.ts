@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { resumeSectionPresentationSchema } from '../../../app/utils/resume-section-layout'
 
 const basicSchema = z.object({
   name: z.string().max(100),
@@ -29,7 +30,8 @@ const sectionSchema = z.object({
   id: z.string().min(1).max(100),
   title: z.string().trim().min(1, '栏目名称不能为空').max(100),
   type: z.enum(['education', 'skills', 'project', 'experience', 'research', 'campus']),
-  items: z.array(sectionItemSchema).max(30)
+  items: z.array(sectionItemSchema).max(30),
+  presentation: resumeSectionPresentationSchema.optional()
 })
 
 export const resumeContentSchema = z.object({

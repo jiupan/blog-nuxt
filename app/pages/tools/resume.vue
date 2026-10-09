@@ -215,6 +215,7 @@
           </header>
 
           <div v-show="!isSectionCollapsed(section.id)">
+            <SectionLayoutEditor :section="section" :template="resume.layout.template" @change="section.presentation = $event" @reset="delete section.presentation" />
             <div v-if="!section.items.length" class="empty-section">
               此栏目还没有内容，点击“{{ section.type === 'experience' ? '添加项目' : '添加条目' }}”开始填写。
             </div>
@@ -360,6 +361,7 @@ import {
   X as XIcon
 } from '@lucide/vue'
 import EditorField from '~/components/resume/EditorField.vue'
+import SectionLayoutEditor from '~/components/resume/SectionLayoutEditor.vue'
 import { createDefaultResume, createEmptySectionItem, createResumeId, normalizeResume } from '~/utils/resume-defaults'
 import { createPortableResume, parsePortableResume, PORTABLE_RESUME_MAX_BYTES } from '~/utils/resume-portable'
 

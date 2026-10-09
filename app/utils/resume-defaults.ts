@@ -1,4 +1,5 @@
 import type { ResumeDocument, ResumeSectionItem, ResumeSectionType, ResumeTemplate } from '~/types/resume'
+import { resumeSectionPresentationSchema } from './resume-section-layout'
 
 export function createResumeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -189,13 +190,15 @@ export function normalizeResume(value: Partial<ResumeDocument> | null | undefine
           })
         }
 
+        const presentation = resumeSectionPresentationSchema.safeParse(section.presentation)
         return {
         id: typeof section.id === 'string' ? section.id : createResumeId(),
         title: typeof section.title === 'string' ? section.title : '未命名栏目',
         type: ['education', 'skills', 'project', 'experience', 'research', 'campus'].includes(section.type)
           ? section.type as ResumeSectionType
           : inferResumeSectionType(section.title || ''),
-        items
+        items,
+        ...(presentation.success ? { presentation: presentation.data } : {})
         }
       })
     : fallback.content.sections

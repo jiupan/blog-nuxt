@@ -36,6 +36,21 @@ export type ResumeSection = {
   title: string
   type: ResumeSectionType
   items: ResumeSectionItem[]
+  presentation?: ResumeSectionPresentation
+}
+
+export type ResumeBlockKey = 'heading' | 'secondary' | 'intro' | 'stack' | 'bullets'
+
+export type ResumeBlockConfig = {
+  key: ResumeBlockKey
+  visible: boolean
+  label: string
+  style?: 'tags' | 'text'
+}
+
+export type ResumeSectionPresentation = {
+  blocks: ResumeBlockConfig[]
+  projectBlocks?: ResumeBlockConfig[]
 }
 
 export type ResumeContent = {

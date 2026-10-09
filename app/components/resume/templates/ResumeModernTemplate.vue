@@ -25,25 +25,49 @@
 
       <div v-for="(item, itemIndex) in section.items" :key="item.id" class="resume-entry" :class="{ 'education-entry': section.type === 'education', 'experience-entry': section.type === 'experience' }">
         <template v-if="section.type === 'education'">
-          <div class="education-main">
-            <div class="education-identity">
-              <strong v-if="item.heading" class="education-school">{{ item.heading }}</strong>
-              <span v-if="item.badge" class="education-badge">{{ item.badge }}</span>
-              <strong v-if="item.tag" class="education-major">{{ item.tag }}</strong>
-              <span v-if="item.direction" class="education-direction">{{ item.direction }}</span>
+          <template v-for="block in sectionBlocks(section, 'modern')" :key="block.key">
+            <div v-if="block.key === 'heading' && block.visible" class="education-main">
+              <div class="education-identity">
+                <strong v-if="item.heading" class="education-school">{{ item.heading }}</strong>
+                <span v-if="item.badge" class="education-badge">{{ item.badge }}</span>
+                <strong v-if="item.tag" class="education-major">{{ item.tag }}</strong>
+                <span v-if="item.direction" class="education-direction">{{ item.direction }}</span>
+              </div>
+              <strong v-if="item.range" class="education-range">{{ item.range }}</strong>
             </div>
-            <strong v-if="item.range" class="education-range">{{ item.range }}</strong>
-          </div>
-          <p v-if="item.intro" class="education-summary"><InlineRichText :text="item.intro" /></p>
-          <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
-          <ul v-if="bulletLines(item.bullets).length">
-            <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
-          </ul>
+            <ResumeTextBlock v-else-if="block.key !== 'heading'" :block="block" :value="item[block.key]" :paragraph-class="block.key === 'intro' ? 'education-summary' : block.key === 'secondary' ? 'secondary' : undefined" />
+          </template>
         </template>
 
         <template v-else-if="section.type === 'experience'">
           <template v-if="itemIndex === 0">
-            <div class="detail-heading">
+            <template v-for="block in sectionBlocks(section, 'modern')" :key="block.key">
+              <div v-if="block.key === 'heading' && block.visible" class="detail-heading">
+                <div class="detail-identity">
+                  <strong v-if="item.heading">{{ item.heading }}</strong>
+                  <span v-if="item.tag" class="detail-role">{{ item.tag }}</span>
+                </div>
+                <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
+              </div>
+
+              <ResumeTextBlock v-else-if="block.key === 'stack'" :block="block" :value="experienceStack(section.items)" paragraph-class="experience-stack" />
+            </template>
+          </template>
+
+          <div v-if="experienceTitle(item) || item.projectRole || experienceBackground(item) || bulletLines(item.bullets).length" class="experience-project">
+            <template v-for="block in sectionBlocks(section, 'modern', 'projectBlocks')" :key="block.key">
+              <div v-if="block.key === 'heading' && block.visible && (experienceTitle(item) || item.projectRole)" class="experience-project-heading">
+                <p v-if="experienceTitle(item)" class="experience-project-title"><InlineRichText :text="experienceTitle(item)" /></p>
+                <span v-if="item.projectRole" class="experience-project-role">{{ item.projectRole }}</span>
+              </div>
+              <ResumeTextBlock v-else-if="block.key === 'secondary' || block.key === 'bullets'" :block="block" :value="block.key === 'secondary' ? experienceBackground(item) : item.bullets" :paragraph-class="block.key === 'secondary' ? 'experience-background' : undefined" />
+            </template>
+          </div>
+        </template>
+
+        <template v-else-if="section.type === 'project'">
+          <template v-for="block in sectionBlocks(section, 'modern')" :key="block.key">
+            <div v-if="block.key === 'heading' && block.visible" class="detail-heading">
               <div class="detail-identity">
                 <strong v-if="item.heading">{{ item.heading }}</strong>
                 <span v-if="item.tag" class="detail-role">{{ item.tag }}</span>
@@ -52,62 +76,19 @@
               <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
             </div>
 
-            <div v-if="stackItems(experienceStack(section.items)).length" class="detail-stack experience-stack">
-              <b>技术栈：</b>
-              <span v-for="technology in stackItems(experienceStack(section.items))" :key="technology">{{ technology }}</span>
-            </div>
+            <ResumeTextBlock v-else-if="block.key !== 'heading'" :block="block" :value="item[block.key]" :paragraph-class="block.key === 'intro' ? 'detail-description' : block.key === 'secondary' ? 'secondary' : undefined" />
           </template>
-
-          <div v-if="experienceTitle(item) || item.projectRole || experienceBackground(item) || bulletLines(item.bullets).length" class="experience-project">
-            <div v-if="experienceTitle(item) || item.projectRole" class="experience-project-heading">
-              <p v-if="experienceTitle(item)" class="experience-project-title"><InlineRichText :text="experienceTitle(item)" /></p>
-              <span v-if="item.projectRole" class="experience-project-role">{{ item.projectRole }}</span>
-            </div>
-            <p v-if="experienceBackground(item)" class="experience-background"><b>背景：</b><InlineRichText :text="experienceBackground(item)" /></p>
-            <ul v-if="bulletLines(item.bullets).length">
-              <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
-            </ul>
-          </div>
-        </template>
-
-        <template v-else-if="isDetailSection(section.type)">
-          <div class="detail-heading">
-            <div class="detail-identity">
-              <strong v-if="item.heading">{{ item.heading }}</strong>
-              <span v-if="item.tag" class="detail-role">{{ item.tag }}</span>
-            </div>
-            <strong v-if="item.range" class="detail-range">{{ item.range }}</strong>
-          </div>
-
-          <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
-          <p v-if="item.intro" class="detail-description">
-            <b>项目描述：</b><InlineRichText :text="item.intro" />
-          </p>
-
-          <div v-if="stackItems(item.stack).length" class="detail-stack">
-            <b>技术栈：</b>
-            <span v-for="technology in stackItems(item.stack)" :key="technology">{{ technology }}</span>
-          </div>
-
-          <ul v-if="bulletLines(item.bullets).length">
-            <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
-          </ul>
         </template>
 
         <template v-else>
-          <div v-if="item.range || item.heading || item.tag" class="entry-heading">
-            <strong>{{ item.range }}</strong>
-            <strong>{{ item.heading }}</strong>
-            <strong>{{ item.tag }}</strong>
-          </div>
-          <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
-          <p v-if="item.intro">
-            <InlineRichText :text="item.intro" />
-          </p>
-          <p v-if="item.stack"><b>{{ stackLabel(section.type) }}：</b><InlineRichText :text="item.stack" /></p>
-          <ul v-if="bulletLines(item.bullets).length">
-            <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
-          </ul>
+          <template v-for="block in sectionBlocks(section, 'modern')" :key="block.key">
+            <div v-if="block.key === 'heading' && block.visible && (item.range || item.heading || item.tag)" class="entry-heading">
+              <strong>{{ item.range }}</strong>
+              <strong>{{ item.heading }}</strong>
+              <strong>{{ item.tag }}</strong>
+            </div>
+            <ResumeTextBlock v-else-if="block.key !== 'heading'" :block="block" :value="item[block.key]" :paragraph-class="block.key === 'secondary' ? 'secondary' : undefined" />
+          </template>
         </template>
       </div>
     </section>
@@ -116,9 +97,11 @@
 
 <script setup lang="ts">
 import { Mail as MailIcon, Phone as PhoneIcon, UserRound as UserRoundIcon } from '@lucide/vue'
-import type { ResumeContent, ResumeLayout, ResumeSectionItem, ResumeSectionType } from '~/types/resume'
+import type { ResumeContent, ResumeLayout, ResumeSectionItem } from '~/types/resume'
 import { parseExperienceDetails } from '~/utils/resume-defaults'
+import { bulletLines, sectionBlocks } from '~/utils/resume-section-layout'
 import InlineRichText from '../InlineRichText.vue'
+import ResumeTextBlock from '../ResumeTextBlock.vue'
 
 const props = defineProps<{ data: ResumeContent, layout: ResumeLayout }>()
 
@@ -130,14 +113,6 @@ const layoutStyle = computed(() => ({
   '--resume-font-size': `${props.layout.fontSize}pt`
 }))
 
-function bulletLines(value: string) {
-  return value.split('\n').map(line => line.trim().replace(/^[•·]\s*/, '')).filter(Boolean)
-}
-
-function stackItems(value: string) {
-  return value.split(/[、,，|｜]+/).map(item => item.trim()).filter(Boolean)
-}
-
 function experienceStack(items: ResumeSectionItem[]) {
   return items.find(item => item.stack.trim())?.stack || ''
 }
@@ -148,14 +123,6 @@ function experienceTitle(item: ResumeSectionItem) {
 
 function experienceBackground(item: ResumeSectionItem) {
   return parseExperienceDetails(item.intro, item.secondary).background
-}
-
-function isDetailSection(type: ResumeSectionType) {
-  return type === 'project' || type === 'experience'
-}
-
-function stackLabel(type: ResumeSectionType) {
-  return type === 'research' ? '方法与工具' : '技术栈'
 }
 </script>
 
@@ -225,7 +192,7 @@ function stackLabel(type: ResumeSectionType) {
   color: #8e9db1;
 }
 
-.resume-template-modern .resume-entry b {
+.resume-template-modern .resume-entry :deep(b) {
   font-weight: 700;
 }
 
@@ -233,16 +200,16 @@ function stackLabel(type: ResumeSectionType) {
   font-weight: 700;
 }
 
-.resume-template-modern .resume-entry ul {
+.resume-template-modern .resume-entry :deep(ul) {
   margin-top: 1.4mm;
 }
 
-.resume-template-modern .resume-entry li {
+.resume-template-modern .resume-entry :deep(li) {
   margin: .55mm 0;
   color: #30445f;
 }
 
-.resume-template-modern .resume-entry li::marker {
+.resume-template-modern .resume-entry :deep(li)::marker {
   color: #9aaabc;
 }
 
@@ -300,7 +267,7 @@ function stackLabel(type: ResumeSectionType) {
   white-space: nowrap;
 }
 
-.education-summary {
+:deep(.education-summary) {
   margin-top: 1.2mm !important;
   color: #30445f;
 }
@@ -332,38 +299,16 @@ function stackLabel(type: ResumeSectionType) {
   white-space: nowrap;
 }
 
-.detail-description {
+:deep(.detail-description) {
   margin-top: 1.5mm !important;
   color: #30445f;
-}
-
-.detail-stack {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1.3mm 2mm;
-  margin-top: 1.4mm;
-  break-inside: avoid;
-}
-
-.detail-stack > b {
-  margin-right: .5mm;
-}
-
-.detail-stack > span {
-  padding: .25mm 2mm;
-  border: .25mm solid #d8dee7;
-  border-radius: 1mm;
-  background: #f4f6f8;
-  color: #344b68;
-  line-height: 1.35;
 }
 
 .experience-entry + .experience-entry {
   margin-top: 3mm;
 }
 
-.experience-stack {
+:deep(.experience-stack) {
   margin-top: 1.3mm;
 }
 
@@ -394,7 +339,7 @@ function stackLabel(type: ResumeSectionType) {
   white-space: nowrap;
 }
 
-.experience-background {
+:deep(.experience-background) {
   margin-top: .8mm !important;
 }
 

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { ResumeDocument, ResumeSectionItem } from '../types/resume'
 import { createResumeId } from './resume-defaults'
+import { resumeSectionPresentationSchema } from './resume-section-layout'
 
 export const PORTABLE_RESUME_FORMAT = 'blog-nuxt-resume'
 export const PORTABLE_RESUME_VERSION = 1
@@ -36,7 +37,8 @@ const portableSectionSchema = z.object({
   id: z.string().min(1).max(100).optional(),
   title: z.string().trim().min(1, '栏目名称不能为空').max(100),
   type: z.enum(['education', 'skills', 'project', 'experience', 'research', 'campus']),
-  items: z.array(portableSectionItemSchema).max(30).optional().default([])
+  items: z.array(portableSectionItemSchema).max(30).optional().default([]),
+  presentation: resumeSectionPresentationSchema.optional()
 })
 
 const portableResumeSchema = z.object({
@@ -82,6 +84,10 @@ export function createPortableResume(resume: ResumeDocument): PortableResumeFile
         id: section.id,
         title: section.title,
         type: section.type,
+        ...(section.presentation ? { presentation: {
+          blocks: section.presentation.blocks.map(block => ({ ...block })),
+          ...(section.presentation.projectBlocks ? { projectBlocks: section.presentation.projectBlocks.map(block => ({ ...block })) } : {})
+        } } : {}),
         items: section.items.map(item => ({ ...item }))
       }))
     },
@@ -111,6 +117,7 @@ export function parsePortableResume(value: unknown, avatar = ''): ResumeDocument
         id: uniqueId(section.id, sectionIds),
         title: section.title,
         type: section.type,
+        ...(section.presentation ? { presentation: section.presentation } : {}),
         items: section.items.map((item): ResumeSectionItem => ({
           ...item,
           id: uniqueId(item.id, itemIds)

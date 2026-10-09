@@ -15,23 +15,42 @@
     <section v-for="section in data.sections" :key="section.id" class="resume-section">
       <h2>{{ section.title || '未命名栏目' }}</h2>
 
-      <div v-for="item in section.items" :key="item.id" class="resume-entry">
-        <div v-if="item.range || item.heading || item.tag || (section.type === 'experience' && item.badge)" class="entry-heading">
-          <strong>{{ item.range }}</strong>
-          <strong>{{ item.heading }}</strong>
-          <strong class="entry-heading-tail">
-            <span>{{ item.tag }}</span>
-            <span v-if="section.type === 'experience' && item.badge" class="experience-honor">{{ item.badge }}</span>
-          </strong>
-        </div>
-        <p v-if="item.secondary" class="secondary"><InlineRichText :text="item.secondary" /></p>
-        <p v-if="item.intro">
-          <b v-if="section.type === 'project'">项目描述：</b><InlineRichText :text="item.intro" />
-        </p>
-        <p v-if="item.stack"><b>{{ stackLabel(section.type) }}：</b><InlineRichText :text="item.stack" /></p>
-        <ul v-if="bulletLines(item.bullets).length">
-          <li v-for="(line, index) in bulletLines(item.bullets)" :key="index"><InlineRichText :text="line" /></li>
-        </ul>
+      <div v-for="(item, itemIndex) in section.items" :key="item.id" class="resume-entry">
+        <template v-if="section.type === 'experience' && section.presentation">
+          <template v-if="itemIndex === 0">
+            <template v-for="block in sectionBlocks(section, 'classic')" :key="block.key">
+              <div v-if="block.key === 'heading' && block.visible && (item.range || item.heading || item.tag || item.badge)" class="entry-heading">
+                <strong>{{ item.range }}</strong>
+                <strong>{{ item.heading }}</strong>
+                <strong class="entry-heading-tail">
+                  <span>{{ item.tag }}</span>
+                  <span v-if="item.badge" class="experience-honor">{{ item.badge }}</span>
+                </strong>
+              </div>
+              <ResumeTextBlock v-else-if="block.key === 'stack'" :block="block" :value="section.items.find(entry => entry.stack.trim())?.stack || ''" />
+            </template>
+          </template>
+          <template v-for="block in sectionBlocks(section, 'classic', 'projectBlocks')" :key="block.key">
+            <div v-if="block.key === 'heading' && block.visible && (experienceDetails(item).title || item.projectRole)" class="classic-project-heading">
+              <strong><InlineRichText :text="experienceDetails(item).title" /></strong>
+              <strong v-if="item.projectRole">{{ item.projectRole }}</strong>
+            </div>
+            <ResumeTextBlock v-else-if="block.key === 'secondary' || block.key === 'bullets'" :block="block" :value="block.key === 'secondary' ? experienceDetails(item).background : item.bullets" :paragraph-class="block.key === 'secondary' ? 'secondary' : undefined" />
+          </template>
+        </template>
+        <template v-else>
+          <template v-for="block in flatBlocks(section)" :key="block.key">
+            <div v-if="block.key === 'heading' && block.visible && (item.range || item.heading || item.tag || (section.type === 'experience' && item.badge))" class="entry-heading">
+              <strong>{{ item.range }}</strong>
+              <strong>{{ item.heading }}</strong>
+              <strong class="entry-heading-tail">
+                <span>{{ item.tag }}</span>
+                <span v-if="section.type === 'experience' && item.badge" class="experience-honor">{{ item.badge }}</span>
+              </strong>
+            </div>
+            <ResumeTextBlock v-else-if="block.key !== 'heading'" :block="block" :value="item[block.key]" :paragraph-class="block.key === 'secondary' ? 'secondary' : undefined" />
+          </template>
+        </template>
       </div>
     </section>
   </article>
@@ -39,8 +58,11 @@
 
 <script setup lang="ts">
 import { UserRound as UserRoundIcon } from '@lucide/vue'
-import type { ResumeContent, ResumeLayout, ResumeSectionType } from '~/types/resume'
+import type { ResumeContent, ResumeLayout, ResumeSection, ResumeSectionItem } from '~/types/resume'
+import { parseExperienceDetails } from '~/utils/resume-defaults'
+import { sectionBlocks } from '~/utils/resume-section-layout'
 import InlineRichText from '../InlineRichText.vue'
+import ResumeTextBlock from '../ResumeTextBlock.vue'
 
 const props = defineProps<{ data: ResumeContent, layout: ResumeLayout }>()
 
@@ -64,12 +86,13 @@ const secondMetaLine = computed(() => [
   props.data.basic.email
 ].filter(Boolean).join('  |  '))
 
-function bulletLines(value: string) {
-  return value.split('\n').map(line => line.trim().replace(/^[•·]\s*/, '')).filter(Boolean)
+function flatBlocks(section: ResumeSection) {
+  // Older classic internships rendered each item as a flat entry.
+  return sectionBlocks(section.type === 'experience' ? { ...section, type: 'campus' } : section, 'classic')
 }
 
-function stackLabel(type: ResumeSectionType) {
-  return type === 'research' ? '方法与工具' : '技术栈'
+function experienceDetails(item: ResumeSectionItem) {
+  return parseExperienceDetails(item.intro, item.secondary)
 }
 </script>
 
@@ -82,4 +105,6 @@ function stackLabel(type: ResumeSectionType) {
 }
 
 .experience-honor { flex: 0 0 auto; white-space: nowrap; }
+.classic-project-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 5mm; margin-top: 1.8mm; break-after: avoid; }
+.classic-project-heading > strong:last-child:not(:first-child) { flex: 0 0 auto; }
 </style>
