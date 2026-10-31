@@ -1,11 +1,15 @@
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { buildPublishedPostWhere } from '~~/server/services/posts/post-query.service'
-import { prisma } from '~~/server/utils/prisma'
-import { normalizeSlug } from '~~/server/utils/slug'
-import { badRequest, conflict, notFound } from '~~/server/utils/api-error'
+import { buildPublishedPostWhere } from '../posts/post-query.service'
+import { prisma } from '../../utils/prisma'
+import { normalizeSlug } from '../../utils/slug'
+import { badRequest, conflict, notFound } from '../../utils/api-error'
 
-const iconSchema = z.string().regex(/^i-lucide-[a-z0-9-]+$/).optional().or(z.literal(''))
+const iconSchema = z
+  .string()
+  .regex(/^i-lucide-[a-z0-9-]+$/)
+  .optional()
+  .or(z.literal(''))
 
 export const createCategorySchema = z.object({
   name: z.string().min(1),
@@ -40,14 +44,14 @@ export type ListAdminTagsInput = z.infer<typeof listAdminTagsSchema>
 
 export function listAdminCategories() {
   return prisma.category.findMany({
-    orderBy: { id: 'asc' },
+    orderBy: [{ sort: 'asc' }, { id: 'asc' }],
     include: { _count: { select: { posts: true } } }
   })
 }
 
 export function listPublicCategories() {
   return prisma.category.findMany({
-    orderBy: { id: 'asc' },
+    orderBy: [{ sort: 'asc' }, { id: 'asc' }],
     include: {
       _count: {
         select: {
@@ -61,12 +65,14 @@ export function listPublicCategories() {
 }
 
 export async function createCategory(input: CreateCategoryInput) {
+  const last = await prisma.category.aggregate({ _max: { sort: true } })
   try {
     return await prisma.category.create({
       data: {
         name: input.name,
         slug: resolveTaxonomySlug(input.slug, input.name),
-        icon: input.icon || null
+        icon: input.icon || null,
+        sort: (last._max.sort ?? -1) + 1
       }
     })
   } catch (error) {
@@ -109,16 +115,18 @@ export async function deleteCategory(id: number) {
 
 export async function listAdminTags(input: ListAdminTagsInput) {
   const where: Prisma.TagWhereInput = input.search
-    ? { OR: [
-        { name: { contains: input.search, mode: 'insensitive' } },
-        { slug: { contains: input.search, mode: 'insensitive' } }
-      ] }
+    ? {
+        OR: [
+          { name: { contains: input.search, mode: 'insensitive' } },
+          { slug: { contains: input.search, mode: 'insensitive' } }
+        ]
+      }
     : {}
   const [total, items] = await prisma.$transaction([
     prisma.tag.count({ where }),
     prisma.tag.findMany({
       where,
-      orderBy: [{ posts: { _count: 'desc' } }, { name: 'asc' }, { id: 'asc' }],
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }],
       skip: (input.page - 1) * input.pageSize,
       take: input.pageSize,
       include: { _count: { select: { posts: true } } }
@@ -137,14 +145,14 @@ export async function listAdminTags(input: ListAdminTagsInput) {
 
 export function listAllAdminTags() {
   return prisma.tag.findMany({
-    orderBy: { updatedAt: 'desc' },
+    orderBy: [{ sort: 'asc' }, { id: 'asc' }],
     include: { _count: { select: { posts: true } } }
   })
 }
 
 export function listPublicTags() {
   return prisma.tag.findMany({
-    orderBy: { name: 'asc' },
+    orderBy: [{ sort: 'asc' }, { id: 'asc' }],
     include: {
       _count: {
         select: {
@@ -160,11 +168,13 @@ export function listPublicTags() {
 }
 
 export async function createTag(input: CreateTagInput) {
+  const last = await prisma.tag.aggregate({ _max: { sort: true } })
   try {
     return await prisma.tag.create({
       data: {
         name: input.name,
-        slug: resolveTaxonomySlug(input.slug, input.name)
+        slug: resolveTaxonomySlug(input.slug, input.name),
+        sort: (last._max.sort ?? -1) + 1
       }
     })
   } catch (error) {

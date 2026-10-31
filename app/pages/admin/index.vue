@@ -1,159 +1,330 @@
 <template>
-  <div class="dashboard-page">
-    <section class="dashboard-hero">
-      <div class="dashboard-title">
-        <span class="dashboard-title-icon">
-          <UIcon name="i-lucide-layout-dashboard" class="size-6" />
-        </span>
+  <div class="workspace-page dashboard-page">
+    <div
+      v-if="overviewError || postsError || userError"
+      class="workspace-error"
+      role="alert"
+    >
+      <span>部分数据加载失败，请重试。暂不可用的数据以“—”显示。</span>
+      <UButton
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        @click="retry"
+      >
+        重新加载
+      </UButton>
+    </div>
+
+    <section
+      class="dashboard-metrics"
+      aria-label="站点概览"
+    >
+      <NuxtLink
+        to="/admin/posts?status=PUBLISHED"
+        class="dashboard-metric"
+      >
         <span>
-          <h1>仪表盘</h1>
-          <p>欢迎回来，这是你的博客数据概览。</p>
+          <UIcon name="i-lucide-book-open" />
+          已发布文章
         </span>
+        <strong>{{ metric(overview?.published) }}</strong>
+        <small>已与读者分享的内容</small>
+      </NuxtLink>
+      <NuxtLink
+        to="/admin/posts?status=DRAFT"
+        class="dashboard-metric"
+      >
+        <span>
+          <UIcon name="i-lucide-file-pen-line" />
+          草稿
+        </span>
+        <strong>{{ metric(overview?.drafts) }}</strong>
+        <small>
+          等待完成的想法
+          <UIcon name="i-lucide-arrow-up-right" />
+        </small>
+      </NuxtLink>
+      <div class="dashboard-metric">
+        <span>
+          <UIcon name="i-lucide-eye" />
+          累计浏览
+        </span>
+        <strong>{{ metric(overview?.views) }}</strong>
+        <small>全部文章累计浏览次数</small>
       </div>
-
-      <div class="dashboard-hero-actions">
-        <UInput
-          v-model="searchText"
-          icon="i-lucide-search"
-          placeholder="搜索文章..."
-          class="dashboard-search"
-          @keyup.enter="goSearch"
-        />
-        <UButton icon="i-lucide-plus" to="/admin/posts/create">写文章</UButton>
-      </div>
+      <NuxtLink
+        to="/admin/users"
+        class="dashboard-metric"
+      >
+        <span>
+          <UIcon name="i-lucide-users" />
+          站点用户
+        </span>
+        <strong>{{ metric(users?.total) }}</strong>
+        <small>{{ users ? `本月新增 ${users.newThisMonth} 位` : '用户数据暂不可用' }}</small>
+      </NuxtLink>
     </section>
 
-    <section class="dashboard-stats">
-      <article v-for="stat in statCards" :key="stat.title" class="dashboard-stat-card">
-        <div class="dashboard-stat-top">
-          <span class="dashboard-stat-icon" :class="stat.iconClass">
-            <UIcon :name="stat.icon" class="size-6" />
-          </span>
-          <span class="dashboard-trend" :class="stat.trendClass">
-            <UIcon :name="stat.trendIcon" class="size-4" />
-            {{ stat.trend }}
-          </span>
-        </div>
-        <div>
-          <h2>{{ stat.title }}</h2>
-          <strong>{{ stat.value }}</strong>
-          <p>{{ stat.hint }}</p>
-        </div>
-      </article>
-    </section>
-
-    <div class="dashboard-grid">
-      <section class="dashboard-panel dashboard-recent">
-        <div class="dashboard-panel-head">
+    <div class="dashboard-columns">
+      <section class="workspace-panel dashboard-recent">
+        <header class="workspace-panel-heading">
           <div>
-            <h2>近期发布的文章</h2>
-            <p>管理最近撰写和更新的内容</p>
+            <h2>最近编辑</h2>
+            <p>从上一次停下的地方继续。</p>
           </div>
-          <UButton color="neutral" variant="ghost" trailing-icon="i-lucide-arrow-right" to="/admin/posts">
-            查看全部
+          <NuxtLink
+            to="/admin/posts"
+            class="workspace-text-link"
+          >
+            全部文章
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-3.5"
+            />
+          </NuxtLink>
+        </header>
+        <div
+          v-if="postsPending"
+          class="workspace-loading"
+          role="status"
+          aria-label="正在加载文章"
+        >
+          <span
+            v-for="i in 6"
+            :key="i"
+          />
+        </div>
+        <div
+          v-else-if="postsError"
+          class="workspace-empty"
+        >
+          <UIcon name="i-lucide-wifi-off" />
+          <h3>文章暂时无法加载</h3>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="refreshPosts()"
+          >
+            重试
           </UButton>
         </div>
-
-        <div v-if="posts.length" class="dashboard-table-wrap">
-          <table class="dashboard-table">
-            <thead>
-              <tr>
-                <th>文章标题</th>
-                <th>分类</th>
-                <th>状态</th>
-                <th>浏览量</th>
-                <th>更新时间</th>
-                <th class="text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="post in posts.slice(0, 6)" :key="post.id">
-                <td>
-                  <NuxtLink :to="`/admin/posts/${post.id}`" class="recent-title">{{ post.title }}</NuxtLink>
-                </td>
-                <td>
-                  <span class="recent-category">{{ post.category?.name || '未分类' }}</span>
-                </td>
-                <td>
-                  <span class="recent-status" :class="statusClass(post.status)">
-                    <UIcon :name="post.status === 'PUBLISHED' ? 'i-lucide-check-circle-2' : 'i-lucide-clock'" class="size-3.5" />
-                    {{ statusText(post.status) }}
-                  </span>
-                </td>
-                <td>
-                  <span class="recent-metric">
-                    <UIcon name="i-lucide-eye" class="size-3.5" />
-                    {{ formatNumber(post.viewCount || 0) }}
-                  </span>
-                </td>
-                <td>
-                  <span class="recent-date">
-                    <UIcon name="i-lucide-clock" class="size-3.5" />
-                    {{ formatDate(post.updatedAt) }}
-                  </span>
-                </td>
-                <td class="text-right">
-                  <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-more-vertical" :to="`/admin/posts/${post.id}`" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div v-else class="dashboard-empty">
-          <UIcon name="i-lucide-file-plus-2" class="size-12" />
-          <p>还没有文章</p>
-          <UButton class="mt-3" icon="i-lucide-plus" to="/admin/posts/create">创建第一篇文章</UButton>
+        <template v-else-if="posts.length">
+          <div class="dashboard-list-label">
+            <span>文章</span>
+            <span>状态</span>
+            <span>最近更新</span>
+            <span />
+          </div>
+          <article
+            v-for="post in posts"
+            :key="post.id"
+            class="dashboard-post"
+          >
+            <div class="dashboard-post-copy">
+              <NuxtLink :to="`/admin/posts/${post.id}`">{{ post.title }}</NuxtLink>
+              <span>
+                {{ post.category?.name || '未分类' }}
+                <span class="dashboard-copy-dot" />
+                {{ metric(post.viewCount || 0) }} 次浏览
+              </span>
+            </div>
+            <span
+              class="workspace-status"
+              :class="statusClass(post.status)"
+            >
+              {{ statusText(post.status) }}
+            </span>
+            <time :datetime="new Date(post.updatedAt).toISOString()">{{ formatDate(post.updatedAt) }}</time>
+            <UButton
+              :to="`/admin/posts/${post.id}`"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-square-pen"
+              size="sm"
+              :aria-label="`编辑 ${post.title}`"
+            />
+          </article>
+          <div class="dashboard-list-footer">
+            <span>按最后更新时间排序</span>
+            <span>共 {{ metric(overview?.total) }} 篇文章</span>
+          </div>
+        </template>
+        <div
+          v-else
+          class="workspace-empty"
+        >
+          <UIcon name="i-lucide-notebook-pen" />
+          <h3>从第一篇文章开始</h3>
+          <p>把一个想法写下来，保存为草稿，准备好后再发布。</p>
+          <UButton
+            to="/admin/posts/create"
+            variant="soft"
+            icon="i-lucide-plus"
+          >
+            新建文章
+          </UButton>
         </div>
       </section>
 
-      <aside class="dashboard-side">
-        <section class="dashboard-quick-card">
-          <UIcon name="i-lucide-settings" class="quick-bg" />
-          <h2>快捷操作</h2>
-          <div class="quick-grid">
-            <NuxtLink v-for="action in quickActions" :key="action.label" :to="action.to">
-              <UIcon :name="action.icon" class="size-5" />
-              <span>{{ action.label }}</span>
-            </NuxtLink>
+      <aside class="dashboard-aside">
+        <section class="workspace-panel dashboard-drafts">
+          <header class="workspace-panel-heading">
+            <h2>
+              继续写作
+              <span
+                v-if="overview?.drafts"
+                class="dashboard-small-count"
+              >
+                {{ overview.drafts }}
+              </span>
+            </h2>
+            <UIcon
+              name="i-lucide-file-pen-line"
+              class="size-4 text-[var(--admin-muted)]"
+            />
+          </header>
+          <div
+            v-if="draftError"
+            class="dashboard-quiet-state"
+          >
+            草稿加载失败。
+            <button
+              type="button"
+              @click="refreshDrafts()"
+            >
+              重试
+            </button>
           </div>
+          <NuxtLink
+            v-for="post in drafts"
+            v-else
+            :key="post.id"
+            :to="`/admin/posts/${post.id}`"
+            class="dashboard-draft"
+          >
+            <span>
+              <strong>{{ post.title }}</strong>
+              <small>{{ formatDate(post.updatedAt) }} 更新</small>
+            </span>
+            <UIcon
+              name="i-lucide-arrow-up-right"
+              class="size-4"
+            />
+          </NuxtLink>
+          <div
+            v-if="!draftError && !drafts.length"
+            class="dashboard-quiet-state"
+          >
+            {{ draftPending ? '正在加载草稿…' : '暂时没有未完成的草稿。' }}
+          </div>
+          <NuxtLink
+            to="/admin/posts/create"
+            class="dashboard-new-draft"
+          >
+            <UIcon
+              name="i-lucide-plus"
+              class="size-4"
+            />
+            记录一个新想法
+          </NuxtLink>
         </section>
 
-        <section class="dashboard-panel dashboard-notices">
-          <div class="dashboard-panel-head">
-            <div><h2>最近注册</h2><p>最新加入的站点用户</p></div>
-            <UButton color="neutral" variant="ghost" size="xs" to="/admin/users">管理</UButton>
+        <section
+          v-if="knowledgeError || actionableCount"
+          class="workspace-panel"
+        >
+          <header class="workspace-panel-heading">
+            <h2>需要处理</h2>
+            <span
+              v-if="actionableCount"
+              class="dashboard-attention-count"
+            >
+              {{ actionableCount }}
+            </span>
+          </header>
+          <div
+            v-if="knowledgeError"
+            class="dashboard-quiet-state"
+          >
+            知识库状态加载失败。
+            <button
+              type="button"
+              @click="refreshKnowledge()"
+            >
+              重试
+            </button>
           </div>
-          <div class="notice-list">
-            <div v-for="user in recentUsers" :key="user.id" class="notice-item">
-              <span class="notice-icon is-indigo"><UIcon name="i-lucide-user-round" class="size-4" /></span>
-              <span><strong>{{ user.username }}</strong><small>{{ user.email || '未设置邮箱' }} · {{ formatDate(user.createdAt) }}</small></span>
-            </div>
-            <div v-if="!recentUsers.length" class="notice-item"><span><small>暂无注册用户</small></span></div>
-          </div>
+          <NuxtLink
+            v-if="knowledge?.stats.failed"
+            to="/admin/knowledge?tab=jobs"
+            class="dashboard-task"
+          >
+            <span class="dashboard-task-dot is-error" />
+            <span>
+              <strong>{{ knowledge.stats.failed }} 项知识同步失败</strong>
+              <small>查看原因并重新同步</small>
+            </span>
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-4"
+            />
+          </NuxtLink>
+          <NuxtLink
+            v-if="knowledge?.stats.pending"
+            to="/admin/knowledge?tab=content"
+            class="dashboard-task"
+          >
+            <span class="dashboard-task-dot" />
+            <span>
+              <strong>{{ knowledge.stats.pending }} 项知识待同步</strong>
+              <small>检查索引状态与任务进度</small>
+            </span>
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-4"
+            />
+          </NuxtLink>
         </section>
 
-        <section class="dashboard-panel dashboard-notices">
-          <h2>系统通知</h2>
-          <div class="notice-list">
-            <div class="notice-item">
-              <span class="notice-icon is-indigo">
-                <UIcon name="i-lucide-bell" class="size-4" />
-              </span>
-              <span>
-                <strong>后台样式已启用新版布局</strong>
-                <small>文章、分类、标签和菜单页面已经切换到工作台式界面。</small>
-              </span>
+        <section
+          v-if="overview"
+          class="workspace-panel dashboard-distribution"
+        >
+          <header class="workspace-panel-heading">
+            <h2>内容分布</h2>
+            <span class="dashboard-total">{{ overview.total }} 篇</span>
+          </header>
+          <div class="dashboard-distribution-body">
+            <div
+              class="dashboard-distribution-bar"
+              role="img"
+              :aria-label="`已发布 ${overview.published}，草稿 ${overview.drafts}，回收站 ${overview.archived}`"
+            >
+              <span
+                v-for="item in distribution"
+                :key="item.label"
+                :class="item.tone"
+                :style="{ flex: item.count }"
+              />
             </div>
-            <div class="notice-item">
-              <span class="notice-icon is-emerald">
-                <UIcon name="i-lucide-check-circle-2" class="size-4" />
-              </span>
-              <span>
-                <strong>SEO 设置可在后台维护</strong>
-                <small>站点标题、关键词、描述和 noindex 已集中在设置页。</small>
-              </span>
+            <div
+              v-for="item in distribution"
+              :key="item.label"
+              class="dashboard-distribution-row"
+            >
+              <span :class="item.tone" />
+              <span>{{ item.label }}</span>
+              <strong>{{ item.count }}</strong>
             </div>
+          </div>
+          <div class="dashboard-ai-note">
+            <UIcon
+              name="i-lucide-sparkles"
+              class="size-3.5"
+            />
+            本月 AI 调用
+            <span>{{ metric(users?.aiUsageThisMonth) }} 次</span>
           </div>
         </section>
       </aside>
@@ -162,561 +333,418 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  layout: 'admin',
-  middleware: 'admin-auth'
+import type { AdminPostListItem, AdminPostListPayload, AdminPostOverview } from '~~/types/dto/post'
+import type { KnowledgeOverview } from '~~/types/dto/knowledge'
+definePageMeta({ layout: 'admin', middleware: 'admin-auth' })
+type UserOverview = { total: number; newThisMonth: number; aiUsageThisMonth: number }
+const {
+  data: overviewData,
+  error: overviewError,
+  refresh: refreshOverview
+} = await useFetch<{ data: AdminPostOverview }>('/api/admin/posts/overview')
+const {
+  data: postData,
+  pending: postsPending,
+  error: postsError,
+  refresh: refreshPosts
+} = await useFetch<{ data: AdminPostListPayload }>('/api/admin/posts', {
+  query: { page: 1, pageSize: 8, sort: 'updatedAt_desc' }
 })
-
-type PostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
-
-type Taxonomy = {
-  id: number
-  name: string
-  slug: string
-}
-
-type AdminPost = {
-  id: number
-  title: string
-  slug: string
-  status: PostStatus
-  viewCount?: number | null
-  category?: Taxonomy | null
-  updatedAt: string
-}
-
-type DashboardUser = { id: number, username: string, email: string | null, createdAt: string }
-type UserOverview = { total: number, active: number, disabled: number, admins: number, newThisMonth: number, aiUsageThisMonth: number }
-
-const searchText = ref('')
-
-const { data: postData } = await useFetch<{ data: { items: AdminPost[], total: number } }>('/api/admin/posts', {
-  query: {
-    page: 1,
-    pageSize: 8,
-    sort: 'updatedAt_desc'
-  }
+const {
+  data: draftData,
+  pending: draftPending,
+  error: draftError,
+  refresh: refreshDrafts
+} = await useFetch<{ data: AdminPostListPayload }>('/api/admin/posts', {
+  query: { page: 1, pageSize: 3, status: 'DRAFT', sort: 'updatedAt_desc' }
 })
-const { data: userOverviewData } = await useFetch<{ data: UserOverview }>('/api/admin/users/overview')
-const { data: recentUserData } = await useFetch<{ data: { items: DashboardUser[], total: number } }>('/api/admin/users', { query: { page: 1, pageSize: 5, sort: 'createdAt_desc' } })
-
-const posts = computed(() => postData.value?.data.items || [])
-const postTotal = computed(() => postData.value?.data.total || 0)
-const userOverview = computed(() => userOverviewData.value?.data || { total: 0, active: 0, disabled: 0, admins: 0, newThisMonth: 0, aiUsageThisMonth: 0 })
-const recentUsers = computed(() => recentUserData.value?.data.items || [])
-const publishedCount = computed(() => posts.value.filter((post) => post.status === 'PUBLISHED').length)
-const draftCount = computed(() => posts.value.filter((post) => post.status !== 'PUBLISHED').length)
-const totalViews = computed(() => posts.value.reduce((sum, post) => sum + (post.viewCount || 0), 0))
-
-const statCards = computed(() => [
-  {
-    title: '总浏览量',
-    value: formatNumber(totalViews.value),
-    hint: '按最近文章统计浏览数据',
-    icon: 'i-lucide-eye',
-    iconClass: 'is-indigo',
-    trend: '+实时',
-    trendIcon: 'i-lucide-trending-up',
-    trendClass: 'is-up'
-  },
-  {
-    title: '文章总数',
-    value: formatNumber(postTotal.value),
-    hint: `${publishedCount.value} 篇已发布，${draftCount.value} 篇草稿/归档`,
-    icon: 'i-lucide-file-text',
-    iconClass: 'is-blue',
-    trend: '+内容',
-    trendIcon: 'i-lucide-trending-up',
-    trendClass: 'is-up'
-  },
-  {
-    title: '用户总数',
-    value: formatNumber(userOverview.value.total),
-    hint: `${userOverview.value.active} 位正常，${userOverview.value.disabled} 位已禁用`,
-    icon: 'i-lucide-users',
-    iconClass: 'is-emerald',
-    trend: `+${userOverview.value.newThisMonth} 本月`,
-    trendIcon: 'i-lucide-user-plus',
-    trendClass: 'is-flat'
-  },
-  {
-    title: '本月 AI 使用',
-    value: formatNumber(userOverview.value.aiUsageThisMonth),
-    hint: `${userOverview.value.admins} 位正常管理员`,
-    icon: 'i-lucide-sparkles',
-    iconClass: 'is-rose',
-    trend: '本月',
-    trendIcon: 'i-lucide-calendar-days',
-    trendClass: 'is-flat'
-  }
+const {
+  data: userData,
+  error: userError,
+  refresh: refreshUsers
+} = await useFetch<{ data: UserOverview }>('/api/admin/users/overview')
+const {
+  data: knowledgeData,
+  error: knowledgeError,
+  refresh: refreshKnowledge
+} = await useFetch<{ data: KnowledgeOverview }>('/api/admin/knowledge/overview')
+const overview = computed(() => overviewData.value?.data)
+const users = computed(() => userData.value?.data)
+const posts = computed<AdminPostListItem[]>(() => postData.value?.data.items || [])
+const drafts = computed(() => draftData.value?.data.items || [])
+const knowledge = computed(() => knowledgeData.value?.data)
+const actionableCount = computed(
+  () => (knowledge.value?.stats.failed || 0) + (knowledge.value?.stats.pending || 0)
+)
+const distribution = computed(() => [
+  { label: '已发布', count: overview.value?.published || 0, tone: 'is-published' },
+  { label: '草稿', count: overview.value?.drafts || 0, tone: 'is-draft' },
+  { label: '回收站', count: overview.value?.archived || 0, tone: 'is-archived' }
 ])
-
-const quickActions = [
-  { label: '写文章', icon: 'i-lucide-plus', to: '/admin/posts/create' },
-  { label: '文章管理', icon: 'i-lucide-file-text', to: '/admin/posts' },
-  { label: '用户管理', icon: 'i-lucide-users', to: '/admin/users' },
-  { label: '站点设置', icon: 'i-lucide-settings', to: '/admin/settings' }
-]
-
-function goSearch() {
-  const query = searchText.value.trim()
-  return navigateTo(query ? `/admin/posts?search=${encodeURIComponent(query)}` : '/admin/posts')
+async function retry() {
+  await Promise.all([refreshOverview(), refreshPosts(), refreshDrafts(), refreshUsers(), refreshKnowledge()])
 }
-
-function statusText(status?: string) {
-  if (status === 'PUBLISHED') return '已发布'
-  if (status === 'ARCHIVED') return '回收站'
-  return '草稿'
+function metric(value?: number) {
+  return value === undefined ? '—' : new Intl.NumberFormat('zh-CN').format(value)
 }
-
-function statusClass(status?: string) {
-  if (status === 'PUBLISHED') return 'is-published'
-  if (status === 'ARCHIVED') return 'is-archived'
-  return 'is-draft'
+function statusClass(status: string) {
+  return status === 'PUBLISHED' ? 'is-published' : status === 'DRAFT' ? 'is-draft' : 'is-archived'
 }
-
-function formatDate(value?: string | Date | null) {
-  if (!value) return ''
-  return new Date(value).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
+function statusText(status: string) {
+  return status === 'PUBLISHED' ? '已发布' : status === 'DRAFT' ? '草稿' : '回收站'
 }
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('zh-CN').format(value)
+function formatDate(date: string | Date) {
+  return new Date(date).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
 }
 </script>
 
 <style scoped>
-.dashboard-page {
+.dashboard-metrics {
   display: grid;
-  min-height: calc(100vh - 1.75rem);
-  gap: 0.875rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 26px 8px;
+  border: 1px solid var(--admin-line);
+  border-radius: 10px;
+  background: #fff;
 }
-
-.dashboard-hero,
-.dashboard-title,
-.dashboard-hero-actions,
-.dashboard-stat-top,
-.dashboard-trend,
-.recent-status,
-.recent-metric,
-.recent-date,
-.quick-grid a,
-.notice-item {
+.dashboard-metric {
+  display: grid;
+  gap: 13px;
+  padding: 0 24px;
+  border-right: 1px solid var(--admin-line);
+}
+.dashboard-metric:last-child {
+  border: 0;
+}
+.dashboard-metric > span {
   display: flex;
   align-items: center;
+  gap: 8px;
+  color: var(--admin-muted);
+  font-size: 12px;
 }
-
-.dashboard-hero {
-  justify-content: space-between;
-  gap: 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 20px 48px rgba(15, 23, 42, 0.08);
-  padding: 0.75rem 1rem;
+.dashboard-metric > span .iconify {
+  width: 15px;
+  height: 15px;
+  color: #8b83a3;
 }
-
-.dashboard-title {
-  gap: 0.9rem;
+.dashboard-metric strong {
+  font-size: 31px;
+  line-height: 1.1;
+  font-weight: 550;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-metric small {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #697386;
+  font-size: 11px;
+}
+.dashboard-metric small .iconify {
+  width: 12px;
+  height: 12px;
+}
+a.dashboard-metric:hover strong {
+  color: var(--admin-accent);
+}
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 284px;
+  align-items: start;
+  gap: 24px;
+}
+.dashboard-list-label,
+.dashboard-post {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 75px 65px 28px;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+}
+.dashboard-list-label {
+  min-height: 36px;
+  background: #fafbfc;
+  border-block: 1px solid #eef0f3;
+  color: #697386;
+  font-size: 11px;
+}
+.dashboard-post {
+  min-height: 83px;
+  border-bottom: 1px solid #eef0f3;
+}
+.dashboard-post:hover {
+  background: #faf9fc;
+}
+.dashboard-post-copy {
   min-width: 0;
 }
-
-.dashboard-title-icon {
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 0.65rem;
-  background: #eef2ff;
-  color: #4f46e5;
-}
-
-.dashboard-title h1 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 1.15rem;
-  font-weight: 850;
-  line-height: 1.2;
-}
-
-.dashboard-title p {
-  margin: 0.25rem 0 0;
-  color: #64748b;
-  font-size: 0.8rem;
-}
-
-.dashboard-hero-actions {
-  gap: 0.65rem;
-}
-
-.dashboard-search {
-  width: min(18rem, 36vw);
-}
-
-.dashboard-stats {
-  display: grid;
-  gap: 0.875rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.dashboard-stat-card {
-  display: grid;
-  gap: 0.875rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 20px 48px rgba(15, 23, 42, 0.08);
-  padding: 1rem;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-}
-
-.dashboard-stat-card:hover {
-  border-color: #c7d2fe;
-  box-shadow: 0 18px 38px rgba(79, 70, 229, 0.1);
-  transform: translateY(-1px);
-}
-
-.dashboard-stat-top {
-  justify-content: space-between;
-}
-
-.dashboard-stat-icon {
-  display: grid;
-  width: 3rem;
-  height: 3rem;
-  place-items: center;
-  border-radius: 0.75rem;
-  transition: transform 160ms ease;
-}
-
-.dashboard-stat-card:hover .dashboard-stat-icon {
-  transform: scale(1.06);
-}
-
-.dashboard-stat-icon.is-indigo { background: #eef2ff; color: #4f46e5; }
-.dashboard-stat-icon.is-blue { background: #eff6ff; color: #2563eb; }
-.dashboard-stat-icon.is-emerald { background: #ecfdf5; color: #059669; }
-.dashboard-stat-icon.is-rose { background: #fff1f2; color: #e11d48; }
-
-.dashboard-trend {
-  gap: 0.25rem;
-  border-radius: 0.5rem;
-  font-size: 0.78rem;
-  font-weight: 800;
-  padding: 0.35rem 0.5rem;
-}
-
-.dashboard-trend.is-up {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-.dashboard-trend.is-flat {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.dashboard-stat-card h2 {
-  margin: 0 0 0.25rem;
-  color: #64748b;
-  font-size: 0.86rem;
-  font-weight: 750;
-}
-
-.dashboard-stat-card strong {
-  display: block;
-  color: #1e293b;
-  font-size: 1.75rem;
-  font-weight: 850;
-  line-height: 1.1;
-}
-
-.dashboard-stat-card p {
-  margin: 0.5rem 0 0;
-  color: #94a3b8;
-  font-size: 0.78rem;
-}
-
-.dashboard-grid {
-  display: grid;
-  gap: 0.875rem;
-  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
-}
-
-.dashboard-panel,
-.dashboard-quick-card {
+.dashboard-post-copy > a {
+  display: -webkit-box;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 20px 48px rgba(15, 23, 42, 0.08);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.65;
 }
-
-.dashboard-panel-head {
+.dashboard-post-copy > a:hover {
+  color: var(--admin-accent);
+}
+.dashboard-post-copy > span {
   display: flex;
   align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  color: #697386;
+  font-size: 11px;
+}
+.dashboard-copy-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #b3b8c3;
+}
+.dashboard-post time {
+  color: #697386;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-list-footer {
+  display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  border-bottom: 1px solid #f1f5f9;
-  background: rgba(248, 250, 252, 0.72);
-  padding: 0.85rem 1rem;
+  gap: 12px;
+  padding: 16px 24px;
+  color: #697386;
+  font-size: 11px;
 }
-
-.dashboard-panel-head h2,
-.dashboard-quick-card h2,
-.dashboard-notices h2 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 1rem;
-  font-weight: 850;
+.dashboard-aside {
+  display: grid;
+  gap: 20px;
 }
-
-.dashboard-panel-head p {
-  margin: 0.2rem 0 0;
-  color: #64748b;
-  font-size: 0.8rem;
+.dashboard-small-count {
+  margin-left: 8px;
+  color: #8d849f;
+  font-size: 11px;
+  font-weight: 450;
 }
-
-.dashboard-table-wrap {
-  overflow-x: auto;
+.dashboard-draft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px 20px;
 }
-
-.dashboard-table {
-  width: 100%;
-  min-width: 48rem;
-  border-collapse: collapse;
-  text-align: left;
-  white-space: nowrap;
+.dashboard-draft > span {
+  flex: 1;
+  min-width: 0;
 }
-
-.dashboard-table thead {
-  background: rgba(248, 250, 252, 0.76);
-  color: #64748b;
-  font-size: 0.78rem;
-  font-weight: 750;
-}
-
-.dashboard-table th,
-.dashboard-table td {
-  border-bottom: 1px solid #f1f5f9;
-  padding: 0.8rem 1rem;
-}
-
-.dashboard-table tbody tr {
-  transition: background-color 160ms ease;
-}
-
-.dashboard-table tbody tr:hover {
-  background: rgba(248, 250, 252, 0.82);
-}
-
-.recent-title {
-  display: block;
-  max-width: 20rem;
+.dashboard-draft strong {
+  display: -webkit-box;
   overflow: hidden;
-  color: #0f172a;
-  font-weight: 750;
-  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.8;
 }
-
-.recent-title:hover {
-  color: #4f46e5;
+.dashboard-draft small {
+  display: block;
+  margin-top: 5px;
+  color: #697386;
+  font-size: 11px;
 }
-
-.recent-category {
-  border-radius: 0.45rem;
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.35rem 0.55rem;
-}
-
-.recent-status,
-.recent-metric,
-.recent-date {
-  gap: 0.35rem;
-}
-
-.recent-status {
-  width: max-content;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 0.35rem 0.6rem;
-}
-
-.recent-status.is-published {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-.recent-status.is-draft {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.recent-status.is-archived {
-  background: #fff1f2;
-  color: #e11d48;
-}
-
-.recent-metric,
-.recent-date {
-  color: #64748b;
-  font-size: 0.82rem;
-}
-
-.dashboard-empty {
-  display: grid;
-  place-items: center;
-  padding: 3.5rem 1rem;
-  color: #94a3b8;
-  text-align: center;
-}
-
-.dashboard-empty p {
-  margin-top: 0.8rem;
-  color: #334155;
-  font-weight: 800;
-}
-
-.dashboard-side {
-  display: grid;
-  align-content: start;
-  gap: 1rem;
-}
-
-.dashboard-quick-card {
-  position: relative;
-  border: 0;
-  background: linear-gradient(135deg, #4f46e5, #3730a3);
-  color: #fff;
-  padding: 1rem;
-}
-
-.quick-bg {
-  position: absolute;
-  top: -0.8rem;
-  right: -0.8rem;
-  width: 7rem;
-  height: 7rem;
-  color: rgba(255, 255, 255, 0.1);
-  pointer-events: none;
-}
-
-.dashboard-quick-card h2 {
-  position: relative;
-  z-index: 1;
-  color: #fff;
-  margin-bottom: 0.9rem;
-}
-
-.quick-grid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 0.65rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.quick-grid a {
-  justify-content: center;
-  flex-direction: column;
-  gap: 0.45rem;
-  min-height: 5rem;
-  border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 0.82rem;
-  font-weight: 750;
-  text-align: center;
-  transition: background-color 160ms ease;
-}
-
-.quick-grid a:hover {
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.dashboard-notices {
-  padding: 1rem;
-}
-
-.notice-list {
-  display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.notice-item {
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.notice-icon {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
+.dashboard-draft > .iconify {
   flex: 0 0 auto;
+  color: #9a91b0;
+}
+.dashboard-draft:hover strong {
+  color: var(--admin-accent);
+}
+.dashboard-new-draft {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 45px;
+  border-top: 1px solid var(--admin-line);
+  color: var(--admin-accent);
+  font-size: 11px;
+  background: #fcfbfe;
+}
+.dashboard-quiet-state {
+  padding: 0 24px 22px;
+  color: #697386;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.dashboard-quiet-state button {
+  color: var(--admin-accent);
+  cursor: pointer;
+}
+.dashboard-attention-count {
+  display: grid;
+  width: 21px;
+  height: 21px;
   place-items: center;
-  border-radius: 0.65rem;
+  border-radius: 5px;
+  background: #faf0e2;
+  color: #956b2c;
+  font-size: 11px;
 }
-
-.notice-icon.is-indigo {
-  background: #eef2ff;
-  color: #4f46e5;
+.dashboard-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 24px 22px;
 }
-
-.notice-icon.is-emerald {
-  background: #ecfdf5;
-  color: #059669;
+.dashboard-task > span:nth-child(2) {
+  flex: 1;
 }
-
-.notice-item strong {
+.dashboard-task strong {
   display: block;
-  color: #334155;
-  font-size: 0.86rem;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 500;
 }
-
-.notice-item small {
+.dashboard-task small {
   display: block;
-  margin-top: 0.25rem;
-  color: #64748b;
-  font-size: 0.76rem;
-  line-height: 1.55;
+  margin-top: 6px;
+  color: #697386;
+  font-size: 11px;
 }
-
-@media (max-width: 1120px) {
-  .dashboard-stats {
+.dashboard-task > .iconify {
+  color: #a0a6b1;
+}
+.dashboard-task-dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #c19c63;
+}
+.dashboard-task-dot.is-error {
+  background: #be7777;
+}
+.dashboard-total {
+  color: #697386;
+  font-size: 11px;
+}
+.dashboard-distribution-body {
+  padding: 0 24px 20px;
+}
+.dashboard-distribution-bar {
+  display: flex;
+  height: 6px;
+  gap: 3px;
+  overflow: hidden;
+  border-radius: 4px;
+  margin: 2px 0 20px;
+  background: #f0f1f4;
+}
+.dashboard-distribution-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+.dashboard-distribution-row > span:first-child {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+.dashboard-distribution-row strong {
+  margin-left: auto;
+  color: var(--admin-ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-distribution :is(.is-published) {
+  background: #8a7bb9;
+}
+.dashboard-distribution :is(.is-draft) {
+  background: #d4bf98;
+}
+.dashboard-distribution :is(.is-archived) {
+  background: #dce0e7;
+}
+.dashboard-ai-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 15px 24px;
+  border-top: 1px solid var(--admin-line);
+  color: #697386;
+  font-size: 11px;
+}
+.dashboard-ai-note span {
+  margin-left: auto;
+  color: #596273;
+}
+@media (min-width: 1600px) {
+  .dashboard-columns {
+    grid-template-columns: minmax(0, 1fr) 310px;
+  }
+  .dashboard-post {
+    min-height: 88px;
+  }
+}
+@media (max-width: 1150px) {
+  .dashboard-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dashboard-aside {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
-
-  .dashboard-grid {
-    grid-template-columns: 1fr;
+  .dashboard-metric {
+    padding: 0 18px;
   }
 }
-
-@media (max-width: 720px) {
-  .dashboard-hero,
-  .dashboard-hero-actions,
-  .dashboard-panel-head {
-    align-items: stretch;
-    flex-direction: column;
+@media (max-width: 640px) {
+  .dashboard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0 16px;
   }
-
-  .dashboard-search {
-    width: 100%;
+  .dashboard-metric {
+    gap: 12px;
+    padding: 21px 6px;
   }
-
-  .dashboard-stats,
-  .quick-grid {
+  .dashboard-metric:nth-child(2) {
+    border-right: 0;
+    padding-left: 20px;
+  }
+  .dashboard-metric:nth-child(n + 3) {
+    border-top: 1px solid var(--admin-line);
+  }
+  .dashboard-metric:last-child {
+    padding-left: 20px;
+  }
+  .dashboard-metric strong {
+    font-size: 28px;
+  }
+  .dashboard-metric small {
+    font-size: 9px;
+  }
+  .dashboard-aside {
     grid-template-columns: 1fr;
+  }
+  .dashboard-list-label,
+  .dashboard-post {
+    grid-template-columns: minmax(0, 1fr) 65px 26px;
+    gap: 10px;
+    padding-inline: 16px;
+  }
+  .dashboard-post time,
+  .dashboard-list-label > span:nth-child(3) {
+    display: none;
+  }
+  .dashboard-post {
+    min-height: 88px;
+  }
+  .dashboard-list-footer {
+    padding-inline: 16px;
   }
 }
 </style>

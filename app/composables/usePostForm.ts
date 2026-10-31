@@ -13,6 +13,7 @@ type UsePostFormOptions = {
 export async function usePostForm(options: UsePostFormOptions) {
   const toast = useToast()
   const pending = ref(false)
+  const loadError = ref(false)
   const generatingSummary = ref(false)
   const summaryGenerated = ref(false)
   const generatingSeoMeta = ref(false)
@@ -40,7 +41,7 @@ export async function usePostForm(options: UsePostFormOptions) {
     title: '',
     slug: '',
     summary: '',
-    content: '# 标题\n\n开始写作...',
+    content: '',
     cover: '',
     isPinned: false,
     categoryId: null as number | null,
@@ -72,7 +73,8 @@ export async function usePostForm(options: UsePostFormOptions) {
   const galleryPickerDescription = computed(() => galleryPickerMode.value === 'cover' ? '从已上传图片中选择一张作为文章封面。' : '从已上传图片中选择一张插入到正文末尾。')
 
   if (options.mode === 'edit' && options.postId) {
-    const { data } = await useFetch(`/api/admin/posts/${options.postId}`)
+    const { data, error } = await useFetch(`/api/admin/posts/${options.postId}`)
+    loadError.value = Boolean(error.value || !data.value?.data)
     if (data.value?.data) {
       Object.assign(form, {
         title: data.value.data.title,
@@ -92,7 +94,14 @@ export async function usePostForm(options: UsePostFormOptions) {
     }
   }
 
+  const serialize = () => JSON.stringify({ form, relations: relationItems.value })
+  const savedSnapshot = ref(serialize())
+  const savedAt = ref('')
+  const isDirty = computed(() => serialize() !== savedSnapshot.value)
+  const listPath = useState('admin-post-list-path', () => '/admin/posts')
+
   async function save(status: PostStatus) {
+    if (pending.value || loadError.value) return
     const localError = validateForm()
 
     if (localError) {
@@ -111,13 +120,19 @@ export async function usePostForm(options: UsePostFormOptions) {
         status,
         slug: form.slug
       }
+      const relations = relationItems.value.map(item => ({ ...item }))
+      const snapshot = JSON.stringify({ form: body, relations })
 
       if (options.mode === 'create') {
         await $fetch('/api/admin/posts', { method: 'POST', body })
       } else {
         await $fetch(`/api/admin/posts/${options.postId}`, { method: 'PUT', body })
-        await saveRelations()
+        await saveRelations(relations)
       }
+
+      form.status = status
+      savedSnapshot.value = snapshot
+      savedAt.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 
       toast.add({
         title: successTitle(status),
@@ -125,8 +140,8 @@ export async function usePostForm(options: UsePostFormOptions) {
         color: 'success'
       })
 
-      if (options.mode === 'create' || status === 'PUBLISHED') {
-        await navigateTo('/admin/posts')
+      if (options.mode === 'create') {
+        await navigateTo(listPath.value)
       }
     } catch (error: any) {
       toast.add({
@@ -139,13 +154,13 @@ export async function usePostForm(options: UsePostFormOptions) {
     }
   }
 
-  async function saveRelations() {
+  async function saveRelations(items: PostRelationItem[]) {
     if (!options.postId) return
 
     await $fetch(`/api/admin/posts/${options.postId}/relations`, {
       method: 'PUT',
       body: {
-        items: relationItems.value.map((item, index) => ({
+        items: items.map((item, index) => ({
           relatedPostId: item.relatedPostId,
           type: item.type,
           reason: item.reason,
@@ -176,7 +191,7 @@ export async function usePostForm(options: UsePostFormOptions) {
     try {
       const response = await $fetch<{ data: { document: KnowledgeDocumentState } }>(`/api/admin/knowledge/documents/${options.postId}/sync`, { method: 'POST' })
       knowledgeDocument.value = response.data.document
-      toast.add({ title: '知识向量同步完成', color: 'success' })
+      toast.add({ title: '知识同步任务已提交', color: 'success' })
     } catch (error: unknown) {
       toast.add({ title: '知识同步失败', description: getApiErrorMessage(error), color: 'error' })
     } finally {
@@ -556,7 +571,7 @@ export async function usePostForm(options: UsePostFormOptions) {
       return options.mode === 'create' ? '草稿已创建' : '草稿已保存'
     }
 
-    return options.mode === 'create' ? '文章已发布' : '发布成功'
+    return options.mode === 'create' ? '文章已发布' : '文章已更新'
   }
 
   function validateForm() {
@@ -723,6 +738,9 @@ export async function usePostForm(options: UsePostFormOptions) {
 
   return {
     pending,
+    loadError,
+    isDirty,
+    savedAt,
     generatingSummary,
     summaryGenerated,
     generatingSeoMeta,

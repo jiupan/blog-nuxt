@@ -3,6 +3,7 @@ export type TaxonomySummary = {
   name: string
   slug: string
   icon?: string | null
+  sort?: number
 }
 
 export type TaxonomyItem = TaxonomySummary & {

@@ -127,18 +127,24 @@ model Category {
   name      String
   slug      String   @unique
   icon      String?
+  sort      Int      @default(0)
   posts     Post[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([sort, id])
 }
 
 model Tag {
   id        Int       @id @default(autoincrement())
   name      String
   slug      String    @unique
+  sort      Int       @default(0)
   posts     PostTag[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([sort, id])
 }
 
 model PostTag {

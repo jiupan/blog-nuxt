@@ -1,32 +1,74 @@
 <template>
   <section class="twikoo-manager-card">
-    <div v-if="!envId" class="manager-state is-error">
-      <UIcon name="i-lucide-message-square-warning" class="size-6" />
+    <div
+      v-if="!envId"
+      class="manager-state is-error"
+    >
+      <UIcon
+        name="i-lucide-message-square-warning"
+        class="size-6"
+      />
       <strong>评论服务尚未配置</strong>
-      <p>请设置 NUXT_PUBLIC_TWIKOO_ENV_ID 后重启应用。</p>
+      <p>评论服务还未连接。配置评论服务地址并重启应用后，即可管理读者留言。</p>
+      <details class="manager-help">
+        <summary>查看连接方法</summary>
+        <p>在服务器环境变量中设置 NUXT_PUBLIC_TWIKOO_ENV_ID 为评论服务地址，然后重启应用。</p>
+      </details>
     </div>
 
-    <div v-else-if="loading" class="manager-state">
-      <UIcon name="i-lucide-loader-circle" class="manager-spinner size-6" />
+    <div
+      v-else-if="loading"
+      class="manager-state"
+    >
+      <UIcon
+        name="i-lucide-loader-circle"
+        class="manager-spinner size-6"
+      />
       <strong>正在连接 Twikoo</strong>
       <p>管理面板加载完成后会自动打开。</p>
     </div>
 
-    <div v-else-if="loadError" class="manager-state is-error">
-      <UIcon name="i-lucide-circle-alert" class="size-6" />
+    <div
+      v-else-if="loadError"
+      class="manager-state is-error"
+    >
+      <UIcon
+        name="i-lucide-circle-alert"
+        class="size-6"
+      />
       <strong>Twikoo 管理面板加载失败</strong>
       <p>{{ errorMessage }}</p>
-      <UButton icon="i-lucide-refresh-cw" @click="initialize">重新加载</UButton>
+      <UButton
+        icon="i-lucide-refresh-cw"
+        @click="initialize"
+      >
+        重新加载
+      </UButton>
     </div>
 
-    <div v-else class="manager-state is-ready">
-      <UIcon name="i-lucide-shield-check" class="size-6" />
+    <div
+      v-else
+      class="manager-state is-ready"
+    >
+      <UIcon
+        name="i-lucide-shield-check"
+        class="size-6"
+      />
       <strong>Twikoo 评论管理已就绪</strong>
       <p>管理面板关闭后，可通过下方按钮再次打开。</p>
-      <UButton icon="i-lucide-panel-top-open" @click="openAdminPanel">打开评论管理面板</UButton>
+      <UButton
+        icon="i-lucide-panel-top-open"
+        @click="openAdminPanel"
+      >
+        打开评论管理面板
+      </UButton>
     </div>
 
-    <div id="twikoo-admin-host" ref="container" class="twikoo-admin-host" />
+    <div
+      id="twikoo-admin-host"
+      ref="container"
+      class="twikoo-admin-host"
+    />
   </section>
 </template>
 
@@ -151,12 +193,14 @@ function waitForAdminEntry(): Promise<HTMLElement | null> {
 
 function resolveTwikooInit(module: unknown): (options: TwikooInitOptions) => Promise<void> {
   const imported = module as { default?: unknown }
-  const candidate = imported.default as { default?: unknown, init?: unknown } | ((options: TwikooInitOptions) => Promise<void>) | undefined
-  const init = typeof candidate === 'function'
-    ? candidate
-    : typeof candidate?.default === 'function'
-      ? candidate.default
-      : candidate?.init
+  const candidate = imported.default as
+    { default?: unknown; init?: unknown } | ((options: TwikooInitOptions) => Promise<void>) | undefined
+  const init =
+    typeof candidate === 'function'
+      ? candidate
+      : typeof candidate?.default === 'function'
+        ? candidate.default
+        : candidate?.init
   if (typeof init !== 'function') throw new Error('Twikoo 初始化函数不可用')
   return init as (options: TwikooInitOptions) => Promise<void>
 }
@@ -171,12 +215,82 @@ type TwikooInitOptions = {
 </script>
 
 <style scoped>
-.twikoo-manager-card{position:relative;height:max(560px,calc(100vh - 220px));overflow:hidden;border:1px solid #e2e8f0;border-radius:20px;background:white;box-shadow:0 12px 32px rgb(15 23 42 / 6%)}
-.manager-state{display:grid;height:100%;min-height:560px;place-items:center;align-content:center;gap:10px;padding:32px;color:#64748b;text-align:center}
-.manager-state>svg{color:#4f46e5}.manager-state strong{color:#0f172a;font-size:18px}.manager-state p{max-width:480px;margin:0;font-size:13px;line-height:1.7}.manager-state.is-error>svg{color:#dc2626}.manager-state.is-ready>svg{color:#059669}.manager-spinner{animation:manager-spin 1s linear infinite}
-.twikoo-admin-host{position:absolute;inset:0;z-index:5;pointer-events:none}
-.twikoo-admin-host :deep(.twikoo){position:relative;width:100%;height:100%}
-.twikoo-admin-host :deep(.tk-comments),.twikoo-admin-host :deep(.tk-footer){display:none}
-.twikoo-admin-host :deep(.tk-admin-container){height:100%}
-@keyframes manager-spin{to{transform:rotate(360deg)}}
+.twikoo-manager-card {
+  position: relative;
+  height: max(460px, calc(100dvh - 210px));
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: white;
+  box-shadow: none;
+}
+.manager-state {
+  display: grid;
+  height: 100%;
+  min-height: 460px;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: #64748b;
+  text-align: center;
+}
+.manager-state > svg {
+  color: #6554c0;
+}
+.manager-state strong {
+  color: #0f172a;
+  font-size: 16px;
+}
+.manager-state p {
+  max-width: 480px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.manager-state.is-error > svg {
+  color: #dc2626;
+}
+.manager-state.is-ready > svg {
+  color: #059669;
+}
+.manager-spinner {
+  animation: manager-spin 1s linear infinite;
+}
+.twikoo-admin-host {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.twikoo-admin-host :deep(.twikoo) {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.twikoo-admin-host :deep(.tk-comments),
+.twikoo-admin-host :deep(.tk-footer) {
+  display: none;
+}
+.twikoo-admin-host :deep(.tk-admin-container) {
+  height: 100%;
+}
+.manager-help {
+  max-width: 420px;
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: left;
+}
+.manager-help summary {
+  cursor: pointer;
+  color: #6554c0;
+}
+.manager-help p {
+  margin-top: 12px;
+}
+@keyframes manager-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 </style>

@@ -1,393 +1,768 @@
 <template>
   <div class="admin-page">
-    <div class="admin-page-header">
-      <div class="admin-page-title">
-        <span class="admin-page-title-icon">
-          <UIcon name="i-lucide-settings" class="size-5" />
-        </span>
-        <div class="admin-page-title-text">
-          <p>Settings</p>
-          <h1>站点设置</h1>
-        </div>
-      </div>
-      <div v-if="form" class="admin-page-actions settings-header-actions">
-        <span v-if="saved" class="text-sm font-medium text-emerald-600">✓ 已保存</span>
-        <UButton icon="i-lucide-save" :loading="saving" @click="save">保存设置</UButton>
-      </div>
+    <AdminPageActions>
+      <span v-if="form" class="admin-save-state" :class="{ 'is-dirty': isDirty }">
+        {{ isDirty ? '有未保存修改' : saved ? '已保存并应用' : '已保存' }}
+      </span>
+      <UButton
+        icon="i-lucide-check"
+        size="sm"
+        :loading="saving"
+        :disabled="!form || (!isDirty && !saving)"
+        @click="save"
+      >
+        保存设置
+      </UButton>
+    </AdminPageActions>
+    <div v-if="loadError" class="workspace-error" role="alert">
+      <span>站点设置加载失败，请重试。</span>
+      <UButton color="neutral" variant="outline" @click="reloadSettings()"> 重新加载 </UButton>
     </div>
-
-    <section v-if="form" class="admin-panel settings-admin-panel">
-      <div class="settings-tabs" aria-label="设置分类">
+    <div v-if="form" class="workspace-editor-layout">
+      <nav class="workspace-settings-nav" aria-label="设置分类">
         <button
           v-for="tab in settingTabs"
           :key="tab.value"
           type="button"
-          class="settings-tab"
           :class="{ 'is-active': activeTab === tab.value }"
+          :aria-pressed="activeTab === tab.value"
           @click="activeTab = tab.value"
         >
+          <UIcon :name="settingIcons[tab.value]" class="size-4" />
           {{ tab.label }}
         </button>
-      </div>
-
-      <div v-if="activeTab === 'basic'" class="settings-form">
-        <div class="settings-row">
-          <label class="settings-label">站点标题</label>
-          <UInput v-model="form.site_title" icon="i-lucide-type" placeholder="站点标题" class="settings-control" />
-          <p class="text-xs text-slate-400">显示在浏览器标题栏和页面头部</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">站点副标题</label>
-          <UInput v-model="form.site_subtitle" icon="i-lucide-text" placeholder="站点副标题" class="settings-control" />
-          <p class="text-xs text-slate-400">用于首页浏览器标签标题，例如“站点标题 - 站点副标题”</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">顶部品牌文字</label>
-          <UInput v-model="form.site_brand" icon="i-lucide-badge" placeholder="DYU" class="settings-control" />
-          <p class="text-xs text-slate-400">显示在顶部导航图标右侧，留空时默认显示 DYU</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">Logo URL</label>
-          <div class="settings-upload">
-            <UInput v-model="form.site_logo" icon="i-lucide-image" placeholder="https://example.com/logo.png" class="flex-1" />
-            <input ref="logoInputRef" type="file" accept="image/*" class="hidden" @change="uploadFile($event, 'site_logo')" >
-            <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploading === 'site_logo'" @click="logoInputRef?.click()">上传</UButton>
-            <span v-if="logoUploaded" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><UIcon name="i-lucide-check" class="size-4" />已上传</span>
-            <span v-if="logoUploadError" class="inline-flex items-center gap-1 text-sm font-medium text-red-500"><UIcon name="i-lucide-alert-circle" class="size-4" />上传失败</span>
+        <NuxtLink to="/admin/knowledge?tab=config" class="settings-ai-link">
+          <UIcon name="i-lucide-orbit" class="size-4" />
+          AI 模型与检索
+          <UIcon name="i-lucide-arrow-up-right" class="size-3" />
+        </NuxtLink>
+      </nav>
+      <section class="admin-panel settings-admin-panel">
+        <header class="settings-section-head">
+          <h2>{{ currentSettingLabel }}</h2>
+          <p>{{ settingDescriptions[activeTab] || '管理 AI 服务与索引。' }}</p>
+        </header>
+        <div v-if="activeTab === 'basic'" class="settings-form">
+          <div class="settings-brand-preview">
+            <span>
+              <img v-if="form.site_logo" :src="form.site_logo" alt="站点标识预览" >
+              <UIcon v-else name="i-lucide-feather" class="size-6" />
+            </span>
+            <div>
+              <strong>{{ form.site_title || '站点名称' }}</strong>
+              <p>{{ form.site_subtitle || '站点副标题' }}</p>
+            </div>
+            <small>标识预览</small>
           </div>
-          <p class="text-xs text-slate-400">粘贴图片 URL，或点击上传按钮选择本地图片</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">Favicon URL</label>
-          <div class="settings-upload">
-            <UInput v-model="form.site_favicon" icon="i-lucide-globe" placeholder="https://example.com/favicon.ico" class="flex-1" />
-            <input ref="faviconInputRef" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" class="hidden" @change="uploadFile($event, 'site_favicon')" >
-            <UButton color="neutral" variant="outline" icon="i-lucide-upload" :loading="uploading === 'site_favicon'" @click="faviconInputRef?.click()">上传</UButton>
-            <span v-if="faviconUploaded" class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"><UIcon name="i-lucide-check" class="size-4" />已上传</span>
-            <span v-if="faviconUploadError" class="inline-flex items-center gap-1 text-sm font-medium text-red-500"><UIcon name="i-lucide-alert-circle" class="size-4" />上传失败</span>
-          </div>
-          <p class="text-xs text-slate-400">粘贴图片 URL，或点击上传按钮选择本地图片</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">首页轮播表情包分组</label>
-          <UDropdownMenu
-            :items="heroMemeGroupMenuItems"
-            :content="{ align: 'start', sideOffset: 6 }"
-            :ui="{ content: 'w-[360px] max-w-[calc(100vw-2rem)]' }"
-          >
-            <UButton
-              type="button"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-smile"
-              trailing-icon="i-lucide-chevron-down"
-              :label="selectedHeroMemeGroupLabel"
-              block
-              class="hero-meme-trigger"
+          <div class="settings-row">
+            <label class="settings-label">站点标题</label>
+            <UInput
+              v-model="form.site_title"
+              icon="i-lucide-type"
+              placeholder="站点标题"
+              class="settings-control"
             />
-          </UDropdownMenu>
-          <p v-if="memeGroupsError" class="text-xs text-red-500">分组加载失败，请刷新页面或重新登录后重试。</p>
-          <p class="text-xs text-slate-400">轮播文章左侧图标将从该分组随机选取；不选择或分组为空时使用默认图标。</p>
-        </div>
+            <p class="text-xs text-slate-400">显示在浏览器标题栏和页面头部</p>
+          </div>
 
-        <div class="settings-row">
-          <label class="settings-checkbox">
-            <input
-              type="checkbox"
-              :checked="form.home_post_card_style === 'archive'"
-              @change="toggleHomePostCardStyle"
+          <div class="settings-row">
+            <label class="settings-label">站点副标题</label>
+            <UInput
+              v-model="form.site_subtitle"
+              icon="i-lucide-text"
+              placeholder="站点副标题"
+              class="settings-control"
+            />
+            <p class="text-xs text-slate-400">
+              用于首页浏览器标签标题，例如“站点标题 - 站点副标题”
+            </p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">顶部品牌文字</label>
+            <UInput
+              v-model="form.site_brand"
+              icon="i-lucide-badge"
+              placeholder="DYU"
+              class="settings-control"
+            />
+            <p class="text-xs text-slate-400">显示在顶部导航图标右侧，留空时默认显示 DYU</p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">Logo URL</label>
+            <div class="settings-upload">
+              <UInput
+                v-model="form.site_logo"
+                icon="i-lucide-image"
+                placeholder="https://example.com/logo.png"
+                class="flex-1"
+              />
+              <input
+                ref="logoInputRef"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="uploadFile($event, 'site_logo')"
+              >
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-upload"
+                :loading="uploading === 'site_logo'"
+                @click="logoInputRef?.click()"
+              >
+                上传
+              </UButton>
+              <span
+                v-if="logoUploaded"
+                class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"
+              >
+                <UIcon name="i-lucide-check" class="size-4" />
+                已上传
+              </span>
+              <span
+                v-if="logoUploadError"
+                class="inline-flex items-center gap-1 text-sm font-medium text-red-500"
+              >
+                <UIcon name="i-lucide-alert-circle" class="size-4" />
+                上传失败
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">粘贴图片 URL，或点击上传按钮选择本地图片</p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">Favicon URL</label>
+            <div class="settings-upload">
+              <UInput
+                v-model="form.site_favicon"
+                icon="i-lucide-globe"
+                placeholder="https://example.com/favicon.ico"
+                class="flex-1"
+              />
+              <input
+                ref="faviconInputRef"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg"
+                class="hidden"
+                @change="uploadFile($event, 'site_favicon')"
+              >
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-upload"
+                :loading="uploading === 'site_favicon'"
+                @click="faviconInputRef?.click()"
+              >
+                上传
+              </UButton>
+              <span
+                v-if="faviconUploaded"
+                class="inline-flex items-center gap-1 text-sm font-medium text-emerald-600"
+              >
+                <UIcon name="i-lucide-check" class="size-4" />
+                已上传
+              </span>
+              <span
+                v-if="faviconUploadError"
+                class="inline-flex items-center gap-1 text-sm font-medium text-red-500"
+              >
+                <UIcon name="i-lucide-alert-circle" class="size-4" />
+                上传失败
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">粘贴图片 URL，或点击上传按钮选择本地图片</p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">首页轮播表情包分组</label>
+            <UDropdownMenu
+              :items="heroMemeGroupMenuItems"
+              :content="{ align: 'start', sideOffset: 6 }"
+              :ui="{ content: 'w-[360px] max-w-[calc(100vw-2rem)]' }"
             >
-            <span>首页使用归档卡片样式</span>
-          </label>
-          <p class="text-sm text-slate-500">开启后，电脑端使用与归档页一致的横向列表卡片；手机端仍使用原来的单列大图卡片。</p>
-        </div>
-      </div>
+              <UButton
+                type="button"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-smile"
+                trailing-icon="i-lucide-chevron-down"
+                :label="selectedHeroMemeGroupLabel"
+                block
+                class="hero-meme-trigger"
+              />
+            </UDropdownMenu>
+            <p v-if="memeGroupsError" class="text-xs text-red-500">
+              分组加载失败，请刷新页面或重新登录后重试。
+            </p>
+            <p class="text-xs text-slate-400">
+              轮播文章左侧图标将从该分组随机选取；不选择或分组为空时使用默认图标。
+            </p>
+          </div>
 
-      <div v-else-if="activeTab === 'seo'" class="settings-form">
-        <div class="settings-row">
-          <label class="settings-checkbox">
-            <input
-              type="checkbox"
-              :checked="form.seo_noindex === 'true'"
-              @change="toggleNoindex"
+          <div class="settings-row">
+            <label class="settings-checkbox">
+              <input
+                type="checkbox"
+                :checked="form.home_post_card_style === 'archive'"
+                @change="toggleHomePostCardStyle"
+              >
+              <span>首页使用归档卡片样式</span>
+            </label>
+            <p class="text-sm text-slate-500">
+              开启后，电脑端使用与归档页一致的横向列表卡片；手机端仍使用原来的单列大图卡片。
+            </p>
+          </div>
+        </div>
+
+        <div v-else-if="activeTab === 'seo'" class="settings-form">
+          <div class="settings-search-preview">
+            <small>搜索结果预览</small>
+            <strong>{{ form.site_title || '站点标题' }}</strong>
+            <p>{{ form.seo_description || '填写站点描述，帮助读者了解博客的主题与内容。' }}</p>
+            <span v-if="form.seo_noindex === 'true'">当前已屏蔽搜索引擎，页面不会参与索引。</span>
+          </div>
+          <div class="settings-row">
+            <label class="settings-checkbox">
+              <input
+                type="checkbox"
+                :checked="form.seo_noindex === 'true'"
+                @change="toggleNoindex"
+              >
+              <span>屏蔽搜索引擎</span>
+            </label>
+            <p class="text-sm text-slate-500">
+              为所有页面添加 robots noindex 标签，阻止搜索引擎索引。
+            </p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">站点关键词</label>
+            <UTextarea
+              v-model="form.seo_keywords"
+              :rows="2"
+              placeholder="关键词之间用英文逗号分隔"
+              class="settings-control"
+            />
+            <p class="text-sm text-slate-500">用于输出 keywords meta 标签。</p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">站点描述</label>
+            <UTextarea
+              v-model="form.seo_description"
+              :rows="2"
+              placeholder="请输入站点描述"
+              class="settings-control"
+            />
+            <p class="text-sm text-slate-500">仅对首页生效，其他页面会优先使用页面自身描述。</p>
+          </div>
+        </div>
+
+        <div v-else-if="activeTab === 'footer'" class="settings-form">
+          <div class="settings-row">
+            <label class="settings-label">版权信息</label>
+            <UInput
+              v-model="form.footer_copyright"
+              icon="i-lucide-copyright"
+              placeholder="©2026 {siteName}"
+              class="settings-control"
+            />
+            <p class="text-sm text-slate-500">
+              显示在 footer-bottom 左侧，使用
+              <code>{siteName}</code>
+              代表当前站点标题。
+            </p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">底部右侧链接</label>
+            <UTextarea
+              v-model="form.footer_bottom_links"
+              :rows="5"
+              placeholder="文章|/posts&#10;归档|/archive&#10;关于|/about&#10;后台|/admin"
+              class="settings-control"
+            />
+            <p class="text-sm text-slate-500">
+              每行一个链接，格式为
+              <code>显示名称|路径或 URL</code>
+              。
+            </p>
+          </div>
+        </div>
+
+        <div v-else-if="activeTab === 'ai'" class="ai-settings-grid">
+          <nav class="ai-settings-switcher" aria-label="AI 设置分类">
+            <button
+              v-for="tab in aiSettingTabs"
+              :key="tab.value"
+              type="button"
+              class="ai-settings-switch"
+              :class="{ 'is-active': activeAiTab === tab.value }"
+              @click="activeAiTab = tab.value"
             >
-            <span>屏蔽搜索引擎</span>
-          </label>
-          <p class="text-sm text-slate-500">为所有页面添加 robots noindex 标签，阻止搜索引擎索引。</p>
-        </div>
+              <UIcon :name="tab.icon" class="size-4" />
+              <span>{{ tab.label }}</span>
+            </button>
+          </nav>
 
-        <div class="settings-row">
-          <label class="settings-label">站点关键词</label>
-          <UTextarea v-model="form.seo_keywords" :rows="2" placeholder="关键词之间用英文逗号分隔" class="settings-control" />
-          <p class="text-sm text-slate-500">用于输出 keywords meta 标签。</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">站点描述</label>
-          <UTextarea v-model="form.seo_description" :rows="2" placeholder="请输入站点描述" class="settings-control" />
-          <p class="text-sm text-slate-500">仅对首页生效，其他页面会优先使用页面自身描述。</p>
-        </div>
-      </div>
-
-      <div v-else-if="activeTab === 'footer'" class="settings-form">
-        <div class="settings-row">
-          <label class="settings-label">版权信息</label>
-          <UInput v-model="form.footer_copyright" icon="i-lucide-copyright" placeholder="©2026 {siteName}" class="settings-control" />
-          <p class="text-sm text-slate-500">显示在 footer-bottom 左侧，使用 <code>{siteName}</code> 代表当前站点标题。</p>
-        </div>
-
-        <div class="settings-row">
-          <label class="settings-label">底部右侧链接</label>
-          <UTextarea v-model="form.footer_bottom_links" :rows="5" placeholder="文章|/posts&#10;归档|/archive&#10;关于|/about&#10;后台|/admin" class="settings-control" />
-          <p class="text-sm text-slate-500">每行一个链接，格式为 <code>显示名称|路径或 URL</code>。</p>
-        </div>
-      </div>
-
-      <div v-else-if="activeTab === 'ai'" class="ai-settings-grid">
-        <nav class="ai-settings-switcher" aria-label="AI 设置分类">
-          <button
-            v-for="tab in aiSettingTabs"
-            :key="tab.value"
-            type="button"
-            class="ai-settings-switch"
-            :class="{ 'is-active': activeAiTab === tab.value }"
-            @click="activeAiTab = tab.value"
-          >
-            <UIcon :name="tab.icon" class="size-4" />
-            <span>{{ tab.label }}</span>
-          </button>
-        </nav>
-
-        <section v-if="activeAiTab === 'chat'" class="ai-settings-card">
-          <div class="ai-settings-card-head">
-            <span class="ai-settings-icon is-chat"><UIcon name="i-lucide-message-square-text" class="size-5" /></span>
-            <div>
-              <h2>对话模型</h2>
-              <p>用于摘要、SEO、写作助手、关联推荐等生成类能力。</p>
-            </div>
-          </div>
-
-          <div class="ai-settings-fields">
-            <div class="settings-row">
-              <label class="settings-label">AI API Key</label>
-              <UInput v-model="form.ai_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
-              <p class="text-sm text-slate-500">若服务器环境变量已配置 <code>AI_API_KEY</code> 或 <code>DEEPSEEK_API_KEY</code>，会优先使用环境变量。</p>
+          <section v-if="activeAiTab === 'chat'" class="ai-settings-card">
+            <div class="ai-settings-card-head">
+              <span class="ai-settings-icon is-chat">
+                <UIcon name="i-lucide-message-square-text" class="size-5" />
+              </span>
+              <div>
+                <h2>对话模型</h2>
+                <p>用于摘要、SEO、写作助手、关联推荐等生成类能力。</p>
+              </div>
             </div>
 
-            <div class="settings-row">
-              <label class="settings-label">AI Base URL</label>
-              <UInput v-model="form.ai_base_url" icon="i-lucide-globe-2" placeholder="https://api.deepseek.com" class="settings-control" />
-              <p class="text-sm text-slate-500">DeepSeek OpenAI 兼容接口地址，默认 <code>https://api.deepseek.com</code>。</p>
+            <div class="ai-settings-fields">
+              <div class="settings-row">
+                <label class="settings-label">AI API Key</label>
+                <UInput
+                  v-model="form.ai_api_key"
+                  type="password"
+                  icon="i-lucide-key-round"
+                  placeholder="sk-..."
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  若服务器环境变量已配置
+                  <code>AI_API_KEY</code>
+                  或
+                  <code>DEEPSEEK_API_KEY</code>
+                  ，会优先使用环境变量。
+                </p>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">AI Base URL</label>
+                <UInput
+                  v-model="form.ai_base_url"
+                  icon="i-lucide-globe-2"
+                  placeholder="https://api.deepseek.com"
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  DeepSeek OpenAI 兼容接口地址，默认
+                  <code>https://api.deepseek.com</code>
+                  。
+                </p>
+              </div>
+
+              <div class="settings-row">
+                <label class="settings-label">AI 模型</label>
+                <UInput
+                  v-model="form.ai_model"
+                  icon="i-lucide-cpu"
+                  placeholder="deepseek-v4-flash"
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  当前默认使用
+                  <code>deepseek-v4-flash</code>
+                  。
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section v-else-if="activeAiTab === 'embedding'" class="ai-settings-card">
+            <div class="ai-settings-card-head">
+              <span class="ai-settings-icon is-vector">
+                <UIcon name="i-lucide-brain-circuit" class="size-5" />
+              </span>
+              <div>
+                <h2>Embedding 向量模型</h2>
+                <p>用于文章分块向量化，支撑语义搜索和后续问问博客。</p>
+              </div>
             </div>
 
-            <div class="settings-row">
-              <label class="settings-label">AI 模型</label>
-              <UInput v-model="form.ai_model" icon="i-lucide-cpu" placeholder="deepseek-v4-flash" class="settings-control" />
-              <p class="text-sm text-slate-500">当前默认使用 <code>deepseek-v4-flash</code>。</p>
-            </div>
-          </div>
-        </section>
+            <div class="ai-settings-fields">
+              <div class="settings-row">
+                <label class="settings-label">Embedding API Key</label>
+                <UInput
+                  v-model="form.ai_embedding_api_key"
+                  type="password"
+                  icon="i-lucide-key-round"
+                  placeholder="sk-..."
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  若服务器环境变量已配置
+                  <code>AI_EMBEDDING_API_KEY</code>
+                  或
+                  <code>OPENAI_API_KEY</code>
+                  ，会优先使用环境变量。
+                </p>
+              </div>
 
-        <section v-else-if="activeAiTab === 'embedding'" class="ai-settings-card">
-          <div class="ai-settings-card-head">
-            <span class="ai-settings-icon is-vector"><UIcon name="i-lucide-brain-circuit" class="size-5" /></span>
-            <div>
-              <h2>Embedding 向量模型</h2>
-              <p>用于文章分块向量化，支撑语义搜索和后续问问博客。</p>
-            </div>
-          </div>
+              <div class="settings-row">
+                <label class="settings-label">Embedding Base URL</label>
+                <UInput
+                  v-model="form.ai_embedding_base_url"
+                  icon="i-lucide-globe-2"
+                  placeholder="https://api.openai.com/v1"
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  OpenAI 兼容 embedding 接口地址，默认
+                  <code>https://api.openai.com/v1</code>
+                  。
+                </p>
+              </div>
 
-          <div class="ai-settings-fields">
-            <div class="settings-row">
-              <label class="settings-label">Embedding API Key</label>
-              <UInput v-model="form.ai_embedding_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
-              <p class="text-sm text-slate-500">若服务器环境变量已配置 <code>AI_EMBEDDING_API_KEY</code> 或 <code>OPENAI_API_KEY</code>，会优先使用环境变量。</p>
-            </div>
+              <div class="settings-row">
+                <label class="settings-label">Embedding 模型</label>
+                <UInput
+                  v-model="form.ai_embedding_model"
+                  icon="i-lucide-cpu"
+                  placeholder="text-embedding-3-small"
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  当前 pgvector 表固定为 1536 维，默认使用
+                  <code>text-embedding-3-small</code>
+                  。
+                </p>
+              </div>
 
-            <div class="settings-row">
-              <label class="settings-label">Embedding Base URL</label>
-              <UInput v-model="form.ai_embedding_base_url" icon="i-lucide-globe-2" placeholder="https://api.openai.com/v1" class="settings-control" />
-              <p class="text-sm text-slate-500">OpenAI 兼容 embedding 接口地址，默认 <code>https://api.openai.com/v1</code>。</p>
+              <div class="settings-row">
+                <label class="settings-label">Embedding 维度</label>
+                <UInput
+                  v-model="form.ai_embedding_dimensions"
+                  icon="i-lucide-ruler"
+                  placeholder="1536"
+                  disabled
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  当前数据库向量列固定为 1536 维；如需更换维度，需要先迁移 pgvector 列和索引。
+                </p>
+              </div>
             </div>
+          </section>
 
-            <div class="settings-row">
-              <label class="settings-label">Embedding 模型</label>
-              <UInput v-model="form.ai_embedding_model" icon="i-lucide-cpu" placeholder="text-embedding-3-small" class="settings-control" />
-              <p class="text-sm text-slate-500">当前 pgvector 表固定为 1536 维，默认使用 <code>text-embedding-3-small</code>。</p>
-            </div>
-
-            <div class="settings-row">
-              <label class="settings-label">Embedding 维度</label>
-              <UInput v-model="form.ai_embedding_dimensions" icon="i-lucide-ruler" placeholder="1536" disabled class="settings-control" />
-              <p class="text-sm text-slate-500">当前数据库向量列固定为 1536 维；如需更换维度，需要先迁移 pgvector 列和索引。</p>
-            </div>
-          </div>
-        </section>
-
-        <section v-else-if="activeAiTab === 'rerank'" class="ai-settings-card">
-          <div class="ai-settings-card-head">
-            <span class="ai-settings-icon is-rerank"><UIcon name="i-lucide-list-filter" class="size-5" /></span>
-            <div>
-              <h2>Rerank 精排</h2>
-              <p>对混合检索候选结果二次排序，减少进入问答上下文的噪声。</p>
-            </div>
-          </div>
-
-          <div class="ai-settings-fields">
-            <div class="settings-row">
-              <label class="settings-checkbox">
-                <input
-                  type="checkbox"
-                  :checked="form.ai_rerank_enabled === 'true'"
-                  @change="toggleRerank"
-                >
-                <span>启用 Rerank</span>
-              </label>
-              <p class="text-sm text-slate-500">默认关闭；未配置 API Key 或模型时会自动跳过精排。</p>
-            </div>
-
-            <div class="settings-row">
-              <label class="settings-label">Rerank API Key</label>
-              <UInput v-model="form.ai_rerank_api_key" type="password" icon="i-lucide-key-round" placeholder="sk-..." class="settings-control" />
-              <p class="text-sm text-slate-500">若服务器环境变量已配置 <code>AI_RERANK_API_KEY</code> 或 <code>DASHSCOPE_API_KEY</code>，会优先使用环境变量。</p>
-            </div>
-
-            <div class="settings-row">
-              <label class="settings-label">Rerank Base URL</label>
-              <UInput v-model="form.ai_rerank_base_url" icon="i-lucide-globe-2" placeholder="https://api.cohere.com/v2" class="settings-control" />
-              <p class="text-sm text-slate-500">可填兼容模式 base URL，或 DashScope 原生完整 endpoint，例如 <code>https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank</code>。</p>
+          <section v-else-if="activeAiTab === 'rerank'" class="ai-settings-card">
+            <div class="ai-settings-card-head">
+              <span class="ai-settings-icon is-rerank">
+                <UIcon name="i-lucide-list-filter" class="size-5" />
+              </span>
+              <div>
+                <h2>Rerank 精排</h2>
+                <p>对混合检索候选结果二次排序，减少进入问答上下文的噪声。</p>
+              </div>
             </div>
 
-            <div class="settings-row">
-              <label class="settings-label">Rerank 模型</label>
-              <UInput v-model="form.ai_rerank_model" icon="i-lucide-cpu" placeholder="rerank-v3.5" class="settings-control" />
-            </div>
+            <div class="ai-settings-fields">
+              <div class="settings-row">
+                <label class="settings-checkbox">
+                  <input
+                    type="checkbox"
+                    :checked="form.ai_rerank_enabled === 'true'"
+                    @change="toggleRerank"
+                  >
+                  <span>启用 Rerank</span>
+                </label>
+                <p class="text-sm text-slate-500">
+                  默认关闭；未配置 API Key 或模型时会自动跳过精排。
+                </p>
+              </div>
 
-            <div class="settings-row">
-              <label class="settings-label">输出 Top N</label>
-              <UInput v-model="form.ai_rerank_top_n" icon="i-lucide-list-ordered" placeholder="8" class="settings-control" />
-              <p class="text-sm text-slate-500">建议 5-10；数值越大，问答上下文覆盖更广但延迟更高。</p>
-            </div>
-          </div>
-        </section>
+              <div class="settings-row">
+                <label class="settings-label">Rerank API Key</label>
+                <UInput
+                  v-model="form.ai_rerank_api_key"
+                  type="password"
+                  icon="i-lucide-key-round"
+                  placeholder="sk-..."
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  若服务器环境变量已配置
+                  <code>AI_RERANK_API_KEY</code>
+                  或
+                  <code>DASHSCOPE_API_KEY</code>
+                  ，会优先使用环境变量。
+                </p>
+              </div>
 
-        <section v-else class="ai-settings-card">
-          <div class="ai-settings-card-head">
-            <span class="ai-settings-icon is-index"><UIcon name="i-lucide-database-zap" class="size-5" /></span>
-            <div>
-              <h2>向量索引管理</h2>
-              <p>重建已发布文章的语义检索索引，索引完成后 Lab 的语义搜索才会有结果。</p>
-            </div>
-            <UButton class="ai-index-action" size="sm" icon="i-lucide-refresh-cw" :loading="rebuildingIndex" @click="rebuildAiIndex">重建索引</UButton>
-          </div>
+              <div class="settings-row">
+                <label class="settings-label">Rerank Base URL</label>
+                <UInput
+                  v-model="form.ai_rerank_base_url"
+                  icon="i-lucide-globe-2"
+                  placeholder="https://api.cohere.com/v2"
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  可填兼容模式 base URL，或 DashScope 原生完整 endpoint，例如
+                  <code
+                    >https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank</code
+                  >
+                  。
+                </p>
+              </div>
 
-          <div class="ai-index-status">
-            <span><strong>{{ aiIndexStatus?.indexedPosts ?? 0 }}</strong>已索引文章</span>
-            <span><strong>{{ aiIndexStatus?.chunks ?? 0 }}</strong>Chunk</span>
-            <span><strong>{{ aiIndexStatus?.staleChunks ?? 0 }}</strong>失效 Chunk</span>
-            <span><strong>{{ formatIndexDate(aiIndexStatus?.lastIndexedAt) }}</strong>最后索引</span>
-          </div>
-
-          <div v-if="aiIndexStatus?.models.length" class="ai-index-models">
-            <div v-for="item in aiIndexStatus.models" :key="`${item.model}-${item.dimensions}`" class="ai-index-model">
-              <span>{{ item.model }}</span>
-              <strong>{{ item.dimensions }} 维 · {{ item.chunks }} chunks</strong>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div v-else class="settings-form">
-        <div class="settings-row">
-          <div class="settings-row-head">
-            <div>
-              <label class="settings-label">底部快捷入口</label>
-              <p class="text-sm text-slate-500">返回顶部按钮始终在中间，这里配置的入口会自动均分在左右两侧。</p>
-            </div>
-            <UButton size="sm" icon="i-lucide-plus" @click="addFooterAction">添加入口</UButton>
-          </div>
-
-          <div class="footer-action-editor">
-            <article v-for="(item, index) in footerActionItems" :key="item.id" class="footer-action-item">
-              <div class="footer-action-item-main">
-                <div class="footer-action-preview">
-                  <UIcon :name="item.icon || 'i-simple-icons-linktree'" class="size-5" />
-                </div>
-                <UInput v-model="item.label" icon="i-lucide-type" placeholder="显示名称" />
-                <UInput v-model="item.to" icon="i-lucide-link" placeholder="跳转地址（留空则展示图片）" />
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  icon="i-lucide-trash-2"
-                  :disabled="footerActionItems.length <= 1"
-                  @click="removeFooterAction(index)"
+              <div class="settings-row">
+                <label class="settings-label">Rerank 模型</label>
+                <UInput
+                  v-model="form.ai_rerank_model"
+                  icon="i-lucide-cpu"
+                  placeholder="rerank-v3.5"
+                  class="settings-control"
                 />
               </div>
 
-              <label class="settings-checkbox footer-action-target-option" :class="{ 'is-disabled': !item.to.trim() }">
-                <input v-model="item.targetBlank" type="checkbox" :disabled="!item.to.trim()">
-                <span>在新页面打开</span>
-                <small>{{ item.to.trim() ? (item.targetBlank ? '点击后将在新标签页打开' : '点击后在当前页面打开') : '填写跳转地址后可设置' }}</small>
-              </label>
+              <div class="settings-row">
+                <label class="settings-label">输出 Top N</label>
+                <UInput
+                  v-model="form.ai_rerank_top_n"
+                  icon="i-lucide-list-ordered"
+                  placeholder="8"
+                  class="settings-control"
+                />
+                <p class="text-sm text-slate-500">
+                  建议 5-10；数值越大，问答上下文覆盖更广但延迟更高。
+                </p>
+              </div>
+            </div>
+          </section>
 
-              <div class="footer-action-image-editor">
-                <div v-if="item.image" class="footer-action-image-preview">
-                  <img :src="item.image" :alt="`${item.label} 悬浮图片预览`">
-                </div>
-                <div class="footer-action-image-copy">
-                  <strong>悬浮图片</strong>
-                  <p>{{ item.to.trim() ? '当前填写了跳转地址，前台会优先执行跳转。清空地址后才会展示这张图片。' : '地址留空时，桌面端悬浮、移动端点击图标即可查看图片。' }}</p>
-                  <div class="footer-action-image-buttons">
-                    <label class="footer-action-upload" :class="{ 'is-loading': uploadingFooterActionId === item.id }">
-                      <input type="file" accept="image/jpeg,image/png,image/webp" :disabled="uploadingFooterActionId === item.id" @change="uploadFooterActionImage($event, item)">
-                      <UIcon :name="uploadingFooterActionId === item.id ? 'i-lucide-loader-circle' : 'i-lucide-upload'" class="size-4" />
-                      {{ uploadingFooterActionId === item.id ? '上传中' : item.image ? '替换图片' : '上传图片' }}
-                    </label>
-                    <button v-if="item.image" type="button" class="footer-action-image-remove" @click="item.image = ''">
-                      <UIcon name="i-lucide-trash-2" class="size-4" />
-                      删除图片
+          <section v-else class="ai-settings-card">
+            <div class="ai-settings-card-head">
+              <span class="ai-settings-icon is-index">
+                <UIcon name="i-lucide-database-zap" class="size-5" />
+              </span>
+              <div>
+                <h2>向量索引管理</h2>
+                <p>重建已发布文章的语义检索索引，索引完成后 Lab 的语义搜索才会有结果。</p>
+              </div>
+              <UButton
+                class="ai-index-action"
+                size="sm"
+                icon="i-lucide-refresh-cw"
+                :loading="rebuildingIndex"
+                @click="rebuildAiIndex"
+              >
+                重建索引
+              </UButton>
+            </div>
+
+            <div class="ai-index-status">
+              <span>
+                <strong>{{ aiIndexStatus?.indexedPosts ?? 0 }}</strong>
+                已索引文章
+              </span>
+              <span>
+                <strong>{{ aiIndexStatus?.chunks ?? 0 }}</strong>
+                Chunk
+              </span>
+              <span>
+                <strong>{{ aiIndexStatus?.staleChunks ?? 0 }}</strong>
+                失效 Chunk
+              </span>
+              <span>
+                <strong>{{ formatIndexDate(aiIndexStatus?.lastIndexedAt) }}</strong>
+                最后索引
+              </span>
+            </div>
+
+            <div v-if="aiIndexStatus?.models.length" class="ai-index-models">
+              <div
+                v-for="item in aiIndexStatus.models"
+                :key="`${item.model}-${item.dimensions}`"
+                class="ai-index-model"
+              >
+                <span>{{ item.model }}</span>
+                <strong>{{ item.dimensions }} 维 · {{ item.chunks }} chunks</strong>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div v-else class="settings-form">
+          <div class="settings-row">
+            <div class="settings-row-head">
+              <div>
+                <label class="settings-label">底部快捷入口</label>
+                <p class="text-sm text-slate-500">
+                  返回顶部按钮始终在中间，这里配置的入口会自动均分在左右两侧。
+                </p>
+              </div>
+              <UButton size="sm" icon="i-lucide-plus" @click="addFooterAction"> 添加入口 </UButton>
+            </div>
+
+            <AdminSortableList
+              :items="footerActionItems"
+              :disabled="saving"
+              class="footer-action-editor"
+              @reorder="footerActionItems = $event"
+            >
+              <article
+                v-for="(item, index) in footerActionItems"
+                :key="item.id"
+                class="footer-action-item admin-sortable-item"
+              >
+                <div class="footer-action-order">
+                  <AdminDragHandle
+                    :label="item.label || `入口${index + 1}`"
+                    :disabled="saving"
+                  /><span>第 {{ index + 1 }} 个入口</span>
+                  <div class="admin-order-buttons">
+                    <button
+                      type="button"
+                      :disabled="saving || index === 0"
+                      :aria-label="`上移${item.label || '入口'}`"
+                      @click="moveFooterAction(index, -1)"
+                    >
+                      <UIcon name="i-lucide-chevron-up" /></button
+                    ><button
+                      type="button"
+                      :disabled="saving || index === footerActionItems.length - 1"
+                      :aria-label="`下移${item.label || '入口'}`"
+                      @click="moveFooterAction(index, 1)"
+                    >
+                      <UIcon name="i-lucide-chevron-down" />
                     </button>
                   </div>
-                  <small v-if="footerImageUploadErrorId === item.id">上传失败，请使用 JPG、PNG 或 WebP 图片重试。</small>
                 </div>
-              </div>
+                <div class="footer-action-item-main">
+                  <div class="footer-action-preview">
+                    <UIcon :name="item.icon || 'i-simple-icons-linktree'" class="size-5" />
+                  </div>
+                  <UInput v-model="item.label" icon="i-lucide-type" placeholder="显示名称" />
+                  <UInput
+                    v-model="item.to"
+                    icon="i-lucide-link"
+                    placeholder="跳转地址（留空则展示图片）"
+                  />
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    :disabled="footerActionItems.length <= 1"
+                    @click="removeFooterAction(index)"
+                  />
+                </div>
 
-              <div class="footer-icon-grid" aria-label="图标库">
-                <button
-                  v-for="icon in visibleFooterActionIcons(item.id)"
-                  :key="icon.name"
-                  type="button"
-                  class="footer-icon-option"
-                  :class="{ 'is-active': item.icon === icon.name }"
-                  :title="icon.label"
-                  @click="item.icon = icon.name"
+                <label
+                  class="settings-checkbox footer-action-target-option"
+                  :class="{ 'is-disabled': !item.to.trim() }"
                 >
-                  <UIcon :name="icon.name" class="size-4" />
+                  <input v-model="item.targetBlank" type="checkbox" :disabled="!item.to.trim()" >
+                  <span>在新页面打开</span>
+                  <small>
+                    {{
+                      item.to.trim()
+                        ? item.targetBlank
+                          ? '点击后将在新标签页打开'
+                          : '点击后在当前页面打开'
+                        : '填写跳转地址后可设置'
+                    }}
+                  </small>
+                </label>
+
+                <div class="footer-action-image-editor">
+                  <div v-if="item.image" class="footer-action-image-preview">
+                    <img :src="item.image" :alt="`${item.label} 悬浮图片预览`" >
+                  </div>
+                  <div class="footer-action-image-copy">
+                    <strong>悬浮图片</strong>
+                    <p>
+                      {{
+                        item.to.trim()
+                          ? '当前填写了跳转地址，前台会优先执行跳转。清空地址后才会展示这张图片。'
+                          : '地址留空时，桌面端悬浮、移动端点击图标即可查看图片。'
+                      }}
+                    </p>
+                    <div class="footer-action-image-buttons">
+                      <label
+                        class="footer-action-upload"
+                        :class="{ 'is-loading': uploadingFooterActionId === item.id }"
+                      >
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          :disabled="uploadingFooterActionId === item.id"
+                          @change="uploadFooterActionImage($event, item)"
+                        >
+                        <UIcon
+                          :name="
+                            uploadingFooterActionId === item.id
+                              ? 'i-lucide-loader-circle'
+                              : 'i-lucide-upload'
+                          "
+                          class="size-4"
+                        />
+                        {{
+                          uploadingFooterActionId === item.id
+                            ? '上传中'
+                            : item.image
+                              ? '替换图片'
+                              : '上传图片'
+                        }}
+                      </label>
+                      <button
+                        v-if="item.image"
+                        type="button"
+                        class="footer-action-image-remove"
+                        @click="item.image = ''"
+                      >
+                        <UIcon name="i-lucide-trash-2" class="size-4" />
+                        删除图片
+                      </button>
+                    </div>
+                    <small v-if="footerImageUploadErrorId === item.id">
+                      上传失败，请使用 JPG、PNG 或 WebP 图片重试。
+                    </small>
+                  </div>
+                </div>
+
+                <div class="footer-icon-grid" aria-label="图标库">
+                  <button
+                    v-for="icon in visibleFooterActionIcons(item.id)"
+                    :key="icon.name"
+                    type="button"
+                    class="footer-icon-option"
+                    :class="{ 'is-active': item.icon === icon.name }"
+                    :title="icon.label"
+                    @click="item.icon = icon.name"
+                  >
+                    <UIcon :name="icon.name" class="size-4" />
+                  </button>
+                </div>
+                <button
+                  v-if="footerActionIconOptions.length > collapsedFooterIconCount"
+                  type="button"
+                  class="footer-icon-toggle"
+                  :aria-expanded="expandedFooterIconItems.has(item.id)"
+                  @click="toggleFooterIconGrid(item.id)"
+                >
+                  {{
+                    expandedFooterIconItems.has(item.id)
+                      ? '收起图标'
+                      : `展开全部 ${footerActionIconOptions.length} 个图标`
+                  }}
+                  <UIcon
+                    :name="
+                      expandedFooterIconItems.has(item.id)
+                        ? 'i-lucide-chevron-up'
+                        : 'i-lucide-chevron-down'
+                    "
+                    class="size-4"
+                  />
                 </button>
-              </div>
-              <button
-                v-if="footerActionIconOptions.length > collapsedFooterIconCount"
-                type="button"
-                class="footer-icon-toggle"
-                :aria-expanded="expandedFooterIconItems.has(item.id)"
-                @click="toggleFooterIconGrid(item.id)"
-              >
-                {{ expandedFooterIconItems.has(item.id) ? '收起图标' : `展开全部 ${footerActionIconOptions.length} 个图标` }}
-                <UIcon :name="expandedFooterIconItems.has(item.id) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'" class="size-4" />
-              </button>
-            </article>
+              </article>
+            </AdminSortableList>
           </div>
         </div>
-      </div>
+      </section>
+    </div>
 
-    </section>
-
-    <div v-else class="admin-panel grid place-items-center px-5 py-16 text-center">
+    <div v-else-if="!loadError" class="admin-panel grid place-items-center px-5 py-16 text-center">
       <UIcon name="i-lucide-loader-circle" class="size-10 animate-spin text-slate-300" />
       <p class="mt-3 font-medium text-slate-900">加载中</p>
     </div>
@@ -395,7 +770,10 @@
 </template>
 
 <script setup lang="ts">
+import { moveArrayItem } from '~/utils/reorder'
+import { useAdminUnsavedChanges } from '~/composables/useAdminUnsavedChanges'
 import type { ApiResult } from '~~/types/api'
+import { getApiErrorMessage } from '~/utils/api-error'
 import type { AdminSettingsPayload } from '~~/types/dto/settings'
 
 definePageMeta({
@@ -491,8 +869,19 @@ const settingTabs = [
 ] as const
 
 const siteSettingKeys = [
-  'site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon', 'hero_meme_group', 'home_post_card_style',
-  'seo_noindex', 'seo_keywords', 'seo_description', 'footer_copyright', 'footer_bottom_links', 'footer_actions'
+  'site_title',
+  'site_subtitle',
+  'site_brand',
+  'site_logo',
+  'site_favicon',
+  'hero_meme_group',
+  'home_post_card_style',
+  'seo_noindex',
+  'seo_keywords',
+  'seo_description',
+  'footer_copyright',
+  'footer_bottom_links',
+  'footer_actions'
 ] as const satisfies readonly (keyof SettingsForm)[]
 
 const aiSettingTabs = [
@@ -502,7 +891,8 @@ const aiSettingTabs = [
   { label: '索引管理', value: 'index', icon: 'i-lucide-database-zap' }
 ] as const
 
-const defaultFooterActions = '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
+const defaultFooterActions =
+  '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
 
 const footerActionIconOptions = [
   { label: 'QQ', name: 'i-simple-icons-qq' },
@@ -579,75 +969,130 @@ const faviconUploadError = ref(false)
 const logoInputRef = ref<HTMLInputElement | null>(null)
 const faviconInputRef = ref<HTMLInputElement | null>(null)
 
-const { data } = await useFetch<ApiResult<AdminSettingsPayload>>('/api/admin/settings')
-const { data: memeGroupsData, error: memeGroupsError } = await useFetch<ApiResult<Array<{ id: string, name: string }>>>('/api/admin/gallery/groups')
+const {
+  data,
+  error: loadError,
+  refresh: reloadSettings
+} = await useFetch<ApiResult<AdminSettingsPayload>>('/api/admin/settings')
+const { data: memeGroupsData, error: memeGroupsError } = await useFetch<
+  ApiResult<Array<{ id: string; name: string }>>
+>('/api/admin/gallery/groups')
 const heroMemeGroupOptions = computed(() => [
   { label: '不使用表情包（默认图标）', value: '' },
   { label: '未分组', value: 'ungrouped' },
-  ...(memeGroupsData.value?.data || []).map(group => ({ label: group.name, value: group.id }))
+  ...(memeGroupsData.value?.data || []).map((group) => ({ label: group.name, value: group.id }))
 ])
 const selectedHeroMemeGroupLabel = computed(() => {
-  return heroMemeGroupOptions.value.find(option => option.value === form.value?.hero_meme_group)?.label || '请选择表情包分组'
+  return (
+    heroMemeGroupOptions.value.find((option) => option.value === form.value?.hero_meme_group)
+      ?.label || '请选择表情包分组'
+  )
 })
-const heroMemeGroupMenuItems = computed(() => heroMemeGroupOptions.value.map(option => ({
-  label: option.label,
-  icon: form.value?.hero_meme_group === option.value ? 'i-lucide-check' : 'i-lucide-circle',
-  onSelect: () => {
-    if (form.value) form.value.hero_meme_group = option.value
-  }
-})))
-const { data: aiIndexData, refresh: refreshAiIndexStatus } = await useFetch<ApiResult<AiIndexStatus>>('/api/admin/ai/index/status')
+const heroMemeGroupMenuItems = computed(() =>
+  heroMemeGroupOptions.value.map((option) => ({
+    label: option.label,
+    icon: form.value?.hero_meme_group === option.value ? 'i-lucide-check' : 'i-lucide-circle',
+    onSelect: () => {
+      if (form.value) form.value.hero_meme_group = option.value
+    }
+  }))
+)
+const { data: aiIndexData, refresh: refreshAiIndexStatus } = await useFetch<
+  ApiResult<AiIndexStatus>
+>('/api/admin/ai/index/status')
 const aiIndexStatus = computed(() => aiIndexData.value?.data || null)
 
-watch(data, (val) => {
-  if (val?.data && !form.value) {
-    form.value = {
-      site_title: val.data.site_title || defaultValue('site_title'),
-      site_subtitle: val.data.site_subtitle || defaultValue('site_subtitle'),
-      site_brand: val.data.site_brand || defaultValue('site_brand'),
-      site_logo: val.data.site_logo || defaultValue('site_logo'),
-      site_favicon: val.data.site_favicon || defaultValue('site_favicon'),
-      hero_meme_group: val.data.hero_meme_group || defaultValue('hero_meme_group'),
-      home_post_card_style: val.data.home_post_card_style || defaultValue('home_post_card_style'),
-      seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),
-      seo_keywords: val.data.seo_keywords || defaultValue('seo_keywords'),
-      seo_description: val.data.seo_description || defaultValue('seo_description'),
-      footer_copyright: val.data.footer_copyright || defaultValue('footer_copyright'),
-      footer_bottom_links: val.data.footer_bottom_links || defaultValue('footer_bottom_links'),
-      footer_actions: val.data.footer_actions || defaultValue('footer_actions'),
-      ai_api_key: val.data.ai_api_key || defaultValue('ai_api_key'),
-      ai_base_url: val.data.ai_base_url || defaultValue('ai_base_url'),
-      ai_model: val.data.ai_model || defaultValue('ai_model'),
-      ai_embedding_api_key: val.data.ai_embedding_api_key || defaultValue('ai_embedding_api_key'),
-      ai_embedding_base_url: val.data.ai_embedding_base_url || defaultValue('ai_embedding_base_url'),
-      ai_embedding_model: val.data.ai_embedding_model || defaultValue('ai_embedding_model'),
-      ai_embedding_dimensions: val.data.ai_embedding_dimensions || defaultValue('ai_embedding_dimensions'),
-      ai_rerank_enabled: val.data.ai_rerank_enabled || defaultValue('ai_rerank_enabled'),
-      ai_rerank_api_key: val.data.ai_rerank_api_key || defaultValue('ai_rerank_api_key'),
-      ai_rerank_base_url: val.data.ai_rerank_base_url || defaultValue('ai_rerank_base_url'),
-      ai_rerank_model: val.data.ai_rerank_model || defaultValue('ai_rerank_model'),
-      ai_rerank_top_n: val.data.ai_rerank_top_n || defaultValue('ai_rerank_top_n')
+watch(
+  data,
+  (val) => {
+    if (val?.data && !form.value) {
+      form.value = {
+        site_title: val.data.site_title || defaultValue('site_title'),
+        site_subtitle: val.data.site_subtitle || defaultValue('site_subtitle'),
+        site_brand: val.data.site_brand || defaultValue('site_brand'),
+        site_logo: val.data.site_logo || defaultValue('site_logo'),
+        site_favicon: val.data.site_favicon || defaultValue('site_favicon'),
+        hero_meme_group: val.data.hero_meme_group || defaultValue('hero_meme_group'),
+        home_post_card_style: val.data.home_post_card_style || defaultValue('home_post_card_style'),
+        seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),
+        seo_keywords: val.data.seo_keywords || defaultValue('seo_keywords'),
+        seo_description: val.data.seo_description || defaultValue('seo_description'),
+        footer_copyright: val.data.footer_copyright || defaultValue('footer_copyright'),
+        footer_bottom_links: val.data.footer_bottom_links || defaultValue('footer_bottom_links'),
+        footer_actions: val.data.footer_actions || defaultValue('footer_actions'),
+        ai_api_key: val.data.ai_api_key || defaultValue('ai_api_key'),
+        ai_base_url: val.data.ai_base_url || defaultValue('ai_base_url'),
+        ai_model: val.data.ai_model || defaultValue('ai_model'),
+        ai_embedding_api_key: val.data.ai_embedding_api_key || defaultValue('ai_embedding_api_key'),
+        ai_embedding_base_url:
+          val.data.ai_embedding_base_url || defaultValue('ai_embedding_base_url'),
+        ai_embedding_model: val.data.ai_embedding_model || defaultValue('ai_embedding_model'),
+        ai_embedding_dimensions:
+          val.data.ai_embedding_dimensions || defaultValue('ai_embedding_dimensions'),
+        ai_rerank_enabled: val.data.ai_rerank_enabled || defaultValue('ai_rerank_enabled'),
+        ai_rerank_api_key: val.data.ai_rerank_api_key || defaultValue('ai_rerank_api_key'),
+        ai_rerank_base_url: val.data.ai_rerank_base_url || defaultValue('ai_rerank_base_url'),
+        ai_rerank_model: val.data.ai_rerank_model || defaultValue('ai_rerank_model'),
+        ai_rerank_top_n: val.data.ai_rerank_top_n || defaultValue('ai_rerank_top_n')
+      }
+      footerActionItems.value = parseFooterActionItems(form.value.footer_actions)
     }
-    footerActionItems.value = parseFooterActionItems(form.value.footer_actions)
-  }
-}, { immediate: true })
+  },
+  { immediate: true }
+)
+
+const { isDirty, markSaved, snapshot } = useAdminUnsavedChanges(() =>
+  form.value ? { settings: form.value, actions: footerActionItems.value } : null
+)
+const toast = useToast()
+const settingIcons: Record<string, string> = {
+  basic: 'i-lucide-sliders-horizontal',
+  seo: 'i-lucide-search',
+  footer: 'i-lucide-panel-bottom',
+  footerActions: 'i-lucide-grid-2x2'
+}
+const settingDescriptions: Record<string, string> = {
+  basic: '设置站点名称、标识与首页展示方式。',
+  seo: '完善搜索摘要，管理搜索引擎的索引权限。',
+  footer: '维护页面底部的版权信息与导航链接。',
+  footerActions: '配置底部快捷入口的图标、图片和链接。'
+}
+const currentSettingLabel = computed(
+  () => settingTabs.find((tab) => tab.value === activeTab.value)?.label || 'AI 设置'
+)
 
 async function save() {
-  if (!form.value) return
-  form.value.footer_actions = JSON.stringify(footerActionItems.value.map(({ label, to, icon, image, targetBlank }) => ({
-    label: label.trim(),
-    to: to.trim(),
-    icon: icon.trim() || 'i-simple-icons-linktree',
-    image: image.trim(),
-    targetBlank
-  })).filter((item) => item.label))
+  if (!form.value || saving.value) return
+  form.value.footer_actions = JSON.stringify(
+    footerActionItems.value
+      .map(({ label, to, icon, image, targetBlank }) => ({
+        label: label.trim(),
+        to: to.trim(),
+        icon: icon.trim() || 'i-simple-icons-linktree',
+        image: image.trim(),
+        targetBlank
+      }))
+      .filter((item) => item.label)
+  )
+  const submittedSnapshot = snapshot()
   saving.value = true
   saved.value = false
   try {
     const siteSettings = Object.fromEntries(siteSettingKeys.map((key) => [key, form.value![key]]))
     await $fetch('/api/admin/settings', { method: 'PUT', body: siteSettings })
+    markSaved(submittedSnapshot)
+    toast.add({ id: 'settings-save', title: '站点设置已保存', color: 'success' })
     saved.value = true
-    setTimeout(() => { saved.value = false }, 2000)
+    setTimeout(() => {
+      saved.value = false
+    }, 2000)
+  } catch (error: unknown) {
+    toast.add({
+      id: 'settings-save',
+      title: '保存设置失败',
+      description: getApiErrorMessage(error),
+      color: 'error'
+    })
   } finally {
     saving.value = false
   }
@@ -689,18 +1134,24 @@ function parseFooterActionItems(value: string): FooterActionItem[] {
   try {
     const parsed = JSON.parse(value || '[]')
     if (!Array.isArray(parsed)) return parseFooterActionItems(defaultFooterActions)
-    const items = parsed.map((item, index) => ({
-      id: Date.now() + index,
-      label: String(item?.label || '').trim(),
-      to: String(item?.to || '').trim(),
-      icon: String(item?.icon || 'i-simple-icons-linktree').trim() || 'i-simple-icons-linktree',
-      image: String(item?.image || '').trim(),
-      targetBlank: item?.targetBlank === true
-    })).filter((item) => item.label)
+    const items = parsed
+      .map((item, index) => ({
+        id: Date.now() + index,
+        label: String(item?.label || '').trim(),
+        to: String(item?.to || '').trim(),
+        icon: String(item?.icon || 'i-simple-icons-linktree').trim() || 'i-simple-icons-linktree',
+        image: String(item?.image || '').trim(),
+        targetBlank: item?.targetBlank === true
+      }))
+      .filter((item) => item.label)
     return items.length ? items : parseFooterActionItems(defaultFooterActions)
   } catch {
     return parseFooterActionItems(defaultFooterActions)
   }
+}
+
+function moveFooterAction(index: number, direction: -1 | 1) {
+  footerActionItems.value = moveArrayItem(footerActionItems.value, index, index + direction)
 }
 
 function addFooterAction() {
@@ -737,7 +1188,10 @@ async function uploadFooterActionImage(event: Event, item: FooterActionItem) {
   try {
     const body = new FormData()
     body.append('file', file)
-    const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', { method: 'POST', body })
+    const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', {
+      method: 'POST',
+      body
+    })
     item.image = result.data.url
   } catch {
     footerImageUploadErrorId.value = item.id
@@ -768,18 +1222,26 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
     form.value[field] = result.data.url
     if (field === 'site_logo') {
       logoUploaded.value = true
-      setTimeout(() => { logoUploaded.value = false }, 2000)
+      setTimeout(() => {
+        logoUploaded.value = false
+      }, 2000)
     } else {
       faviconUploaded.value = true
-      setTimeout(() => { faviconUploaded.value = false }, 2000)
+      setTimeout(() => {
+        faviconUploaded.value = false
+      }, 2000)
     }
   } catch {
     if (field === 'site_logo') {
       logoUploadError.value = true
-      setTimeout(() => { logoUploadError.value = false }, 3000)
+      setTimeout(() => {
+        logoUploadError.value = false
+      }, 3000)
     } else {
       faviconUploadError.value = true
-      setTimeout(() => { faviconUploadError.value = false }, 3000)
+      setTimeout(() => {
+        faviconUploadError.value = false
+      }, 3000)
     }
   } finally {
     uploading.value = null
@@ -816,20 +1278,23 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   color: #64748b;
   cursor: pointer;
   font-size: 0.88rem;
-  font-weight: 750;
+  font-weight: 550;
   outline: none;
-  transition: background-color 160ms ease, box-shadow 160ms ease, color 160ms ease;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
 }
 
 .settings-tab:hover {
   background: rgba(255, 255, 255, 0.86);
-  color: #4338ca;
+  color: #6554c0;
 }
 
 .settings-tab.is-active {
   background: #ffffff;
-  color: #4f46e5;
-  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.08);
+  color: #6554c0;
+  box-shadow: none;
 }
 
 .settings-tab.is-active::after {
@@ -839,8 +1304,8 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   left: 1rem;
   height: 2px;
   border-radius: 999px;
-  background: #4f46e5;
-  content: "";
+  background: #6554c0;
+  content: '';
 }
 
 .settings-admin-panel :deep(.admin-panel-header) {
@@ -866,7 +1331,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   max-width: 100%;
   gap: 0.3rem;
   overflow-x: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e7ec;
   border-radius: 0.8rem;
   background: #f8fafc;
   padding: 0.3rem;
@@ -885,10 +1350,13 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   cursor: pointer;
   font: inherit;
   font-size: 0.84rem;
-  font-weight: 800;
+  font-weight: 550;
   padding: 0 0.75rem;
   white-space: nowrap;
-  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .ai-settings-switch:hover {
@@ -898,13 +1366,13 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 
 .ai-settings-switch.is-active {
   background: white;
-  color: #4f46e5;
-  box-shadow: 0 8px 18px rgb(15 23 42 / 8%);
+  color: #6554c0;
+  box-shadow: none;
 }
 
 .ai-settings-card {
   overflow: hidden;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e7ec;
   border-radius: 0.85rem;
   background: #ffffff;
 }
@@ -921,9 +1389,9 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 
 .ai-settings-card-head h2 {
   margin: 0;
-  color: #0f172a;
+  color: #202633;
   font-size: 1rem;
-  font-weight: 900;
+  font-weight: 550;
 }
 
 .ai-settings-card-head p {
@@ -942,8 +1410,8 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 }
 
 .ai-settings-icon.is-chat {
-  background: #eef2ff;
-  color: #4f46e5;
+  background: #efedf8;
+  color: #6554c0;
 }
 
 .ai-settings-icon.is-vector {
@@ -988,7 +1456,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 .settings-label {
   color: #334155;
   font-size: 0.86rem;
-  font-weight: 750;
+  font-weight: 550;
 }
 
 .settings-row-head {
@@ -1014,7 +1482,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   gap: 0.5rem;
   color: #334155;
   font-size: 0.86rem;
-  font-weight: 750;
+  font-weight: 550;
 }
 
 .settings-checkbox input {
@@ -1046,16 +1514,16 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   background: #f8fafc;
   color: #475569;
   font-size: 0.78rem;
-  font-weight: 750;
+  font-weight: 550;
   padding: 0.65rem 0.75rem;
 }
 
 .ai-index-status strong {
   display: block;
   overflow: hidden;
-  color: #0f172a;
+  color: #202633;
   font-size: 1rem;
-  font-weight: 950;
+  font-weight: 550;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1073,7 +1541,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e7ec;
   border-radius: 0.65rem;
   background: #fff;
   color: #475569;
@@ -1083,8 +1551,8 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 
 .ai-index-model span {
   overflow: hidden;
-  color: #0f172a;
-  font-weight: 850;
+  color: #202633;
+  font-weight: 550;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1092,7 +1560,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 .ai-index-model strong {
   flex: 0 0 auto;
   color: #64748b;
-  font-weight: 800;
+  font-weight: 550;
 }
 
 .footer-action-editor {
@@ -1104,7 +1572,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 .footer-action-item {
   display: grid;
   gap: 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e7ec;
   border-radius: 0.75rem;
   background: #fff;
   padding: 0.875rem;
@@ -1149,7 +1617,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 }
 
 .footer-action-target-option small {
-  color: #94a3b8;
+  color: #697386;
   font-size: 0.75rem;
   font-weight: 500;
 }
@@ -1213,7 +1681,7 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   color: #475569;
   cursor: pointer;
   font-size: 0.75rem;
-  font-weight: 750;
+  font-weight: 550;
   padding: 0.42rem 0.65rem;
 }
 
@@ -1235,26 +1703,31 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
 }
 
 @keyframes footer-upload-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .footer-icon-option {
   display: grid;
   height: 2.25rem;
   place-items: center;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e7ec;
   border-radius: 0.5rem;
   background: #f8fafc;
   color: #64748b;
   cursor: pointer;
-  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 .footer-icon-option:hover,
 .footer-icon-option.is-active {
   border-color: #818cf8;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: #efedf8;
+  color: #6554c0;
 }
 
 .footer-icon-toggle {
@@ -1267,12 +1740,12 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   color: #64748b;
   cursor: pointer;
   font-size: 0.78rem;
-  font-weight: 750;
+  font-weight: 550;
   padding: 0.1rem 0;
 }
 
 .footer-icon-toggle:hover {
-  color: #4f46e5;
+  color: #6554c0;
 }
 
 .settings-header-actions {
@@ -1317,5 +1790,172 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   .ai-index-status {
     grid-template-columns: 1fr;
   }
+}
+</style>
+
+<style scoped>
+.settings-admin-panel {
+  min-height: 0;
+  padding-bottom: 8px;
+}
+.settings-section-head {
+  padding: 24px 28px;
+  border-bottom: 1px solid #e4e7ec;
+}
+.settings-section-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 550;
+}
+.settings-section-head p {
+  margin: 7px 0 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.settings-row {
+  padding: 22px 28px;
+}
+.settings-row:hover {
+  background: transparent;
+}
+.settings-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+.settings-control,
+.settings-upload {
+  width: min(100%, 640px);
+}
+.settings-row > p {
+  max-width: 640px;
+  color: #697386;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.settings-ai-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 12px 10px;
+  margin-top: 10px;
+  border-top: 1px solid #e4e7ec;
+  color: #667085;
+  font-size: 11px;
+}
+.settings-brand-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 24px 28px 0;
+  padding: 20px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+.settings-brand-preview > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 9px;
+  background: #efedf8;
+  color: #8b7daf;
+}
+.settings-brand-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.settings-brand-preview strong {
+  font-size: 15px;
+  font-weight: 550;
+}
+.settings-brand-preview p {
+  margin-top: 5px;
+  color: #667085;
+  font-size: 11px;
+}
+.settings-brand-preview small {
+  margin-left: auto;
+  color: #667085;
+  font-size: 10px;
+}
+.settings-search-preview {
+  margin: 24px 28px 0;
+  padding: 20px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+}
+.settings-search-preview small {
+  display: block;
+  margin-bottom: 12px;
+  color: #667085;
+  font-size: 11px;
+}
+.settings-search-preview strong {
+  display: block;
+  color: #6554c0;
+  font-size: 18px;
+  font-weight: 500;
+}
+.settings-search-preview p {
+  margin-top: 9px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.settings-search-preview > span {
+  display: block;
+  margin-top: 12px;
+  color: #956b2c;
+  font-size: 11px;
+}
+.footer-actions-head {
+  background: #fff;
+}
+.footer-action-card {
+  box-shadow: none;
+  border-radius: 8px;
+}
+@media (max-width: 767px) {
+  .settings-section-head,
+  .settings-row {
+    padding: 20px 18px;
+  }
+  .settings-brand-preview,
+  .settings-search-preview {
+    margin: 18px 18px 0;
+    padding: 16px;
+  }
+  .settings-brand-preview small {
+    display: none;
+  }
+  .settings-ai-link {
+    margin: 0;
+    padding: 10px;
+    border: 0;
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+  .settings-upload {
+    flex-wrap: wrap;
+  }
+}
+</style>
+
+<style scoped>
+.footer-action-order {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e4e7ec;
+  color: #697386;
+  font-size: 11px;
+}
+.footer-action-order > .admin-order-buttons {
+  margin-left: auto;
 }
 </style>

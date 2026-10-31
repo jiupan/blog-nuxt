@@ -1,93 +1,107 @@
 <template>
   <div class="menu-admin-page">
-    <header class="menu-admin-header">
-      <div class="menu-admin-title">
-        <span class="menu-admin-icon">
-          <UIcon name="i-lucide-panels-top-left" class="size-5" />
-        </span>
-        <div>
-          <h1>菜单管理</h1>
-          <p>配置您的博客前台导航结构，支持多层级嵌套。</p>
+    <AdminPageActions>
+      <span class="admin-save-state" :class="{ 'is-dirty': isDirty }">
+        {{ isDirty ? '有未保存修改' : '已保存' }}
+      </span>
+      <UButton
+        v-if="isDirty"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        :disabled="saving"
+        @click="resetMenus"
+      >
+        撤销修改
+      </UButton>
+      <UButton v-if="isDirty" icon="i-lucide-check" size="sm" :loading="saving" @click="saveMenus">
+        保存菜单
+      </UButton>
+      <UButton
+        icon="i-lucide-plus"
+        size="sm"
+        :disabled="saving || Boolean(menuLoadError)"
+        aria-label="添加菜单项"
+        @click="addRootMenuItem"
+      >
+        <span v-if="!isDirty">添加菜单项</span>
+      </UButton>
+    </AdminPageActions>
+    <div v-if="menuLoadError" class="workspace-error" role="alert">
+      <span>菜单加载失败，请重新加载后编辑。</span>
+      <UButton color="neutral" variant="outline" @click="reloadMenus()"> 重新加载 </UButton>
+    </div>
+    <fieldset v-else :disabled="saving" class="menu-edit-body">
+      <section v-if="selectedMenu" class="menu-live-preview workspace-panel">
+        <div class="menu-preview-label">
+          <UIcon name="i-lucide-monitor" class="size-4" />
+          <span>导航预览</span>
+          <small>随编辑实时更新</small>
         </div>
-      </div>
-
-      <div class="menu-admin-actions">
-        <UBadge v-if="isDirty" color="warning" variant="soft">有未保存修改</UBadge>
-        <UButton
-          v-if="isDirty"
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-rotate-ccw"
-          @click="resetMenus"
-        >
-          丢弃修改
-        </UButton>
-        <UButton
-          v-if="isDirty"
-          icon="i-lucide-save"
-          :loading="saving"
-          @click="saveMenus"
-        >
-          保存
-        </UButton>
-        <UButton icon="i-lucide-plus" @click="addRootMenuItem">添加顶级菜单</UButton>
-      </div>
-    </header>
-
-    <div v-if="selectedMenu" class="menu-admin-layout">
-      <section class="menu-list-panel">
-        <div class="menu-tabs">
-          <button
-            v-for="menu in menus"
-            :key="menu.id ?? menu.name"
-            type="button"
-            class="menu-tab"
-            :class="{ 'is-active': selectedMenuId === menu.id }"
-            @click="selectMenu(menu)"
+        <nav aria-label="菜单预览">
+          <div
+            v-for="root in visiblePreviewItems"
+            :key="root.item.id ?? root.item.title"
+            class="menu-preview-item"
+            tabindex="0"
           >
-            {{ menu.name || locationLabel(normalizeMenuLocation(menu.location)) }}
-          </button>
-        </div>
+            <span>
+              <UIcon :name="itemIcon(root.item)" class="size-3.5" />
+              {{ root.item.title || '未命名' }}
+              <UIcon v-if="root.children.length" name="i-lucide-chevron-down" class="size-3" />
+            </span>
+            <div v-if="root.children.length" class="menu-preview-children">
+              <span v-for="child in root.children" :key="child.id ?? child.title">
+                {{ child.title || '未命名' }}
+              </span>
+            </div>
+          </div>
+          <span v-if="!visiblePreviewItems.length" class="menu-preview-empty">
+            开启菜单项的“显示在导航栏”后，将在这里预览。
+          </span>
+        </nav>
+      </section>
+      <div v-if="selectedMenu" class="menu-admin-layout">
+        <section class="menu-list-panel">
+          <div class="menu-tabs">
+            <button
+              v-for="menu in menus"
+              :key="menu.id ?? menu.name"
+              type="button"
+              class="menu-tab"
+              :class="{ 'is-active': selectedMenuId === menu.id }"
+              @click="selectMenu(menu)"
+            >
+              {{ menu.name || locationLabel(normalizeMenuLocation(menu.location)) }}
+            </button>
+          </div>
 
-        <div v-if="treeItems.length" class="menu-tree-area">
-          <template v-for="root in treeItems" :key="root.item.id">
-            <MenuTreeItem
-              :item="root.item"
-              :children="root.children"
-              :selected-item-id="activeItemId"
-              :can-move-up="canMove(root.item, -1)"
-              :can-move-down="canMove(root.item, 1)"
-              :can-indent="canIndent(root.item)"
-              :can-outdent="false"
-              :can-add-child="true"
-              :type-label="typeLabel"
-              :item-url="itemUrl"
-              :item-icon="itemIcon"
-              @select="selectItem"
-              @add-child="addChildMenuItem"
-              @move="moveItem"
-              @indent="indentItem"
-              @outdent="outdentItem"
-              @duplicate="duplicateItem"
-              @delete="deleteMenuItem"
-            />
-
-            <div v-if="root.children.length" class="menu-child-area">
+          <p class="menu-order-hint">拖动手柄调整同级顺序，子菜单会随父菜单一起移动。</p>
+          <AdminSortableList
+            v-if="treeItems.length"
+            :items="treeItems"
+            :disabled="saving"
+            handle=".menu-root-handle"
+            class="menu-tree-area"
+            @reorder="reorderRoots"
+          >
+            <div
+              v-for="root in treeItems"
+              :key="root.item.id ?? root.item.title"
+              class="menu-root-group admin-sortable-item"
+            >
               <MenuTreeItem
-                v-for="child in root.children"
-                :key="child.id ?? `${root.item.id}-${child.title}`"
-                :item="child"
-                :children="[]"
+                :item="root.item"
+                :children="root.children"
                 :selected-item-id="activeItemId"
-                :can-move-up="canMove(child, -1)"
-                :can-move-down="canMove(child, 1)"
-                :can-indent="false"
-                :can-outdent="true"
-                :can-add-child="false"
+                :can-move-up="canMove(root.item, -1)"
+                :can-move-down="canMove(root.item, 1)"
+                :can-indent="canIndent(root.item)"
+                :can-outdent="false"
+                :can-add-child="true"
                 :type-label="typeLabel"
                 :item-url="itemUrl"
                 :item-icon="itemIcon"
-                is-child
                 @select="selectItem"
                 @add-child="addChildMenuItem"
                 @move="moveItem"
@@ -96,134 +110,195 @@
                 @duplicate="duplicateItem"
                 @delete="deleteMenuItem"
               />
+
+              <AdminSortableList
+                v-if="root.children.length"
+                :items="root.children"
+                :disabled="saving"
+                handle=".menu-child-handle"
+                class="menu-child-area"
+                @reorder="reorderChildren"
+              >
+                <MenuTreeItem
+                  v-for="child in root.children"
+                  :key="child.id ?? `${root.item.id}-${child.title}`"
+                  :item="child"
+                  :children="[]"
+                  :selected-item-id="activeItemId"
+                  :can-move-up="canMove(child, -1)"
+                  :can-move-down="canMove(child, 1)"
+                  :can-indent="false"
+                  :can-outdent="true"
+                  :can-add-child="false"
+                  :type-label="typeLabel"
+                  :item-url="itemUrl"
+                  :item-icon="itemIcon"
+                  is-child
+                  class="admin-sortable-item"
+                  @select="selectItem"
+                  @add-child="addChildMenuItem"
+                  @move="moveItem"
+                  @indent="indentItem"
+                  @outdent="outdentItem"
+                  @duplicate="duplicateItem"
+                  @delete="deleteMenuItem"
+                />
+              </AdminSortableList>
             </div>
-          </template>
-        </div>
+          </AdminSortableList>
 
-        <button v-else type="button" class="menu-empty-state" @click="addRootMenuItem">
-          <span><UIcon name="i-lucide-plus" class="size-5" /></span>
-          <strong>添加第一个菜单项</strong>
-          <small>可以添加首页、分类、页面或外部链接。</small>
-        </button>
-      </section>
+          <button v-else type="button" class="menu-empty-state" @click="addRootMenuItem">
+            <span>
+              <UIcon name="i-lucide-plus" class="size-5" />
+            </span>
+            <strong>添加第一个菜单项</strong>
+            <small>可以添加首页、分类、页面或外部链接。</small>
+          </button>
+        </section>
 
-      <aside class="menu-property-card">
-        <div class="property-card-head">
-          <span class="property-head-icon">
-            <UIcon name="i-lucide-settings" class="size-4" />
-          </span>
-          <h2>菜单属性设置</h2>
-        </div>
+        <aside class="menu-property-card">
+          <div class="property-card-head">
+            <span class="property-head-icon">
+              <UIcon name="i-lucide-settings" class="size-4" />
+            </span>
+            <h2>菜单属性设置</h2>
+          </div>
 
-        <template v-if="activeItem">
-          <div class="property-card-body">
-            <label class="property-field">
-              <span>菜单标题</span>
-              <input v-model="activeItem.title" type="text" placeholder="请输入菜单标题" />
-            </label>
+          <template v-if="activeItem">
+            <div class="property-card-body">
+              <label class="property-field">
+                <span>菜单标题</span>
+                <input v-model="activeItem.title" type="text" placeholder="请输入菜单标题" >
+              </label>
 
-            <label class="property-field">
-              <span>菜单类型</span>
-              <select v-model="activeItem.type" @change="syncActiveItemType">
-                <option v-for="option in itemTypeOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </label>
+              <label class="property-field">
+                <span>菜单类型</span>
+                <select v-model="activeItem.type" @change="syncActiveItemType">
+                  <option
+                    v-for="option in itemTypeOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
 
-            <label v-if="activeItem.type === 'CATEGORY'" class="property-field">
-              <span>选择分类</span>
-              <select v-model="activeItem.targetSlug" @change="syncActiveItemTarget">
-                <option value="">全部分类</option>
-                <option v-for="item in categories" :key="item.id" :value="item.slug">{{ item.name }}</option>
-              </select>
-            </label>
+              <label v-if="activeItem.type === 'CATEGORY'" class="property-field">
+                <span>选择分类</span>
+                <select v-model="activeItem.targetSlug" @change="syncActiveItemTarget">
+                  <option value="">全部分类</option>
+                  <option v-for="category in categories" :key="category.id" :value="category.slug">
+                    {{ category.name }}
+                  </option>
+                </select>
+              </label>
 
-            <label v-else-if="activeItem.type === 'TAG'" class="property-field">
-              <span>选择标签</span>
-              <select v-model="activeItem.targetSlug" @change="syncActiveItemTarget">
-                <option value="">全部标签</option>
-                <option v-for="item in tags" :key="item.id" :value="item.slug">{{ item.name }}</option>
-              </select>
-            </label>
+              <label v-else-if="activeItem.type === 'TAG'" class="property-field">
+                <span>选择标签</span>
+                <select v-model="activeItem.targetSlug" @change="syncActiveItemTarget">
+                  <option value="">全部标签</option>
+                  <option v-for="tag in tags" :key="tag.id" :value="tag.slug">
+                    {{ tag.name }}
+                  </option>
+                </select>
+              </label>
 
-            <label v-else-if="activeItem.type === 'PAGE'" class="property-field">
-              <span>选择页面</span>
-              <select v-model="activeItem.url" @change="syncActiveItemPage">
-                <option v-for="page in pageOptions" :key="page.url" :value="page.url">{{ page.label }}</option>
-              </select>
-            </label>
+              <label v-else-if="activeItem.type === 'PAGE'" class="property-field">
+                <span>选择页面</span>
+                <select v-model="activeItem.url" @change="syncActiveItemPage">
+                  <option v-for="page in pageOptions" :key="page.url" :value="page.url">
+                    {{ page.label }}
+                  </option>
+                </select>
+              </label>
 
-            <label v-else class="property-field">
-              <span>路由路径 / 外部链接</span>
-              <input v-model="activeItem.url" type="text" placeholder="/about 或 https://..." />
-            </label>
+              <label v-else class="property-field">
+                <span>路由路径 / 外部链接</span>
+                <input v-model="activeItem.url" type="text" placeholder="/about 或 https://..." >
+              </label>
 
-            <div class="property-field">
-              <span>菜单图标</span>
-              <div class="icon-preset-grid">
+              <div class="property-field">
+                <span>菜单图标</span>
+                <div class="icon-preset-grid">
+                  <button
+                    v-for="icon in iconPresets"
+                    :key="icon.name"
+                    type="button"
+                    class="icon-preset-button"
+                    :class="{
+                      'is-active': (activeItem.icon || itemIcon(activeItem)) === icon.name
+                    }"
+                    :title="icon.label"
+                    @click="activeItem.icon = icon.name"
+                  >
+                    <UIcon :name="icon.name" class="size-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div class="property-switches">
+                <label class="property-switch-row">
+                  <span class="switch-label">
+                    <UIcon name="i-lucide-eye" class="size-4" />
+                    显示在导航栏
+                  </span>
+                  <input v-model="activeItem.isVisible" type="checkbox" >
+                  <span class="switch-track" />
+                </label>
+
+                <label class="property-switch-row">
+                  <span class="switch-label">
+                    <UIcon name="i-lucide-external-link" class="size-4" />
+                    在新标签页打开
+                  </span>
+                  <input v-model="activeItem.targetBlank" type="checkbox" >
+                  <span class="switch-track" />
+                </label>
+              </div>
+
+              <div class="property-actions">
                 <button
-                  v-for="icon in iconPresets"
-                  :key="icon.name"
                   type="button"
-                  class="icon-preset-button"
-                  :class="{ 'is-active': (activeItem.icon || itemIcon(activeItem)) === icon.name }"
-                  :title="icon.label"
-                  @click="activeItem.icon = icon.name"
+                  class="danger-text-button"
+                  @click="deleteMenuItem(activeItem.id)"
                 >
-                  <UIcon :name="icon.name" class="size-5" />
+                  删除此项
+                </button>
+                <button
+                  type="button"
+                  class="save-button"
+                  :disabled="saving || !isDirty"
+                  @click="saveMenus"
+                >
+                  <UIcon name="i-lucide-save" class="size-4" />
+                  {{ saving ? '保存中...' : '保存更改' }}
                 </button>
               </div>
             </div>
+          </template>
 
-            <div class="property-switches">
-              <label class="property-switch-row">
-                <span class="switch-label">
-                  <UIcon name="i-lucide-eye" class="size-4" />
-                  显示在导航栏
-                </span>
-                <input v-model="activeItem.isVisible" type="checkbox" />
-                <span class="switch-track" />
-              </label>
-
-              <label class="property-switch-row">
-                <span class="switch-label">
-                  <UIcon name="i-lucide-external-link" class="size-4" />
-                  在新标签页打开
-                </span>
-                <input v-model="activeItem.targetBlank" type="checkbox" />
-                <span class="switch-track" />
-              </label>
-            </div>
-
-            <div class="property-actions">
-              <button type="button" class="danger-text-button" @click="deleteMenuItem(activeItem.id)">删除此项</button>
-              <button type="button" class="save-button" :disabled="saving" @click="saveMenus">
-                <UIcon name="i-lucide-save" class="size-4" />
-                {{ saving ? '保存中...' : '保存更改' }}
-              </button>
-            </div>
+          <div v-else class="property-empty">
+            <UIcon name="i-lucide-mouse-pointer-click" class="size-7" />
+            <strong>请选择一个菜单项</strong>
+            <span>点击左侧菜单后，可以在这里编辑标题、路径、图标和显示状态。</span>
           </div>
-        </template>
+        </aside>
+      </div>
 
-        <div v-else class="property-empty">
-          <UIcon name="i-lucide-mouse-pointer-click" class="size-7" />
-          <strong>请选择一个菜单项</strong>
-          <span>点击左侧菜单后，可以在这里编辑标题、路径、图标和显示状态。</span>
-        </div>
-      </aside>
-    </div>
-
-    <div v-else class="menu-no-data">
-      <UIcon name="i-lucide-list-plus" class="size-8" />
-      <strong>还没有菜单组</strong>
-      <span>先创建一个菜单组，再添加导航项。</span>
-      <UButton icon="i-lucide-plus" @click="createQuickMenu">创建菜单组</UButton>
-    </div>
+      <div v-else class="menu-no-data">
+        <UIcon name="i-lucide-list-plus" class="size-8" />
+        <strong>还没有菜单组</strong>
+        <span>先创建一个菜单组，再添加导航项。</span>
+        <UButton icon="i-lucide-plus" @click="createQuickMenu"> 创建菜单组 </UButton>
+      </div>
+    </fieldset>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useAdminUnsavedChanges } from '~/composables/useAdminUnsavedChanges'
+import AdminDragHandle from '~/components/admin/DragHandle.vue'
 import { defineComponent, h, resolveComponent } from 'vue'
 import type { ApiResult } from '~~/types/api'
 import type { MenuGroup, MenuItem, MenuItemType, MenuLocation } from '~~/types/dto/menu'
@@ -252,7 +327,10 @@ const MenuTreeItem = defineComponent({
     canOutdent: { type: Boolean, default: false },
     canAddChild: { type: Boolean, default: false },
     isChild: { type: Boolean, default: false },
-    typeLabel: { type: Function as unknown as () => (value: MenuItemType) => string, required: true },
+    typeLabel: {
+      type: Function as unknown as () => (value: MenuItemType) => string,
+      required: true
+    },
     itemUrl: { type: Function as unknown as () => (item: MenuItem) => string, required: true },
     itemIcon: { type: Function as unknown as () => (item: MenuItem) => string, required: true }
   },
@@ -260,7 +338,11 @@ const MenuTreeItem = defineComponent({
   setup(props, { emit }) {
     const UIcon = resolveComponent('UIcon')
 
-    const emitAction = (event: MouseEvent, name: 'add-child' | 'move' | 'indent' | 'outdent' | 'duplicate' | 'delete', payload?: unknown) => {
+    const emitAction = (
+      event: MouseEvent,
+      name: 'add-child' | 'move' | 'indent' | 'outdent' | 'duplicate' | 'delete',
+      payload?: unknown
+    ) => {
       event.stopPropagation()
       if (name === 'add-child') emit('add-child', props.item)
       if (name === 'move') emit('move', props.item, payload)
@@ -270,59 +352,87 @@ const MenuTreeItem = defineComponent({
       if (name === 'delete') emit('delete', props.item.id)
     }
 
-    return () => h('article', {
-      class: [
-        'menu-node',
-        props.isChild ? 'is-child' : '',
-        props.selectedItemId === props.item.id ? 'is-active' : '',
-        !props.item.isVisible ? 'is-muted' : ''
-      ],
-      onClick: () => emit('select', props.item)
-    }, [
-      h('button', { type: 'button', class: 'node-grip', title: '拖拽排序' }, [
-        h(UIcon, { name: 'i-lucide-grip-vertical', class: 'size-4' })
-      ]),
-      h('span', { class: 'node-fold' }, [
-        props.children.length ? h(UIcon, { name: 'i-lucide-chevron-down', class: 'size-4' }) : null
-      ]),
-      h('span', { class: 'node-icon' }, [
-        h(UIcon, { name: props.itemIcon(props.item), class: 'size-5' })
-      ]),
-      h('span', { class: 'node-content' }, [
-        h('strong', props.item.title || '未命名菜单'),
-        h('small', [
-          props.itemUrl(props.item),
-          props.item.targetBlank ? h(UIcon, { name: 'i-lucide-external-link', class: 'size-3' }) : null
-        ])
-      ]),
-      h('div', { class: 'node-tools' }, [
-        props.canAddChild ? h('button', {
-          type: 'button',
-          title: '添加子菜单',
-          onClick: (event: MouseEvent) => emitAction(event, 'add-child')
-        }, [h(UIcon, { name: 'i-lucide-plus', class: 'size-4' })]) : null,
-        props.canAddChild ? h('span', { class: 'node-tool-divider' }) : null,
-        h('button', {
-          type: 'button',
-          title: '上移',
-          disabled: !props.canMoveUp,
-          onClick: (event: MouseEvent) => emitAction(event, 'move', -1)
-        }, [h(UIcon, { name: 'i-lucide-arrow-up', class: 'size-4' })]),
-        h('button', {
-          type: 'button',
-          title: '下移',
-          disabled: !props.canMoveDown,
-          onClick: (event: MouseEvent) => emitAction(event, 'move', 1)
-        }, [h(UIcon, { name: 'i-lucide-arrow-down', class: 'size-4' })]),
-        h('span', { class: 'node-tool-divider' }),
-        h('button', {
-          type: 'button',
-          class: 'node-danger-tool',
-          title: '删除',
-          onClick: (event: MouseEvent) => emitAction(event, 'delete')
-        }, [h(UIcon, { name: 'i-lucide-trash-2', class: 'size-4' })])
-      ])
-    ])
+    return () =>
+      h(
+        'article',
+        {
+          class: [
+            'menu-node',
+            props.isChild ? 'is-child' : '',
+            props.selectedItemId === props.item.id ? 'is-active' : '',
+            !props.item.isVisible ? 'is-muted' : ''
+          ],
+          onClick: () => emit('select', props.item)
+        },
+        [
+          h(AdminDragHandle, {
+            label: props.item.title || '菜单项',
+            class: props.isChild ? 'menu-child-handle' : 'menu-root-handle'
+          }),
+          h('span', { class: 'node-fold' }, [
+            props.children.length
+              ? h(UIcon, { name: 'i-lucide-chevron-down', class: 'size-4' })
+              : null
+          ]),
+          h('span', { class: 'node-icon' }, [
+            h(UIcon, { name: props.itemIcon(props.item), class: 'size-5' })
+          ]),
+          h('span', { class: 'node-content' }, [
+            h('strong', props.item.title || '未命名菜单'),
+            h('small', [
+              props.itemUrl(props.item),
+              props.item.targetBlank
+                ? h(UIcon, { name: 'i-lucide-external-link', class: 'size-3' })
+                : null
+            ])
+          ]),
+          h('div', { class: 'node-tools' }, [
+            props.canAddChild
+              ? h(
+                  'button',
+                  {
+                    type: 'button',
+                    title: '添加子菜单',
+                    onClick: (event: MouseEvent) => emitAction(event, 'add-child')
+                  },
+                  [h(UIcon, { name: 'i-lucide-plus', class: 'size-4' })]
+                )
+              : null,
+            props.canAddChild ? h('span', { class: 'node-tool-divider' }) : null,
+            h(
+              'button',
+              {
+                type: 'button',
+                title: '上移',
+                disabled: !props.canMoveUp,
+                onClick: (event: MouseEvent) => emitAction(event, 'move', -1)
+              },
+              [h(UIcon, { name: 'i-lucide-arrow-up', class: 'size-4' })]
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                title: '下移',
+                disabled: !props.canMoveDown,
+                onClick: (event: MouseEvent) => emitAction(event, 'move', 1)
+              },
+              [h(UIcon, { name: 'i-lucide-arrow-down', class: 'size-4' })]
+            ),
+            h('span', { class: 'node-tool-divider' }),
+            h(
+              'button',
+              {
+                type: 'button',
+                class: 'node-danger-tool',
+                title: '删除',
+                onClick: (event: MouseEvent) => emitAction(event, 'delete')
+              },
+              [h(UIcon, { name: 'i-lucide-trash-2', class: 'size-4' })]
+            )
+          ])
+        ]
+      )
   }
 })
 
@@ -339,14 +449,14 @@ const itemForm = reactive({
   url: ''
 })
 
-const locationOptions: Array<{ label: string, value: MenuLocation }> = [
+const locationOptions: Array<{ label: string; value: MenuLocation }> = [
   { label: '主导航菜单', value: 'PRIMARY' },
   { label: '底部链接菜单', value: 'FOOTER' },
   { label: '移动端菜单', value: 'MOBILE' },
   { label: '社交媒体', value: 'CUSTOM' }
 ]
 
-const itemTypeOptions: Array<{ label: string, value: MenuItemType }> = [
+const itemTypeOptions: Array<{ label: string; value: MenuItemType }> = [
   { label: '自定义链接', value: 'CUSTOM' },
   { label: '首页', value: 'HOME' },
   { label: '归档', value: 'ARCHIVE' },
@@ -362,15 +472,33 @@ const pageOptions = [
   { label: '后台', url: '/admin', slug: 'admin' }
 ]
 
-const quickAddOptions: Array<{ label: string, type: MenuItemType, icon: string, title: string, url: string }> = [
+const quickAddOptions: Array<{
+  label: string
+  type: MenuItemType
+  icon: string
+  title: string
+  url: string
+}> = [
   { label: '自定义链接', type: 'CUSTOM', icon: 'i-lucide-link', title: '', url: '' },
   { label: '首页', type: 'HOME', icon: 'i-lucide-house', title: '首页', url: '/' },
-  { label: '分类', type: 'CATEGORY', icon: 'i-lucide-folder', title: '文章分类', url: '/categories' },
+  {
+    label: '分类',
+    type: 'CATEGORY',
+    icon: 'i-lucide-folder',
+    title: '文章分类',
+    url: '/categories'
+  },
   { label: '页面', type: 'PAGE', icon: 'i-lucide-file-text', title: '关于我', url: '/about' },
-  { label: '外链', type: 'CUSTOM', icon: 'i-lucide-globe', title: 'GitHub', url: 'https://github.com/yourname' }
+  {
+    label: '外链',
+    type: 'CUSTOM',
+    icon: 'i-lucide-globe',
+    title: 'GitHub',
+    url: 'https://github.com/yourname'
+  }
 ]
 
-const iconPresets: Array<{ label: string, name: string }> = [
+const iconPresets: Array<{ label: string; name: string }> = [
   { label: '首页', name: 'i-lucide-house' },
   { label: '文章', name: 'i-lucide-file-text' },
   { label: '标签', name: 'i-lucide-tag' },
@@ -385,7 +513,9 @@ const iconPresets: Array<{ label: string, name: string }> = [
   { label: '分类', name: 'i-lucide-grid-2x2' }
 ]
 
-const selectedMenu = computed(() => menus.value.find((menu) => menu.id === selectedMenuId.value) || null)
+const selectedMenu = computed(
+  () => menus.value.find((menu) => menu.id === selectedMenuId.value) || null
+)
 const selectedItems = computed(() => normalizeItems(selectedMenu.value?.items || []))
 const treeItems = computed<TreeNode[]>(() => {
   const roots = selectedItems.value.filter((item) => !item.parentId)
@@ -394,11 +524,28 @@ const treeItems = computed<TreeNode[]>(() => {
     children: selectedItems.value.filter((child) => child.parentId === item.id)
   }))
 })
-const activeItem = computed(() => selectedItems.value.find((item) => item.id === expandedItemId.value) || selectedItems.value[0] || null)
+const activeItem = computed(
+  () =>
+    selectedItems.value.find((item) => item.id === expandedItemId.value) ||
+    selectedItems.value[0] ||
+    null
+)
 const activeItemId = computed(() => activeItem.value?.id ?? null)
-const isDirty = computed(() => JSON.stringify(menus.value) !== snapshot.value)
+const { isDirty, markSaved } = useAdminUnsavedChanges(() => menus.value)
+const visiblePreviewItems = computed(() =>
+  treeItems.value
+    .filter((root) => root.item.isVisible)
+    .map((root) => ({
+      item: root.item,
+      children: root.children.filter((child) => child.isVisible)
+    }))
+)
 
-const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all([
+const [
+  { data, error: menuLoadError, refresh: reloadMenus },
+  { data: categoryData },
+  { data: tagData }
+] = await Promise.all([
   useFetch<ApiResult<MenuGroup[]>>('/api/admin/menus'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/categories'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/admin/tags')
@@ -407,23 +554,31 @@ const [{ data }, { data: categoryData }, { data: tagData }] = await Promise.all(
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 
-watch(data, (val) => {
-  if (val?.data) {
-    setMenus(val.data)
-  }
-}, { immediate: true })
+watch(
+  data,
+  (val) => {
+    if (val?.data) {
+      setMenus(val.data)
+    }
+  },
+  { immediate: true }
+)
 
 function setMenus(value: MenuGroup[]) {
   menus.value = sortMenus(structuredClone(value))
   snapshot.value = JSON.stringify(menus.value)
-  selectedMenuId.value = menus.value.find((menu) => menu.location === 'PRIMARY')?.id ?? menus.value[0]?.id ?? null
+  markSaved()
+  selectedMenuId.value =
+    menus.value.find((menu) => menu.location === 'PRIMARY')?.id ?? menus.value[0]?.id ?? null
   expandedItemId.value = selectedMenu.value?.items?.[0]?.id ?? null
 }
 
 function resetMenus() {
   if (!snapshot.value) return
   menus.value = sortMenus(JSON.parse(snapshot.value))
-  selectedMenuId.value = menus.value.find((menu) => menu.location === 'PRIMARY')?.id ?? menus.value[0]?.id ?? null
+  markSaved()
+  selectedMenuId.value =
+    menus.value.find((menu) => menu.location === 'PRIMARY')?.id ?? menus.value[0]?.id ?? null
   expandedItemId.value = selectedMenu.value?.items?.[0]?.id ?? null
 }
 
@@ -471,7 +626,8 @@ function syncActiveItemType() {
   }
 
   if (activeItem.value.type === 'PAGE') {
-    const page = pageOptions.find((option) => option.url === activeItem.value?.url) || pageOptions[0]
+    const page =
+      pageOptions.find((option) => option.url === activeItem.value?.url) || pageOptions[0]
     if (page) {
       activeItem.value.title = activeItem.value.title || page.label
       activeItem.value.url = page.url
@@ -513,7 +669,9 @@ function sortMenus(value: MenuGroup[]) {
     CUSTOM: 3
   }
   return value.slice().sort((a, b) => {
-    const locationDiff = locationOrder[normalizeMenuLocation(a.location)] - locationOrder[normalizeMenuLocation(b.location)]
+    const locationDiff =
+      locationOrder[normalizeMenuLocation(a.location)] -
+      locationOrder[normalizeMenuLocation(b.location)]
     return locationDiff || (a.id || 0) - (b.id || 0)
   })
 }
@@ -581,7 +739,10 @@ function addChildMenuItem(parent: MenuItem) {
 }
 
 function pickAddType(type: MenuItemType) {
-  const preset = quickAddOptions.find((option) => option.type === type && (type !== 'CUSTOM' || option.title || option.url)) || quickAddOptions.find((option) => option.type === type)
+  const preset =
+    quickAddOptions.find(
+      (option) => option.type === type && (type !== 'CUSTOM' || option.title || option.url)
+    ) || quickAddOptions.find((option) => option.type === type)
   itemForm.type = type
   if (preset) {
     itemForm.title = preset.title
@@ -617,6 +778,17 @@ function addMenuItem() {
   itemForm.type = 'CUSTOM'
   itemForm.title = ''
   itemForm.url = ''
+}
+
+function reorderRoots(nodes: TreeNode[]) {
+  nodes.forEach((node, index) => {
+    node.item.sort = index
+  })
+}
+function reorderChildren(items: MenuItem[]) {
+  items.forEach((item, index) => {
+    item.sort = index
+  })
 }
 
 function moveItem(item: MenuItem, direction: -1 | 1) {
@@ -668,13 +840,18 @@ function duplicateItem(item: MenuItem) {
 
 function deleteMenuItem(id: number | null) {
   if (!selectedMenu.value) return
-  const childIds = selectedMenu.value.items.filter((item) => item.parentId === id).map((item) => item.id)
-  selectedMenu.value.items = selectedMenu.value.items.filter((item) => item.id !== id && !childIds.includes(item.id))
+  const childIds = selectedMenu.value.items
+    .filter((item) => item.parentId === id)
+    .map((item) => item.id)
+  selectedMenu.value.items = selectedMenu.value.items.filter(
+    (item) => item.id !== id && !childIds.includes(item.id)
+  )
   normalizeSort(null)
   expandedItemId.value = selectedItems.value[0]?.id ?? null
 }
 
 async function saveMenus() {
+  if (saving.value || menuLoadError.value) return
   saving.value = true
   try {
     const saved = await $fetch<ApiResult<MenuGroup[]>>('/api/admin/menus', {
@@ -701,9 +878,10 @@ async function saveMenus() {
       }))
     })
     setMenus(saved.data)
-    toast.add({ title: '菜单已保存', color: 'success' })
-  } catch (error: any) {
+    toast.add({ id: 'menus-save', title: '菜单已保存', color: 'success' })
+  } catch (error: unknown) {
     toast.add({
+      id: 'menus-save',
       title: '保存失败',
       description: getApiErrorMessage(error, { fallback: '请检查菜单名称和链接是否完整。' }),
       color: 'error'
@@ -798,7 +976,7 @@ function createTempId() {
   min-height: calc(100vh - 1.75rem);
   gap: 0.875rem;
   align-content: start;
-  color: #0f172a;
+  color: #202633;
 }
 
 .menu-admin-header {
@@ -807,11 +985,11 @@ function createTempId() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 1rem;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
   background: #ffffff;
   padding: 0.75rem 1rem;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: none;
 }
 
 .menu-admin-title,
@@ -835,15 +1013,15 @@ function createTempId() {
   height: 2rem;
   justify-content: center;
   border-radius: 0.6rem;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: #efedf8;
+  color: #6554c0;
 }
 
 .menu-admin-title h1 {
   margin: 0;
-  color: #0f172a;
+  color: #202633;
   font-size: 1.1rem;
-  font-weight: 850;
+  font-weight: 550;
   letter-spacing: 0;
   line-height: 1.1;
 }
@@ -877,7 +1055,7 @@ function createTempId() {
 .menu-tabs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e4e7ec;
   background: rgba(248, 250, 252, 0.72);
 }
 
@@ -888,19 +1066,22 @@ function createTempId() {
   background: transparent;
   color: #475569;
   font-size: 0.9rem;
-  font-weight: 750;
+  font-weight: 550;
   cursor: pointer;
-  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .menu-tab:hover,
 .menu-tab.is-active {
-  color: #4f46e5;
+  color: #6554c0;
   background: #fbfdff;
 }
 
 .menu-tab.is-active {
-  border-bottom-color: #4f46e5;
+  border-bottom-color: #6554c0;
 }
 
 .menu-tree-area {
@@ -913,23 +1094,26 @@ function createTempId() {
   position: relative;
   min-height: 3.5rem;
   gap: 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e7ec;
   border-radius: 0.65rem;
   background: #fff;
   padding: 0 1rem;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .menu-node:hover {
   border-color: #cbd5e1;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 .menu-node.is-active {
   border-color: #c7d2fe;
-  background: #eef2ff;
-  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.06);
+  background: #efedf8;
+  box-shadow: none;
 }
 
 .menu-node.is-muted {
@@ -959,12 +1143,12 @@ function createTempId() {
 .menu-node.is-child:hover {
   border-color: #cbd5e1;
   background: #fff;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+  box-shadow: none;
 }
 
 .menu-node.is-child.is-active {
   border-color: #c7d2fe;
-  background: #eef2ff;
+  background: #efedf8;
 }
 
 .menu-node.is-child.is-active::before {
@@ -979,9 +1163,11 @@ function createTempId() {
   border: 0;
   border-radius: 0.375rem;
   background: transparent;
-  color: #94a3b8;
+  color: #697386;
   cursor: pointer;
-  transition: color 0.2s ease, background 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
 }
 
 .node-grip {
@@ -993,7 +1179,7 @@ function createTempId() {
 .node-grip:hover,
 .node-tools button:hover:not(:disabled) {
   background: #f1f5f9;
-  color: #4f46e5;
+  color: #6554c0;
 }
 
 .node-fold {
@@ -1018,7 +1204,7 @@ function createTempId() {
 
 .menu-node.is-active .node-icon {
   background: #fff;
-  color: #4f46e5;
+  color: #6554c0;
 }
 
 .node-content {
@@ -1031,7 +1217,7 @@ function createTempId() {
 
 .node-content strong {
   display: block;
-  color: #0f172a;
+  color: #202633;
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.2;
@@ -1041,7 +1227,7 @@ function createTempId() {
   gap: 0.35rem;
   margin-top: 0.25rem;
   overflow: hidden;
-  color: #94a3b8;
+  color: #697386;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.78rem;
   text-overflow: ellipsis;
@@ -1089,7 +1275,7 @@ function createTempId() {
 .node-tool-divider {
   width: 1px;
   height: 1rem;
-  background: #e2e8f0;
+  background: #e4e7ec;
 }
 
 .node-tools button:disabled {
@@ -1113,7 +1299,7 @@ function createTempId() {
   bottom: 1.5rem;
   width: 2px;
   border-radius: 1px;
-  background: linear-gradient(to bottom, #c7d2fe 0%, #e0e7ff 50%, transparent 100%);
+  background: #fff;
   content: '';
 }
 
@@ -1141,15 +1327,15 @@ function createTempId() {
   height: 3rem;
   place-items: center;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: #efedf8;
+  color: #6554c0;
 }
 
 .menu-empty-state strong,
 .menu-no-data strong,
 .property-empty strong {
   margin-top: 0.75rem;
-  color: #0f172a;
+  color: #202633;
   font-size: 1rem;
 }
 
@@ -1169,7 +1355,7 @@ function createTempId() {
 .property-card-head {
   gap: 0.75rem;
   min-height: 4.875rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e4e7ec;
   padding: 0 1.5rem;
 }
 
@@ -1183,9 +1369,9 @@ function createTempId() {
 
 .property-card-head h2 {
   margin: 0;
-  color: #0f172a;
+  color: #202633;
   font-size: 1.2rem;
-  font-weight: 800;
+  font-weight: 550;
   letter-spacing: -0.02em;
 }
 
@@ -1200,7 +1386,7 @@ function createTempId() {
 }
 
 .property-field > span {
-  color: #0f172a;
+  color: #202633;
   font-size: 0.9rem;
   font-weight: 500;
 }
@@ -1212,21 +1398,23 @@ function createTempId() {
   border: 1px solid #cbd5e1;
   border-radius: 0.45rem;
   background: #fff;
-  color: #0f172a;
+  color: #202633;
   font-size: 0.95rem;
   padding: 0 0.9rem;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .property-field input:focus {
   border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: none;
 }
 
 .property-field select:focus {
   border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  box-shadow: none;
 }
 
 .icon-preset-grid {
@@ -1239,25 +1427,28 @@ function createTempId() {
   display: grid;
   height: 2.5rem;
   place-items: center;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e7ec;
   border-radius: 0.5rem;
   background: #fff;
   color: #64748b;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .icon-preset-button:hover,
 .icon-preset-button.is-active {
   border-color: #818cf8;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: #efedf8;
+  color: #6554c0;
 }
 
 .property-switches {
   display: grid;
   gap: 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e4e7ec;
   padding: 0.5rem 0 1.5rem;
 }
 
@@ -1300,13 +1491,13 @@ function createTempId() {
   height: 1.125rem;
   border-radius: 999px;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+  box-shadow: none;
   content: '';
   transition: transform 0.2s ease;
 }
 
 .property-switch-row input:checked + .switch-track {
-  background: #4f46e5;
+  background: #6554c0;
 }
 
 .property-switch-row input:checked + .switch-track::after {
@@ -1328,17 +1519,19 @@ function createTempId() {
   gap: 0.5rem;
   border: 0;
   border-radius: 0.45rem;
-  background: #0f172a;
+  background: #202633;
   color: #fff;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
 }
 
 .save-button:hover:not(:disabled) {
   background: #020617;
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .save-button:disabled {
@@ -1362,13 +1555,13 @@ function createTempId() {
 .property-empty {
   min-height: 26rem;
   padding: 2rem;
-  color: #94a3b8;
+  color: #697386;
 }
 
 .menu-no-data {
   min-height: 28rem;
   border: 1px dashed #cbd5e1;
-  border-radius: 1rem;
+  border-radius: 10px;
   background: #fff;
   color: #64748b;
   gap: 0.5rem;
@@ -1424,6 +1617,186 @@ function createTempId() {
   .property-actions {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+}
+</style>
+
+<style scoped>
+.menu-admin-page {
+  display: grid;
+  gap: 24px;
+  min-height: 0;
+}
+.menu-edit-body {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.menu-live-preview {
+  overflow: visible;
+  padding: 16px 22px;
+}
+.menu-preview-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #667085;
+  font-size: 11px;
+}
+.menu-preview-label small {
+  margin-left: auto;
+  color: #697386;
+  font-size: 10px;
+}
+.menu-live-preview nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-top: 18px;
+}
+.menu-preview-item {
+  position: relative;
+}
+.menu-preview-item > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.menu-preview-children {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  display: none;
+  min-width: 150px;
+  padding: 10px;
+  border: 1px solid #e4e7ec;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: none;
+}
+.menu-preview-children span {
+  display: block;
+  padding: 8px;
+  color: #667085;
+  font-size: 12px;
+}
+.menu-preview-item:hover .menu-preview-children,
+.menu-preview-item:focus-visible .menu-preview-children {
+  display: block;
+}
+.menu-preview-empty {
+  color: #697386;
+  font-size: 12px;
+}
+.menu-admin-layout {
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 24px;
+}
+.menu-property-card {
+  top: 88px;
+}
+.menu-list-panel,
+.menu-property-card {
+  box-shadow: none;
+  border-radius: 10px;
+}
+.menu-list-panel {
+  min-height: 0;
+}
+.menu-tabs {
+  background: #fff;
+}
+.menu-tab {
+  font-size: 12px;
+  font-weight: 500;
+}
+.menu-tree-area {
+  padding: 20px;
+}
+.menu-property-card .property-card-head {
+  background: #fff;
+}
+.property-card-head h2 {
+  font-size: 13px;
+  font-weight: 550;
+}
+.property-head-icon {
+  background: #f1eef8;
+  color: #8977ab;
+}
+.menu-property-card .save-button {
+  background: #6554c0;
+  box-shadow: none;
+}
+@media (max-width: 1100px) {
+  .menu-admin-layout {
+    grid-template-columns: 1fr;
+  }
+  .menu-property-card {
+    position: static;
+  }
+}
+@media (max-width: 640px) {
+  .menu-live-preview {
+    padding: 16px;
+  }
+  .menu-tree-area {
+    padding: 14px;
+  }
+  .menu-live-preview nav {
+    gap: 18px;
+  }
+}
+</style>
+
+<style>
+.admin-shell .menu-node:focus-within .node-tools {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (max-width: 760px) {
+  .admin-shell .menu-node .node-tools {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .admin-shell .menu-node .node-tools button {
+    color: #697386;
+    background: #fff;
+  }
+  .admin-shell .menu-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-shell .menu-list-panel {
+    min-height: 0;
+  }
+}
+</style>
+
+<style>
+.admin-shell .menu-order-hint {
+  margin: 0;
+  padding: 14px 20px 0;
+  color: #697386;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.admin-shell .menu-tree-area,
+.admin-shell .menu-root-group {
+  display: grid;
+  gap: 12px;
+}
+.admin-shell .menu-node > .admin-drag-handle {
+  margin-left: -5px;
+}
+@media (max-width: 760px) {
+  .admin-shell .menu-order-hint {
+    padding-inline: 14px;
   }
 }
 </style>

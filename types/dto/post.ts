@@ -48,6 +48,14 @@ export type AdminPostListItem = PostSummary & {
 
 export type AdminPostListPayload = PaginationPayload<AdminPostListItem>
 
+export type AdminPostOverview = {
+  total: number
+  published: number
+  drafts: number
+  archived: number
+  views: number
+}
+
 export type PostRelationType = 'PREREQUISITE' | 'EXTENSION' | 'SAME_TOPIC' | 'PRACTICE' | 'BACKGROUND'
 export type PostRelationSource = 'AI' | 'MANUAL'
 
