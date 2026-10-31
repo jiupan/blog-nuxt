@@ -31,8 +31,11 @@ html:has(.admin-shell) {
   background: #f5f6f8;
 }
 html:has(.admin-shell) {
-  overflow: hidden;
+  overflow: hidden !important;
   scrollbar-gutter: auto;
+}
+html:has(.admin-shell) body {
+  overflow: hidden !important;
 }
 .admin-shell a.bg-primary {
   color: #fff;
@@ -101,6 +104,7 @@ html:has(.admin-shell) {
   gap: 22px;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 3px 0 22px;
 }
 .admin-nav-group {
@@ -206,6 +210,7 @@ html:has(.admin-shell) {
   min-width: 0;
   height: 100dvh;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior-y: contain;
   padding-left: 224px;
 }

@@ -845,8 +845,8 @@ async function deleteSelected() {
 }
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
   padding: 24px;
 }
 .gallery-card {
@@ -1009,17 +1009,21 @@ async function deleteSelected() {
   gap: 24px;
 }
 .gallery-detail-preview {
-  display: grid;
-  min-height: 220px;
-  place-items: center;
+  display: flex;
+  height: clamp(160px, 28dvh, 240px);
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  padding: 12px;
   border: 1px solid #e4e7ec;
   border-radius: 8px;
   background: #f5f6f8;
 }
 .gallery-detail-preview img {
+  width: auto;
+  height: auto;
   max-width: 100%;
-  max-height: 360px;
+  max-height: 100%;
   object-fit: contain;
 }
 .gallery-detail dl {
@@ -1051,20 +1055,16 @@ async function deleteSelected() {
   color: #667085;
   font-size: 11px;
 }
-@media (max-width: 1250px) {
-  .gallery-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
 @media (max-width: 850px) {
   .gallery-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 14px;
     padding: 20px;
   }
 }
 @media (max-width: 500px) {
   .gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     padding: 14px;
   }
