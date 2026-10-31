@@ -388,15 +388,17 @@ Invalid: lock file's commander@11.1.0 does not satisfy commander@13.1.0
 package-lock.json 和 package.json 不匹配。
 ```
 
-本地修复：
+本地修复（使用与 Docker 中一致的 npm 10.9.2）：
 
 ```bash
-npm install --package-lock-only
-npm ci --ignore-scripts --dry-run
+npx --yes npm@10.9.2 install --package-lock-only --ignore-scripts
+npx --yes npm@10.9.2 ci --ignore-scripts --dry-run
 git add package-lock.json
 git commit -m "fix package lock"
 git push origin main
 ```
+
+本机 npm 11 的校验通过，不代表 Docker 中 npm 10 的校验也会通过。更新依赖后应使用上面的 npm 10 命令检查，避免缺少可选 peer 依赖记录而导致构建失败。
 
 ### SSH unable to authenticate
 
