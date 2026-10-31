@@ -1782,7 +1782,8 @@ function fileIcon(extension: string) {
   border-bottom: 1px solid #eef2f7;
 }
 .job-row {
-  grid-template-columns: 7rem minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: baseline;
 }
 .log-row strong,
 .log-row p,
