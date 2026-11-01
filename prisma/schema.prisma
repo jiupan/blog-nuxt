@@ -22,6 +22,7 @@ model User {
   operatedAuditLogs        AdminAuditLog[]           @relation("AuditOperator")
   targetAuditLogs          AdminAuditLog[]           @relation("AuditTarget")
   resumes                  Resume[]
+  agentApiKeys             AgentApiKey[]
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 }
@@ -82,12 +83,54 @@ model Post {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   publishedAt              DateTime?
+  agentPublication         AgentPublication?
 
   @@index([slug])
   @@index([status])
   @@index([isPinned, pinnedAt])
   @@index([publishedAt])
   @@index([categoryId])
+}
+
+model AgentApiKey {
+  id           Int                @id @default(autoincrement())
+  name         String
+  tokenHash    String             @unique
+  prefix       String
+  createdById  Int?
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  createdBy    User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  publications AgentPublication[]
+
+  @@index([createdAt])
+}
+
+model AgentPublication {
+  id              Int                    @id @default(autoincrement())
+  keyId           Int
+  requestId       String
+  payloadHash     String
+  title           String
+  requestedStatus PostStatus
+  sources         Json
+  status          AgentPublicationStatus @default(PENDING)
+  error           String?
+  postId          Int?                   @unique
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  key             AgentApiKey            @relation(fields: [keyId], references: [id], onDelete: Restrict)
+  post            Post?                  @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@unique([keyId, requestId])
+  @@index([createdAt, id])
+}
+
+enum AgentPublicationStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 model ArticleChatConversation {

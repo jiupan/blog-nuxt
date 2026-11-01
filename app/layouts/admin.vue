@@ -163,6 +163,7 @@ const pageNames: Record<string, string> = {
   gallery: '图库',
   sidebar: '侧栏',
   knowledge: 'AI 知识库',
+  agent: 'Agent 接入',
   users: '用户管理',
   settings: '站点设置'
 }

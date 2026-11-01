@@ -49,6 +49,13 @@ export default defineNuxtConfig({
   routeRules: {
     '/admin/**': { ssr: false },
     '/api/admin/**': { cors: false },
+    '/api/agent/**': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: { maxRequestSizeInBytes: 1024 * 1024 }
+      }
+    },
     '/api/admin/upload': {
       cors: false,
       security: {

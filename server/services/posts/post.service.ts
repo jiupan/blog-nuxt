@@ -32,12 +32,13 @@ export const updatePostSchema = createPostSchema.extend({
 export type CreatePostInput = z.infer<typeof createPostSchema>
 export type UpdatePostInput = z.infer<typeof updatePostSchema>
 
-export async function createPost(input: CreatePostInput) {
-  const slug = await resolvePostSlug(input.slug)
+export async function createPost(input: CreatePostInput, transaction?: Prisma.TransactionClient) {
+  const client = transaction || prisma
+  const slug = await resolvePostSlug(input.slug, client)
   const cover = await resolvePostCover(input.cover)
 
   try {
-    const created = await prisma.post.create({
+    const created = await client.post.create({
       data: {
         title: input.title,
         slug,
@@ -56,7 +57,7 @@ export async function createPost(input: CreatePostInput) {
         }
       }
     })
-    await autoSyncPublishedPost(created.id, input.status).catch(() => null)
+    if (!transaction) await autoSyncPublishedPost(created.id, input.status).catch(() => null)
     return created
   } catch (error) {
     handlePostWriteError(error)
@@ -112,7 +113,7 @@ async function resolvePostCover(cover: string | null | undefined) {
   return specifiedCover || await getRandomCoverUrl()
 }
 
-async function autoSyncPublishedPost(postId: number, status: PostStatus) {
+export async function autoSyncPublishedPost(postId: number, status: PostStatus) {
   if (status !== PostStatus.PUBLISHED) {
     await refreshKnowledgeDocumentState(postId).catch(() => null)
     return
@@ -139,7 +140,7 @@ export async function deletePost(id: number) {
   }
 }
 
-async function resolvePostSlug(value?: string | null) {
+async function resolvePostSlug(value?: string | null, client: Prisma.TransactionClient = prisma) {
   const customSlug = value ? normalizePostSlug(value) : ''
 
   if (customSlug) {
@@ -148,7 +149,7 @@ async function resolvePostSlug(value?: string | null) {
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const slug = createRandomPostSlug()
-    const exists = await prisma.post.findUnique({ where: { slug }, select: { id: true } })
+    const exists = await client.post.findUnique({ where: { slug }, select: { id: true } })
 
     if (!exists) {
       return slug

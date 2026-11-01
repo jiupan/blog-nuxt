@@ -56,7 +56,8 @@ const groups = [
     items: [
       { label: '评论', to: '/admin/comments', icon: 'i-lucide-message-circle' },
       { label: '用户管理', to: '/admin/users', icon: 'i-lucide-users' },
-      { label: 'AI 知识库', to: '/admin/knowledge', icon: 'i-lucide-orbit' }
+      { label: 'AI 知识库', to: '/admin/knowledge', icon: 'i-lucide-orbit' },
+      { label: 'Agent 接入', to: '/admin/agent', icon: 'i-lucide-plug-zap' }
     ]
   },
   {
