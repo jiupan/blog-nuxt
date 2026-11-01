@@ -51,7 +51,7 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
     allowedAttributes: {
       a: ['href', 'name', 'target', 'rel'],
       code: ['class', 'style'],
-      div: ['class'],
+      div: ['class', 'tabindex', 'role', 'aria-label'],
       h1: ['id'],
       h2: ['id'],
       h3: ['id'],
@@ -93,6 +93,10 @@ function createMarkdownRenderer(slugger: Slugger, toc: RenderedMarkdown['toc']) 
       return `<pre data-lang="${normalizedLang}"><code>${md.utils.escapeHtml(code)}</code></pre>`
     }
   })
+
+  md.renderer.rules.table_open = () =>
+    '<div class="md-table-scroll" tabindex="0" role="region" aria-label="表格，可横向滚动"><table>\n'
+  md.renderer.rules.table_close = () => '</table></div>\n'
 
   const defaultHeadingOpen = md.renderer.rules.heading_open
   md.renderer.rules.heading_open = (

@@ -89,6 +89,7 @@
 
         <div class="content-card" data-page-enter style="--page-enter-order: 2">
           <div ref="articleContentEl" class="prose-blog" v-html="post.rendered.html" />
+          <ArticleImagePreview :container="articleContentEl" :html="post.rendered.html" />
         </div>
 
         <TwikooComment :post-slug="post.slug" data-page-enter style="--page-enter-order: 3" />
