@@ -576,8 +576,10 @@ function restoreFocus(event: Event) {
 }
 html:has(.article-lightbox) {
   overflow-y: hidden !important;
-  background: #252c3c;
-  scrollbar-color: #697184 #252c3c;
+}
+/* Keep sticky headers attached to the document, not the modal's locked body. */
+html:has(.article-lightbox) body {
+  overflow: visible !important;
 }
 .article-lightbox-surface {
   display: grid;
