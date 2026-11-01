@@ -5,6 +5,7 @@ export type AgentKeySummary = {
   createdAt: string
   revokedAt: string | null
   lastUsedAt: string | null
+  canCopy: boolean
 }
 
 export type AgentPublicationItem = {

@@ -6,8 +6,12 @@ const httpUrl = z
   .max(2048)
   .url()
   .refine((value) => {
-    const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+    try {
+      const url = new URL(value)
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+    } catch {
+      return false
+    }
   }, '请输入不含登录凭证的 HTTP 或 HTTPS 链接')
 
 export const createAgentKeySchema = z.object({ name: z.string().trim().min(1).max(80) }).strict()

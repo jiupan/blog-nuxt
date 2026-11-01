@@ -99,6 +99,7 @@
 import type { ApiResult } from '~~/types/api'
 import type { PublicArchivePayload, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
+import { categoryNavigation } from '~/utils/category-navigation'
 import CardReveal from '~/components/CardReveal.vue'
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -135,7 +136,7 @@ const tags = computed(() => tagData.value?.data || [])
 
 const categoryFilters = computed(() => [
   { key: 'all', label: '全部内容', icon: 'i-lucide-layout-list' },
-  ...categories.value.slice(0, 6).map(category => ({
+  ...categoryNavigation(categories.value, 6).map(category => ({
     key: `category:${category.slug}`,
     label: category.name,
     icon: category.icon || 'i-lucide-folder'

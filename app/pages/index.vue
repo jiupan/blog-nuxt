@@ -233,6 +233,7 @@ import type { Component } from 'vue'
 import type { ApiResult, GalleryImagePayload } from '~~/types/api'
 import type { PostSummary, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
+import { categoryNavigation } from '~/utils/category-navigation'
 import CardReveal from '~/components/CardReveal.vue'
 import {
   Archive as ArchiveIcon,
@@ -479,7 +480,7 @@ const topicTooltip = reactive({
 
 const topicTabs = computed(() => [
   { label: '全部文章', tooltip: '全部文章', icon: 'i-lucide-layout-list', slug: '', active: categorySlug.value === '' },
-  ...categories.value.map((category) => ({
+  ...categoryNavigation(categories.value).map((category) => ({
     label: category.name,
     tooltip: `查看 ${category.name} 分类的文章`,
     icon: category.icon || 'i-lucide-folder',

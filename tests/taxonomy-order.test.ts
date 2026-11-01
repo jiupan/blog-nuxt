@@ -28,7 +28,9 @@ const {
   listPublicTags,
   createCategory,
   createTag,
-  updateCategory
+  updateCategory,
+  createCategorySchema,
+  updateCategorySchema
 } = await import('../server/services/taxonomy/taxonomy.service')
 
 beforeEach(() => {
@@ -145,5 +147,28 @@ describe('taxonomy display order', () => {
       where: { id: 2 },
       data: { name: 'Renamed', slug: 'renamed', icon: null }
     })
+  })
+
+  it('persists featured categories and defaults new categories to unfeatured', async () => {
+    await createCategory(createCategorySchema.parse({ name: 'Default' }))
+    expect(db.category.create).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ isFeatured: false })
+    })
+    await createCategory(createCategorySchema.parse({ name: 'Featured', isFeatured: true }))
+    expect(db.category.create).toHaveBeenLastCalledWith({
+      data: expect.objectContaining({ isFeatured: true })
+    })
+  })
+
+  it.each([true, false])('allows explicitly setting featured to %s without changing sort', async (isFeatured) => {
+    await updateCategory(2, updateCategorySchema.parse({ name: 'AI', slug: 'ai', isFeatured }))
+    expect(db.category.update).toHaveBeenLastCalledWith({
+      where: { id: 2 },
+      data: { name: 'AI', slug: 'ai', icon: null, isFeatured }
+    })
+  })
+
+  it('rejects strings instead of interpreting a false string as true', () => {
+    expect(createCategorySchema.safeParse({ name: 'AI', isFeatured: 'false' }).success).toBe(false)
   })
 })

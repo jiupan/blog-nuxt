@@ -124,6 +124,10 @@
           清除
         </UButton>
       </div>
+      <p v-if="isCategory" class="taxonomy-featured-hint">
+        <UIcon name="i-lucide-pin" class="size-4 shrink-0" />
+        <span>在编辑中开启“推荐展示”，首页和归档分类栏将只展示推荐分类；未设置时沿用默认展示。可通过“调整顺序”排列。</span>
+      </p>
       <div v-if="error" class="workspace-empty" role="alert">
         <UIcon name="i-lucide-wifi-off" />
         <h3>{{ title }}加载失败</h3>
@@ -154,6 +158,7 @@
             </span>
             <span>
               <strong>{{ item.name }}</strong>
+              <span v-if="isCategory && item.isFeatured" class="taxonomy-featured-badge">推荐</span>
               <small class="taxonomy-mobile-slug">/{{ item.slug }}</small>
             </span>
           </button>
@@ -294,6 +299,12 @@
               {{ iconsExpanded ? '收起图标' : '更多图标' }}
             </button>
           </UFormField>
+          <div v-if="isCategory">
+            <UCheckbox v-model="form.isFeatured" label="推荐展示" />
+            <p class="workspace-field-hint">
+              在首页和归档分类栏展示此分类。设置推荐分类后，其他分类将从这两处收起，分类页和文章仍可正常访问。
+            </p>
+          </div>
           <p v-if="formError" class="workspace-inline-error" role="alert">
             {{ formError }}
           </p>
@@ -373,6 +384,7 @@ type Item = {
   name: string
   slug: string
   icon?: string | null
+  isFeatured?: boolean
   _count?: { posts: number }
 }
 type TagPage = { items: Item[]; pagination: { page: number; total: number; hasMore: boolean } }
@@ -490,7 +502,7 @@ async function saveSort() {
 
 const editorOpen = ref(false)
 const editingId = ref<number | null>(null)
-const form = reactive({ name: '', slug: '', icon: defaultCategoryIcon })
+const form = reactive({ name: '', slug: '', icon: defaultCategoryIcon, isFeatured: false })
 const iconsExpanded = ref(false)
 const visibleIconOptions = computed(() => visibleCategoryIcons(form.icon, iconsExpanded.value))
 const saving = ref(false)
@@ -506,7 +518,8 @@ function openEditor(item?: Item) {
   Object.assign(form, {
     name: item?.name || '',
     slug: item?.slug || '',
-    icon: item?.icon || defaultCategoryIcon
+    icon: item?.icon || defaultCategoryIcon,
+    isFeatured: item?.isFeatured ?? false
   })
   formError.value = ''
   iconsExpanded.value = false
@@ -522,7 +535,7 @@ async function saveItem() {
       body: {
         name: form.name.trim(),
         slug: form.slug.trim(),
-        ...(isCategory.value ? { icon: form.icon } : {})
+        ...(isCategory.value ? { icon: form.icon, isFeatured: form.isFeatured } : {})
       }
     })
     editorOpen.value = false
@@ -551,6 +564,31 @@ async function deleteItem() {
 </script>
 
 <style scoped>
+.taxonomy-featured-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--admin-line);
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.taxonomy-featured-hint > .iconify {
+  margin-top: 2px;
+  color: var(--admin-accent);
+}
+.taxonomy-featured-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent);
+  font-size: 10px;
+  vertical-align: 1px;
+}
 .taxonomy-row {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.3fr) 80px 100px;

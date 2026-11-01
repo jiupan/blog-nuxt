@@ -1,5 +1,5 @@
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { badRequest } from '~~/server/utils/api-error'
+import { badRequest } from '../../utils/api-error'
 
 export function resolveUploadRoot(uploadDir: string) {
   return resolve(uploadDir)

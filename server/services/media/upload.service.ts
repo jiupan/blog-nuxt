@@ -1,9 +1,10 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
-import { badRequest } from '~~/server/utils/api-error'
+import { badRequest } from '../../utils/api-error'
 import { resolveUploadRoot, toUploadUrl } from './path-safety'
+import { normalizeSlug } from '../../utils/slug'
 
 const maxUploadSize = 50 * 1024 * 1024
 const maxAvatarVideoSize = 5 * 1024 * 1024
@@ -27,7 +28,7 @@ export function parseUploadPurpose(value: unknown): UploadPurpose {
   return 'image'
 }
 
-export async function uploadImage(input: Buffer, purpose: UploadPurpose, memeGroup?: string): Promise<UploadedImage> {
+export async function uploadImage(input: Buffer, purpose: UploadPurpose, memeGroup?: string, sourceName?: string): Promise<UploadedImage> {
   if (!input.byteLength) {
     throw badRequest('请选择要上传的图片')
   }
@@ -48,13 +49,28 @@ export async function uploadImage(input: Buffer, purpose: UploadPurpose, memeGro
     throw badRequest('头像视频不能超过 5MB')
   }
   const output = avatarVideo ? { data: input, extension: avatarVideo.extension } : await optimizeImage(input, purpose)
-  const filename = `${randomUUID()}${output.extension}`
+  const originalBase =
+    sourceName
+      ?.split(/[\\/]/)
+      .pop()
+      ?.replace(/\.[^.]*$/, '') || 'image'
+  const prefix = normalizeSlug(originalBase).slice(0, 48) || 'image'
+  const filename = sourceName
+    ? `${prefix}-${createHash('sha256').update(output.data).digest('hex')}${output.extension}`
+    : `${randomUUID()}${output.extension}`
   const groupDir = isMeme && memeGroup ? `${validateMemeGroupId(memeGroup)}/` : ''
   const relativeDir = isMeme ? `memes/${groupDir}${year}/${month}` : isCover ? `covers/${year}/${month}` : purpose === 'avatar' ? `avatars/${year}/${month}` : `${year}/${month}`
   const relativePath = `${relativeDir}/${filename}`
 
   await mkdir(join(uploadRoot, relativeDir), { recursive: true })
-  await writeFile(join(uploadRoot, relativePath), output.data)
+  if (sourceName) {
+    // Content-addressed Agent uploads are safe to retry and never overwrite an existing file.
+    await writeFile(join(uploadRoot, relativePath), output.data, { flag: 'wx' }).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code !== 'EEXIST') throw error
+      }
+    )
+  } else await writeFile(join(uploadRoot, relativePath), output.data)
 
   return {
     url: toUploadUrl(relativePath),

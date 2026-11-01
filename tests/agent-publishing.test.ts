@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { db, tx, createPost, sync, header, responseHeader } = vi.hoisted(() => {
   const model = () => ({
@@ -12,7 +12,12 @@ const { db, tx, createPost, sync, header, responseHeader } = vi.hoisted(() => {
     upsert: vi.fn()
   })
   return {
-    db: { agentApiKey: model(), agentPublication: model(), $transaction: vi.fn() },
+    db: {
+      agentApiKey: model(),
+      agentPublication: model(),
+      adminAuditLog: { create: vi.fn() },
+      $transaction: vi.fn()
+    },
     tx: { agentApiKey: model(), agentPublication: model(), category: model(), tag: model() },
     createPost: vi.fn(),
     sync: vi.fn(),
@@ -31,8 +36,17 @@ vi.mock('h3', async () => ({
   setResponseHeader: responseHeader
 }))
 const { agentPostSchema } = await import('../server/services/agent/agent.schema')
-const { createAgentKey, hashAgentToken, listAgentKeys, requireAgentToken, revokeAgentKey } =
-  await import('../server/services/agent/agent-key.service')
+const {
+  copyAgentKey,
+  createAgentKey,
+  hashAgentToken,
+  listAgentKeys,
+  requireAgentToken,
+  revokeAgentKey
+} = await import('../server/services/agent/agent-key.service')
+const { encryptAgentToken, decryptAgentToken } =
+  await import('../server/services/agent/agent-key-crypto')
+const encryptionSecret = 'agent-encryption-test-secret-32-characters-long'
 const { publishAgentPost, hashAgentPayload } =
   await import('../server/services/agent/agent-publication.service')
 const input = () =>
@@ -56,6 +70,9 @@ const validKey = { id: 77, revokedAt: null, createdBy: { role: 'ADMIN', status: 
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.stubEnv('AGENT_TOKEN_ENCRYPTION_KEY', encryptionSecret)
+  db.agentApiKey.findMany.mockResolvedValue([])
+  db.adminAuditLog.create.mockResolvedValue({})
   db.$transaction.mockImplementation(
     (work: ((client: typeof tx) => unknown) | Promise<unknown>[]) =>
       Array.isArray(work) ? Promise.all(work) : work(tx)
@@ -72,22 +89,73 @@ beforeEach(() => {
   createPost.mockResolvedValue(post)
   sync.mockResolvedValue(undefined)
 })
+afterEach(() => vi.unstubAllEnvs())
 
 describe('Agent credentials', () => {
-  it('creates 256-bit random credentials, persists only the digest and returns the secret once', async () => {
+  it('creates random credentials, stores authenticated ciphertext plus digest and never stores plaintext', async () => {
     db.agentApiKey.create.mockImplementation(({ data }) =>
       Promise.resolve({ id: 1, name: data.name, prefix: data.prefix })
     )
-    const first = await createAgentKey('Laptop', 1)
-    const second = await createAgentKey('Laptop', 1)
+    const first = await createAgentKey('Laptop', 1, encryptionSecret)
+    const second = await createAgentKey('Laptop', 1, encryptionSecret)
     expect(first.token).toMatch(/^blog_agent_[A-Za-z0-9_-]{43}$/)
     expect(second.token).not.toBe(first.token)
     const call = db.agentApiKey.create.mock.calls[0][0]
     expect(call.data.tokenHash).toBe(hashAgentToken(first.token))
     expect(JSON.stringify(call.data)).not.toContain(first.token)
+    expect(decryptAgentToken(call.data.encryptedToken, call.data.tokenHash, encryptionSecret)).toBe(
+      first.token
+    )
+    expect(first.key.canCopy).toBe(true)
     expect(call.select).not.toHaveProperty('tokenHash')
     await listAgentKeys()
     expect(db.agentApiKey.findMany.mock.calls[0][0].select).not.toHaveProperty('tokenHash')
+  })
+  it('lists copy availability without exposing ciphertext or token hashes', async () => {
+    db.agentApiKey.findMany.mockResolvedValue([
+      { id: 1, encryptedToken: 'encrypted', revokedAt: null },
+      { id: 2, encryptedToken: null, revokedAt: null },
+      { id: 3, encryptedToken: 'encrypted', revokedAt: new Date() }
+    ])
+    const result = await listAgentKeys()
+    expect(result.map((item) => item.canCopy)).toEqual([true, false, false])
+    expect(result.every((item) => !('encryptedToken' in item) && !('tokenHash' in item))).toBe(true)
+  })
+  it('decrypts an active key for an admin and audits the action without credential data', async () => {
+    const token = `blog_agent_${'b'.repeat(43)}`
+    const encryptedToken = encryptAgentToken(token, encryptionSecret)
+    db.agentApiKey.findUnique.mockResolvedValue({
+      tokenHash: hashAgentToken(token),
+      encryptedToken,
+      revokedAt: null
+    })
+    await expect(copyAgentKey(3, encryptionSecret, 42)).resolves.toEqual({ token })
+    expect(db.adminAuditLog.create).toHaveBeenCalledWith({
+      data: { operatorId: 42, action: 'AGENT_KEY_COPIED', after: { keyId: 3 } }
+    })
+    expect(JSON.stringify(db.adminAuditLog.create.mock.calls)).not.toContain(token)
+    expect(JSON.stringify(db.adminAuditLog.create.mock.calls)).not.toContain(encryptedToken)
+  })
+  it.each([
+    { key: null, statusCode: 404 },
+    { key: { revokedAt: new Date(), encryptedToken: 'encrypted' }, statusCode: 409 },
+    { key: { revokedAt: null, encryptedToken: null }, statusCode: 409 }
+  ])(
+    'rejects missing, revoked or not-yet-upgraded keys without revealing a secret',
+    async ({ key, statusCode }) => {
+      db.agentApiKey.findUnique.mockResolvedValue(key)
+      await expect(copyAgentKey(3, encryptionSecret, 42)).rejects.toMatchObject({ statusCode })
+      expect(db.adminAuditLog.create).not.toHaveBeenCalled()
+    }
+  )
+  it('upgrades a legacy digest-only credential during authenticated use', async () => {
+    const token = `blog_agent_${'c'.repeat(43)}`
+    header.mockReturnValue(`Bearer ${token}`)
+    db.agentApiKey.findUnique.mockResolvedValue({ ...validKey, id: 999, encryptedToken: null })
+    db.agentApiKey.update.mockResolvedValue({})
+    await requireAgentToken({} as never)
+    const { encryptedToken } = db.agentApiKey.update.mock.calls[0][0].data
+    expect(decryptAgentToken(encryptedToken, hashAgentToken(token), encryptionSecret)).toBe(token)
   })
   it.each([undefined, '', 'Basic aaa', 'Bearer invalid', 'Bearer blog_agent_short'])(
     'rejects malformed or missing credentials without touching the database',

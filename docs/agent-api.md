@@ -1,14 +1,16 @@
 # 本地 Agent 发布接口
 
-本地 Agent 负责搜索、阅读、核实来源和撰稿；博客服务端只负责鉴权、校验和保存文章。不依赖浏览器登录，不执行服务器定时采编。
+本地 Agent 负责搜索、阅读、核实来源和撰稿；博客服务端负责鉴权、校验、上传图片和保存文章。不依赖浏览器登录，不执行服务器定时采编。
 
 ## 配置
 
 1. 部署包含 `20261101090000_add_agent_publishing` 的数据库迁移。现有 `deploy.sh` 会执行 `prisma migrate deploy`；本地可使用 `npx prisma migrate deploy`。
-2. 管理员进入「Agent 接入 → 发布密钥」创建密钥。完整密钥仅创建时返回一次，数据库只存 SHA-256 摘要。
+2. 管理员进入「Agent 接入 → 发布密钥」创建密钥，也可在列表再次复制。数据库保存 SHA-256 摘要及 AES-256-GCM 加密副本，不保存明文。复制操作要求管理员登录，并记录操作审计。
 3. 在本地设置 `BLOG_BASE_URL`（例如 `https://blog.ittx.cn`）和 `BLOG_AGENT_TOKEN`。不要把密钥写入文章、仓库或公开的 Skill 文件。
 
-两条接口均使用 `Authorization: Bearer <BLOG_AGENT_TOKEN>`。密钥仅支持读取分类标签和创建文章，不能用于 `/api/admin/**`，也不能编辑、删除或置顶文章。密钥停用、创建者账号被停用或不再是管理员时，调用失效。每个密钥每个应用进程最多 60 次请求/分钟，超限返回 429 和 `Retry-After`。
+以下接口均使用 `Authorization: Bearer <BLOG_AGENT_TOKEN>`。密钥支持读取分类标签、上传图片和创建文章，不能用于 `/api/admin/**`，也不能编辑、删除或置顶文章。密钥停用、创建者账号被停用或不再是管理员时，调用失效。每个密钥每个应用进程最多 60 次请求/分钟，超限返回 429 和 `Retry-After`。
+
+密钥加密默认从服务器 `NUXT_SESSION_PASSWORD` 派生，也可配置至少 32 字节的 `AGENT_TOKEN_ENCRYPTION_KEY`。请保持加密配置稳定；改变它后，旧密钥仍可鉴权，但旧副本不能解密复制。旧版只有哈希的密钥，在客户端下一次携带原文正常调用时会补存加密副本；原文已丢失且从未补存的密钥无法恢复，需要新建。新增迁移 `20261101130000_add_recoverable_agent_keys` 由部署脚本自动执行。
 
 ## 获取分类与标签
 
@@ -79,7 +81,7 @@ Invoke-RestMethod -Method Post -Uri "$env:BLOG_BASE_URL/api/agent/posts" `
 | `seoTitle` / `seoDescription` | 最多 200 / 500 字符 |
 | `sources` | 最多 20 个 `{ title, url }`；只接受不含登录凭证的 HTTP/HTTPS 地址 |
 
-来源用于后台追溯，不会自动追加到正文。需要公开展示的参考链接请写在 Markdown 正文中；服务端不会抓取或验证来源网页的内容。请求体最大 1 MiB。
+来源用于后台追溯，不会自动追加到正文。需要公开展示的参考链接请写在 Markdown 正文中；服务端不会抓取或验证来源网页的内容。创建文章请求体最大 1 MiB。
 
 新建成功返回 HTTP 201：
 
@@ -106,6 +108,38 @@ Invoke-RestMethod -Method Post -Uri "$env:BLOG_BASE_URL/api/agent/posts" `
 ```
 
 草稿的 `publishedAt`、`path`、`url` 为 `null`。传入 `PUBLISHED` 时返回发布时间和公开地址，例如 `/abc12345.html`。编辑地址需要管理员登录；不能把它当作公开文章地址。文章发布后的知识库同步沿用现有设置。
+
+## 上传本地图片
+
+`POST /api/agent/images?purpose=image` 上传正文图片，`purpose=cover` 上传封面。省略用途默认为 `image`；不接受头像、表情包或 favicon 用途。
+
+```bash
+curl "$BLOG_BASE_URL/api/agent/images?purpose=image" \
+  -H "Authorization: Bearer $BLOG_AGENT_TOKEN" \
+  -F "file=@diagram.png"
+```
+
+请求必须是 `multipart/form-data`，只包含一个名为 `file` 的文件字段。不要手动设置 multipart 的 `Content-Type`，由客户端生成 boundary。每次一张 JPG、PNG 或 WebP，原图最大 50 MiB、最多 4000 万像素；服务器校验真实格式，自动旋转并压缩为最大宽度 1600 的 WebP，小图不放大。代理层需允许至少 51 MiB 的 multipart 请求体。
+
+返回 HTTP 200：
+
+```json
+{
+  "code": 0,
+  "message": "图片已存入图库",
+  "data": {
+    "url": "/uploads/2026/11/diagram-<内容哈希>.webp",
+    "absoluteUrl": "https://blog.ittx.cn/uploads/2026/11/diagram-<内容哈希>.webp",
+    "mediaType": "image",
+    "originalName": "diagram.png",
+    "collection": "images"
+  }
+}
+```
+
+使用真实返回的 `url` 填写 `cover`，或写入正文 `![图片说明](返回的url)`。中文文件名对应地址会进行 URL 编码。不要把本地磁盘路径或 Base64 放进正文；外链可能受 CSP 和防盗链限制，站内图片可直接展示。
+
+上传的图片自动进入现有「图库 → 普通图片／封面」，文件名保留可搜索的原名称前缀，后接处理后内容的哈希。同一个月份、同用途、同文件名且处理后内容相同的上传复用地址，不覆盖已有图片；跨月可能生成新地址。创建文章失败不会自动删除已上传图片，可在图库中后续管理。
 
 ## 重试与排错
 

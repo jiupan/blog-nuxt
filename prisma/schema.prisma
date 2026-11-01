@@ -93,16 +93,17 @@ model Post {
 }
 
 model AgentApiKey {
-  id           Int                @id @default(autoincrement())
-  name         String
-  tokenHash    String             @unique
-  prefix       String
-  createdById  Int?
-  revokedAt    DateTime?
-  lastUsedAt   DateTime?
-  createdAt    DateTime           @default(now())
-  createdBy    User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  publications AgentPublication[]
+  id             Int                @id @default(autoincrement())
+  name           String
+  tokenHash      String             @unique
+  encryptedToken String?
+  prefix         String
+  createdById    Int?
+  revokedAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  createdBy      User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  publications   AgentPublication[]
 
   @@index([createdAt])
 }
@@ -166,14 +167,15 @@ model ArticleChatMessage {
 }
 
 model Category {
-  id        Int      @id @default(autoincrement())
-  name      String
-  slug      String   @unique
-  icon      String?
-  sort      Int      @default(0)
-  posts     Post[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  name       String
+  slug       String   @unique
+  icon       String?
+  sort       Int      @default(0)
+  isFeatured Boolean  @default(false)
+  posts      Post[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([sort, id])
 }

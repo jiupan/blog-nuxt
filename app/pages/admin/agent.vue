@@ -21,7 +21,7 @@
         <header class="workspace-panel-heading">
           <div>
             <h2>发布密钥</h2>
-            <p>让本地 Agent 读取分类标签、创建草稿或直接发布文章。</p>
+            <p>让本地 Agent 上传图片、读取分类标签、创建草稿或直接发布文章。</p>
           </div>
           <UButton
             color="neutral"
@@ -70,21 +70,37 @@
                   >最近调用：{{ key.lastUsedAt ? formatDate(key.lastUsedAt) : '尚未使用' }}</span
                 >
               </p>
+              <p v-if="!key.revokedAt && !key.canCopy">
+                旧版密钥再次通过 Agent 正常调用后可复制；若原文已丢失，请创建新密钥。
+              </p>
             </div>
-            <UButton
-              v-if="!key.revokedAt"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :aria-label="`停用${key.name}`"
-              @click="revokeTarget = key"
-              >停用</UButton
-            >
+            <div v-if="!key.revokedAt" class="agent-key-actions">
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-copy"
+                size="sm"
+                :disabled="!key.canCopy || copyingKeyId !== null"
+                :loading="copyingKeyId === key.id"
+                :aria-label="`复制${key.name}密钥`"
+                @click="copyStoredKey(key)"
+                >复制密钥</UButton
+              >
+              <UButton
+                v-if="!key.revokedAt"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                :aria-label="`停用${key.name}`"
+                @click="revokeTarget = key"
+                >停用</UButton
+              >
+            </div>
           </article>
         </div>
         <footer class="agent-note">
           <UIcon name="i-lucide-shield-check" class="size-4" /><span
-            >仅允许读取分类标签和创建文章。密钥不能访问后台、修改或删除已有文章；创建者停用或失去管理员权限后，密钥同时失效。</span
+            >允许读取分类标签、上传图片和创建文章。密钥不能访问后台、修改或删除已有文章；创建者停用或失去管理员权限后，密钥同时失效。</span
           >
         </footer>
       </template>
@@ -252,13 +268,20 @@
         <pre class="agent-example"><code>{{ example }}</code></pre>
         <div class="agent-guide-notes">
           <p>
+            <strong>配图：</strong>使用
+            <code>POST /api/agent/images?purpose=image</code> 上传正文配图，或用
+            <code>purpose=cover</code> 上传封面。以 multipart/form-data 的
+            <code>file</code> 字段提交一张 JPG、PNG 或 WebP，最大 50MB。返回站内地址可用于正文
+            <code>![图片说明](图片地址)</code> 或
+            <code>cover</code>；图片会出现在图库，保留可搜索的原文件名，并自动压缩为 WebP。
+          </p>
+          <p>
             <strong>重试：</strong>相同
             <code>requestId</code> 和内容可安全重试；内容改变时需使用新编号。同一密钥每分钟最多 60
             次请求。
           </p>
           <p>
-            <strong>来源：</strong
-            ><code>sources</code>
+            <strong>来源：</strong><code>sources</code>
             保存到发布记录；想让读者看到的参考链接，请同时写入正文。没有指定封面时沿用图库随机封面。
           </p>
           <p>
@@ -275,7 +298,7 @@
       :title="issuedToken ? '保存你的发布密钥' : '创建发布密钥'"
       :description="
         issuedToken
-          ? '完整密钥仅显示本次，关闭后无法再次查看。'
+          ? '已加密保存，关闭后仍可在密钥列表再次复制。'
           : '为每个本地 Agent 使用不同的名称，便于管理。'
       "
       :dismissible="!creating"
@@ -397,6 +420,7 @@ const createOpen = ref(false)
 const creating = ref(false)
 const keyName = ref('')
 const issuedToken = ref('')
+const copyingKeyId = ref<number | null>(null)
 const createError = ref('')
 watch(createOpen, (open) => {
   if (!open) issuedToken.value = ''
@@ -456,6 +480,28 @@ async function copyText(text: string) {
     toast.add({ title: '复制失败，请手动选择文本复制', color: 'error' })
   }
 }
+async function copyStoredKey(key: AgentKeySummary) {
+  if (!key.canCopy || copyingKeyId.value !== null) return
+  copyingKeyId.value = key.id
+  try {
+    const result = await $fetch<ApiResult<{ token: string }>>(
+      `/api/admin/agent/keys/${key.id}/copy`,
+      { method: 'POST' }
+    )
+    try {
+      await navigator.clipboard.writeText(result.data.token)
+      toast.add({ title: '密钥已复制', color: 'success' })
+    } catch {
+      issuedToken.value = result.data.token
+      createOpen.value = true
+      toast.add({ title: '自动复制失败，请在弹窗中手动复制', color: 'error' })
+    }
+  } catch (error) {
+    toast.add({ title: '复制密钥失败', description: getApiErrorMessage(error), color: 'error' })
+  } finally {
+    copyingKeyId.value = null
+  }
+}
 function formatDate(value: string) {
   return new Date(value).toLocaleString('zh-CN', { hour12: false })
 }
@@ -492,6 +538,13 @@ function recordLabel(record: AgentPublicationItem) {
 .agent-key-copy {
   min-width: 0;
   flex: 1;
+}
+.agent-key-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .agent-key-title {
   display: flex;
@@ -690,6 +743,11 @@ function recordLabel(record: AgentPublicationItem) {
   font-family: monospace;
 }
 @media (max-width: 700px) {
+  .agent-key-actions {
+    flex-direction: column;
+    align-items: stretch;
+    flex-shrink: 0;
+  }
   .agent-key-row {
     padding: 18px 16px;
     gap: 10px;

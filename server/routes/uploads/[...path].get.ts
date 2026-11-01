@@ -17,7 +17,7 @@ const mimeMap: Record<string, string> = {
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const uploadRoot = resolve(config.uploadDir)
-  const requestedPath = getRouterParams(event).path || ''
+  const requestedPath = getRouterParams(event, { decode: true }).path || ''
   const filepath = resolve(uploadRoot, ...requestedPath.split('/').filter(Boolean))
   const relativePath = relative(uploadRoot, filepath)
 

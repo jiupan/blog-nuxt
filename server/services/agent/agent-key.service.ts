@@ -1,12 +1,19 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { getHeader, setResponseHeader, type H3Event } from 'h3'
 import { prisma } from '../../utils/prisma'
-import { notFound, rateLimited, unauthorized } from '../../utils/api-error'
+import { conflict, notFound, rateLimited, unauthorized } from '../../utils/api-error'
+import {
+  decryptAgentToken,
+  encryptAgentToken,
+  hashAgentToken,
+  resolveAgentEncryptionSecret
+} from './agent-key-crypto'
 import {
   consumeFixedWindow,
   retryAfterSeconds,
   type FixedWindowStore
 } from '../security/rate-limit.service'
+export { hashAgentToken } from './agent-key-crypto'
 
 export const agentKeySelect = {
   id: true,
@@ -18,21 +25,46 @@ export const agentKeySelect = {
 } as const
 const requestWindows: FixedWindowStore = new Map()
 
-export function hashAgentToken(token: string) {
-  return createHash('sha256').update(token).digest('hex')
+export async function listAgentKeys() {
+  const keys = await prisma.agentApiKey.findMany({
+    select: { ...agentKeySelect, encryptedToken: true },
+    orderBy: { createdAt: 'desc' }
+  })
+  return keys.map(({ encryptedToken, ...key }) => ({
+    ...key,
+    canCopy: Boolean(encryptedToken) && !key.revokedAt
+  }))
 }
 
-export function listAgentKeys() {
-  return prisma.agentApiKey.findMany({ select: agentKeySelect, orderBy: { createdAt: 'desc' } })
-}
-
-export async function createAgentKey(name: string, createdById: number) {
+export async function createAgentKey(name: string, createdById: number, encryptionSecret: string) {
   const token = `blog_agent_${randomBytes(32).toString('base64url')}`
   const key = await prisma.agentApiKey.create({
-    data: { name, createdById, prefix: token.slice(0, 19), tokenHash: hashAgentToken(token) },
+    data: {
+      name,
+      createdById,
+      prefix: token.slice(0, 19),
+      tokenHash: hashAgentToken(token),
+      encryptedToken: encryptAgentToken(token, encryptionSecret)
+    },
     select: agentKeySelect
   })
-  return { key, token }
+  return { key: { ...key, canCopy: true }, token }
+}
+
+export async function copyAgentKey(id: number, encryptionSecret: string, operatorId: number) {
+  const key = await prisma.agentApiKey.findUnique({
+    where: { id },
+    select: { tokenHash: true, encryptedToken: true, revokedAt: true }
+  })
+  if (!key) throw notFound('密钥不存在')
+  if (key.revokedAt) throw conflict('密钥已停用，请创建新密钥')
+  if (!key.encryptedToken)
+    throw conflict('旧版密钥仅保存了哈希，无法恢复原文；可继续使用已有密钥，或创建新密钥')
+  const token = decryptAgentToken(key.encryptedToken, key.tokenHash, encryptionSecret)
+  await prisma.adminAuditLog.create({
+    data: { operatorId, action: 'AGENT_KEY_COPIED', after: { keyId: id } }
+  })
+  return { token }
 }
 
 export async function revokeAgentKey(id: number) {
@@ -56,7 +88,12 @@ export async function requireAgentToken(event: H3Event) {
   if (!token) throw unauthorized('请提供有效的 Agent Bearer 密钥')
   const key = await prisma.agentApiKey.findUnique({
     where: { tokenHash: hashAgentToken(token) },
-    select: { id: true, revokedAt: true, createdBy: { select: { role: true, status: true } } }
+    select: {
+      id: true,
+      revokedAt: true,
+      encryptedToken: true,
+      createdBy: { select: { role: true, status: true } }
+    }
   })
   if (
     !key ||
@@ -73,9 +110,15 @@ export async function requireAgentToken(event: H3Event) {
     setResponseHeader(event, 'Retry-After', retryAfterSeconds(state.resetAt))
     throw rateLimited('Agent 请求过于频繁，请稍后重试')
   })
+  // A valid client request can upgrade legacy hash-only keys without changing the token.
+  const secret = resolveAgentEncryptionSecret('')
+  const encryptedToken =
+    !key.encryptedToken && Buffer.byteLength(secret, 'utf8') >= 32
+      ? encryptAgentToken(token, secret)
+      : undefined
   await prisma.agentApiKey.update({
     where: { id: key.id },
-    data: { lastUsedAt: new Date() },
+    data: { lastUsedAt: new Date(), ...(encryptedToken ? { encryptedToken } : {}) },
     select: { id: true }
   })
   return { keyId: key.id }

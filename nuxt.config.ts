@@ -56,6 +56,16 @@ export default defineNuxtConfig({
         requestSizeLimiter: { maxRequestSizeInBytes: 1024 * 1024 }
       }
     },
+    '/api/agent/images': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: {
+          maxRequestSizeInBytes: 51 * 1024 * 1024,
+          maxUploadFileRequestInBytes: 51 * 1024 * 1024
+        }
+      }
+    },
     '/api/admin/upload': {
       cors: false,
       security: {

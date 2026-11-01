@@ -14,7 +14,8 @@ const iconSchema = z
 export const createCategorySchema = z.object({
   name: z.string().min(1),
   slug: z.string().optional(),
-  icon: iconSchema
+  icon: iconSchema,
+  isFeatured: z.boolean().optional()
 })
 
 export const updateCategorySchema = createCategorySchema.extend({
@@ -72,6 +73,7 @@ export async function createCategory(input: CreateCategoryInput) {
         name: input.name,
         slug: resolveTaxonomySlug(input.slug, input.name),
         icon: input.icon || null,
+        isFeatured: input.isFeatured ?? false,
         sort: (last._max.sort ?? -1) + 1
       }
     })
@@ -89,7 +91,8 @@ export async function updateCategory(id: number, input: UpdateCategoryInput) {
       data: {
         name: input.name,
         slug,
-        icon: input.icon || null
+        icon: input.icon || null,
+        ...(input.isFeatured !== undefined ? { isFeatured: input.isFeatured } : {})
       }
     })
   } catch (error) {

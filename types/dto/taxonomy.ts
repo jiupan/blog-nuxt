@@ -4,6 +4,7 @@ export type TaxonomySummary = {
   slug: string
   icon?: string | null
   sort?: number
+  isFeatured?: boolean
 }
 
 export type TaxonomyItem = TaxonomySummary & {
@@ -16,6 +17,7 @@ export type CreateCategoryRequest = {
   name: string
   slug?: string
   icon?: string | null
+  isFeatured?: boolean
 }
 
 export type UpdateCategoryRequest = CreateCategoryRequest & {
