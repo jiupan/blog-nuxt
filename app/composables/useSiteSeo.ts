@@ -18,6 +18,7 @@ export function useSiteSeo() {
   const description = computed(() => settings.value.seo_description || defaultSeoDescription)
   useHead(() => ({
     htmlAttrs: { lang: 'zh-CN' },
+    meta: [{ name: 'baidu-site-verification', content: 'codeva-BCPQzdpJg5' }],
     link: privatePage.value ? [] : [{ rel: 'canonical', href: canonical.value }],
     script:
       route.path === '/'
