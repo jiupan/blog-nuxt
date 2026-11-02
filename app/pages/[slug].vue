@@ -29,13 +29,14 @@
             </div>
           </div>
 
-          <div class="post-cover-card" :style="{ background: heroGradient }">
-            <img v-if="post.cover" :src="post.cover" :alt="post.title" class="post-cover-img" />
-            <div v-else class="cover-fallback">
-              <span>{{ coverWord }}</span>
-              <strong>{{ post.category?.name || '文章' }}</strong>
-            </div>
-          </div>
+          <PostHeroCover
+            class="post-cover"
+            :src="post.cover"
+            :title="post.title"
+            :fallback="coverWord"
+            :label="post.category?.name || '文章'"
+            :background="heroGradient"
+          />
         </div>
       </div>
     </section>
@@ -747,7 +748,7 @@ function scrollToTocHeading(id: string) {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
   color: rgb(255 255 255 / 86%);
   font-size: 15px;
   font-weight: 500;
@@ -763,24 +764,26 @@ function scrollToTocHeading(id: string) {
 
 .post-hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 72px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 56px;
   align-items: center;
 }
 
 .post-hero-copy h1 {
   max-width: 900px;
   margin: 0;
-  font-size: clamp(34px, 3.6vw, 52px);
-  font-weight: 900;
-  line-height: 1.2;
+  font-size: clamp(32px, 3vw, 42px);
+  font-weight: 700;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .post-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 36px;
+  margin-top: 20px;
   font-size: 15px;
   font-weight: 500;
 }
@@ -797,39 +800,6 @@ function scrollToTocHeading(id: string) {
 
 .post-meta-icon {
   flex: 0 0 auto;
-}
-
-.post-cover-card {
-  display: grid;
-  aspect-ratio: 16 / 9;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 8px;
-  box-shadow: 0 26px 56px rgb(91 11 65 / 22%);
-}
-
-.post-cover-card img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.cover-fallback {
-  display: grid;
-  place-items: center;
-  color: rgb(255 255 255 / 72%);
-  text-align: center;
-}
-
-.cover-fallback span {
-  font-size: 48px;
-  font-weight: 900;
-}
-
-.cover-fallback strong {
-  margin-top: 8px;
-  color: white;
-  font-size: 18px;
 }
 
 .post-shell {
@@ -1434,7 +1404,7 @@ function scrollToTocHeading(id: string) {
 
 @media (max-width: 900px) {
   .post-hero-grid {
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) 240px;
     gap: 36px;
   }
 
@@ -1444,10 +1414,6 @@ function scrollToTocHeading(id: string) {
 
   .summary-body {
     grid-template-columns: 180px minmax(0, 1fr);
-  }
-
-  .post-cover-card {
-    max-width: 320px;
   }
 
   .post-sidebar {
@@ -1482,39 +1448,9 @@ function scrollToTocHeading(id: string) {
     display: contents;
   }
 
-  .post-cover-card {
+  .post-cover {
     order: 1;
-    width: min(46vw, 190px);
-    max-width: none;
-    aspect-ratio: 1;
     justify-self: center;
-    border-radius: 28px;
-    box-shadow:
-      inset 0 0 0 10px rgb(255 255 255 / 12%),
-      0 28px 60px rgb(24 25 33 / 18%);
-  }
-
-  .post-cover-card img {
-    border: 10px solid rgb(255 255 255 / 18%);
-    border-radius: inherit;
-  }
-
-  .cover-fallback {
-    width: 100%;
-    height: 100%;
-    border: 10px solid rgb(255 255 255 / 18%);
-    border-radius: inherit;
-    background: color-mix(in srgb, var(--theme-surface) 18%, transparent);
-  }
-
-  .cover-fallback span {
-    max-width: 82%;
-    font-size: clamp(28px, 9vw, 42px);
-    line-height: 1.08;
-  }
-
-  .cover-fallback strong {
-    font-size: 14px;
   }
 
   .post-kicker {
@@ -1543,8 +1479,8 @@ function scrollToTocHeading(id: string) {
     order: 3;
     max-width: 12em;
     justify-self: center;
-    font-size: clamp(24px, 7.4vw, 34px);
-    line-height: 1.22;
+    font-size: clamp(26px, 7.4vw, 34px);
+    line-height: 1.38;
     text-wrap: balance;
   }
 
