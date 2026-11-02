@@ -1165,26 +1165,31 @@ body.site-search-lock {
 
 .back-top-button {
   position: relative;
-  width: 48px;
-  height: 48px;
+  width: 66px;
+  height: 66px;
+  flex: 0 0 66px;
   margin: 0;
-  background: linear-gradient(135deg, #ff777c, #f23842);
-  box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
   cursor: pointer;
 }
 
 .back-top-button:hover,
 .back-top-button:focus-visible {
-  background: linear-gradient(135deg, #ff777c, #f23842);
-  box-shadow: 0 14px 28px rgb(242 56 66 / 28%);
+  background: transparent;
+  box-shadow: none;
 }
 
-.back-top-icon {
-  display: block;
-  width: 24px;
-  height: 24px;
-  font-size: 24px;
-  stroke-width: 2.4;
+.back-top-button:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-top-button { transition: none; }
+  .back-top-button:hover,
+  .back-top-button:focus-visible { transform: none; }
 }
 
 .footer-links {
@@ -1341,7 +1346,10 @@ body.site-search-lock {
   }
 
   .back-top-button {
-    display: none;
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: center;
   }
 
   .footer-action {

@@ -27,7 +27,7 @@
         </template>
       </div>
       <button class="back-top-button" type="button" aria-label="返回顶部" data-tooltip="返回顶部" @click="$emit('scrollTop')">
-        <Icon name="i-lucide-rocket" class="back-top-icon" aria-hidden="true" />
+        <FooterMascot />
       </button>
       <div class="footer-action-side is-right">
         <template
@@ -79,6 +79,7 @@
 
 <script setup lang="ts">
 import type { FooterActionLink, FooterCopyrightPart, FooterGroup, FooterLink } from '~/composables/useSiteNavigation'
+import FooterMascot from './FooterMascot.vue'
 
 defineProps<{
   compact?: boolean

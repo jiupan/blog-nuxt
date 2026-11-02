@@ -1,0 +1,14 @@
+# 页脚飞鼠「蜜桃」
+
+用户从四款草稿中选择 D：蜜桃飞鼠。保留蜜桃色大卷尾巴、奶油色脸颊和大眼睛，用于 Jiupan Blog 页脚的返回顶部按钮。
+
+- 生成方式：内置 `image_gen`，透明背景。
+- 项目素材：`public/images/mascot/peach-body.webp`、`peach-blink.webp`、`peach-tail.webp`、`peach-paw.webp`，最长边 256 像素，保留透明通道，总计约 63 KB。
+- 动画组件：`app/components/site/FooterMascot.vue`。身体轻呼吸、尾巴独立摇摆、自然眨眼与偶尔招手；悬停或键盘聚焦时探头并持续招手。
+- 眼睛采用同一角色的睁眼和闭眼素材切换，尾巴与爪子使用独立图层。66 像素透明轮廓，无圆形底板。
+- 爪子跟随身体定位，绕肩膀旋转，衔接处由身体图层遮挡。整体始终保持直立，悬停时上抬 4 像素。
+- 支持明暗主题、移动端和 `prefers-reduced-motion`。
+
+## 最终生成提示词
+
+Use case: identity-preserve. Asset type: production transparent 2x2 sprite-parts atlas for an animated website footer character. Input image 1 is the approved design reference: peach baby flying squirrel with huge fluffy curled tail, ivory cheek mask and belly, large glossy brown eyes, tiny cocoa nose, tiny feet, delicate wing membrane. Preserve this exact appealing character identity, peach-and-cream colors, soft fine fur, proportions, facial anatomy and premium soft 3D rendering. Create ONE SQUARE image divided into precisely FOUR EQUAL SQUARE QUADRANTS with TRANSPARENT backgrounds, NO lines, NO labels, NO text, no shadows, no ground, no full background. Each quadrant contains a DIFFERENT separated animation part, with generous transparent margins; parts must NEVER cross quadrant boundaries. TOP LEFT quadrant: main character head and torso, upright facing front slightly turned toward viewer, OPEN eyes, curious charming smile, two feet, right paw resting on belly; REMOVE the huge tail entirely and OMIT its left arm/raised greeting paw (viewer LEFT) so the separate paw can be attached at its shoulder. The main body is centered in this quadrant and fills about 80% of its height. TOP RIGHT quadrant: ONLY its detached HUGE fluffy peach curled squirrel tail with the spiral curl at the top and tapered attachment root at the bottom right. No head, body, paws or any other anatomy in this quadrant. Tail must match the reference and fills 80% of the quadrant height. BOTTOM LEFT quadrant: EXACTLY the same main body from TOP LEFT, same scale, positioning, outline, anatomy and lighting, but with BOTH EYES gently CLOSED into happy curved arcs, a natural quick blink frame. No tail, no viewer-left arm. BOTTOM RIGHT quadrant: ONLY the detached viewer-left greeting arm with a tiny open peach paw, three or four tiny rounded fingers and a little cream wing membrane. Shoulder attachment is at lower right and raised paw is at upper left; arm points diagonally upward left. No other anatomy. Center this small detached limb in its quadrant with transparent margins. Critical: all four quadrants are exactly equal size and have genuinely transparent alpha. This is a texture atlas of separated cutout pieces, NOT four full characters or a character sheet with scenes. Warm inviting cute appearance and lovely expressive eyes are essential. Preserve the original selected squirrel, do not turn it into a robot, rabbit, fox or dragon.
