@@ -33,6 +33,8 @@ services:
     env_file:
       - .env
     environment:
+      NUXT_PUBLIC_SITE_URL: ${SITE_URL}
+      NUXT_SITE_URL: ${SITE_URL}
       UPLOAD_DIR: /app/uploads
       KNOWLEDGE_FILE_DIR: /app/data/knowledge-files
     volumes:

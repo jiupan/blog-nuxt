@@ -54,25 +54,7 @@
             </CardReveal>
           </div>
 
-          <div v-if="totalPages > 1 && !listError" class="pager" data-page-enter style="--page-enter-order: 2">
-            <button class="page-dot" :disabled="currentPage <= 1 || listPending" @click="goToPage(currentPage - 1)">
-              <ChevronLeftIcon aria-hidden="true" />
-            </button>
-            <template v-for="item in visiblePageItems" :key="item.key">
-              <span v-if="item.page === null" class="page-ellipsis" aria-hidden="true">…</span>
-              <button
-                v-else
-                class="page-dot"
-                :class="{ 'is-active': item.page === currentPage }"
-                :disabled="listPending"
-                :aria-current="item.page === currentPage ? 'page' : undefined"
-                @click="goToPage(item.page)"
-              >{{ item.page }}</button>
-            </template>
-            <button class="page-dot" :disabled="currentPage >= totalPages || listPending" @click="goToPage(currentPage + 1)">
-              <ChevronRightIcon aria-hidden="true" />
-            </button>
-          </div>
+          <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
 
           <div v-if="!listPending && !listError && !posts.length" class="archive-empty" data-page-enter style="--page-enter-order: 1">
             暂无归档文章
@@ -101,17 +83,14 @@ import type { PublicArchivePayload, PublicPostListPayload } from '~~/types/dto/p
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import { categoryNavigation } from '~/utils/category-navigation'
 import CardReveal from '~/components/CardReveal.vue'
-import {
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon
-} from '@lucide/vue'
 
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
-const activeCategory = ref('all')
-const activeYear = ref<string | number>('all')
+const route = useRoute()
+const activeCategory = computed(() => typeof route.query.category === 'string' ? `category:${route.query.category}` : 'all')
+const activeYear = computed(() => typeof route.query.year === 'string' ? route.query.year : 'all')
 const pageSize = 10
-const currentPage = ref(1)
+const { currentPage, pageTo } = usePublicPagination()
 
 const archiveQuery = computed(() => ({
   page: currentPage.value,
@@ -145,47 +124,30 @@ const categoryFilters = computed(() => [
 
 const yearFilters = computed(() => [
   'all',
-  ...(data.value?.data.years || [])
+  ...(data.value?.data.years || []).map(String)
 ])
 
 const totalPages = computed(() => Math.ceil((data.value?.data.total || 0) / pageSize))
-const visiblePageItems = computed(() => {
-  const total = totalPages.value
-  if (total <= 5) return Array.from({ length: total }, (_, index) => ({ key: `page-${index + 1}`, page: index + 1 }))
-  const pages = new Set([1, total, currentPage.value - 1, currentPage.value, currentPage.value + 1])
-  const sorted = [...pages].filter(page => page >= 1 && page <= total).sort((a, b) => a - b)
-  const items: Array<{ key: string, page: number | null }> = []
-  sorted.forEach((page, index) => {
-    const previous = sorted[index - 1]
-    if (previous !== undefined && page - previous > 1) items.push({ key: `ellipsis-${previous}-${page}`, page: null })
-    items.push({ key: `page-${page}`, page })
-  })
-  return items
-})
+
 const pagedPosts = computed(() => posts.value)
 
 function selectCategory(key: string) {
-  activeCategory.value = key
-  currentPage.value = 1
+  void navigateTo({ path: route.path, query: { ...route.query, category: key.startsWith('category:') ? key.slice(9) : undefined, page: undefined } })
 }
 
 function selectYear(year: string | number) {
-  activeYear.value = year
-  currentPage.value = 1
+  void navigateTo({ path: route.path, query: { ...route.query, year: year === 'all' ? undefined : String(year), page: undefined } })
 }
 
-function goToPage(p: number) {
-  currentPage.value = p
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
+
 
 const hotPosts = computed(() => {
   return sidebarPostData.value?.data.items || []
 })
 
 useSeoMeta({
-  title: '归档',
-  description: '博客文章归档'
+  title: () => `文章归档${currentPage.value > 1 ? ` · 第 ${currentPage.value} 页` : ''} - ${siteName.value}`,
+  description: () => `按时间和分类浏览 ${siteName.value} 的文章。`
 })
 
 </script>

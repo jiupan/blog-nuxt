@@ -5,7 +5,7 @@
         <h1 class="text-3xl font-semibold text-gray-950">文章</h1>
         <p class="mt-2 text-gray-600">记录技术、项目和想法。</p>
       </div>
-      <UInput v-model="keyword" icon="i-lucide-search" placeholder="搜索文章" class="md:w-72" @keyup.enter="refresh" />
+      <UInput v-model="keyword" icon="i-lucide-search" placeholder="搜索文章" class="md:w-72" @keyup.enter="searchPosts" />
     </div>
 
     <div class="mt-6 grid gap-8 md:grid-cols-[260px_1fr]">
@@ -36,6 +36,7 @@
             <span>{{ post.viewCount }} 次阅读</span>
           </div>
         </article>
+        <SeoPagination :page="currentPage" :total="totalPages" :page-to="pageTo" />
       </div>
     </div>
   </div>
@@ -46,13 +47,16 @@ const route = useRoute()
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
+const pageSize = 10
 const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
-const { data, refresh } = await useFetch('/api/posts', {
-  query: computed(() => ({ keyword: keyword.value || undefined }))
+const { currentPage, pageTo } = usePublicPagination(() => ({ keyword: keyword.value || undefined }))
+const { data } = await useFetch('/api/posts', {
+  query: computed(() => ({ keyword: keyword.value || undefined, page: currentPage.value, pageSize }))
 })
 const { data: categoryData } = await useFetch('/api/categories')
 const { data: tagData } = await useFetch('/api/tags')
 const posts = computed(() => data.value?.data.items || [])
+const totalPages = computed(() => Math.ceil((data.value?.data.total || 0) / pageSize))
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 
@@ -61,9 +65,13 @@ watch(() => route.query.keyword, (value) => {
 })
 
 useSeoMeta({
-  title: '文章',
-  description: '博客文章列表'
+  title: () => `文章${currentPage.value > 1 ? ` · 第 ${currentPage.value} 页` : ''} - ${siteName.value}`,
+  description: () => `浏览 ${siteName.value} 的技术文章、项目实践与写作记录。`
 })
+
+function searchPosts() {
+  void navigateTo(pageTo(1))
+}
 
 function formatDate(value?: string | Date | null) {
   return value ? new Date(value).toLocaleDateString('zh-CN') : ''

@@ -192,25 +192,7 @@
             <p>后台发布文章后，这里会自动显示最新内容。</p>
           </div>
 
-          <div v-if="totalPages > 1 && !listError" class="pager">
-            <button class="page-dot" :disabled="currentPage <= 1 || listPending" @click="goToPage(currentPage - 1)">
-              <ChevronLeftIcon aria-hidden="true" />
-            </button>
-            <template v-for="item in visiblePageItems" :key="item.key">
-              <span v-if="item.page === null" class="page-ellipsis" aria-hidden="true">…</span>
-              <button
-                v-else
-                class="page-dot"
-                :class="{ 'is-active': item.page === currentPage }"
-                :disabled="listPending"
-                :aria-current="item.page === currentPage ? 'page' : undefined"
-                @click="goToPage(item.page)"
-              >{{ item.page }}</button>
-            </template>
-            <button class="page-dot" :disabled="currentPage >= totalPages || listPending" @click="goToPage(currentPage + 1)">
-              <ChevronRightIcon aria-hidden="true" />
-            </button>
-          </div>
+          <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
         </main>
 
         <PublicSidebar
@@ -229,6 +211,7 @@
 </template>
 
 <script setup lang="ts">
+import { defaultSeoDescription } from '~/utils/seo'
 import type { Component } from 'vue'
 import type { ApiResult, GalleryImagePayload } from '~~/types/api'
 import type { PostSummary, PublicPostListPayload } from '~~/types/dto/post'
@@ -238,8 +221,6 @@ import CardReveal from '~/components/CardReveal.vue'
 import {
   Archive as ArchiveIcon,
   BadgeCheck as BadgeCheckIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
   BookOpen as BookOpenIcon,
   Bot as BotIcon,
   BrainCircuit as BrainCircuitIcon,
@@ -323,8 +304,12 @@ const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName)
 const useArchiveCardStyle = computed(() => siteSettings.value.home_post_card_style === 'archive')
 const pageSize = 12
-const currentPage = ref(1)
-const categorySlug = ref('')
+const route = useRoute()
+const categorySlug = computed({
+  get: () => typeof route.query.category === 'string' ? route.query.category : '',
+  set: (category: string) => { void navigateTo({ path: route.path, query: { ...route.query, category: category || undefined, page: undefined } }) }
+})
+const { currentPage, pageTo } = usePublicPagination()
 const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }, { data: heroMemeData }] = await Promise.all([
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 6 } }),
@@ -349,19 +334,7 @@ watch(listStatus, (status) => {
 const heroAll = computed(() => heroData.value?.data.items || [])
 const totalPosts = computed(() => data.value?.data.total || posts.value.length)
 const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
-const visiblePageItems = computed(() => {
-  const total = totalPages.value
-  if (total <= 5) return Array.from({ length: total }, (_, index) => ({ key: `page-${index + 1}`, page: index + 1 }))
-  const pages = new Set([1, total, currentPage.value - 1, currentPage.value, currentPage.value + 1])
-  const sorted = [...pages].filter(page => page >= 1 && page <= total).sort((a, b) => a - b)
-  const items: Array<{ key: string, page: number | null }> = []
-  sorted.forEach((page, index) => {
-    const previous = sorted[index - 1]
-    if (previous !== undefined && page - previous > 1) items.push({ key: `ellipsis-${previous}-${page}`, page: null })
-    items.push({ key: `page-${page}`, page })
-  })
-  return items
-})
+
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 const memeIcons = computed(() => memeData.value?.data.map((image) => image.url) || [])
@@ -374,12 +347,9 @@ const heroImageAlt = computed(() => currentHeroPost.value?.title || '')
 const heroTransitionKey = computed(() => currentHeroPost.value?.id || 'hero-empty')
 const homeSeoTitle = computed(() => {
   const subtitle = siteSettings.value.site_subtitle?.trim()
-  return subtitle ? `${siteName.value} - ${subtitle}` : siteName.value
+  return subtitle && subtitle !== '个人博客' ? `${siteName.value} - ${subtitle}` : `${siteName.value}｜AI 编程、Agent 实践与技术笔记`
 })
-function goToPage(p: number) {
-  currentPage.value = p
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
+
 
 function memeIconForPost(id: number) {
   if (!memeIcons.value.length) return ''
@@ -497,7 +467,6 @@ function selectCategory(slug: string) {
 
   revealTopicCardsOnNextResult = true
   categorySlug.value = slug
-  currentPage.value = 1
   hideTopicTooltip()
 }
 
@@ -526,7 +495,6 @@ function hideTopicTooltip() {
 function resetHomeState() {
   cancelHeroChange()
   categorySlug.value = ''
-  currentPage.value = 1
   activeHeroPost.value = null
   hideTopicTooltip()
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -545,7 +513,9 @@ const cloudTags = computed(() => tags.value.slice(0, 12))
 
 useSeoMeta({
   title: homeSeoTitle,
-  description: () => siteSettings.value.seo_description || '一个基于 Nuxt 4 的全栈动态博客'
+  description: () => siteSettings.value.seo_description || defaultSeoDescription,
+  ogTitle: homeSeoTitle,
+  ogDescription: () => siteSettings.value.seo_description || defaultSeoDescription
 })
 
 function formatDate(value?: string | Date | null) {

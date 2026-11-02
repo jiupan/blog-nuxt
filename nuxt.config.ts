@@ -137,13 +137,17 @@ export default defineNuxtConfig({
     aiRerankModel: process.env.AI_RERANK_MODEL || 'rerank-v3.5',
     aiRerankTopN: process.env.AI_RERANK_TOP_N || '8',
     public: {
-      siteUrl: process.env.SITE_URL || 'http://localhost:3000',
+      siteUrl: process.env.SITE_URL || 'https://blog.ittx.cn',
       siteName: process.env.SITE_NAME || 'Jiupan Blog',
       twikooEnvId: process.env.NUXT_PUBLIC_TWIKOO_ENV_ID || '',
       twikooRegion: process.env.NUXT_PUBLIC_TWIKOO_REGION || ''
     }
   },
+  site: { url: process.env.SITE_URL || 'https://blog.ittx.cn', name: process.env.SITE_NAME || 'Jiupan Blog' },
+  nitro: { compressPublicAssets: true },
   sitemap: {
+    excludeAppSources: true,
+    cacheMaxAgeSeconds: 300,
     sources: ['/api/__sitemap__/urls']
   }
 })

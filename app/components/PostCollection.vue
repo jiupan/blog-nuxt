@@ -46,26 +46,7 @@
             <NuxtLink to="/posts">浏览全部文章</NuxtLink>
           </div>
 
-          <nav v-if="totalPages > 1 && !listError" class="collection-pager" aria-label="文章分页" data-page-enter style="--page-enter-order: 2">
-            <button type="button" class="page-dot" :disabled="currentPage <= 1 || listPending" aria-label="上一页" @click="goToPage(currentPage - 1)">
-              <UIcon name="i-lucide-chevron-left" />
-            </button>
-            <template v-for="item in visiblePageItems" :key="item.key">
-              <span v-if="item.page === null" class="page-ellipsis" aria-hidden="true">…</span>
-              <button
-                v-else
-                type="button"
-                class="page-dot"
-                :class="{ 'is-active': item.page === currentPage }"
-                :disabled="listPending"
-                :aria-current="item.page === currentPage ? 'page' : undefined"
-                @click="goToPage(item.page)"
-              >{{ item.page }}</button>
-            </template>
-            <button type="button" class="page-dot" :disabled="currentPage >= totalPages || listPending" aria-label="下一页" @click="goToPage(currentPage + 1)">
-              <UIcon name="i-lucide-chevron-right" />
-            </button>
-          </nav>
+          <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
         </main>
 
         <PublicSidebar
@@ -94,7 +75,7 @@ const props = defineProps<{
 }>()
 
 const pageSize = 6
-const currentPage = ref(1)
+const { currentPage, pageTo } = usePublicPagination()
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
 const query = computed(() => ({
@@ -115,19 +96,7 @@ const listPending = computed(() => listStatus.value === 'pending')
 const showListSkeleton = useDelayedPending(listPending)
 const total = computed(() => data.value?.data.total || 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
-const visiblePageItems = computed(() => {
-  const pages = totalPages.value
-  if (pages <= 5) return Array.from({ length: pages }, (_, index) => ({ key: `page-${index + 1}`, page: index + 1 }))
-  const visible = new Set([1, pages, currentPage.value - 1, currentPage.value, currentPage.value + 1])
-  const sorted = [...visible].filter(page => page >= 1 && page <= pages).sort((a, b) => a - b)
-  const items: Array<{ key: string, page: number | null }> = []
-  sorted.forEach((page, index) => {
-    const previous = sorted[index - 1]
-    if (previous !== undefined && page - previous > 1) items.push({ key: `ellipsis-${previous}-${page}`, page: null })
-    items.push({ key: `page-${page}`, page })
-  })
-  return items
-})
+
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 const currentTaxonomy = computed(() => {
@@ -138,18 +107,13 @@ const kindLabel = computed(() => props.kind === 'category' ? '文章分类' : '�
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 
 useSeoMeta({
-  title: () => `${currentTaxonomy.value?.name || props.slug} - ${props.kind === 'category' ? '分类' : '标签'}`,
+  title: () => `${currentTaxonomy.value?.name || props.slug} - ${props.kind === 'category' ? '分类' : '标签'} - ${siteName.value}`,
   description: () => `浏览${siteName.value}中${props.kind === 'category' ? '分类' : '标签'}“${currentTaxonomy.value?.name || props.slug}”下的文章。`
 })
 
-watch(() => [props.kind, props.slug], () => {
-  currentPage.value = 1
-})
 
-function goToPage(page: number) {
-  currentPage.value = Math.min(Math.max(page, 1), totalPages.value)
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-}
+
+
 
 </script>
 

@@ -6,3 +6,7 @@
     </NuxtLayout>
   </UApp>
 </template>
+
+<script setup lang="ts">
+useSiteSeo()
+</script>

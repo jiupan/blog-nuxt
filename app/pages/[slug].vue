@@ -150,6 +150,7 @@
 </template>
 
 <script setup lang="ts">
+import { absoluteSiteUrl, serializeJsonLd } from '~/utils/seo'
 import {
   CalendarDays as CalendarDaysIcon,
   Clock3 as Clock3Icon,
@@ -172,6 +173,10 @@ if (error.value || !data.value?.data) {
 }
 
 const post = computed(() => data.value!.data)
+const canonicalPostPath = postPath(post.value.slug)
+if (decodeURI(route.path) !== decodeURI(canonicalPostPath)) {
+  await navigateTo({ path: canonicalPostPath, query: route.query }, { redirectCode: 301, replace: true })
+}
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
@@ -362,10 +367,29 @@ watch(() => post.value.rendered.html, () => {
 useSeoMeta({
   title: () => post.value.seoTitle || post.value.title,
   description: () => post.value.seoDescription || post.value.summary || '',
-  ogTitle: () => post.value.title,
-  ogDescription: () => post.value.summary || '',
-  ogImage: () => post.value.cover || ''
+  ogTitle: () => post.value.seoTitle || post.value.title,
+  ogDescription: () => post.value.seoDescription || post.value.summary || '',
+  ogType: 'article',
+  ogImage: () => absoluteSiteUrl(post.value.cover || '/images/home-hero-ai.png', config.public.siteUrl),
+  articlePublishedTime: () => post.value.publishedAt || undefined,
+  articleModifiedTime: () => post.value.updatedAt,
+  twitterTitle: () => post.value.seoTitle || post.value.title,
+  twitterDescription: () => post.value.seoDescription || post.value.summary || '',
+  twitterImage: () => absoluteSiteUrl(post.value.cover || '/images/home-hero-ai.png', config.public.siteUrl)
 })
+
+useHead(() => ({ script: [{ key: 'article-schema', type: 'application/ld+json', innerHTML: serializeJsonLd({
+  '@context': 'https://schema.org', '@type': 'BlogPosting',
+  headline: post.value.seoTitle || post.value.title,
+  description: post.value.seoDescription || post.value.summary || '',
+  url: absoluteSiteUrl(postPath(post.value.slug), config.public.siteUrl),
+  mainEntityOfPage: absoluteSiteUrl(postPath(post.value.slug), config.public.siteUrl),
+  image: [absoluteSiteUrl(post.value.cover || '/images/home-hero-ai.png', config.public.siteUrl)],
+  datePublished: post.value.publishedAt || undefined, dateModified: post.value.updatedAt,
+  author: { '@type': 'Person', name: siteSettings.value.sidebar_author_name || siteName.value, url: absoluteSiteUrl('/about', config.public.siteUrl) },
+  publisher: { '@type': 'Organization', name: siteName.value },
+  inLanguage: 'zh-CN'
+}) }] }))
 
 async function openSummaryDialog() {
   const question = summaryQuestion.value.trim()

@@ -122,9 +122,6 @@ export async function useSiteNavigation() {
     }),
     meta: computed(() => {
       const meta: Array<Record<string, string>> = []
-      if (siteSettings.value.seo_noindex === 'true') {
-        meta.push({ name: 'robots', content: 'noindex' })
-      }
       if (siteSettings.value.seo_keywords) {
         meta.push({ name: 'keywords', content: siteSettings.value.seo_keywords })
       }
