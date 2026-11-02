@@ -61,10 +61,10 @@
             <p>{{ post.summary }}</p>
           </div>
           <form class="summary-chat-form" @submit.prevent="openSummaryDialog">
-            <input v-model="summaryQuestion" type="text" placeholder="针对这个文章有什么想问的？" aria-label="针对这篇文章提问" />
-            <button type="submit" :disabled="!summaryQuestion.trim()">
-              <span>发送</span>
-              <Icon name="i-lucide-corner-down-left" />
+            <input v-model="summaryQuestion" type="text" :minlength="summaryQuestion.trim() ? 2 : undefined" maxlength="300" placeholder="针对这个文章有什么想问的？" aria-label="针对这篇文章提问" />
+            <button ref="summaryEntryButton" type="submit" aria-haspopup="dialog" :disabled="Boolean(summaryQuestion.trim()) && summaryDialogLoading">
+              <span>{{ summaryEntryLabel }}</span>
+              <Icon :name="summaryQuestion.trim() ? 'i-lucide-corner-down-left' : 'i-lucide-messages-square'" />
             </button>
           </form>
         </section>
@@ -191,6 +191,8 @@ type ArticleChatMessage = { id: number | string, role: 'USER' | 'ASSISTANT', con
 type ArticleConversationItem = { id: number, status: 'ACTIVE' | 'ARCHIVED', title: string, messageCount: number, lastMessageAt: string, createdAt: string }
 const summaryMessages = ref<ArticleChatMessage[]>([])
 const summaryConversationId = ref<number | null>(null)
+const summaryEntryLabel = computed(() => summaryQuestion.value.trim() ? '发送' : summaryConversationId.value || summaryMessages.value.length ? '继续对话' : '打开对话')
+const summaryEntryButton = ref<HTMLButtonElement | null>(null)
 const summaryHistoryOpen = ref(false)
 const summaryHistoryLoading = ref(false)
 const summaryHistoryQuery = ref('')
@@ -204,6 +206,12 @@ const summaryDialogInput = ref<HTMLTextAreaElement | null>(null)
 const summaryMessagesEl = ref<HTMLElement | null>(null)
 const articleContentEl = ref<HTMLElement | null>(null)
 let summaryDialogController: AbortController | null = null
+let summaryConversationRestored = false
+let summaryRestorePromise: Promise<void> | null = null
+let summarySavedScrollTop: number | null = null
+let summaryResumeScroll = false
+let summaryFocusOnOpen = false
+let summaryViewRestored = false
 let sidebarResizeObserver: ResizeObserver | undefined
 let tocUpdateFrame: number | undefined
 let tocHeadings: Array<{ id: string, element: HTMLElement }> = []
@@ -241,6 +249,7 @@ const heroGradient = computed(() => heroGradients[post.value.id % heroGradients.
 layoutScrollTitle.value = post.value.title
 
 onBeforeUnmount(() => {
+  summaryDialogController?.abort()
   layoutScrollTitle.value = ''
   document.body.style.overflow = ''
   window.removeEventListener('scroll', scheduleTocUpdate)
@@ -251,6 +260,7 @@ onBeforeUnmount(() => {
 })
 
 onMounted(() => {
+  void restoreSummaryConversation()
   updatePostSidebarStickyTop()
   setupTocTracking()
   nextTick(() => requestAnimationFrame(setupCollapsibleCodeBlocks))
@@ -394,19 +404,28 @@ useHead(() => ({ script: [{ key: 'article-schema', type: 'application/ld+json', 
 
 async function openSummaryDialog() {
   const question = summaryQuestion.value.trim()
-  if (!question) return
+  summaryResumeScroll = !question && summarySavedScrollTop !== null
+  summaryFocusOnOpen = Boolean(question)
+  summaryViewRestored = false
   summaryDialogOpen.value = true
   document.body.style.overflow = 'hidden'
-  if (!summaryMessages.value.length) await restoreSummaryConversation()
-  await submitSummaryQuestion(question)
+  await restoreSummaryConversation()
+  if (!summaryDialogOpen.value) return
+  summaryFocusOnOpen = Boolean(question) || !summaryMessages.value.length
+  await nextTick()
+  focusSummaryDialogInput()
+  if (!question) return
+  if (!summaryConversationRestored || summaryDialogLoading.value) return
   summaryQuestion.value = ''
+  await submitSummaryQuestion(question)
 }
 
 function closeSummaryDialog() {
-  summaryDialogController?.abort()
+  summarySavedScrollTop = summaryMessagesEl.value?.scrollTop ?? summarySavedScrollTop
   summaryHistoryOpen.value = false
   summaryDialogOpen.value = false
   document.body.style.overflow = ''
+  summaryEntryButton.value?.focus({ preventScroll: true })
 }
 
 async function toggleSummaryHistory() {
@@ -506,7 +525,12 @@ function normalizeHeadingText(value?: string | null) {
 }
 
 function focusSummaryDialogInput() {
-  summaryDialogInput.value?.focus()
+  if (summaryViewRestored || !summaryConversationRestored) return
+  const messages = summaryMessagesEl.value
+  if (!messages) return
+  messages.scrollTop = summaryResumeScroll && summarySavedScrollTop !== null ? summarySavedScrollTop : messages.scrollHeight
+  summaryViewRestored = true
+  if (summaryFocusOnOpen && window.matchMedia('(min-width: 641px)').matches) summaryDialogInput.value?.focus({ preventScroll: true })
 }
 
 function handleSummaryDialogEscape(event: KeyboardEvent) {
@@ -514,13 +538,22 @@ function handleSummaryDialogEscape(event: KeyboardEvent) {
 }
 
 async function restoreSummaryConversation() {
-  try {
-    const response = await $fetch<{ data: { conversation: { id: number } | null, messages: ArticleChatMessage[] } }>(`/api/posts/${post.value.slug}/chat`)
-    summaryConversationId.value = response.data.conversation?.id || null
-    summaryMessages.value = response.data.messages
-  } catch {
-    summaryMessages.value = []
-  }
+  if (summaryConversationRestored) return
+  if (summaryRestorePromise) return summaryRestorePromise
+  summaryRestorePromise = (async () => {
+    try {
+      const response = await $fetch<{ data: { conversation: { id: number } | null, messages: ArticleChatMessage[] } }>(`/api/posts/${post.value.slug}/chat`)
+      summaryConversationId.value = response.data.conversation?.id || null
+      summaryMessages.value = response.data.messages
+      summaryConversationRestored = true
+      summaryDialogError.value = ''
+    } catch (error: unknown) {
+      summaryDialogError.value = getArticleChatError(error)
+    } finally {
+      summaryRestorePromise = null
+    }
+  })()
+  return summaryRestorePromise
 }
 
 async function sendSummaryDialogMessage() {
@@ -590,6 +623,7 @@ async function resetSummaryConversation() {
     await $fetch(`/api/posts/${post.value.slug}/chat`, { method: 'DELETE', body: { conversationId: summaryConversationId.value } })
     summaryConversationId.value = null
     summaryMessages.value = []
+    summarySavedScrollTop = null
     summaryDialogError.value = ''
     summaryDialogDraft.value = ''
     await nextTick()
@@ -1004,6 +1038,7 @@ function scrollToTocHeading(id: string) {
   justify-content: center;
   gap: 6px;
   height: 34px;
+  width: 116px;
   border: 1px solid var(--theme-border);
   border-radius: 999px;
   background: var(--theme-surface);
@@ -1011,6 +1046,7 @@ function scrollToTocHeading(id: string) {
   font: inherit;
   font-size: 14px;
   padding: 0 16px;
+  white-space: nowrap;
   cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -1580,6 +1616,7 @@ function scrollToTocHeading(id: string) {
   }
 
   .summary-chat-form button {
+    width: 100%;
     font-size: 13px;
   }
 

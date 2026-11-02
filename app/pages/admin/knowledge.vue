@@ -382,36 +382,53 @@
               <p>验证召回结果、分块质量和最终回答</p>
             </div>
           </header>
-          <UTextarea
-            v-model="retrievalQuery"
-            :rows="3"
-            placeholder="输入一个与博客内容有关的问题"
-          />
-          <div class="retrieval-controls">
-            <UFormField label="召回数量 TopK">
-              <UInput
-                v-model.number="retrievalTopK"
-                type="number"
-                min="1"
-                max="40"
-              />
-            </UFormField>
-            <label>
-              <input
-                v-model="generateAnswer"
-                type="checkbox"
+          <form class="retrieval-body" @submit.prevent="runRetrieval">
+            <div class="retrieval-question-heading">
+              <label for="retrieval-question">测试问题</label>
+              <span id="retrieval-question-hint">{{ retrievalQuery.length }} / 300</span>
+            </div>
+            <textarea
+              id="retrieval-question"
+              v-model="retrievalQuery"
+              class="retrieval-question-input"
+              rows="4"
+              minlength="2"
+              maxlength="300"
+              required
+              aria-describedby="retrieval-question-hint"
+              placeholder="例如：博客中有哪些关于 AI Agent 的文章？"
+            />
+            <div class="retrieval-controls">
+              <label class="retrieval-limit" for="retrieval-top-k">
+                <span>召回数量 <small>Top K</small></span>
+                <input
+                  id="retrieval-top-k"
+                  v-model.number="retrievalTopK"
+                  type="number"
+                  min="1"
+                  max="40"
+                  step="1"
+                  required
+                >
+              </label>
+              <label class="retrieval-answer-toggle">
+                <input v-model="generateAnswer" type="checkbox">
+                <span>
+                  <strong>同时生成回答</strong>
+                  <small>结合召回片段生成 AI 回答</small>
+                </span>
+              </label>
+              <UButton
+                type="submit"
+                class="retrieval-submit"
+                icon="i-lucide-play"
+                :loading="testingRetrieval"
+                :disabled="retrievalQuery.trim().length < 2 || testingRetrieval"
               >
-              同时生成回答
-            </label>
-            <UButton
-              icon="i-lucide-play"
-              :loading="testingRetrieval"
-              :disabled="!retrievalQuery.trim()"
-              @click="runRetrieval"
-            >
-              开始检索
-            </UButton>
-          </div>
+                开始检索
+              </UButton>
+            </div>
+          </form>
         </section>
         <div
           v-if="retrievalResult"
@@ -1401,7 +1418,10 @@ function fileIcon(extension: string) {
   font-weight: 550;
   padding: 0 0.8rem;
   white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease;
 }
+.knowledge-tabs button:focus-visible { outline: 2px solid #6554c0; outline-offset: -4px; }
 .knowledge-tabs button:hover,
 .knowledge-tabs button.is-active {
   background: #efedf8;
@@ -1665,32 +1685,27 @@ function fileIcon(extension: string) {
   line-height: 1.65;
   white-space: pre-wrap;
 }
-.retrieval-form {
-  padding-bottom: 1rem;
-}
-.retrieval-form > :not(header) {
-  margin-right: 1rem;
-  margin-left: 1rem;
-}
-.retrieval-form > header {
-  margin-bottom: 1rem;
-}
-.retrieval-controls {
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 0.75rem;
-}
-.retrieval-controls > :first-child {
-  width: 8rem;
-  margin-right: auto;
-}
-.retrieval-controls label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: #475569;
-  font-size: 0.78rem;
-}
+.retrieval-body { padding: 22px; }
+.retrieval-question-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.retrieval-question-heading label { color: #344054; font-size: 13px; font-weight: 550; }
+.retrieval-question-heading > span { color: #98a2b3; font-size: 11px; font-variant-numeric: tabular-nums; }
+.retrieval-question-input { display: block; width: 100%; min-height: 148px; resize: vertical; padding: 14px 16px; border: 1px solid #dce0e8; border-radius: 8px; background: #fafbfc; color: #202633; font: inherit; font-size: 14px; line-height: 1.8; transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
+.retrieval-question-input::placeholder { color: #98a2b3; }
+.retrieval-question-input:hover { border-color: #b9b2d5; }
+.retrieval-question-input:focus { outline: none; border-color: #8e80ce; background: #fff; box-shadow: 0 0 0 3px rgb(101 84 192 / 9%); }
+.retrieval-controls { flex-wrap: wrap; gap: 18px; margin-top: 18px; }
+.retrieval-limit { display: flex; align-items: center; gap: 12px; color: #475467; font-size: 12px; }
+.retrieval-limit small { margin-left: 4px; color: #98a2b3; font-size: 11px; }
+.retrieval-limit input { width: 76px; height: 36px; padding: 0 10px; border: 1px solid #dce0e8; border-radius: 6px; background: #fff; color: #344054; font: inherit; font-variant-numeric: tabular-nums; }
+.retrieval-limit input:focus-visible { outline: 2px solid #8e80ce; outline-offset: 2px; }
+.retrieval-answer-toggle { display: flex; align-items: center; gap: 9px; padding-left: 18px; border-left: 1px solid #e4e7ec; cursor: pointer; }
+.retrieval-answer-toggle input { width: 15px; height: 15px; accent-color: #6554c0; cursor: pointer; }
+.retrieval-answer-toggle input:focus-visible { outline: 2px solid #8e80ce; outline-offset: 3px; }
+.retrieval-answer-toggle > span { display: grid; gap: 2px; }
+.retrieval-answer-toggle strong { color: #475467; font-size: 12px; font-weight: 450; }
+.retrieval-answer-toggle small { color: #98a2b3; font-size: 11px; }
+.retrieval-submit { min-height: 36px; margin-left: auto; cursor: pointer; }
+.retrieval-submit:disabled { cursor: default; }
 .retrieval-results {
   align-items: start;
 }
@@ -1864,9 +1879,9 @@ function fileIcon(extension: string) {
     align-items: stretch;
     flex-direction: column;
   }
-  .retrieval-controls > :first-child {
-    width: 100%;
-  }
+  .retrieval-body { padding: 16px; }
+  .retrieval-answer-toggle { padding-left: 0; border-left: 0; }
+  .retrieval-submit { justify-content: center; margin-left: 0; }
   .log-row,
   .job-row {
     grid-template-columns: 1fr;
@@ -2008,6 +2023,7 @@ function fileIcon(extension: string) {
 }
 .knowledge-tabs button:hover {
   background: transparent;
+  color: #6554c0;
 }
 .knowledge-tabs button.is-active {
   background: transparent;
@@ -2197,9 +2213,6 @@ function fileIcon(extension: string) {
 }
 .job-row button {
   margin-top: 10px;
-}
-.retrieval-form :deep(textarea) {
-  min-height: 120px;
 }
 .knowledge-chunks {
   display: grid;

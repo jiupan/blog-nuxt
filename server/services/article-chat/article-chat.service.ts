@@ -9,14 +9,10 @@ import { searchPostChunks } from '../rag/retrieval.service'
 import { consumeFixedWindow, getClientIp, type FixedWindowStore } from '../security/rate-limit.service'
 import { getKnowledgeRuntimeSettings } from '../settings/settings.service'
 import type { SessionUser } from '../security/access-control.service'
+import type { articleChatInputSchema } from './article-chat.schema'
 
 const anonymousCookie = process.env.NODE_ENV === 'production' ? '__Host-article-chat' : 'article-chat'
 const ipWindows: FixedWindowStore = new Map()
-
-export const articleChatInputSchema = z.object({
-  conversationId: z.number().int().positive().optional(),
-  message: z.string().trim().min(2, '问题至少需要 2 个字').max(300, '问题不能超过 300 个字')
-})
 
 export const articleConversationListSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

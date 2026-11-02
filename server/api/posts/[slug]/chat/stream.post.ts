@@ -1,8 +1,9 @@
 import { createEventStream } from 'h3'
-import { articleChatInputSchema, streamArticleChatMessage } from '~~/server/services/article-chat/article-chat.service'
+import { streamArticleChatMessage } from '~~/server/services/article-chat/article-chat.service'
+import { parseArticleChatInput } from '~~/server/services/article-chat/article-chat.schema'
 
 export default defineEventHandler(async (event) => {
-  const input = articleChatInputSchema.parse(await readBody(event))
+  const input = parseArticleChatInput(await readBody(event))
   const stream = createEventStream(event)
   const controller = new AbortController()
   stream.onClosed(() => controller.abort())
