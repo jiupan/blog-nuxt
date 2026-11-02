@@ -8,7 +8,8 @@
               <div class="archive-filter-title">
                 <h1 id="archive-heading">文章归档</h1>
                 <span v-if="!listError" class="archive-result-count" role="status" aria-live="polite">
-                  {{ listPending ? '正在查找…' : `共 ${data?.data.total || 0} 篇文章` }}
+                  {{ listPending ? '正在更新…' : `共 ${data?.data.total || 0} 篇文章` }}
+                  <span class="archive-loading-indicator" :class="{ 'is-loading': listPending }" aria-hidden="true" />
                 </span>
               </div>
               <div class="archive-filter-tools">
@@ -18,7 +19,7 @@
                 </button>
                 <label class="archive-year-picker">
                   <span class="sr-only">按年份筛选</span>
-                  <select :value="activeYear" :disabled="listPending" aria-label="按年份筛选" @change="onYearChange">
+                  <select :value="activeYear" aria-label="按年份筛选" @change="onYearChange">
                     <option v-for="year in yearFilters" :key="year" :value="year" :selected="activeYear === year">{{ year === 'all' ? '全部年份' : `${year} 年` }}</option>
                   </select>
                   <UIcon name="i-lucide-chevron-down" class="year-picker-chevron" aria-hidden="true" />
@@ -32,7 +33,6 @@
                 type="button"
                 :class="{ 'is-active': activeCategory === filter.key }"
                 :aria-pressed="activeCategory === filter.key"
-                :disabled="listPending"
                 @click="selectCategory(filter.key)"
               >
                 {{ filter.label }}
@@ -40,33 +40,25 @@
             </nav>
           </section>
 
-          <div
-            v-if="showListSkeleton"
-            class="archive-list"
-            role="status"
-            aria-label="正在加载文章"
-            data-page-enter
-            style="--page-enter-order: 1"
-          >
-            <PostCardSkeleton variant="archive" :count="pageSize" />
+          <div class="archive-results" :aria-busy="listPending" data-page-enter style="--page-enter-order: 1">
+            <div class="archive-results-content" :class="{ 'is-covered': showListSkeleton, 'is-settled': !listPending }" :inert="listPending">
+              <div v-if="listError" class="archive-empty is-error" role="alert">
+                <strong>文章加载失败</strong>
+                <span>网络似乎开了个小差，请稍后重试。</span>
+                <button type="button" @click="refreshArchive()">重新加载</button>
+              </div>
+              <div v-else-if="posts.length" class="archive-list">
+                <ArchivePostCard v-for="post in posts" :key="post.id" :post="post" />
+              </div>
+              <div v-else class="archive-empty">暂无归档文章</div>
+            </div>
+            <div v-if="showListSkeleton" class="archive-list archive-loading-overlay" aria-hidden="true">
+              <PostCardSkeleton variant="archive" :count="Math.max(posts.length, 1)" />
+            </div>
           </div>
 
-          <div v-else-if="listError" class="archive-empty is-error" role="alert" data-page-enter style="--page-enter-order: 1">
-            <strong>文章加载失败</strong>
-            <span>网络似乎开了个小差，请稍后重试。</span>
-            <button type="button" @click="refreshArchive()">重新加载</button>
-          </div>
-
-          <div v-else class="archive-list" :aria-busy="listPending" data-page-enter style="--page-enter-order: 1">
-            <CardReveal v-for="post in pagedPosts" :key="post.id" variant="archive">
-              <ArchivePostCard :post="post" />
-            </CardReveal>
-          </div>
-
-          <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
-
-          <div v-if="!listPending && !listError && !posts.length" class="archive-empty" data-page-enter style="--page-enter-order: 1">
-            暂无归档文章
+          <div :inert="listPending" :class="{ 'archive-pagination-loading': showListSkeleton }">
+            <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
           </div>
         </main>
 
@@ -91,7 +83,6 @@ import type { ApiResult } from '~~/types/api'
 import type { PublicArchivePayload, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import { categoryNavigation } from '~/utils/category-navigation'
-import CardReveal from '~/components/CardReveal.vue'
 
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
@@ -109,7 +100,7 @@ const archiveQuery = computed(() => ({
 }))
 
 const [{ data, status: listStatus, error: listError, refresh: refreshArchive }, { data: categoryData }, { data: tagData }, { data: sidebarPostData }] = await Promise.all([
-  useFetch<ApiResult<PublicArchivePayload>>('/api/archive', { query: archiveQuery }),
+  useFetch<ApiResult<PublicArchivePayload>>('/api/archive', { query: archiveQuery, dedupe: 'cancel' }),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/tags'),
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 4 } })
@@ -118,7 +109,7 @@ const [{ data, status: listStatus, error: listError, refresh: refreshArchive }, 
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const posts = computed(() => data.value?.data.items || [])
 const listPending = computed(() => listStatus.value === 'pending')
-const showListSkeleton = useDelayedPending(listPending)
+const showListSkeleton = useDelayedPending(listPending, 280)
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 
@@ -139,13 +130,13 @@ const hasFilters = computed(() => activeCategory.value !== 'all' || activeYear.v
 
 const totalPages = computed(() => Math.ceil((data.value?.data.total || 0) / pageSize))
 
-const pagedPosts = computed(() => posts.value)
-
 function selectCategory(key: string) {
+  if (key === activeCategory.value) return
   void navigateTo({ path: route.path, query: { ...route.query, category: key.startsWith('category:') ? key.slice(9) : undefined, page: undefined } })
 }
 
 function selectYear(year: string | number) {
+  if (String(year) === activeYear.value) return
   void navigateTo({ path: route.path, query: { ...route.query, year: year === 'all' ? undefined : String(year), page: undefined } })
 }
 
@@ -216,7 +207,9 @@ useSeoMeta({
 .archive-filter-heading { justify-content: space-between; gap: 20px; }
 .archive-filter-title { align-items: baseline; gap: 16px; min-width: 0; }
 .archive-filter-title h1 { margin: 0; color: var(--theme-text-strong); font-family: Georgia, "Noto Serif SC", "Source Han Serif SC", serif; font-size: 32px; font-weight: 600; line-height: 1.5; letter-spacing: 1px; }
-.archive-result-count { min-width: 78px; color: var(--theme-text-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.archive-result-count { display: inline-flex; align-items: center; gap: 7px; min-width: 112px; color: var(--theme-text-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.archive-loading-indicator { width: 12px; height: 12px; flex: 0 0 12px; border: 1.5px solid transparent; border-radius: 50%; }
+.archive-loading-indicator.is-loading { border-color: color-mix(in srgb, var(--theme-accent) 18%, transparent); border-top-color: var(--theme-accent); animation: archive-loading-spin 800ms linear infinite; }
 .archive-filter-tools { flex-shrink: 0; gap: 18px; }
 .archive-year-picker { position: relative; display: block; width: 104px; border-radius: 6px; }
 .archive-year-picker select { display: block; width: 100%; appearance: none; border: 0; border-radius: inherit; background: transparent; padding: 8px 22px 8px 0; color: var(--theme-text-muted); font: inherit; font-size: 13px; line-height: 20px; text-align: right; cursor: pointer; }
@@ -233,8 +226,22 @@ useSeoMeta({
 .archive-filter-reset:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
 .archive-year-picker:focus-within { outline: 2px solid var(--theme-accent); outline-offset: 2px; }
 .archive-year-picker select:focus { outline: none; }
-.archive-year-picker select:disabled,
-.category-filters button:disabled { cursor: wait; opacity: .65; }
+
+.archive-results { position: relative; }
+.archive-results-content.is-covered { visibility: hidden; }
+.archive-results-content.is-settled { animation: archive-results-in 140ms ease-out; }
+.archive-results-content > .archive-empty { display: grid; min-height: 156px; place-content: center; }
+.archive-loading-overlay { position: absolute; inset: 0; overflow: hidden; align-content: start; animation: archive-results-in 120ms ease-out; }
+.archive-pagination-loading { visibility: hidden; }
+
+@keyframes archive-loading-spin { to { transform: rotate(360deg); } }
+@keyframes archive-results-in { from { opacity: .6; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .archive-loading-indicator.is-loading,
+  .archive-results-content.is-settled,
+  .archive-loading-overlay { animation: none; }
+}
 
 .archive-list {
   display: grid;
@@ -473,6 +480,7 @@ useSeoMeta({
   .archive-filter-heading { gap: 10px; align-items: center; }
   .archive-filter-title { flex-direction: column; align-items: flex-start; gap: 1px; }
   .archive-filter-title h1 { font-size: 28px; }
+  .archive-results-content > .archive-empty { min-height: 106px; }
   .archive-filter-tools { gap: 10px; }
   .archive-year-picker { width: 96px; }
   .archive-filter-reset { width: 22px; height: 38px; justify-content: center; }
