@@ -1,0 +1,101 @@
+/* Style the original XML directly; no XSLT or JavaScript is required. */
+:root {
+  color-scheme: light;
+  background: #f5f6f8;
+  color: #202633;
+  font: 14px/1.7 system-ui, "Microsoft YaHei", sans-serif;
+  scrollbar-gutter: stable;
+}
+
+urlset,
+sitemapindex {
+  display: block;
+  width: min(1120px, calc(100% - 32px));
+  margin: 32px auto;
+}
+
+urlset::before,
+sitemapindex::before {
+  display: block;
+  margin-bottom: 24px;
+  color: #202633;
+  font-size: 22px;
+  font-weight: 600;
+  white-space: pre-line;
+  content: "Jiupan Blog · 站点地图";
+}
+
+url,
+sitemap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 22px;
+  border: 1px solid #e4e7ec;
+  border-bottom-width: 0;
+  background: #fff;
+}
+
+url:first-of-type,
+sitemap:first-of-type {
+  border-radius: 8px 8px 0 0;
+}
+
+url:last-of-type,
+sitemap:last-of-type {
+  border-bottom-width: 1px;
+  border-radius: 0 0 8px 8px;
+}
+
+loc {
+  display: block;
+  min-width: 0;
+  color: #6554c0;
+  font-family: ui-monospace, Consolas, monospace;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+lastmod {
+  display: block;
+  color: #667085;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+lastmod::before {
+  display: block;
+  margin-bottom: 2px;
+  color: #747e8f;
+  font: 11px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+  content: "最近更新";
+}
+
+url > :not(loc):not(lastmod),
+sitemap > :not(loc):not(lastmod) {
+  display: none;
+}
+
+urlset::after,
+sitemapindex::after {
+  display: block;
+  margin-top: 20px;
+  color: #667085;
+  font-size: 12px;
+  content: "此 XML 站点地图供搜索引擎发现公开页面。网址可直接选中复制，时间采用 ISO 8601 格式。";
+}
+
+@media (max-width: 640px) {
+  urlset,
+  sitemapindex {
+    margin-block: 24px;
+  }
+
+  url,
+  sitemap {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 16px;
+  }
+}

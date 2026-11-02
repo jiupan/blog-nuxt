@@ -146,6 +146,7 @@ export default defineNuxtConfig({
   site: { url: process.env.SITE_URL || 'https://blog.ittx.cn', name: process.env.SITE_NAME || 'Jiupan Blog' },
   nitro: { compressPublicAssets: true },
   sitemap: {
+    xsl: false,
     excludeAppSources: true,
     cacheMaxAgeSeconds: 300,
     sources: ['/api/__sitemap__/urls']
