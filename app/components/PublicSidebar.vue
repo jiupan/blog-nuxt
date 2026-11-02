@@ -4,9 +4,11 @@
       <span class="author-glow" aria-hidden="true" />
       <div class="author-content">
         <div class="author-avatar">
-          <video v-if="authorAvatarIsVideo" :src="authorAvatar" autoplay muted loop playsinline preload="metadata" :aria-label="`${authorName} 的头像视频`" />
-          <img v-else-if="authorAvatar" :src="authorAvatar" :alt="authorName">
-          <span v-else>{{ initial }}</span>
+          <div class="author-avatar-frame">
+            <span v-if="!avatarReady" class="author-avatar-fallback" :aria-label="`${authorName} 的头像占位`">{{ initial }}</span>
+            <video v-if="authorAvatarIsVideo && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :class="{ 'is-ready': avatarReady }" autoplay muted loop playsinline preload="auto" :aria-label="`${authorName} 的头像视频`" @loadeddata="avatarReady = true" @error="onAvatarError" />
+            <img v-else-if="authorAvatar && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :alt="authorName" :class="{ 'is-ready': avatarReady }" @load="avatarReady = true" @error="onAvatarError">
+          </div>
           <i aria-hidden="true" />
         </div>
         <h2>{{ authorName }}</h2>
@@ -151,6 +153,29 @@ const slots = useSlots()
 const authorName = computed(() => siteSettings.value.sidebar_author_name.trim() || props.siteName)
 const authorAvatar = computed(() => siteSettings.value.sidebar_author_avatar || props.avatar)
 const authorAvatarIsVideo = computed(() => /\.(?:mp4|webm)(?:$|[?#])/i.test(authorAvatar.value))
+const avatarReady = ref(false)
+const avatarFailed = ref(false)
+const avatarMedia = ref<HTMLImageElement | HTMLVideoElement | null>(null)
+watch(authorAvatar, async () => {
+  avatarReady.value = false
+  avatarFailed.value = false
+  await nextTick()
+  syncAvatarState()
+})
+onMounted(syncAvatarState)
+function syncAvatarState() {
+  const media = avatarMedia.value
+  if (!media) return
+  // Cached images and video frames can load before hydration attaches listeners.
+  if (media instanceof HTMLImageElement && media.complete) {
+    if (media.naturalWidth) avatarReady.value = true
+    else onAvatarError()
+  } else if (media instanceof HTMLVideoElement) {
+    if (media.error) onAvatarError()
+    else if (media.readyState >= 2) avatarReady.value = true
+  }
+}
+function onAvatarError() { avatarReady.value = false; avatarFailed.value = true }
 const authorDescription = computed(() => siteSettings.value.sidebar_author_description || props.description)
 const authorSignature = computed(() => siteSettings.value.sidebar_author_signature.trim() || authorName.value)
 const initial = computed(() => authorName.value.slice(0, 1).toUpperCase())
@@ -275,17 +300,29 @@ function hideBrokenImage(event: Event) {
   font-size: 38px;
   font-weight: 700;
   box-shadow: 0 12px 26px rgb(var(--theme-shadow) / 13%);
-  animation: author-pulse 3s infinite;
 }
 
-.author-avatar img,
-.author-avatar video {
+.author-avatar-frame {
+  position: relative;
+  display: grid;
   width: 100%;
   height: 100%;
-  border: 4px solid var(--theme-surface);
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid var(--theme-surface);
   border-radius: inherit;
-  object-fit: cover;
 }
+.author-avatar-fallback { font-size: 38px; line-height: 1; color: var(--theme-text-muted); }
+.author-avatar-frame img,
+.author-avatar-frame video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+.author-avatar-frame .is-ready { opacity: 1; }
 
 .author-avatar i {
   position: absolute;
@@ -368,15 +405,6 @@ function hideBrokenImage(event: Event) {
   height: 18px;
 }
 
-@keyframes author-pulse {
-  0% { transform: scale(.97); box-shadow: 0 0 0 0 color-mix(in srgb, var(--author-accent) 38%, transparent), 0 12px 26px rgb(var(--theme-shadow) / 13%); }
-  70% { transform: scale(1); box-shadow: 0 0 0 15px transparent, 0 12px 26px rgb(var(--theme-shadow) / 13%); }
-  100% { transform: scale(.97); box-shadow: 0 0 0 0 transparent, 0 12px 26px rgb(var(--theme-shadow) / 13%); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .author-avatar { animation: none; }
-}
 
 .sidebar-section {
   display: grid;

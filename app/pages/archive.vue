@@ -3,32 +3,41 @@
     <section class="archive-shell">
       <div class="archive-layout">
         <main class="archive-main">
-          <section class="archive-filters" aria-label="文章筛选" data-page-enter style="--page-enter-order: 0">
-            <div class="filter-row category-filters">
+          <section class="archive-filters" aria-labelledby="archive-heading" data-page-enter style="--page-enter-order: 0">
+            <header class="archive-filter-heading">
+              <div class="archive-filter-title">
+                <h1 id="archive-heading">文章归档</h1>
+                <span v-if="!listError" class="archive-result-count" role="status" aria-live="polite">
+                  {{ listPending ? '正在查找…' : `共 ${data?.data.total || 0} 篇文章` }}
+                </span>
+              </div>
+              <div class="archive-filter-tools">
+                <button v-if="hasFilters" type="button" class="archive-filter-reset" aria-label="清除所有筛选" @click="resetFilters">
+                  <UIcon name="i-lucide-rotate-ccw" aria-hidden="true" />
+                  <span>清除筛选</span>
+                </button>
+                <label class="archive-year-picker">
+                  <span class="sr-only">按年份筛选</span>
+                  <select :value="activeYear" :disabled="listPending" aria-label="按年份筛选" @change="onYearChange">
+                    <option v-for="year in yearFilters" :key="year" :value="year" :selected="activeYear === year">{{ year === 'all' ? '全部年份' : `${year} 年` }}</option>
+                  </select>
+                  <UIcon name="i-lucide-chevron-down" class="year-picker-chevron" aria-hidden="true" />
+                </label>
+              </div>
+            </header>
+            <nav class="category-filters" aria-label="按主题筛选">
               <button
                 v-for="filter in categoryFilters"
                 :key="filter.key"
                 type="button"
                 :class="{ 'is-active': activeCategory === filter.key }"
+                :aria-pressed="activeCategory === filter.key"
                 :disabled="listPending"
                 @click="selectCategory(filter.key)"
               >
-                <UIcon :name="filter.icon" class="filter-icon" aria-hidden="true" />
                 {{ filter.label }}
               </button>
-            </div>
-            <div class="filter-row year-filters">
-              <button
-                v-for="year in yearFilters"
-                :key="year"
-                type="button"
-                :class="{ 'is-active': activeYear === year }"
-                :disabled="listPending"
-                @click="selectYear(year)"
-              >
-                {{ year === 'all' ? '全部' : year }}
-              </button>
-            </div>
+            </nav>
           </section>
 
           <div
@@ -114,11 +123,10 @@ const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
 
 const categoryFilters = computed(() => [
-  { key: 'all', label: '全部内容', icon: 'i-lucide-layout-list' },
+  { key: 'all', label: '全部文章' },
   ...categoryNavigation(categories.value, 6).map(category => ({
     key: `category:${category.slug}`,
-    label: category.name,
-    icon: category.icon || 'i-lucide-folder'
+    label: category.name
   }))
 ])
 
@@ -126,6 +134,8 @@ const yearFilters = computed(() => [
   'all',
   ...(data.value?.data.years || []).map(String)
 ])
+
+const hasFilters = computed(() => activeCategory.value !== 'all' || activeYear.value !== 'all')
 
 const totalPages = computed(() => Math.ceil((data.value?.data.total || 0) / pageSize))
 
@@ -137,6 +147,15 @@ function selectCategory(key: string) {
 
 function selectYear(year: string | number) {
   void navigateTo({ path: route.path, query: { ...route.query, year: year === 'all' ? undefined : String(year), page: undefined } })
+}
+
+
+function onYearChange(event: Event) {
+  selectYear((event.target as HTMLSelectElement).value)
+}
+
+function resetFilters() {
+  void navigateTo({ path: route.path, query: { ...route.query, category: undefined, year: undefined, page: undefined } })
 }
 
 
@@ -188,73 +207,34 @@ useSeoMeta({
 
 .archive-filters {
   margin-bottom: 24px;
-  border: 1px solid color-mix(in srgb, var(--theme-border) 72%, transparent);
-  border-radius: 24px;
-  background: var(--theme-surface);
-  padding: 18px 20px;
-  box-shadow: 0 5px 24px rgb(var(--theme-shadow) / 5%);
+  padding: 6px 4px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 80%, transparent);
 }
-
-.filter-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.filter-row::-webkit-scrollbar { display: none; }
-
-.filter-row button {
-  flex: 0 0 auto;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--theme-text-muted);
-  font: inherit;
-  font-weight: 750;
-  cursor: pointer;
-  transition: color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
-}
-
-.category-filters {
-  padding-bottom: 15px;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 68%, transparent);
-}
-
-.category-filters button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 16px;
-  font-size: 14px;
-}
-
-.filter-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.category-filters button:hover { background: var(--theme-surface-hover); }
-
-.category-filters button.is-active {
-  background: var(--theme-accent);
-  color: white;
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--theme-accent) 32%, transparent);
-}
-
-.year-filters { padding-top: 15px; }
-
-.year-filters button {
-  padding: 6px 13px;
-  font-size: 12px;
-}
-
-.year-filters button:hover { background: var(--theme-surface-hover); }
-
-.year-filters button.is-active {
-  background: var(--theme-text);
-  color: var(--theme-surface);
-}
+.archive-filter-heading,
+.archive-filter-title,
+.archive-filter-tools { display: flex; align-items: center; }
+.archive-filter-heading { justify-content: space-between; gap: 20px; }
+.archive-filter-title { align-items: baseline; gap: 16px; min-width: 0; }
+.archive-filter-title h1 { margin: 0; color: var(--theme-text-strong); font-family: Georgia, "Noto Serif SC", "Source Han Serif SC", serif; font-size: 32px; font-weight: 600; line-height: 1.5; letter-spacing: 1px; }
+.archive-result-count { min-width: 78px; color: var(--theme-text-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.archive-filter-tools { flex-shrink: 0; gap: 18px; }
+.archive-year-picker { position: relative; display: block; width: 104px; border-radius: 6px; }
+.archive-year-picker select { display: block; width: 100%; appearance: none; border: 0; border-radius: inherit; background: transparent; padding: 8px 22px 8px 0; color: var(--theme-text-muted); font: inherit; font-size: 13px; line-height: 20px; text-align: right; cursor: pointer; }
+.archive-year-picker select:hover { color: var(--theme-accent); }
+.year-picker-chevron { position: absolute; top: 50%; right: 2px; width: 13px; height: 13px; transform: translateY(-50%); color: var(--theme-text-muted); pointer-events: none; }
+.archive-filter-reset { display: inline-flex; align-items: center; gap: 5px; padding: 6px 0; border: 0; background: transparent; color: var(--theme-text-muted); font-size: 12px; cursor: pointer; }
+.archive-filter-reset .iconify { width: 14px; height: 14px; }
+.archive-filter-reset:hover { color: var(--theme-accent); }
+.category-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 16px; }
+.category-filters button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; padding: 7px 15px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--theme-text-muted); font: inherit; font-size: 13px; font-weight: 500; line-height: 20px; white-space: nowrap; cursor: pointer; transition: color 160ms ease, background-color 160ms ease; }
+.category-filters button:hover { background: color-mix(in srgb, var(--theme-surface) 65%, transparent); color: var(--theme-text); }
+.category-filters button.is-active { border-color: var(--theme-border); background: var(--theme-surface); color: var(--theme-accent); font-weight: 650; box-shadow: 0 2px 6px rgb(var(--theme-shadow) / 3%); }
+.category-filters button:focus-visible,
+.archive-filter-reset:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
+.archive-year-picker:focus-within { outline: 2px solid var(--theme-accent); outline-offset: 2px; }
+.archive-year-picker select:focus { outline: none; }
+.archive-year-picker select:disabled,
+.category-filters button:disabled { cursor: wait; opacity: .65; }
 
 .archive-list {
   display: grid;
@@ -341,7 +321,6 @@ useSeoMeta({
   cursor: pointer;
 }
 
-.filter-row button:disabled { cursor: wait; }
 
 .archive-sidebar {
   position: sticky;
@@ -490,7 +469,18 @@ useSeoMeta({
     padding-top: 20px;
   }
 
-  .archive-filters { border-radius: 20px; padding: 14px; }
+  .archive-filters { padding: 0 6px 16px; margin-bottom: 18px; }
+  .archive-filter-heading { gap: 10px; align-items: center; }
+  .archive-filter-title { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .archive-filter-title h1 { font-size: 28px; }
+  .archive-filter-tools { gap: 10px; }
+  .archive-year-picker { width: 96px; }
+  .archive-filter-reset { width: 22px; height: 38px; justify-content: center; }
+  .archive-filter-reset span { display: none; }
+  .archive-filter-reset .iconify { display: block; }
+  .category-filters { gap: 4px; margin-top: 14px; }
+  .category-filters button { padding-inline: 13px; }
+
 
   .pager {
     gap: 8px;
