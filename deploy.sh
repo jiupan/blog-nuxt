@@ -29,7 +29,20 @@ case "$DATABASE_URL" in
 esac
 
 echo "=== 拉取新镜像 ==="
-docker compose -f docker-compose.server.yml pull app
+for attempt in 1 2 3; do
+  if docker compose -f docker-compose.server.yml pull app; then
+    break
+  fi
+
+  if [ "$attempt" -eq 3 ]; then
+    echo "ERROR: 连续 3 次拉取镜像失败，终止部署。" >&2
+    exit 1
+  fi
+
+  retry_delay=$((attempt * 10))
+  echo "镜像拉取失败，${retry_delay} 秒后重试（$((attempt + 1))/3）..." >&2
+  sleep "$retry_delay"
+done
 
 echo "=== 启动数据库和 Twikoo ==="
 docker compose -f docker-compose.server.yml up -d postgres twikoo
