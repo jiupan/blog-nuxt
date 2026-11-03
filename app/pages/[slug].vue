@@ -108,41 +108,62 @@
         :posts="sidebarPosts"
       >
         <template #after-author>
-          <section class="toc-card toc-card-elegant">
+          <section class="toc-card toc-card-reading" aria-labelledby="toc-title">
             <div class="toc-card-inner">
               <div class="toc-card-heading">
-                <span class="toc-icon" aria-hidden="true">
-                  <Icon name="i-lucide-list" />
-                </span>
-                <h2>文章目录</h2>
+                <h2 id="toc-title">文章目录</h2>
+                <Icon name="i-lucide-list-tree" class="toc-icon" aria-hidden="true" />
               </div>
 
               <div v-if="post.rendered.toc.length" class="toc-list-wrap">
-                <span class="toc-guide" aria-hidden="true"></span>
-                <nav class="toc-list" aria-label="文章目录">
+                <nav ref="tocListEl" class="toc-list" aria-label="文章目录" tabindex="0">
                   <a
                     v-for="item in post.rendered.toc"
                     :key="item.id"
                     :href="`#${item.id}`"
                     :data-toc-id="item.id"
+                    :aria-current="item.id === activeTocId ? 'location' : undefined"
                     :class="{ 'is-child': item.level === 3, 'is-active': item.id === activeTocId }"
-                    @click.prevent="scrollToTocHeading(item.id)"
+                    @click="handleTocClick($event, item.id)"
                   >
                     {{ item.text }}
                   </a>
                 </nav>
               </div>
               <p v-else>暂无目录</p>
+              <footer v-if="post.rendered.toc.length" class="toc-footer">
+                <div class="toc-progress-copy"><span>阅读进度</span><span>{{ readingProgress }}<small>%</small></span></div>
+                <div class="toc-progress" role="progressbar" aria-label="文章阅读进度" :aria-valuenow="readingProgress" :aria-valuemin="0" :aria-valuemax="100"><span :style="{ transform: `scaleX(${readingProgress / 100})` }" /></div>
+              </footer>
             </div>
           </section>
         </template>
 
         <template #after-tags>
-          <section class="info-card">
-            <h2>文章信息</h2>
-            <p><span>发布于</span><strong>{{ formatDate(post.publishedAt) }}</strong></p>
-            <p><span>阅读量</span><strong>{{ post.viewCount }}</strong></p>
-            <p><span>分类</span><strong>{{ post.category?.name || '未分类' }}</strong></p>
+          <section class="info-card info-card-details" aria-labelledby="article-info-title">
+            <header class="info-card-heading">
+              <h2 id="article-info-title">文章信息</h2>
+              <FileTextIcon :size="20" aria-hidden="true" />
+            </header>
+            <dl class="article-details">
+              <div class="article-detail-row">
+                <dt><CalendarDaysIcon :size="15" aria-hidden="true" /><span>发布于</span></dt>
+                <dd><time v-if="post.publishedAt" :datetime="new Date(post.publishedAt).toISOString()">{{ formatDate(post.publishedAt) }}</time><span v-else>暂无日期</span></dd>
+              </div>
+              <div class="article-detail-row">
+                <dt><EyeIcon :size="15" aria-hidden="true" /><span>阅读量</span></dt>
+                <dd>{{ post.viewCount.toLocaleString('zh-CN') }}<span class="article-detail-unit">次</span></dd>
+              </div>
+              <div class="article-detail-row">
+                <dt><Icon name="i-lucide-folder-open" aria-hidden="true" /><span>分类</span></dt>
+                <dd>
+                  <NuxtLink v-if="post.category" class="article-category-link" :to="`/categories/${post.category.slug}`">
+                    <span>{{ post.category.name }}</span><Icon name="i-lucide-chevron-right" aria-hidden="true" />
+                  </NuxtLink>
+                  <span v-else class="article-detail-empty">未分类</span>
+                </dd>
+              </div>
+            </dl>
           </section>
         </template>
       </PublicSidebar>
@@ -183,6 +204,9 @@ const siteName = computed(() => siteSettings.value.site_title || config.public.s
 const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const postSidebarStickyTop = ref('84px')
 const activeTocId = ref('')
+const readingProgress = ref(0)
+const tocListEl = ref<HTMLElement | null>(null)
+let tocScrollTarget: { id: string, until: number } | undefined
 const summaryQuestion = ref('')
 const summaryDialogDraft = ref('')
 const summaryDialogOpen = ref(false)
@@ -270,8 +294,12 @@ onMounted(() => {
   const sidebar = document.querySelector<HTMLElement>('.post-sidebar')
 
   if (sidebar && 'ResizeObserver' in window) {
-    sidebarResizeObserver = new ResizeObserver(updatePostSidebarStickyTop)
+    sidebarResizeObserver = new ResizeObserver(() => {
+      updatePostSidebarStickyTop()
+      scheduleTocUpdate()
+    })
     sidebarResizeObserver.observe(sidebar)
+    if (articleContentEl.value) sidebarResizeObserver.observe(articleContentEl.value)
   }
 })
 
@@ -726,9 +754,19 @@ function scheduleTocUpdate() {
 }
 
 function updateActiveToc() {
+  const activationTop = window.matchMedia('(max-width: 760px)').matches ? 89 : 121
+  const article = articleContentEl.value?.getBoundingClientRect()
+  if (article) {
+    readingProgress.value = Math.round(Math.min(1, Math.max(0, (activationTop - article.top) / Math.max(1, article.height - window.innerHeight + activationTop))) * 100)
+  }
   if (!tocHeadings.length) return
 
-  const activationTop = 121
+  // Keep the selected chapter stable while a smooth jump passes other headings.
+  if (tocScrollTarget && performance.now() < tocScrollTarget.until) {
+    const target = document.getElementById(tocScrollTarget.id)
+    if (target && Math.abs(target.getBoundingClientRect().top - activationTop) > 3) return
+  }
+  tocScrollTarget = undefined
   let activeId = tocHeadings[0]!.id
 
   for (const heading of tocHeadings) {
@@ -736,13 +774,33 @@ function updateActiveToc() {
     activeId = heading.id
   }
 
-  const pageBottom = window.scrollY + window.innerHeight
-  const documentBottom = document.documentElement.scrollHeight
-  if (pageBottom >= documentBottom - 2) {
+  if (article && article.bottom <= window.innerHeight) {
     activeId = tocHeadings.at(-1)!.id
   }
 
-  if (activeTocId.value !== activeId) activeTocId.value = activeId
+  if (activeTocId.value !== activeId) {
+    activeTocId.value = activeId
+    void nextTick(revealActiveToc)
+  }
+}
+
+function revealActiveToc() {
+  const list = tocListEl.value
+  // Let readers browse the outline without pulling it away from their pointer or keyboard.
+  if (!list || list.matches(':hover, :focus-within')) return
+  const active = list.querySelector<HTMLElement>('[aria-current="location"]')
+  if (!active) return
+  const bounds = list.getBoundingClientRect()
+  const item = active.getBoundingClientRect()
+  if (item.top < bounds.top || item.bottom > bounds.bottom) {
+    list.scrollTo({ top: list.scrollTop + item.top - bounds.top - list.clientHeight / 2 + item.height / 2, behavior: 'instant' })
+  }
+}
+
+function handleTocClick(event: MouseEvent, id: string) {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return
+  event.preventDefault()
+  scrollToTocHeading(id)
 }
 
 function scrollToTocHeading(id: string) {
@@ -752,8 +810,9 @@ function scrollToTocHeading(id: string) {
   const scrollOffset = window.matchMedia('(max-width: 760px)').matches ? 88 : 120
   const targetTop = window.scrollY + heading.getBoundingClientRect().top - scrollOffset
   activeTocId.value = id
+  tocScrollTarget = { id, until: performance.now() + 1800 }
   window.history.pushState(null, '', `#${encodeURIComponent(id)}`)
-  window.scrollTo({ top: targetTop, behavior: 'smooth' })
+  window.scrollTo({ top: targetTop, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
 }
 
 </script>
@@ -1262,170 +1321,277 @@ function scrollToTocHeading(id: string) {
   font-weight: 800;
 }
 
-.info-card {
-  padding: 16px;
-}
-
-.info-card h2 {
-  margin: 0 0 12px;
-  color: var(--theme-text);
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.toc-card.toc-card-elegant {
-  position: relative;
-  overflow: hidden;
-  padding: 0;
-  border-color: var(--theme-border-soft);
+.info-card.info-card-details {
+  display: block;
+  padding: 24px 26px 16px;
+  border: 1px solid var(--theme-border-soft);
   border-radius: 24px;
-  background: color-mix(in srgb, var(--theme-surface) 82%, transparent);
-  box-shadow: 0 8px 30px rgb(15 23 42 / 5%);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: color-mix(in srgb, var(--theme-surface) 95%, transparent);
+  box-shadow: 0 10px 40px -10px rgb(var(--theme-shadow) / 7%);
+  transform: none;
 }
 
-.toc-card-elegant .toc-card-inner {
-  padding: 22px;
-}
-
-.toc-card-elegant .toc-card-heading {
+.info-card-details .info-card-heading {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-border-soft) 80%, transparent);
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
-.toc-card-elegant .toc-icon {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 999px;
-  background: #fdf8f6;
-  color: #826561;
-}
-
-.toc-card-elegant .toc-icon :deep(svg) {
-  width: 16px;
-  height: 16px;
-}
-
-.toc-card-elegant .toc-card-heading h2 {
+.info-card-details .info-card-heading h2 {
   margin: 0;
   color: var(--theme-text-strong);
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: 0;
+  font-family: Georgia, "Noto Serif SC", serif;
+  font-size: 18px;
+  font-weight: 700;
 }
 
-.toc-card-elegant .toc-list-wrap {
+.info-card-heading > svg {
+  flex-shrink: 0;
+  color: var(--theme-text-faint);
+}
+
+.article-details {
+  margin: 0;
+}
+
+.article-detail-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+  padding-block: 10px;
+}
+
+.article-detail-row + .article-detail-row {
+  border-top: 1px solid var(--theme-border-soft);
+}
+
+.article-detail-row dt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+
+.article-detail-row dt > :first-child {
+  width: 15px;
+  height: 15px;
+  color: var(--theme-text-faint);
+}
+
+.article-detail-row dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.article-detail-unit {
+  margin-left: 5px;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.article-category-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 4px 7px 4px 10px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--theme-accent) 7%, var(--theme-surface));
+  color: var(--theme-accent);
+  line-height: 1.5;
+  text-align: left;
+  transition: background-color 160ms ease;
+}
+
+.article-category-link > span {
+  min-width: 0;
+}
+
+.article-category-link > :last-child {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.article-category-link:hover {
+  background: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface));
+}
+
+.article-category-link:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 3px;
+}
+
+.article-detail-empty {
+  color: var(--theme-text-muted);
+}
+
+.toc-card.toc-card-reading {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--theme-border-soft);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--theme-surface) 95%, transparent);
+  box-shadow: 0 10px 40px -10px rgb(var(--theme-shadow) / 7%);
+  transform: none;
+}
+
+.toc-card-reading .toc-card-inner {
+  padding: 24px 20px 20px;
+}
+
+.toc-card-reading .toc-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 6px 18px;
+}
+
+.toc-card-reading .toc-card-heading h2 {
+  margin: 0;
+  color: var(--theme-text-strong);
+  font-family: Georgia, "Noto Serif SC", serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.toc-card-reading .toc-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--theme-text-faint);
+}
+
+.toc-card-reading .toc-list {
+  display: grid;
+  gap: 3px;
+  max-height: min(480px, calc(100dvh - 270px));
+  min-height: 80px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border) transparent;
+  scroll-padding-block: 12px;
+  padding: 2px 4px 2px 6px;
+}
+
+.toc-card-reading .toc-list a {
   position: relative;
+  display: block;
+  padding: 9px 10px 9px 15px;
+  border-radius: 0 8px 8px 0;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  transition: color 160ms ease, background-color 160ms ease;
 }
 
-.toc-card-elegant .toc-guide {
+.toc-card-reading .toc-list a::before {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 7px;
-  width: 2px;
-  border-radius: 999px;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: var(--theme-border-soft);
+  content: "";
+}
+
+.toc-card-reading .toc-list a:hover {
+  color: var(--theme-accent);
+  background: var(--theme-surface-muted);
+}
+
+.toc-card-reading .toc-list a.is-active {
+  color: var(--theme-accent);
+  background: color-mix(in srgb, var(--theme-accent) 7%, var(--theme-surface));
+  font-weight: 650;
+}
+
+.toc-card-reading .toc-list a.is-active::before {
+  inset-block: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--theme-accent);
+}
+
+.toc-card-reading .toc-list a.is-child {
+  padding-left: 29px;
+  font-size: 12px;
+  color: var(--theme-text-muted);
+}
+
+.toc-card-reading .toc-list a.is-child.is-active {
+  color: var(--theme-accent);
+}
+
+.toc-card-reading .toc-list:focus-visible,
+.toc-card-reading .toc-list a:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+.toc-footer {
+  margin: 18px 6px 0;
+  padding-top: 15px;
+  border-top: 1px solid var(--theme-border-soft);
+}
+
+.toc-progress-copy {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  color: var(--theme-text-muted);
+  font-size: 11px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.toc-progress-copy small {
+  margin-left: 2px;
+  font-size: inherit;
+}
+
+.toc-progress {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
   background: var(--theme-surface-hover);
 }
 
-.toc-card-elegant .toc-list {
-  position: relative;
-  z-index: 3;
-  display: grid;
-  gap: 7px;
-}
-
-.toc-card-elegant .toc-list a {
-  position: relative;
+.toc-progress > span {
   display: block;
-  overflow: hidden;
-  padding: 6px 12px 6px 26px;
-  border-radius: 0 10px 10px 0;
-  color: var(--theme-text-muted);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.45;
-  text-overflow: ellipsis;
-  transition: background .18s ease, color .18s ease;
-  white-space: nowrap;
+  height: 100%;
+  background: var(--theme-accent);
+  transform-origin: left;
 }
 
-.toc-card-elegant .toc-list a::before {
-  position: absolute;
-  top: 50%;
-  left: 4px;
-  width: 8px;
-  height: 8px;
-  border: 2px solid #d8e0eb;
-  border-radius: 999px;
-  background: var(--theme-surface);
-  content: "";
-  transform: translateY(-50%);
-  transition: border-color .18s ease, background .18s ease;
-}
-
-.toc-card-elegant .toc-list a:hover,
-.toc-card-elegant .toc-list a:focus-visible {
-  background: var(--theme-surface-muted);
-  color: #826561;
-  outline: none;
-}
-
-.toc-card-elegant .toc-list a.is-active {
-  color: #826561;
-  outline: none;
-}
-
-.toc-card-elegant .toc-list a:hover::before,
-.toc-card-elegant .toc-list a:focus-visible::before,
-.toc-card-elegant .toc-list a.is-active::before {
-  border-color: #9b7e7a;
-  background: #9b7e7a;
-}
-
-.toc-card-elegant .toc-list a.is-active {
-  font-weight: 900;
-}
-
-.toc-card-elegant .toc-list a.is-child {
-  margin-left: 16px;
-  padding-left: 24px;
-  color: #7b8797;
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.toc-card-elegant .toc-list a.is-child.is-active {
-  color: #826561;
-  font-weight: 800;
-}
-
-.toc-card-elegant p {
-  margin: 0;
-  color: var(--theme-text-muted);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.info-card p {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 10px 0 0;
+.toc-card-reading p {
+  margin: 0 6px;
   color: var(--theme-text-muted);
   font-size: 13px;
 }
 
-.info-card strong {
-  color: var(--theme-text);
+@media (prefers-reduced-motion: reduce) {
+  .toc-card.toc-card-reading,
+  .toc-card-reading .toc-list a,
+  .info-card.info-card-details,
+  .article-category-link {
+    transition: none;
+  }
 }
 
 .return-card {
