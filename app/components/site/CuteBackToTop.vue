@@ -8,8 +8,8 @@
     @click="emit('scrollTop')"
   >
     <span class="water-level" :style="{ transform: `translateY(${(1 - progress) * 100}%)` }" aria-hidden="true">
-      <svg class="water-wave" viewBox="0 0 200 16" preserveAspectRatio="none">
-        <path d="M0 8 Q25 0 50 8 T100 8 T150 8 T200 8 V16 H0 Z" />
+      <svg class="water-wave" viewBox="0 0 240 16" preserveAspectRatio="none">
+        <path d="M0 8 Q10 2.6667 20 8 T40 8 T60 8 T80 8 T100 8 T120 8 T140 8 T160 8 T180 8 T200 8 T220 8 T240 8 V16 H0 Z" />
       </svg>
     </span>
 
@@ -139,7 +139,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: -4px;
   left: 0;
-  width: 200%;
+  width: 240%;
   height: 8px;
   fill: var(--water-color);
   animation: back-to-top-wave 6s linear infinite;
