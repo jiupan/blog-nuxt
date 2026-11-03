@@ -24,6 +24,27 @@ services:
 
   app:
     image: ${APP_IMAGE}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          (async () => {
+            const signal = AbortSignal.timeout(4000);
+            let response = await fetch('http://127.0.0.1:3000/api/health', { signal });
+            if (response.status === 404) {
+              response = await fetch('http://127.0.0.1:3000/api/settings', { signal });
+              const body = await response.json();
+              if (!response.ok || body.code !== 0 || !body.data) process.exit(1);
+            } else if (!response.ok || (await response.json()).status !== 'ok') {
+              process.exit(1);
+            }
+          })().catch(() => process.exit(1))
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
     init: true
     ipc: host
     restart: unless-stopped

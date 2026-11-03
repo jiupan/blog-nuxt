@@ -12,6 +12,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -29,6 +30,7 @@ jobs:
 
       - name: Build and push image
         uses: docker/build-push-action@v6
+        timeout-minutes: 15
         with:
           context: .
           push: true

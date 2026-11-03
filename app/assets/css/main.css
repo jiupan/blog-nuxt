@@ -220,6 +220,13 @@ body[style*="padding-right"] {
   padding-right: 0 !important;
 }
 
+/* Keep the article locked until the dialog's leave transition finishes. */
+html:has(.summary-dialog-stage),
+body:has(.summary-dialog-stage) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
 .prose-blog {
   --article-text: #334155;
   --article-muted: #64748b;

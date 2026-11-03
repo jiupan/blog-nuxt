@@ -530,6 +530,13 @@
   color: white;
 }
 
+.dark .feature-card:hover .feature-arrow,
+.dark .feature-card:focus-visible .feature-arrow {
+  border-color: color-mix(in srgb, var(--theme-accent) 55%, var(--theme-border-soft));
+  background: var(--theme-accent-soft);
+  color: var(--theme-accent);
+}
+
 .feature-copy {
   margin-top: 20px;
 }

@@ -304,6 +304,8 @@ Actions -> 失败的 run -> Re-run failed jobs
 执行 Dockerfile，构建镜像并推送到 ACR。
 ```
 
+构建和推送步骤最多运行 15 分钟；超过上限会失败，不继续执行服务器部署。整个部署任务最多运行 40 分钟，给构建推送、文件同步及现有的 20 分钟 SSH 执行上限留出余量。服务器内应用健康检查单独限制为 120 秒。这些配置仅对使用新工作流的后续运行生效。
+
 `Sync deploy files`：
 
 ```text
@@ -327,11 +329,13 @@ SSH 到服务器，执行 /opt/blog-nuxt/deploy.sh。
 4. 检查必要变量是否为空
 5. 阻止 DATABASE_URL 指向 localhost 或 127.0.0.1
 6. docker compose pull app
-7. docker compose up -d postgres twikoo
-8. pg_isready 检查数据库
-9. 使用临时 app 容器执行 prisma migrate deploy
-10. docker compose up -d app
-11. docker compose ps
+7. 为当前可用的上一版应用镜像保留本地 rollback 标签
+8. docker compose up -d postgres twikoo
+9. pg_isready 检查数据库
+10. 使用临时 app 容器执行 prisma migrate deploy
+11. docker compose up -d --no-deps --wait --wait-timeout 120 app
+12. 健康检查通过后，清理带博客项目标签的悬空镜像
+13. docker compose ps
 ```
 
 生产环境迁移只用：
@@ -504,6 +508,39 @@ mkdir -p /opt/blog-nuxt
 ```
 
 ## 服务器常用命令
+
+### 健康检查与旧镜像清理
+
+应用的 `/api/health` 接口会执行一次数据库查询：成功返回 `200` 和 `{"status":"ok"}`，失败返回 `503`，不输出连接信息，也不缓存结果。容器通过 Node 自带的 `fetch` 探测，无需安装 curl。
+
+部署使用 Compose 的 `--wait`，最多等待 120 秒。启动或健康检查失败时，脚本返回失败并跳过镜像清理。服务器的 Docker Compose 需要支持 `--wait` 和 `--wait-timeout`。
+
+每次切换版本前，为当前运行正常的应用镜像保留同仓库的 `:rollback` 本地标签。重复部署同一镜像、或者当前容器已经不健康时，不覆盖已有回滚标签。
+
+清理使用：
+
+```bash
+docker image prune -f --filter 'label=cn.ittx.blog.project=blog-nuxt'
+```
+
+该标签由 Dockerfile 写入新构建的博客镜像。清理仅针对这些镜像中的悬空镜像，不清理其他项目、容器、数据卷或带 `rollback` 标签的上一版。清理失败仅输出警告，不改变已通过健康检查的部署结果。
+
+首次启用时，历史上没有该项目标签的旧镜像不会自动清理，需要另行核对；此后新版本的旧镜像会纳入定向清理。
+
+### 使用上一版镜像
+
+以当前仓库地址为例，在 `/opt/blog-nuxt` 下手动切换应用：
+
+```bash
+APP_IMAGE=crpi-sf5kyimeo2wu1tfv.cn-shanghai.personal.cr.aliyuncs.com/jiupan/blog-nuxt:rollback \
+  docker compose -f docker-compose.server.yml up -d --no-deps --wait --wait-timeout 120 app
+```
+
+健康探针仅在 `/api/health` 返回 `404` 时改为验证 `/api/settings` 的业务响应，兼容尚未提供健康接口的旧版本；新接口返回 `503` 时不会降级放行。
+
+以上命令只切换应用镜像，不回退数据库迁移。回滚前需确认旧应用兼容当前数据库结构。不要直接用 `deploy.sh` 执行回滚，因为它会按 `.env` 拉取部署目标并运行迁移。
+
+### 日常运维
 
 进入部署目录：
 

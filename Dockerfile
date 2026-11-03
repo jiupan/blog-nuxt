@@ -13,6 +13,7 @@ RUN npx prisma generate
 RUN npm run build
 
 FROM mcr.microsoft.com/playwright:v1.61.0-noble AS runner
+LABEL cn.ittx.blog.project="blog-nuxt"
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
