@@ -1,34 +1,20 @@
 <template>
   <button
     class="elegant-back-to-top"
-    :class="{ 'is-visible': visible }"
+    :class="{ 'is-visible': visible, 'has-progress': progress > 0, 'is-complete': progress === 1 }"
     type="button"
-    aria-label="返回顶部"
+    :aria-label="`返回顶部，页面阅读进度 ${Math.round(progress * 100)}%`"
     title="返回顶部"
     @click="emit('scrollTop')"
   >
-    <svg class="progress-ring" viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        <linearGradient id="back-to-top-progress-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop class="progress-gradient-start" offset="0%" />
-          <stop class="progress-gradient-end" offset="100%" />
-        </linearGradient>
-      </defs>
-      <circle class="progress-ring-track" cx="32" cy="32" r="28" />
-      <circle
-        class="progress-ring-circle"
-        cx="32"
-        cy="32"
-        r="28"
-        :style="{
-          strokeDasharray: `${circumference} ${circumference}`,
-          strokeDashoffset: dashOffset
-        }"
-      />
-    </svg>
+    <span class="water-level" :style="{ transform: `translateY(${(1 - progress) * 100}%)` }" aria-hidden="true">
+      <svg class="water-wave" viewBox="0 0 200 16" preserveAspectRatio="none">
+        <path d="M0 8 Q25 0 50 8 T100 8 T150 8 T200 8 V16 H0 Z" />
+      </svg>
+    </span>
 
     <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 19V5M5 12l7-7 7 7" />
+      <path d="M5 4h14M12 20V9m-6 6 6-6 6 6" />
     </svg>
   </button>
 </template>
@@ -38,13 +24,11 @@ const emit = defineEmits<{
   scrollTop: []
 }>()
 
-const radius = 28
-const circumference = 2 * Math.PI * radius
 const visible = ref(false)
 const progress = ref(0)
-const dashOffset = computed(() => circumference * (1 - progress.value))
 
 let updateFrame = 0
+let contentResizeObserver: ResizeObserver | undefined
 
 function syncScrollProgress() {
   updateFrame = 0
@@ -67,195 +51,139 @@ onMounted(() => {
   syncScrollProgress()
   window.addEventListener('scroll', scheduleScrollProgressSync, { passive: true })
   window.addEventListener('resize', scheduleScrollProgressSync, { passive: true })
+  contentResizeObserver = new ResizeObserver(scheduleScrollProgressSync)
+  contentResizeObserver.observe(document.body)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', scheduleScrollProgressSync)
   window.removeEventListener('resize', scheduleScrollProgressSync)
+  contentResizeObserver?.disconnect()
   if (updateFrame) window.cancelAnimationFrame(updateFrame)
 })
 </script>
 
 <style scoped>
 .elegant-back-to-top {
-  --back-to-top-bg: rgb(255 255 255 / 78%);
-  --back-to-top-border: rgb(99 102 241 / 18%);
-  --back-to-top-track: rgb(79 70 229 / 12%);
-  --back-to-top-arrow: #4f46e5;
-  --back-to-top-arrow-hover: #7c3aed;
-  --back-to-top-gradient-start: #0891b2;
-  --back-to-top-gradient-end: #7c3aed;
+  --water-color: color-mix(in srgb, var(--theme-accent) 18%, var(--theme-surface));
 
   position: fixed;
-  right: 40px;
-  bottom: 40px;
+  right: max(32px, env(safe-area-inset-right));
+  bottom: calc(32px + env(safe-area-inset-bottom));
   z-index: 80;
-  display: flex;
-  width: 64px;
-  height: 64px;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  overflow: hidden;
   padding: 0;
-  border: 1px solid var(--back-to-top-border);
-  border-radius: 50%;
-  backdrop-filter: blur(12px);
-  background: var(--back-to-top-bg);
-  box-shadow:
-    0 8px 24px rgb(71 85 105 / 14%),
-    inset 0 1px 0 rgb(255 255 255 / 82%);
+  border: 1px solid var(--theme-border-soft);
+  border-radius: 14px;
+  background: var(--theme-surface);
+  color: var(--theme-text-muted);
+  box-shadow: 0 5px 16px -4px rgb(var(--theme-shadow) / 12%);
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(20px) scale(0.9);
-  transition:
-    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    visibility 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.3s ease,
-    box-shadow 0.3s ease;
   visibility: hidden;
-  -webkit-backdrop-filter: blur(12px);
+  transform: translateY(8px);
+  transition: opacity 180ms ease, visibility 180ms ease, transform 180ms ease, color 180ms ease, box-shadow 180ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .elegant-back-to-top.is-visible {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(0) scale(1);
   visibility: visible;
+  transform: translateY(0);
 }
 
-.elegant-back-to-top.is-visible:hover,
-.elegant-back-to-top.is-visible:focus-visible {
-  border-color: rgb(124 58 237 / 30%);
-  box-shadow:
-    0 12px 26px -8px rgb(124 58 237 / 28%),
-    0 8px 18px -10px rgb(8 145 178 / 24%),
-    inset 0 1px 0 rgb(255 255 255 / 90%);
-  transform: translateY(-5px) scale(1.05);
+@media (hover: hover) {
+  .elegant-back-to-top.is-visible:hover {
+    color: var(--theme-accent);
+    box-shadow: 0 8px 20px -5px rgb(var(--theme-shadow) / 16%);
+    transform: translateY(-2px);
+  }
 }
 
 .elegant-back-to-top:focus-visible {
-  outline: 3px solid rgb(139 92 246 / 32%);
+  outline: 2px solid var(--theme-accent);
   outline-offset: 4px;
+  color: var(--theme-accent);
 }
 
-.progress-ring {
+.elegant-back-to-top.is-visible:active {
+  transform: translateY(0);
+}
+
+.water-level {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
+  opacity: 0;
+  transition: transform 160ms linear;
 }
 
-.progress-ring-track,
-.progress-ring-circle {
-  fill: none;
+.has-progress .water-level {
+  opacity: 1;
 }
 
-.progress-ring-track {
-  stroke: var(--back-to-top-track);
-  stroke-width: 2;
+.water-level::after {
+  position: absolute;
+  inset: 4px 0 -4px;
+  background: var(--water-color);
+  content: '';
 }
 
-.progress-gradient-start {
-  stop-color: var(--back-to-top-gradient-start);
+.water-wave {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 200%;
+  height: 8px;
+  fill: var(--water-color);
+  animation: back-to-top-wave 6s linear infinite;
+  animation-play-state: paused;
 }
 
-.progress-gradient-end {
-  stop-color: var(--back-to-top-gradient-end);
+.is-visible.has-progress:not(.is-complete) .water-wave {
+  animation-play-state: running;
 }
 
-.progress-ring-circle {
-  stroke: url("#back-to-top-progress-gradient");
-  stroke-linecap: round;
-  stroke-width: 2.5;
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-  transition: stroke-dashoffset 0.15s linear;
+.is-complete .water-level::after {
+  top: 0;
 }
 
 .arrow-icon {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  overflow: visible;
-  stroke: var(--back-to-top-arrow);
+  position: relative;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.5;
+  stroke-width: 1.6;
+  pointer-events: none;
 }
 
-.elegant-back-to-top.is-visible:hover .arrow-icon,
-.elegant-back-to-top.is-visible:focus-visible .arrow-icon {
-  animation: arrow-shoot-up 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  stroke: var(--back-to-top-arrow-hover);
-}
-
-:global(.dark .elegant-back-to-top) {
-  --back-to-top-bg: rgb(30 41 59 / 40%);
-  --back-to-top-border: rgb(255 255 255 / 10%);
-  --back-to-top-track: rgb(255 255 255 / 8%);
-  --back-to-top-arrow: #fff;
-  --back-to-top-arrow-hover: #a78bfa;
-  --back-to-top-gradient-start: #2dd4bf;
-  --back-to-top-gradient-end: #8b5cf6;
-
-  box-shadow: none;
-}
-
-:global(.dark .elegant-back-to-top.is-visible:hover),
-:global(.dark .elegant-back-to-top.is-visible:focus-visible) {
-  border-color: rgb(139 92 246 / 40%);
-  box-shadow:
-    0 10px 25px -5px rgb(139 92 246 / 40%),
-    0 8px 10px -6px rgb(139 92 246 / 20%);
-}
-
-@keyframes arrow-shoot-up {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  40% {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-
-  41% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes back-to-top-wave {
+  to { transform: translateX(-50%); }
 }
 
 @media (max-width: 768px) {
   .elegant-back-to-top {
-    right: 22px;
-    bottom: 22px;
-    width: 54px;
-    height: 54px;
-  }
-
-  .arrow-icon {
-    width: 21px;
-    height: 21px;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: calc(18px + env(safe-area-inset-bottom));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .elegant-back-to-top,
-  .progress-ring-circle {
-    transition-duration: 0.01ms;
+  .water-level {
+    transition: none;
   }
 
-  .elegant-back-to-top.is-visible:hover .arrow-icon,
-  .elegant-back-to-top.is-visible:focus-visible .arrow-icon {
+  .elegant-back-to-top .water-wave {
     animation: none;
   }
 }
