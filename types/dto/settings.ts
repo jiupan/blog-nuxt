@@ -17,6 +17,7 @@ export type SiteSettingsKey =
   | 'seo_keywords'
   | 'seo_description'
   | 'footer_copyright'
+  | 'footer_icp'
   | 'footer_bottom_links'
   | 'footer_actions'
   | 'ai_api_key'
@@ -51,6 +52,7 @@ export type PublicSiteSettingsKey =
   | 'seo_keywords'
   | 'seo_description'
   | 'footer_copyright'
+  | 'footer_icp'
   | 'footer_bottom_links'
   | 'footer_actions'
 

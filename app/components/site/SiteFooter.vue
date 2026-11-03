@@ -72,22 +72,31 @@
       </nav>
     </div>
 
-    <div class="footer-bottom">
-      <p>
-        <template v-for="(part, index) in footerCopyrightParts" :key="`${part.type}-${index}`">
-          <strong v-if="part.type === 'siteName'">{{ siteName }}</strong>
-          <span v-else>{{ part.text }}</span>
-        </template>
-      </p>
-      <nav v-if="displayedBottomLinks.length" aria-label="页脚辅助导航">
-        <NuxtLink v-for="link in displayedBottomLinks" :key="`${link.label}-${link.to}`" :to="link.to">{{ link.label }}</NuxtLink>
-      </nav>
+    <div v-if="footerCopyrightParts.length || registrationNumber || footerBottomLinks.length" class="footer-bottom">
+      <div class="footer-bottom-inner">
+        <div v-if="footerCopyrightParts.length || registrationNumber" class="footer-legal">
+          <p v-if="footerCopyrightParts.length" class="footer-copyright">
+            <template v-for="(part, index) in footerCopyrightParts" :key="`${part.type}-${index}`">
+              <strong v-if="part.type === 'siteName'">{{ siteName }}</strong>
+              <span v-else>{{ part.text }}</span>
+            </template>
+          </p>
+          <a v-if="registrationNumber" class="footer-registration" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">
+            <FileBadgeIcon aria-hidden="true" />
+            <span>{{ registrationNumber }}</span>
+          </a>
+        </div>
+        <nav v-if="footerBottomLinks.length" aria-label="页脚辅助导航">
+          <NuxtLink v-for="link in footerBottomLinks" :key="`${link.label}-${link.to}`" :to="link.to">{{ link.label }}</NuxtLink>
+        </nav>
+      </div>
     </div>
   </footer>
 </template>
 
 <script setup lang="ts">
 import type { FooterActionLink, FooterCopyrightPart, FooterGroup, FooterLink } from '~/composables/useSiteNavigation'
+import { FileBadge as FileBadgeIcon } from '@lucide/vue'
 import FooterMascot from './FooterMascot.vue'
 
 const props = defineProps<{
@@ -97,6 +106,7 @@ const props = defineProps<{
   footerGroups: FooterGroup[]
   footerCopyrightParts: FooterCopyrightPart[]
   footerBottomLinks: FooterLink[]
+  icpNumber?: string
   siteName: string
   description?: string
 }>()
@@ -106,11 +116,7 @@ defineEmits<{
 }>()
 
 const openImageAction = ref('')
-const displayedBottomLinks = computed(() => {
-  if (props.compact) return props.footerBottomLinks
-  const groupedPaths = new Set(props.footerGroups.flatMap(group => group.links.map(link => link.to)))
-  return props.footerBottomLinks.filter(link => !groupedPaths.has(link.to))
-})
+const registrationNumber = computed(() => props.icpNumber?.trim() || '')
 
 function actionKey(link: FooterActionLink) {
   return `${link.label}-${link.icon}-${link.image}`

@@ -20,6 +20,7 @@ export type SiteSettings = {
   seo_keywords: string
   seo_description: string
   footer_copyright: string
+  footer_icp: string
   footer_bottom_links: string
   footer_actions: string
 }
@@ -43,8 +44,9 @@ const defaults: SiteSettings = {
   seo_keywords: '',
   seo_description: '',
   footer_copyright: '©2026 {siteName}',
-  footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about\n后台|/admin',
-  footer_actions: '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
+  footer_icp: '',
+  footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about',
+  footer_actions: '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]'
 }
 
 export function useSiteSettings() {
@@ -73,9 +75,10 @@ export function useSiteSettings() {
         seo_noindex: val.data.seo_noindex || defaults.seo_noindex,
         seo_keywords: val.data.seo_keywords || defaults.seo_keywords,
         seo_description: val.data.seo_description || defaults.seo_description,
-        footer_copyright: val.data.footer_copyright || defaults.footer_copyright,
-        footer_bottom_links: val.data.footer_bottom_links || defaults.footer_bottom_links,
-        footer_actions: val.data.footer_actions || defaults.footer_actions
+        footer_copyright: val.data.footer_copyright ?? defaults.footer_copyright,
+        footer_icp: val.data.footer_icp ?? defaults.footer_icp,
+        footer_bottom_links: val.data.footer_bottom_links ?? defaults.footer_bottom_links,
+        footer_actions: val.data.footer_actions ?? defaults.footer_actions
       }
     }
     if (val?.data || err) {

@@ -19,8 +19,9 @@ export const settingsDefaults = {
   seo_keywords: '',
   seo_description: '',
   footer_copyright: '©2026 {siteName}',
-  footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about\n后台|/admin',
-  footer_actions: '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]',
+  footer_icp: '',
+  footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about',
+  footer_actions: '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]',
   ai_api_key: '',
   ai_base_url: 'https://api.deepseek.com',
   ai_model: 'deepseek-v4-flash',
@@ -65,6 +66,7 @@ export const publicSettingKeys = [
   'seo_keywords',
   'seo_description',
   'footer_copyright',
+  'footer_icp',
   'footer_bottom_links',
   'footer_actions'
 ] as const satisfies readonly SettingsKey[]
@@ -90,6 +92,7 @@ export const settingsInputSchema = z.object({
   seo_keywords: z.string().optional(),
   seo_description: z.string().optional(),
   footer_copyright: z.string().optional(),
+  footer_icp: z.string().trim().max(80).optional(),
   footer_bottom_links: z.string().optional(),
   footer_actions: z.string().optional(),
   ai_api_key: z.string().optional(),

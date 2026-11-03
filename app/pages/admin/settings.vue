@@ -270,10 +270,22 @@
               class="settings-control"
             />
             <p class="text-sm text-slate-500">
-              显示在 footer-bottom 左侧，使用
+              显示在页脚信息栏，使用
               <code>{siteName}</code>
-              代表当前站点标题。
+              代表当前站点标题。留空则隐藏版权信息。
             </p>
+          </div>
+
+          <div class="settings-row">
+            <label class="settings-label">ICP备案号</label>
+            <UInput
+              v-model="form.footer_icp"
+              icon="i-lucide-file-badge"
+              :maxlength="80"
+              placeholder="填写实际备案号，未备案请留空"
+              class="settings-control"
+            />
+            <p class="text-sm text-slate-500">显示在页脚信息栏，点击前往工信部备案查询。留空则不显示。</p>
           </div>
 
           <div class="settings-row">
@@ -281,13 +293,13 @@
             <UTextarea
               v-model="form.footer_bottom_links"
               :rows="5"
-              placeholder="文章|/posts&#10;归档|/archive&#10;关于|/about&#10;后台|/admin"
+              placeholder="文章|/posts&#10;归档|/archive&#10;关于|/about"
               class="settings-control"
             />
             <p class="text-sm text-slate-500">
               每行一个链接，格式为
               <code>显示名称|路径或 URL</code>
-              。
+              。留空则隐藏，可填写友链、隐私说明等页面；指向后台的链接不会在公开页脚显示。
             </p>
           </div>
         </div>
@@ -793,6 +805,7 @@ type SettingsForm = {
   seo_keywords: string
   seo_description: string
   footer_copyright: string
+  footer_icp: string
   footer_bottom_links: string
   footer_actions: string
   ai_api_key: string
@@ -843,7 +856,8 @@ const defaultValue = (key: string) => {
     seo_keywords: '',
     seo_description: '',
     footer_copyright: '©2026 {siteName}',
-    footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about\n后台|/admin',
+    footer_icp: '',
+    footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about',
     footer_actions: defaultFooterActions,
     ai_api_key: '',
     ai_base_url: 'https://api.deepseek.com',
@@ -880,6 +894,7 @@ const siteSettingKeys = [
   'seo_keywords',
   'seo_description',
   'footer_copyright',
+  'footer_icp',
   'footer_bottom_links',
   'footer_actions'
 ] as const satisfies readonly (keyof SettingsForm)[]
@@ -892,7 +907,7 @@ const aiSettingTabs = [
 ] as const
 
 const defaultFooterActions =
-  '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"后台","to":"/admin","icon":"i-lucide-settings"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"},{"label":"登录","to":"/admin/login","icon":"i-lucide-log-in"}]'
+  '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]'
 
 const footerActionIconOptions = [
   { label: 'QQ', name: 'i-simple-icons-qq' },
@@ -1017,9 +1032,10 @@ watch(
         seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),
         seo_keywords: val.data.seo_keywords || defaultValue('seo_keywords'),
         seo_description: val.data.seo_description || defaultValue('seo_description'),
-        footer_copyright: val.data.footer_copyright || defaultValue('footer_copyright'),
-        footer_bottom_links: val.data.footer_bottom_links || defaultValue('footer_bottom_links'),
-        footer_actions: val.data.footer_actions || defaultValue('footer_actions'),
+        footer_copyright: val.data.footer_copyright ?? defaultValue('footer_copyright'),
+        footer_icp: val.data.footer_icp ?? defaultValue('footer_icp'),
+        footer_bottom_links: val.data.footer_bottom_links ?? defaultValue('footer_bottom_links'),
+        footer_actions: val.data.footer_actions ?? defaultValue('footer_actions'),
         ai_api_key: val.data.ai_api_key || defaultValue('ai_api_key'),
         ai_base_url: val.data.ai_base_url || defaultValue('ai_base_url'),
         ai_model: val.data.ai_model || defaultValue('ai_model'),
@@ -1054,7 +1070,7 @@ const settingIcons: Record<string, string> = {
 const settingDescriptions: Record<string, string> = {
   basic: '设置站点名称、标识与首页展示方式。',
   seo: '完善搜索摘要，管理搜索引擎的索引权限。',
-  footer: '维护页面底部的版权信息与导航链接。',
+  footer: '维护页脚版权、ICP备案号与辅助链接，留空的项目不展示。',
   footerActions: '配置底部快捷入口的图标、图片和链接。'
 }
 const currentSettingLabel = computed(
@@ -1144,7 +1160,7 @@ function parseFooterActionItems(value: string): FooterActionItem[] {
         targetBlank: item?.targetBlank === true
       }))
       .filter((item) => item.label)
-    return items.length ? items : parseFooterActionItems(defaultFooterActions)
+    return items
   } catch {
     return parseFooterActionItems(defaultFooterActions)
   }

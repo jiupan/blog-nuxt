@@ -37,6 +37,7 @@
       :footer-action-right="navigation.footerActionRight.value"
       :footer-groups="navigation.footerGroups.value"
       :footer-copyright-parts="navigation.footerCopyrightParts.value"
+      :icp-number="navigation.siteSettings.value.footer_icp"
       :footer-bottom-links="navigation.footerBottomLinks.value"
       :site-name="navigation.siteName.value"
       :description="navigation.siteSettings.value.site_subtitle"

@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import { isPublicFooterLink, parseFooterBottomLinks } from '~/utils/footer-links'
 import type { ApiResult } from '~~/types/api'
 import type { MenuGroup as ApiMenuGroup, MenuItem as ApiMenuItem } from '~~/types/dto/menu'
 import type { PublicPostListPayload } from '~~/types/dto/post'
@@ -182,7 +183,7 @@ export async function useSiteNavigation() {
         const children = items.filter((item) => item.parentId === root.id)
         return {
           title: root.title,
-          links: footerLinksFor(root, children, categories.value, tags.value)
+          links: footerLinksFor(root, children, categories.value, tags.value).filter(link => isPublicFooterLink(link.to))
         }
       })
       .filter((group) => group.links.length)
@@ -190,7 +191,7 @@ export async function useSiteNavigation() {
 
   const footerCopyrightParts = computed(() => parseFooterCopyright(siteSettings.value.footer_copyright))
   const footerBottomLinks = computed(() => parseFooterBottomLinks(siteSettings.value.footer_bottom_links))
-  const footerActionLinks = computed(() => parseFooterActions(siteSettings.value.footer_actions))
+  const footerActionLinks = computed(() => parseFooterActions(siteSettings.value.footer_actions).filter(link => isPublicFooterLink(link.to)))
   const footerActionLeft = computed(() => footerActionLinks.value.slice(0, Math.ceil(footerActionLinks.value.length / 2)))
   const footerActionRight = computed(() => footerActionLinks.value.slice(Math.ceil(footerActionLinks.value.length / 2)))
   const isArticleRoute = computed(() => route.name === 'slug')
@@ -330,32 +331,14 @@ function iconForMenuItem(item: MenuItem) {
   return 'i-lucide-link'
 }
 
-function parseFooterBottomLinks(value: string) {
-  const fallback = '文章|/posts\n归档|/archive\n关于|/about\n后台|/admin'
-  return (value || fallback)
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [label, to] = line.split('|').map((part) => part?.trim())
-      return {
-        label: label || '',
-        to: to || '/'
-      }
-    })
-    .filter((link) => link.label)
-}
-
 function parseFooterActions(value: string) {
   const fallback = [
     { label: '文章', to: '/posts', icon: 'i-lucide-library', image: '', targetBlank: false },
     { label: '归档', to: '/archive', icon: 'i-lucide-archive', image: '', targetBlank: false },
     { label: '我的', to: '/about', icon: 'i-lucide-user-round', image: '', targetBlank: false },
-    { label: '后台', to: '/admin', icon: 'i-lucide-settings', image: '', targetBlank: false },
     { label: '全部文章', to: '/posts', icon: 'i-lucide-newspaper', image: '', targetBlank: false },
     { label: '时间线', to: '/archive', icon: 'i-lucide-clock-3', image: '', targetBlank: false },
-    { label: '友链', to: '/link', icon: 'i-lucide-link', image: '', targetBlank: false },
-    { label: '登录', to: '/admin/login', icon: 'i-lucide-log-in', image: '', targetBlank: false }
+    { label: '友链', to: '/link', icon: 'i-lucide-link', image: '', targetBlank: false }
   ]
 
   try {
@@ -370,14 +353,14 @@ function parseFooterActions(value: string) {
         targetBlank: item?.targetBlank === true
       }))
       .filter((item) => item.label)
-    return links.length ? links : fallback
+    return links
   } catch {
     return fallback
   }
 }
 
 function parseFooterCopyright(value: string): FooterCopyrightPart[] {
-  const text = value || '©2026 {siteName}'
+  const text = value
   const chunks = text.split('{siteName}')
   return chunks.flatMap((chunk, index) => [
     ...(chunk ? [{ type: 'text' as const, text: chunk }] : []),

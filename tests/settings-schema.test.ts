@@ -26,6 +26,15 @@ describe('settings defaults', () => {
 })
 
 describe('settingsInputSchema', () => {
+  it('accepts ICP settings and preserves explicit clearing of footer information', () => {
+    expect(settingsInputSchema.parse({ footer_icp: ' 备案号示例 ' })).toEqual({ footer_icp: '备案号示例' })
+    expect(publicSettingKeys).toContain('footer_icp')
+    expect(settingsDefaults.footer_icp).toBe('')
+    expect(settingsInputSchema.parse({ footer_icp: '', footer_copyright: '', footer_bottom_links: '' })).toEqual({
+      footer_icp: '', footer_copyright: '', footer_bottom_links: ''
+    })
+  })
+
   it('accepts a partial settings update', () => {
     const parsed = settingsInputSchema.parse({
       site_title: 'My Blog',
