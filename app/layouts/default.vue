@@ -39,6 +39,7 @@
       :footer-copyright-parts="navigation.footerCopyrightParts.value"
       :footer-bottom-links="navigation.footerBottomLinks.value"
       :site-name="navigation.siteName.value"
+      :description="navigation.siteSettings.value.site_subtitle"
       @scroll-top="navigation.scrollToTop"
     />
 

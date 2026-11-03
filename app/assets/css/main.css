@@ -162,6 +162,46 @@ html {
   scrollbar-gutter: stable;
 }
 
+@media (hover: hover) and (pointer: fine) and (forced-colors: none) {
+  html::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  html::-webkit-scrollbar-track,
+  html::-webkit-scrollbar-corner {
+    background: var(--theme-page);
+  }
+
+  html::-webkit-scrollbar-thumb {
+    min-height: 32px;
+    border: 2px solid var(--theme-page);
+    border-radius: 8px;
+    background: var(--theme-border);
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background: var(--theme-accent);
+  }
+
+  html::-webkit-scrollbar-thumb:active {
+    background: var(--theme-accent-hover);
+  }
+
+  html::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--theme-border) var(--theme-page);
+    }
+  }
+}
+
 body {
   width: 100%;
   max-width: 100%;
