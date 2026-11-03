@@ -16,6 +16,8 @@
   --theme-text-faint: #94a3b8;
   --theme-border: #dfe5f2;
   --theme-border-soft: #e2e8f0;
+  --theme-scrollbar: #dfe2e7;
+  --theme-scrollbar-hover: #c7cbd1;
   --theme-accent: #4f67f5;
   --theme-accent-hover: #435be3;
   --theme-accent-soft: #eef2ff;
@@ -49,6 +51,8 @@
   --theme-text-faint: #78869b;
   --theme-border: #2c374a;
   --theme-border-soft: #263246;
+  --theme-scrollbar: #38404b;
+  --theme-scrollbar-hover: #747b86;
   --theme-accent: #7c8dff;
   --theme-accent-hover: #91a0ff;
   --theme-accent-soft: #273354;
@@ -177,15 +181,12 @@ html {
     min-height: 32px;
     border: 2px solid var(--theme-page);
     border-radius: 8px;
-    background: var(--theme-border);
+    background: var(--theme-scrollbar);
   }
 
-  html::-webkit-scrollbar-thumb:hover {
-    background: var(--theme-accent);
-  }
-
+  html::-webkit-scrollbar-thumb:hover,
   html::-webkit-scrollbar-thumb:active {
-    background: var(--theme-accent-hover);
+    background: var(--theme-scrollbar-hover);
   }
 
   html::-webkit-scrollbar-button {
@@ -197,7 +198,7 @@ html {
   @supports not selector(::-webkit-scrollbar) {
     html {
       scrollbar-width: thin;
-      scrollbar-color: var(--theme-border) var(--theme-page);
+      scrollbar-color: var(--theme-scrollbar) var(--theme-page);
     }
   }
 }
