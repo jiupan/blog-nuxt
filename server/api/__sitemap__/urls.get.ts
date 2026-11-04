@@ -17,10 +17,10 @@ export default defineEventHandler(async () => {
     { loc: '/lab' },
     ...categories
       .filter((item) => item._count.posts > 0)
-      .map((item) => ({ loc: `/categories/${encodeURIComponent(item.slug)}` })),
+      .map((item) => ({ loc: `/categories/${encodeURIComponent(item.slug)}`, _encoded: true })),
     ...tags
       .filter((item) => item._count.posts > 0)
-      .map((item) => ({ loc: `/tags/${encodeURIComponent(item.slug)}` })),
+      .map((item) => ({ loc: `/tags/${encodeURIComponent(item.slug)}`, _encoded: true })),
     ...posts.map((post) => ({
       loc: `/${post.slug}.html`,
       lastmod: post.updatedAt

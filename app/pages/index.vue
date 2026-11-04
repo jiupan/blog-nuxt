@@ -319,6 +319,8 @@ const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { 
   useFetch<ApiResult<GalleryImagePayload[]>>('/api/gallery/memes', { query: computed(() => ({ group: siteSettings.value.hero_meme_group || undefined })) })
 ])
 
+assertPublicPageExists(data.value?.data)
+
 const posts = computed(() => data.value?.data.items || [])
 const listPending = computed(() => listStatus.value === 'pending')
 const showListSkeleton = useDelayedPending(listPending)

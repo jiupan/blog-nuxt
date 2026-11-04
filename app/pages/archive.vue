@@ -5,40 +5,39 @@
         <main class="archive-main">
           <section class="archive-filters" aria-labelledby="archive-heading" data-page-enter style="--page-enter-order: 0">
             <header class="archive-filter-heading">
-              <div class="archive-filter-title">
-                <h1 id="archive-heading">文章归档</h1>
-                <span v-if="!listError" class="archive-result-count" role="status" aria-live="polite">
-                  {{ listPending ? '正在更新…' : `共 ${data?.data.total || 0} 篇文章` }}
-                  <span class="archive-loading-indicator" :class="{ 'is-loading': listPending }" aria-hidden="true" />
-                </span>
-              </div>
-              <div class="archive-filter-tools">
-                <button v-if="hasFilters" type="button" class="archive-filter-reset" aria-label="清除所有筛选" @click="resetFilters">
-                  <UIcon name="i-lucide-rotate-ccw" aria-hidden="true" />
-                  <span>清除筛选</span>
-                </button>
-                <label class="archive-year-picker">
-                  <span class="sr-only">按年份筛选</span>
-                  <select :value="activeYear" aria-label="按年份筛选" @change="onYearChange">
-                    <option v-for="year in yearFilters" :key="year" :value="year" :selected="activeYear === year">{{ year === 'all' ? '全部年份' : `${year} 年` }}</option>
-                  </select>
-                  <UIcon name="i-lucide-chevron-down" class="year-picker-chevron" aria-hidden="true" />
-                </label>
-              </div>
+              <h1 id="archive-heading">文章归档</h1>
+              <span v-if="!listError" class="archive-result-count" role="status">
+                {{ listPending ? '正在更新…' : `共 ${data?.data.total || 0} 篇文章` }}
+                <span v-if="listPending" class="archive-loading-indicator" aria-hidden="true" />
+              </span>
             </header>
-            <nav class="category-filters" aria-label="按主题筛选">
+            <div class="category-filters" role="group" aria-label="按主题筛选">
               <button
                 v-for="filter in categoryFilters"
                 :key="filter.key"
                 type="button"
-                :class="{ 'is-active': activeCategory === filter.key }"
                 :aria-pressed="activeCategory === filter.key"
                 @click="selectCategory(filter.key)"
               >
                 {{ filter.label }}
               </button>
-            </nav>
-            <p v-if="activeKeyword" class="archive-search-filter">搜索关键词「{{ activeKeyword }}」</p>
+            </div>
+            <USelect
+              class="archive-year-picker"
+              aria-label="按年份筛选"
+              :model-value="activeYear"
+              :items="yearFilters"
+              :content="{ position: 'popper', align: 'end', sideOffset: 6 }"
+              :ui="yearPickerUi"
+              icon="i-lucide-calendar-days"
+              color="neutral"
+              variant="ghost"
+              @update:model-value="selectYear"
+            />
+            <button v-if="activeKeyword" type="button" class="archive-search-filter" :aria-label="`移除搜索关键词 ${activeKeyword}`" @click="clearKeyword">
+              <span>搜索关键词「{{ activeKeyword }}」</span>
+              <UIcon name="i-lucide-x" aria-hidden="true" />
+            </button>
           </section>
 
           <div class="archive-results" :aria-busy="listPending" data-page-enter style="--page-enter-order: 1">
@@ -109,6 +108,8 @@ const [{ data, status: listStatus, error: listError, refresh: refreshArchive }, 
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 4 } })
 ])
 
+assertPublicPageExists(data.value?.data)
+
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 const posts = computed(() => data.value?.data.items || [])
 const listPending = computed(() => listStatus.value === 'pending')
@@ -124,12 +125,23 @@ const categoryFilters = computed(() => [
   }))
 ])
 
-const yearFilters = computed(() => [
-  'all',
-  ...(data.value?.data.years || []).map(String)
-])
+const yearFilters = computed(() => {
+  const years = new Set((data.value?.data.years || []).map(String))
+  if (activeYear.value !== 'all') years.add(activeYear.value)
+  return [
+    { label: '全部年份', value: 'all' },
+    ...Array.from(years, year => ({ label: `${year} 年`, value: year }))
+  ]
+})
 
-const hasFilters = computed(() => activeCategory.value !== 'all' || activeYear.value !== 'all' || Boolean(activeKeyword.value))
+const yearPickerUi = {
+  leadingIcon: 'size-4 text-[var(--theme-text-muted)]',
+  trailingIcon: 'size-3.5 text-[var(--theme-text-muted)] group-data-[state=open]:rotate-180 motion-safe:transition-transform',
+  content: 'min-w-36 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface-raised)] shadow-lg ring-0',
+  viewport: 'p-1',
+  item: 'min-h-9 px-2.5 text-[var(--theme-text-soft)] data-highlighted:before:bg-[var(--theme-surface-hover)] data-[state=checked]:text-[var(--theme-accent)]',
+  itemTrailingIcon: 'size-4 text-[var(--theme-accent)]'
+}
 
 const totalPages = computed(() => Math.ceil((data.value?.data.total || 0) / pageSize))
 
@@ -138,21 +150,14 @@ function selectCategory(key: string) {
   void navigateTo({ path: route.path, query: { ...route.query, category: key.startsWith('category:') ? key.slice(9) : undefined, page: undefined } })
 }
 
-function selectYear(year: string | number) {
-  if (String(year) === activeYear.value) return
-  void navigateTo({ path: route.path, query: { ...route.query, year: year === 'all' ? undefined : String(year), page: undefined } })
+function selectYear(year: string) {
+  if (year === activeYear.value) return
+  void navigateTo({ path: route.path, query: { ...route.query, year: year === 'all' ? undefined : year, page: undefined } })
 }
 
-
-function onYearChange(event: Event) {
-  selectYear((event.target as HTMLSelectElement).value)
+function clearKeyword() {
+  void navigateTo({ path: route.path, query: { ...route.query, keyword: undefined, page: undefined } })
 }
-
-function resetFilters() {
-  void navigateTo({ path: route.path, query: { ...route.query, category: undefined, year: undefined, keyword: undefined, page: undefined } })
-}
-
-
 
 const hotPosts = computed(() => {
   return sidebarPostData.value?.data.items || []
@@ -200,36 +205,132 @@ useSeoMeta({
 }
 
 .archive-filters {
-  margin-bottom: 24px;
-  padding: 6px 4px 20px;
-  border-bottom: 1px solid color-mix(in srgb, var(--theme-border) 80%, transparent);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 20px;
+  padding-top: 8px;
 }
-.archive-filter-heading,
-.archive-filter-title,
-.archive-filter-tools { display: flex; align-items: center; }
-.archive-filter-heading { justify-content: space-between; gap: 20px; }
-.archive-filter-title { align-items: baseline; gap: 16px; min-width: 0; }
-.archive-filter-title h1 { margin: 0; color: var(--theme-text-strong); font-family: Georgia, "Noto Serif SC", "Source Han Serif SC", serif; font-size: 32px; font-weight: 600; line-height: 1.5; letter-spacing: 1px; }
-.archive-result-count { display: inline-flex; align-items: center; gap: 7px; min-width: 112px; color: var(--theme-text-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
-.archive-loading-indicator { width: 12px; height: 12px; flex: 0 0 12px; border: 1.5px solid transparent; border-radius: 50%; }
-.archive-loading-indicator.is-loading { border-color: color-mix(in srgb, var(--theme-accent) 18%, transparent); border-top-color: var(--theme-accent); animation: archive-loading-spin 800ms linear infinite; }
-.archive-filter-tools { flex-shrink: 0; gap: 18px; }
-.archive-search-filter { margin: 12px 0 0; color: var(--theme-text-muted); font-size: 13px; overflow-wrap: anywhere; }
-.archive-year-picker { position: relative; display: block; width: 104px; border-radius: 6px; }
-.archive-year-picker select { display: block; width: 100%; appearance: none; border: 0; border-radius: inherit; background: transparent; padding: 8px 22px 8px 0; color: var(--theme-text-muted); font: inherit; font-size: 13px; line-height: 20px; text-align: right; cursor: pointer; }
-.archive-year-picker select:hover { color: var(--theme-accent); }
-.year-picker-chevron { position: absolute; top: 50%; right: 2px; width: 13px; height: 13px; transform: translateY(-50%); color: var(--theme-text-muted); pointer-events: none; }
-.archive-filter-reset { display: inline-flex; align-items: center; gap: 5px; padding: 6px 0; border: 0; background: transparent; color: var(--theme-text-muted); font-size: 12px; cursor: pointer; }
-.archive-filter-reset .iconify { width: 14px; height: 14px; }
-.archive-filter-reset:hover { color: var(--theme-accent); }
-.category-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 16px; }
-.category-filters button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; padding: 7px 15px; border: 1px solid transparent; border-radius: 999px; background: transparent; color: var(--theme-text-muted); font: inherit; font-size: 13px; font-weight: 500; line-height: 20px; white-space: nowrap; cursor: pointer; transition: color 160ms ease, background-color 160ms ease; }
-.category-filters button:hover { background: color-mix(in srgb, var(--theme-surface) 65%, transparent); color: var(--theme-text); }
-.category-filters button.is-active { border-color: var(--theme-border); background: var(--theme-surface); color: var(--theme-accent); font-weight: 650; box-shadow: 0 2px 6px rgb(var(--theme-shadow) / 3%); }
+
+.archive-filters::before {
+  grid-area: 2 / 1 / 3 / -1;
+  align-self: end;
+  border-bottom: 1px solid var(--theme-border);
+  content: "";
+}
+
+.archive-filter-heading {
+  display: flex;
+  grid-area: 1 / 1 / 2 / -1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px 14px;
+}
+
+.archive-filter-heading h1 {
+  margin: 0;
+  color: var(--theme-text-strong);
+  font-family: Georgia, "Noto Serif SC", "Source Han Serif SC", serif;
+  font-size: clamp(27px, 4vw, 38px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: .025em;
+}
+
+.archive-result-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.archive-loading-indicator {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid color-mix(in srgb, var(--theme-accent) 18%, transparent);
+  border-top-color: var(--theme-accent);
+  border-radius: 50%;
+  animation: archive-loading-spin 800ms linear infinite;
+}
+
+.category-filters {
+  display: flex;
+  grid-area: 2 / 1;
+  align-self: end;
+  flex-wrap: wrap;
+  gap: 0 clamp(8px, 1.8vw, 20px);
+  min-width: 0;
+}
+
+.category-filters button {
+  position: relative;
+  min-height: 42px;
+  max-width: 100%;
+  padding: 7px 3px;
+  color: var(--theme-text-soft);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.category-filters button:hover,
+.category-filters button[aria-pressed="true"] {
+  color: color-mix(in srgb, var(--theme-accent) 86%, var(--theme-text-strong));
+}
+
+.category-filters button[aria-pressed="true"] { font-weight: 650; }
+
+.category-filters button[aria-pressed="true"]::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--theme-accent);
+  content: "";
+}
+
+.archive-filters :deep(.archive-year-picker) {
+  grid-area: 2 / 2;
+  justify-self: end;
+  min-height: 42px;
+  color: var(--theme-text-soft);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.archive-filters :deep(.archive-year-picker:hover),
+.archive-filters :deep(.archive-year-picker[data-state="open"]) {
+  background: var(--theme-surface-hover);
+  color: var(--theme-text-strong);
+}
+
+.archive-search-filter {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  justify-self: start;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  color: var(--theme-text-muted);
+  font-size: 13px;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.archive-search-filter:hover { color: var(--theme-accent); }
+.archive-search-filter .iconify { flex: none; }
+
 .category-filters button:focus-visible,
-.archive-filter-reset:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: -2px; }
-.archive-year-picker:focus-within { outline: 2px solid var(--theme-accent); outline-offset: 2px; }
-.archive-year-picker select:focus { outline: none; }
+.archive-search-filter:focus-visible,
+.archive-filters :deep(.archive-year-picker:focus-visible) {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: -2px;
+}
 
 .archive-results { position: relative; }
 .archive-results-content.is-covered { visibility: hidden; }
@@ -242,7 +343,7 @@ useSeoMeta({
 @keyframes archive-results-in { from { opacity: .6; } to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .archive-loading-indicator.is-loading,
+  .archive-loading-indicator,
   .archive-results-content.is-settled,
   .archive-loading-overlay { animation: none; }
 }
@@ -480,18 +581,11 @@ useSeoMeta({
     padding-top: 20px;
   }
 
-  .archive-filters { padding: 0 6px 16px; margin-bottom: 18px; }
-  .archive-filter-heading { gap: 10px; align-items: center; }
-  .archive-filter-title { flex-direction: column; align-items: flex-start; gap: 1px; }
-  .archive-filter-title h1 { font-size: 28px; }
+  .archive-filters { gap: 8px 4px; margin-bottom: 16px; padding: 0; }
+  .archive-filter-heading { grid-column: 1; }
+  .archive-filters :deep(.archive-year-picker) { grid-area: 1 / 2; }
+  .category-filters { grid-column: 1 / -1; gap: 0 9px; }
   .archive-results-content > .archive-empty { min-height: 106px; }
-  .archive-filter-tools { gap: 10px; }
-  .archive-year-picker { width: 96px; }
-  .archive-filter-reset { width: 22px; height: 38px; justify-content: center; }
-  .archive-filter-reset span { display: none; }
-  .archive-filter-reset .iconify { display: block; }
-  .category-filters { gap: 4px; margin-top: 14px; }
-  .category-filters button { padding-inline: 13px; }
 
 
   .pager {

@@ -1,5 +1,11 @@
 import { seoPage } from '../utils/seo'
 
+export function assertPublicPageExists(result?: { page: number, pageSize: number, total: number }) {
+  if (result && result.page > Math.max(1, Math.ceil(result.total / result.pageSize))) {
+    throw createError({ statusCode: 404, message: '分页不存在', fatal: true })
+  }
+}
+
 export function usePublicPagination(
   filters: () => Record<string, string | undefined> = () => ({})
 ) {

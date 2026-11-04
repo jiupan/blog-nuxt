@@ -85,7 +85,7 @@ const query = computed(() => ({
   tag: props.kind === 'tag' ? props.slug : undefined
 }))
 
-const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: categoryData }, { data: tagData }] = await Promise.all([
+const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: categoryData, error: categoryError }, { data: tagData, error: tagError }] = await Promise.all([
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query }),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/tags')
@@ -103,6 +103,13 @@ const currentTaxonomy = computed(() => {
   const source = props.kind === 'category' ? categories.value : tags.value
   return source.find(item => item.slug === props.slug)
 })
+const taxonomyError = props.kind === 'category' ? categoryError.value : tagError.value
+if (taxonomyError) throw taxonomyError
+if (!currentTaxonomy.value) {
+  throw createError({ statusCode: 404, message: '分类或标签不存在', fatal: true })
+}
+assertPublicPageExists(data.value?.data)
+
 const kindLabel = computed(() => props.kind === 'category' ? '文章分类' : '文章标签')
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
 

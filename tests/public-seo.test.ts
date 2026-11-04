@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { computed, reactive, watch } from 'vue'
 import { absoluteSiteUrl, canonicalSiteUrl, seoPage, serializeJsonLd } from '../app/utils/seo'
-import { usePublicPagination } from '../app/composables/usePublicPagination'
+import { assertPublicPageExists, usePublicPagination } from '../app/composables/usePublicPagination'
 
 const base = 'https://blog.ittx.cn'
 describe('public SEO URLs', () => {
@@ -34,6 +34,19 @@ describe('public SEO URLs', () => {
 })
 
 describe('URL driven pagination', () => {
+  it('allows the first empty page and rejects pages beyond the final result', () => {
+    vi.stubGlobal('createError', (details: object) => Object.assign(new Error(), details))
+    try {
+      expect(() => assertPublicPageExists({ page: 1, pageSize: 10, total: 0 })).not.toThrow()
+      expect(() => assertPublicPageExists({ page: 2, pageSize: 10, total: 11 })).not.toThrow()
+      expect(() => assertPublicPageExists({ page: 3, pageSize: 10, total: 11 })).toThrow(
+        expect.objectContaining({ statusCode: 404 })
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('reads SSR page numbers, retains filters in links, and follows history changes', () => {
     const route = reactive({ path: '/archive', query: { page: '2', category: 'ai', year: '2026' } })
     const push = vi.fn()
