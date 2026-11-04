@@ -278,6 +278,7 @@
                 <button
                   type="button"
                   class="save-button"
+                  :class="{ 'is-saving': saving }"
                   :disabled="saving || !isDirty"
                   @click="saveMenus"
                 >
@@ -1661,6 +1662,10 @@ button.node-fold[aria-expanded='true'] {
 
 .save-button:disabled {
   opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.save-button.is-saving {
   cursor: wait;
 }
 
