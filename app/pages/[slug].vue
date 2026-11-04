@@ -82,7 +82,32 @@
                 <Transition name="summary-history">
                   <aside v-if="summaryHistoryOpen" class="summary-history-drawer" aria-label="历史会话"><header><div><strong>历史会话</strong><small>{{ summaryHistoryTotal }} 个对话</small></div><button type="button" aria-label="关闭历史会话" @click="summaryHistoryOpen = false"><Icon name="i-lucide-x" /></button></header><label class="summary-history-search"><Icon name="i-lucide-search" /><input v-model="summaryHistoryQuery" type="search" placeholder="搜索会话" /></label><div class="summary-history-list"><div v-if="summaryHistoryLoading && !summaryHistoryItems.length" class="summary-history-state"><Icon name="i-lucide-loader-circle" />正在加载</div><template v-else-if="summaryHistoryGroups.length"><section v-for="group in summaryHistoryGroups" :key="group.label"><h3>{{ group.label }}</h3><article v-for="item in group.items" :key="item.id" :class="{ 'is-current': item.id === summaryConversationId }"><button type="button" class="summary-history-main" @click="switchSummaryConversation(item.id)"><span><Icon name="i-lucide-message-circle" /></span><div><strong>{{ item.title }}</strong><small>{{ item.messageCount }} 条消息 · {{ formatConversationTime(item.lastMessageAt) }}</small></div></button><button type="button" class="summary-history-delete" aria-label="删除会话" @click="removeSummaryConversation(item)"><Icon name="i-lucide-trash-2" /></button></article></section><button v-if="summaryHistoryHasMore && !summaryHistoryQuery" type="button" class="summary-history-more" :disabled="summaryHistoryLoading" @click="loadSummaryHistory(false)">{{ summaryHistoryLoading ? '加载中…' : '加载更多' }}</button></template><div v-else class="summary-history-empty"><span><Icon name="i-lucide-messages-square" /></span><strong>{{ summaryHistoryQuery ? '没有匹配的会话' : '还没有历史会话' }}</strong><small>{{ summaryHistoryQuery ? '换个关键词试试' : '开始提问后，会话会保存在这里' }}</small></div></div></aside>
                 </Transition>
-                <div ref="summaryMessagesEl" class="summary-dialog-messages"><div class="summary-dialog-message is-assistant"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><p>你好，我是这篇文章的 AI 助手。你可以围绕文章内容继续提问。</p></div><div v-for="message in summaryMessages" :key="message.id" class="summary-dialog-message" :class="message.role === 'USER' ? 'is-user' : 'is-assistant'"><span v-if="message.role === 'ASSISTANT'" class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div class="summary-dialog-message-copy"><p>{{ message.content }}</p><details v-if="message.citations?.length" class="summary-dialog-citations"><summary><Icon name="i-lucide-book-open-text" /><span>参考章节</span><small>{{ message.citations.length }}</small><Icon name="i-lucide-chevron-down" class="citation-chevron" /></summary><div class="summary-dialog-citation-list"><button v-for="(citation, citationIndex) in message.citations" :key="`${citation.chunkId}-${citation.headingPath}-${citationIndex}`" type="button" @click="goToArticleCitation(citation)"><span>{{ citationIndex + 1 }}</span><strong>{{ citation.headingPath || '文章正文' }}</strong><Icon name="i-lucide-arrow-up-right" /></button></div></details></div></div><div v-if="summaryDialogLoading" class="summary-dialog-pending"><span class="summary-dialog-avatar"><Icon name="i-lucide-bot" /></span><div><i /><i /><i /></div><small>正在阅读当前文章</small></div><div v-if="summaryDialogError" class="summary-dialog-error"><Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button type="button" @click="retrySummaryQuestion">重试</button></div></div>
+                <div ref="summaryMessagesEl" class="summary-dialog-messages">
+                  <div class="summary-dialog-message is-assistant">
+                    <span class="summary-dialog-avatar"><Icon name="i-lucide-bot" aria-hidden="true" /></span>
+                    <p>你好，我是这篇文章的 AI 助手。你可以围绕文章内容继续提问。</p>
+                  </div>
+                  <div v-for="message in summaryMessages" :key="message.id" class="summary-dialog-message" :class="message.role === 'USER' ? 'is-user' : 'is-assistant'">
+                    <span v-if="message.role === 'ASSISTANT'" class="summary-dialog-avatar"><Icon name="i-lucide-bot" aria-hidden="true" /></span>
+                    <div class="summary-dialog-message-copy">
+                      <p v-if="message.role === 'USER'">{{ message.content }}</p>
+                      <div v-else-if="message.id === summaryStreamingId && !message.content.trim()" class="summary-dialog-pending" role="status">
+                        <div aria-hidden="true"><i /><i /><i /></div><small>正在阅读当前文章</small>
+                      </div>
+                      <ArticleChatReply
+                        v-else
+                        v-model="summaryReferenceSelections[message.id]"
+                        :content="message.content"
+                        :citations="message.citations"
+                        :streaming="message.id === summaryStreamingId"
+                        @go-to-citation="goToArticleCitation"
+                      />
+                    </div>
+                  </div>
+                  <div v-if="summaryDialogError" class="summary-dialog-error" role="status">
+                    <Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button type="button" @click="retrySummaryQuestion">重试</button>
+                  </div>
+                </div>
                 <footer class="summary-dialog-footer"><form class="summary-dialog-composer" @submit.prevent="sendSummaryDialogMessage"><textarea ref="summaryDialogInput" v-model="summaryDialogDraft" rows="1" placeholder="继续针对这篇文章提问…" aria-label="继续提问" @keydown.enter.exact.prevent="sendSummaryDialogMessage" /><button v-if="!summaryDialogLoading" type="submit" :disabled="!summaryDialogDraft.trim()" aria-label="发送消息"><Icon name="i-lucide-send" /></button><button v-else type="button" class="is-stop" aria-label="停止生成" @click="stopSummaryDialogRequest"><Icon name="i-lucide-square" /></button></form><p>回答仅基于当前文章内容，请注意核对重要信息</p></footer>
               </section>
             </div>
@@ -174,6 +199,7 @@
 
 <script setup lang="ts">
 import { absoluteSiteUrl, serializeJsonLd } from '~/utils/seo'
+import type { ArticleChatCitation } from '~/utils/article-chat-markdown'
 import {
   CalendarDays as CalendarDaysIcon,
   Clock3 as Clock3Icon,
@@ -211,10 +237,11 @@ let tocScrollTarget: { id: string, until: number } | undefined
 const summaryQuestion = ref('')
 const summaryDialogDraft = ref('')
 const summaryDialogOpen = ref(false)
-type ArticleChatCitation = { chunkId?: number, headingPath?: string | null, excerpt?: string }
 type ArticleChatMessage = { id: number | string, role: 'USER' | 'ASSISTANT', content: string, status: string, citations?: ArticleChatCitation[], error?: string | null }
 type ArticleConversationItem = { id: number, status: 'ACTIVE' | 'ARCHIVED', title: string, messageCount: number, lastMessageAt: string, createdAt: string }
 const summaryMessages = ref<ArticleChatMessage[]>([])
+const summaryStreamingId = ref<string | null>(null)
+const summaryReferenceSelections = ref<Record<string, { block: number, referenceId: number } | null>>({})
 const summaryConversationId = ref<number | null>(null)
 const summaryEntryLabel = computed(() => summaryQuestion.value.trim() ? '发送' : summaryConversationId.value || summaryMessages.value.length ? '继续对话' : '打开对话')
 const summaryEntryButton = ref<HTMLButtonElement | null>(null)
@@ -491,6 +518,7 @@ async function switchSummaryConversation(conversationId: number) {
     const response = await $fetch<{ data: { conversation: { id: number }, messages: ArticleChatMessage[] } }>(`/api/posts/${post.value.slug}/chat/conversations/${conversationId}`, { method: 'PUT' })
     summaryConversationId.value = response.data.conversation.id
     summaryMessages.value = response.data.messages
+    summaryReferenceSelections.value = {}
     summaryHistoryOpen.value = false
     await scrollSummaryMessages(false)
     summaryDialogInput.value?.focus()
@@ -508,6 +536,7 @@ async function removeSummaryConversation(item: ArticleConversationItem) {
     if (item.id === summaryConversationId.value) {
       summaryConversationId.value = null
       summaryMessages.value = []
+      summaryReferenceSelections.value = {}
       summaryDialogError.value = ''
     }
   } catch (error: unknown) {
@@ -533,21 +562,29 @@ function formatConversationTime(value: string) {
 }
 
 function goToArticleCitation(citation: ArticleChatCitation) {
-  const headingName = citation.headingPath?.split('/').at(-1)?.trim()
-  const headings = [...document.querySelectorAll<HTMLElement>('.prose-blog h1, .prose-blog h2, .prose-blog h3')]
-  const target = headingName
-    ? headings.find(heading => normalizeHeadingText(heading.textContent) === normalizeHeadingText(headingName))
-    : document.querySelector<HTMLElement>('.prose-blog')
+  const path = citation.headingPath?.split(' / ').map(normalizeHeadingText).join('/')
+  const headings = [...(articleContentEl.value?.querySelectorAll<HTMLElement>('h2, h3') || [])]
+  let parent = ''
+  const matches = headings.filter(heading => {
+    const name = normalizeHeadingText(heading.textContent)
+    if (heading.tagName === 'H2') parent = name
+    const headingPath = heading.tagName === 'H3' && parent ? `${parent}/${name}` : name
+    return path && headingPath === path
+  })
+  const target = matches.length === 1 ? matches[0] : articleContentEl.value
 
   closeSummaryDialog()
   window.requestAnimationFrame(() => {
-    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    if (target) window.setTimeout(() => target.focus({ preventScroll: true }), 450)
+    if (!target) return
+    if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+    target.focus({ preventScroll: true })
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' })
   })
 }
 
 function normalizeHeadingText(value?: string | null) {
-  return (value || '').replace(/\s+/g, '').replace(/[＃#]/g, '').trim()
+  return (value || '').replace(/[\s＃#*_`]/g, '')
 }
 
 function focusSummaryDialogInput() {
@@ -593,11 +630,15 @@ async function submitSummaryQuestion(question: string) {
   if (summaryDialogLoading.value) return
   const temporaryId = `pending-${Date.now()}`
   const assistantTemporaryId = `stream-${Date.now()}`
-  summaryMessages.value.push({ id: temporaryId, role: 'USER', content: question, status: 'COMPLETED', citations: [] })
+  summaryMessages.value.push(
+    { id: temporaryId, role: 'USER', content: question, status: 'COMPLETED' },
+    { id: assistantTemporaryId, role: 'ASSISTANT', content: '', status: 'PENDING' }
+  )
+  summaryStreamingId.value = assistantTemporaryId
   summaryDialogLoading.value = true
   summaryDialogError.value = ''
   summaryDialogController = new AbortController()
-  await scrollSummaryMessages()
+  await scrollSummaryMessages(false)
   try {
     const response = await fetch(`/api/posts/${encodeURIComponent(post.value.slug)}/chat/stream`, {
       method: 'POST',
@@ -606,7 +647,6 @@ async function submitSummaryQuestion(question: string) {
       body: JSON.stringify({ conversationId: summaryConversationId.value || undefined, message: question })
     })
     if (!response.ok || !response.body) throw new Error(await readStreamHttpError(response))
-    summaryMessages.value.push({ id: assistantTemporaryId, role: 'ASSISTANT', content: '', status: 'COMPLETED', citations: [] })
     await consumeArticleChatStream(response.body, {
       meta: (data) => {
         const payload = data as { conversation: { id: number }, userMessage: ArticleChatMessage }
@@ -615,26 +655,32 @@ async function submitSummaryQuestion(question: string) {
         if (index >= 0) summaryMessages.value[index] = payload.userMessage
       },
       delta: (data) => {
+        const follow = isSummaryAtEnd()
         const message = summaryMessages.value.find(item => item.id === assistantTemporaryId)
         if (message) message.content += String((data as { text?: string }).text || '')
-        void scrollSummaryMessages(false)
+        if (follow) void scrollSummaryMessages(false)
       },
       done: (data) => {
+        const follow = isSummaryAtEnd()
         const payload = data as { assistantMessage: ArticleChatMessage }
         const index = summaryMessages.value.findIndex(item => item.id === assistantTemporaryId)
         if (index >= 0) summaryMessages.value[index] = payload.assistantMessage
+        if (follow) void scrollSummaryMessages(false)
       },
       error: data => { throw new Error(String((data as { message?: string }).message || '回答生成失败，请稍后重试')) }
     })
+    if (summaryMessages.value.some(item => item.id === assistantTemporaryId)) throw new Error('回答连接已中断，请重试')
   } catch (error: unknown) {
     if (summaryDialogController?.signal.aborted) summaryDialogError.value = '已停止本次回答'
     else summaryDialogError.value = error instanceof Error ? error.message : getArticleChatError(error)
     const partial = summaryMessages.value.find(item => item.id === assistantTemporaryId)
-    if (partial && !partial.content) summaryMessages.value = summaryMessages.value.filter(item => item.id !== assistantTemporaryId)
+    if (partial && !partial.content.trim()) summaryMessages.value = summaryMessages.value.filter(item => item.id !== assistantTemporaryId)
   } finally {
+    const follow = isSummaryAtEnd()
+    summaryStreamingId.value = null
     summaryDialogLoading.value = false
     summaryDialogController = null
-    await scrollSummaryMessages()
+    if (follow) await scrollSummaryMessages(false)
   }
 }
 
@@ -649,6 +695,7 @@ async function resetSummaryConversation() {
     await $fetch(`/api/posts/${post.value.slug}/chat`, { method: 'DELETE', body: { conversationId: summaryConversationId.value } })
     summaryConversationId.value = null
     summaryMessages.value = []
+    summaryReferenceSelections.value = {}
     summarySavedScrollTop = null
     summaryDialogError.value = ''
     summaryDialogDraft.value = ''
@@ -670,6 +717,11 @@ async function retrySummaryQuestion() {
 async function scrollSummaryMessages(smooth = true) {
   await nextTick()
   summaryMessagesEl.value?.scrollTo({ top: summaryMessagesEl.value.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+}
+
+function isSummaryAtEnd() {
+  const messages = summaryMessagesEl.value
+  return Boolean(messages && messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 64)
 }
 
 async function consumeArticleChatStream(
@@ -1165,22 +1217,9 @@ function scrollToTocHeading(id: string) {
 .summary-dialog-message.is-user { justify-content: flex-end; }
 .summary-dialog-message.is-user p { max-width: 76%; border-radius: 18px 18px 4px 18px; background: var(--theme-surface-hover); color: var(--theme-text); padding: 11px 16px; }
 .summary-dialog-message-copy { min-width: 0; }
+.summary-dialog-message.is-assistant .summary-dialog-message-copy { flex: 1; padding-top: 3px; }
 .summary-dialog-message.is-user .summary-dialog-message-copy { display: flex; justify-content: flex-end; width: 100%; }
-.summary-dialog-citations { width: min(100%, 390px); margin-top: 12px; }
-.summary-dialog-citations summary { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; border: 1px solid rgb(182 83 72 / 12%); border-radius: 999px; background: rgb(248 238 238 / 72%); color: #985148; cursor: pointer; font-size: 11px; font-weight: 750; list-style: none; padding: 0 10px; transition: border-color .18s ease,background .18s ease,transform .18s ease; }
-.summary-dialog-citations summary::-webkit-details-marker { display: none; }
-.summary-dialog-citations summary:hover { border-color: rgb(182 83 72 / 24%); background: rgb(248 238 238 / 95%); transform: translateY(-1px); }
-.summary-dialog-citations summary>small { display: grid; min-width: 18px; height: 18px; place-items: center; border-radius: 999px; background: color-mix(in srgb, var(--theme-surface) 72%, transparent); color: #a85b51; font-size: 9px; }
-.summary-dialog-citations summary :deep(svg) { width: 12px; height: 12px; }
-.summary-dialog-citations .citation-chevron { margin-left: 1px; transition: transform .2s ease; }
-.summary-dialog-citations[open] .citation-chevron { transform: rotate(180deg); }
-.summary-dialog-citation-list { display: grid; gap: 4px; margin-top: 7px; padding: 5px; border: 1px solid rgb(224 217 216 / 72%); border-radius: 14px; background: color-mix(in srgb, var(--theme-surface) 66%, transparent); box-shadow: 0 8px 24px rgb(57 47 45 / 6%); backdrop-filter: blur(12px); }
-.summary-dialog-citation-list button { display: grid; grid-template-columns: 20px minmax(0,1fr) 16px; align-items: center; gap: 8px; width: 100%; border: 0; border-radius: 10px; background: transparent; color: var(--theme-text-muted); cursor: pointer; padding: 8px; text-align: left; transition: background .18s ease,color .18s ease; }
-.summary-dialog-citation-list button:hover { background: rgb(248 238 238 / 72%); color: #974d45; }
-.summary-dialog-citation-list button>span { display: grid; width: 20px; height: 20px; place-items: center; border-radius: 7px; background: #f5f1f1; color: #a75a50; font-size: 9px; font-weight: 800; }
-.summary-dialog-citation-list strong { overflow: hidden; font-size: 11px; font-weight: 650; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
-.summary-dialog-citation-list :deep(svg) { width: 13px; height: 13px; color: #b3a5a3; }
-.summary-dialog-pending { display: flex; align-items: center; gap: 12px; color: #9ba1aa; }
+.summary-dialog-pending { display: flex; min-height: 26px; align-items: center; gap: 9px; color: var(--theme-text-muted); }
 .summary-dialog-pending>div { display: flex; gap: 4px; }
 .summary-dialog-pending i { width: 6px; height: 6px; border-radius: 50%; background: #c47263; animation: summary-dialog-dot 1.15s infinite ease-in-out; }
 .summary-dialog-pending i:nth-child(2) { animation-delay: 140ms; }.summary-dialog-pending i:nth-child(3) { animation-delay: 280ms; }

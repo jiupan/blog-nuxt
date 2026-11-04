@@ -27,6 +27,7 @@
     "@prisma/client": "^6.19.3",
     "argon2": "0.43.1",
     "github-slugger": "2.0.0",
+    "katex": "0.19.1",
     "mammoth": "^1.11.0",
     "markdown-it": "14.2.0",
     "md-editor-v3": "6.5.3",

@@ -195,7 +195,11 @@ export function buildBlogAnswerStreamPrompt(question: string, sources: BlogAnswe
   return buildBlogAnswerPrompt(question, sources)
     .replace('5. citationIds 只能填写用到的来源编号，最多 5 个。\n', '')
     .replace('6. 返回严格 JSON，不要包裹 Markdown 代码块。\n', '')
-    .replace('JSON 结构必须是：{"answer":"回答内容","citationIds":[1,2]}\n', '5. 直接输出回答正文，不要返回 JSON，不要包裹 Markdown 代码块。\n')
+    .replace('JSON 结构必须是：{"answer":"回答内容","citationIds":[1,2]}\n', [
+      '5. 直接用 Markdown 输出正文。可用短标题、列表、代码块；数学公式使用 $...$ 或 $$...$$。禁止把整段回答包成 JSON 或代码块。',
+      '6. 在有来源支持的句末紧接 [ref:编号]，例如「该任务需要逐步验证。[ref:2]」。编号必须是实际支持该句的 sourceId；有多个来源时逐个标记，禁止编造编号或单独列参考列表。',
+      ''
+    ].join('\n'))
 }
 
 function cleanMarkdown(content: string) {

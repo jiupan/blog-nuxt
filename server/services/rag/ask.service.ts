@@ -5,6 +5,8 @@ import { getKnowledgeRuntimeSettings } from '~~/server/services/settings/setting
 import type { KnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
 
 export type BlogAskCitation = {
+  referenceId?: number
+  chunkId?: number
   sourceType: 'POST' | 'FILE'
   postId?: number
   knowledgeFileId?: number
@@ -33,14 +35,19 @@ export async function streamBlogAnswerFromResults(
     headingPath: [source.headingPath, source.pageNumber ? `第 ${source.pageNumber} 页` : ''].filter(Boolean).join(' / ') || null,
     excerpt: source.excerpt
   })), options)
-  const citedSources = answer.includes('没有找到足够依据') ? [] : sources.slice(0, 3)
+  const referenceIds = new Set([...answer.matchAll(/\[ref:(\d{1,5})\]/g)].map(match => Number(match[1])))
   return {
     answer,
-    citations: citedSources.map(source => ({
-      postId: source.postId, sourceType: source.sourceType, knowledgeFileId: source.knowledgeFileId,
-      title: source.title, slug: source.slug, headingPath: source.headingPath,
-      excerpt: source.excerpt, pageNumber: source.pageNumber
-    }))
+    citations: [...referenceIds].flatMap((referenceId): BlogAskCitation[] => {
+      const source = sources[referenceId - 1]
+      if (!source) return []
+      return [{
+        referenceId, chunkId: source.chunkId,
+        postId: source.postId, sourceType: source.sourceType, knowledgeFileId: source.knowledgeFileId,
+        title: source.title, slug: source.slug, headingPath: source.headingPath,
+        excerpt: source.excerpt, pageNumber: source.pageNumber
+      }]
+    })
   }
 }
 

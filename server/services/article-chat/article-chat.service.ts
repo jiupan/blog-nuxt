@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { notFound, rateLimited } from '../../utils/api-error'
 import { prisma } from '../../utils/prisma'
 import { answerBlogFromResults, streamBlogAnswerFromResults } from '../rag/ask.service'
+import { unwrapArticleAnswer } from '../ai/article-answer-format'
 import { searchPostChunks } from '../rag/retrieval.service'
 import { consumeFixedWindow, getClientIp, type FixedWindowStore } from '../security/rate-limit.service'
 import { getKnowledgeRuntimeSettings } from '../settings/settings.service'
@@ -219,10 +220,17 @@ function buildRetrievalQuery(history: Array<{ role: string, content: string }>, 
 
 function buildContextualQuestion(history: Array<{ role: string, content: string }>, message: string) {
   if (!history.length) return message
-  const context = history.map(item => `${item.role === 'USER' ? '用户' : '助手'}：${item.content}`).join('\n').slice(-4000)
+  const context = history.map(item => item.role === 'USER'
+    ? `用户：${item.content}`
+    : `助手：${(unwrapArticleAnswer(item.content) || '').replace(/\[ref:\d{1,5}\]/g, '')}`
+  ).join('\n').slice(-4000)
   return `以下是本次会话最近的对话：\n${context}\n\n用户的新问题：${message}\n请结合上下文理解指代，但只能依据提供的当前文章片段回答。`
 }
 
 function toMessageDto(message: { id: number, role: string, content: string, status: string, citations?: unknown, error?: string | null, createdAt: Date }) {
-  return { id: message.id, role: message.role, content: message.content, status: message.status, citations: message.citations || [], error: message.error || null, createdAt: message.createdAt }
+  const content = message.role === 'ASSISTANT'
+    ? unwrapArticleAnswer(message.content) ?? '这条回答的格式异常，可以重新提问。'
+    : message.content
+  const citations = Array.isArray(message.citations) ? message.citations : []
+  return { id: message.id, role: message.role, content, status: message.status, citations, error: message.error || null, createdAt: message.createdAt }
 }
