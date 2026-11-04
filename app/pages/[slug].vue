@@ -61,10 +61,11 @@
             <p>{{ post.summary }}</p>
           </div>
           <form class="summary-chat-form" @submit.prevent="openSummaryDialog">
-            <input v-model="summaryQuestion" type="text" :minlength="summaryQuestion.trim() ? 2 : undefined" maxlength="300" placeholder="针对这个文章有什么想问的？" aria-label="针对这篇文章提问" />
-            <button ref="summaryEntryButton" type="submit" aria-haspopup="dialog" :disabled="Boolean(summaryQuestion.trim()) && summaryDialogLoading">
-              <span>{{ summaryEntryLabel }}</span>
-              <Icon :name="summaryQuestion.trim() ? 'i-lucide-corner-down-left' : 'i-lucide-messages-square'" />
+            <input v-model="summaryQuestion" type="text" :minlength="summaryQuestion.trim() ? 2 : undefined" maxlength="300" placeholder="问问这篇文章…" aria-label="针对这篇文章提问">
+            <button ref="summaryEntryButton" type="submit" aria-haspopup="dialog" :aria-label="summaryEntryLabel" :class="{ 'has-question': summaryQuestion.trim() }" :disabled="Boolean(summaryQuestion.trim()) && summaryDialogLoading">
+              <span class="summary-entry-desktop">{{ summaryEntryLabel }}</span>
+              <Icon :name="summaryQuestion.trim() ? 'i-lucide-corner-down-left' : 'i-lucide-messages-square'" class="summary-entry-desktop" aria-hidden="true" />
+              <Icon name="i-lucide-send" class="summary-entry-plane" aria-hidden="true" />
             </button>
           </form>
         </section>
@@ -1122,6 +1123,10 @@ function scrollToTocHeading(id: string) {
   height: 15px;
 }
 
+.summary-chat-form .summary-entry-plane {
+  display: none;
+}
+
 .summary-chat-form button:disabled { opacity: .48; cursor: not-allowed; box-shadow: none; }
 .summary-dialog-backdrop { position: fixed; inset: 0; z-index: 80; background: rgb(28 34 45 / 16%); backdrop-filter: blur(12px); touch-action: none; }
 .summary-dialog-stage { position: fixed; inset: 0; z-index: 81; display: grid; place-items: center; padding: 24px; pointer-events: none; }
@@ -1719,8 +1724,7 @@ function scrollToTocHeading(id: string) {
     display: none;
   }
 
-  .summary-body,
-  .summary-chat-form {
+  .summary-body {
     grid-template-columns: 1fr;
   }
 
@@ -1763,24 +1767,49 @@ function scrollToTocHeading(id: string) {
     font-size: 16px;
   }
 
-  .summary-chat-form {
-    gap: 8px;
-  }
-
-  .summary-chat-form input,
-  .summary-chat-form button {
-    height: 34px;
-  }
-
   .summary-chat-form input,
   .summary-dialog-composer textarea,
   .summary-history-search input {
     font-size: 16px;
   }
 
+  .summary-chat-form input {
+    height: 40px;
+    padding-inline: 12px;
+    border-radius: 11px;
+  }
+
+  .summary-chat-form input::placeholder {
+    color: var(--theme-text-muted);
+  }
+
   .summary-chat-form button {
-    width: 100%;
-    font-size: 13px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 11px;
+    background: var(--theme-page);
+    color: var(--theme-text-soft);
+  }
+
+  .summary-chat-form .summary-entry-desktop {
+    display: none;
+  }
+
+  .summary-chat-form .summary-entry-plane {
+    display: inline-block;
+    width: 17px;
+    height: 17px;
+  }
+
+  .summary-chat-form button.has-question {
+    background: var(--theme-accent-soft);
+    color: var(--theme-text-strong);
+  }
+
+  .summary-chat-form button:focus-visible {
+    outline: 2px solid var(--theme-accent);
+    outline-offset: -2px;
   }
 
   .summary-dialog-stage { align-items: end; padding: 10px; }
