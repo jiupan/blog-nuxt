@@ -487,9 +487,6 @@ async function saveSort() {
     })
     sorting.value = false
     markSortSaved()
-    searchInput.value = ''
-    search.value = ''
-    page.value = 1
     await refresh()
     toast.add({ title: `${props.title}顺序已保存`, color: 'success' })
   } catch (error: unknown) {

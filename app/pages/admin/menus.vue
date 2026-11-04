@@ -76,7 +76,12 @@
             </button>
           </div>
 
-          <p class="menu-order-hint">拖动手柄调整同级顺序，子菜单会随父菜单一起移动。</p>
+          <p class="menu-order-hint">
+            点箭头展开。<span class="menu-desktop-hint">拖动手柄排序。</span><span class="menu-mobile-hint">点「···」调整顺序。</span>
+            <template v-if="selectedMenu.location === 'FOOTER'">
+              分类和标签没有子项时各显示前 4 项。用「＋」添加要展示的项目。
+            </template>
+          </p>
           <AdminSortableList
             v-if="treeItems.length"
             :items="treeItems"
@@ -92,7 +97,8 @@
             >
               <MenuTreeItem
                 :item="root.item"
-                :children="root.children"
+                :child-count="root.children.length"
+                :group-open="isGroupOpen(root.item.id)"
                 :selected-item-id="activeItemId"
                 :can-move-up="canMove(root.item, -1)"
                 :can-move-down="canMove(root.item, 1)"
@@ -103,6 +109,7 @@
                 :item-url="itemUrl"
                 :item-icon="itemIcon"
                 @select="selectItem"
+                @toggle-group="toggleGroup"
                 @add-child="addChildMenuItem"
                 @move="moveItem"
                 @indent="indentItem"
@@ -113,6 +120,10 @@
 
               <AdminSortableList
                 v-if="root.children.length"
+                v-show="isGroupOpen(root.item.id)"
+                :id="`menu-children-${root.item.id}`"
+                role="group"
+                :aria-label="`${root.item.title || '未命名菜单'}的子菜单`"
                 :items="root.children"
                 :disabled="saving"
                 handle=".menu-child-handle"
@@ -123,7 +134,6 @@
                   v-for="child in root.children"
                   :key="child.id ?? `${root.item.id}-${child.title}`"
                   :item="child"
-                  :children="[]"
                   :selected-item-id="activeItemId"
                   :can-move-up="canMove(child, -1)"
                   :can-move-down="canMove(child, 1)"
@@ -319,7 +329,8 @@ const MenuTreeItem = defineComponent({
   name: 'MenuTreeItem',
   props: {
     item: { type: Object as () => MenuItem, required: true },
-    children: { type: Array as () => MenuItem[], required: true },
+    childCount: { type: Number, default: 0 },
+    groupOpen: { type: Boolean, default: false },
     selectedItemId: { type: Number as () => number | null, default: null },
     canMoveUp: { type: Boolean, default: false },
     canMoveDown: { type: Boolean, default: false },
@@ -334,22 +345,16 @@ const MenuTreeItem = defineComponent({
     itemUrl: { type: Function as unknown as () => (item: MenuItem) => string, required: true },
     itemIcon: { type: Function as unknown as () => (item: MenuItem) => string, required: true }
   },
-  emits: ['select', 'add-child', 'move', 'indent', 'outdent', 'duplicate', 'delete'],
+  emits: ['select', 'toggle-group', 'add-child', 'move', 'indent', 'outdent', 'duplicate', 'delete'],
   setup(props, { emit }) {
     const UIcon = resolveComponent('UIcon')
-
-    const emitAction = (
-      event: MouseEvent,
-      name: 'add-child' | 'move' | 'indent' | 'outdent' | 'duplicate' | 'delete',
-      payload?: unknown
-    ) => {
-      event.stopPropagation()
-      if (name === 'add-child') emit('add-child', props.item)
-      if (name === 'move') emit('move', props.item, payload)
-      if (name === 'indent') emit('indent', props.item)
-      if (name === 'outdent') emit('outdent', props.item)
-      if (name === 'duplicate') emit('duplicate', props.item)
-      if (name === 'delete') emit('delete', props.item.id)
+    const UDropdownMenu = resolveComponent('UDropdownMenu')
+    const moveActions = computed(() => [
+      { label: '上移', icon: 'i-lucide-arrow-up', disabled: !props.canMoveUp, onSelect: () => emit('move', props.item, -1) },
+      { label: '下移', icon: 'i-lucide-arrow-down', disabled: !props.canMoveDown, onSelect: () => emit('move', props.item, 1) }
+    ])
+    const deleteAction = {
+      label: '删除', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => emit('delete', props.item.id)
     }
 
     return () =>
@@ -361,76 +366,81 @@ const MenuTreeItem = defineComponent({
             props.isChild ? 'is-child' : '',
             props.selectedItemId === props.item.id ? 'is-active' : '',
             !props.item.isVisible ? 'is-muted' : ''
-          ],
-          onClick: () => emit('select', props.item)
+          ]
         },
         [
           h(AdminDragHandle, {
             label: props.item.title || '菜单项',
             class: props.isChild ? 'menu-child-handle' : 'menu-root-handle'
           }),
-          h('span', { class: 'node-fold' }, [
-            props.children.length
-              ? h(UIcon, { name: 'i-lucide-chevron-down', class: 'size-4' })
-              : null
-          ]),
-          h('span', { class: 'node-icon' }, [
-            h(UIcon, { name: props.itemIcon(props.item), class: 'size-5' })
-          ]),
-          h('span', { class: 'node-content' }, [
-            h('strong', props.item.title || '未命名菜单'),
-            h('small', [
-              props.itemUrl(props.item),
-              props.item.targetBlank
-                ? h(UIcon, { name: 'i-lucide-external-link', class: 'size-3' })
-                : null
+          props.childCount
+            ? h('button', {
+                type: 'button',
+                class: 'node-fold',
+                'aria-label': `${props.groupOpen ? '折叠' : '展开'}${props.item.title || '未命名菜单'}的子菜单`,
+                'aria-expanded': props.groupOpen,
+                'aria-controls': `menu-children-${props.item.id}`,
+                onClick: () => emit('toggle-group', props.item)
+              }, [h(UIcon, { name: 'i-lucide-chevron-right', class: 'size-4', 'aria-hidden': 'true' })])
+            : h('span', { class: 'node-fold', 'aria-hidden': 'true' }),
+          h('button', {
+            type: 'button',
+            class: 'node-select',
+            'aria-current': props.selectedItemId === props.item.id ? 'true' : undefined,
+            onClick: () => emit('select', props.item)
+          }, [
+            h('span', { class: 'node-icon' }, [
+              h(UIcon, { name: props.itemIcon(props.item), class: 'size-5', 'aria-hidden': 'true' })
+            ]),
+            h('span', { class: 'node-content' }, [
+              h('span', { class: 'node-heading' }, [
+                h('strong', props.item.title || '未命名菜单'),
+                props.childCount ? h('span', { class: 'node-child-count' }, `${props.childCount} 项`) : null
+              ]),
+              h('small', [
+                props.itemUrl(props.item),
+                props.item.targetBlank
+                  ? h(UIcon, { name: 'i-lucide-external-link', class: 'size-3' })
+                  : null
+              ])
             ])
           ]),
+          props.canAddChild
+            ? h('button', {
+                type: 'button',
+                class: 'node-add-child',
+                title: '添加子菜单',
+                'aria-label': `为${props.item.title || '未命名菜单'}添加子菜单`,
+                onClick: () => emit('add-child', props.item)
+              }, [h(UIcon, { name: 'i-lucide-plus', class: 'size-4', 'aria-hidden': 'true' })])
+            : null,
           h('div', { class: 'node-tools' }, [
-            props.canAddChild
-              ? h(
-                  'button',
-                  {
-                    type: 'button',
-                    title: '添加子菜单',
-                    onClick: (event: MouseEvent) => emitAction(event, 'add-child')
-                  },
-                  [h(UIcon, { name: 'i-lucide-plus', class: 'size-4' })]
-                )
-              : null,
-            props.canAddChild ? h('span', { class: 'node-tool-divider' }) : null,
-            h(
-              'button',
-              {
-                type: 'button',
-                title: '上移',
-                disabled: !props.canMoveUp,
-                onClick: (event: MouseEvent) => emitAction(event, 'move', -1)
-              },
-              [h(UIcon, { name: 'i-lucide-arrow-up', class: 'size-4' })]
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                title: '下移',
-                disabled: !props.canMoveDown,
-                onClick: (event: MouseEvent) => emitAction(event, 'move', 1)
-              },
-              [h(UIcon, { name: 'i-lucide-arrow-down', class: 'size-4' })]
-            ),
+            ...moveActions.value.map((action) => h('button', {
+              key: action.label,
+              type: 'button',
+              title: action.label,
+              disabled: action.disabled,
+              onClick: action.onSelect
+            }, [h(UIcon, { name: action.icon, class: 'size-4' })])),
             h('span', { class: 'node-tool-divider' }),
             h(
               'button',
               {
                 type: 'button',
                 class: 'node-danger-tool',
-                title: '删除',
-                onClick: (event: MouseEvent) => emitAction(event, 'delete')
+                title: deleteAction.label,
+                onClick: deleteAction.onSelect
               },
-              [h(UIcon, { name: 'i-lucide-trash-2', class: 'size-4' })]
+              [h(UIcon, { name: deleteAction.icon, class: 'size-4' })]
             )
-          ])
+          ]),
+          h(UDropdownMenu, { items: [moveActions.value, [deleteAction]], content: { align: 'end' } }, {
+            default: () => h('button', {
+              type: 'button',
+              class: 'node-more',
+              'aria-label': `${props.item.title || '未命名菜单'}的更多操作`
+            }, [h(UIcon, { name: 'i-lucide-ellipsis', class: 'size-4', 'aria-hidden': 'true' })])
+          })
         ]
       )
   }
@@ -442,6 +452,7 @@ const menus = ref<MenuGroup[]>([])
 const snapshot = ref('')
 const selectedMenuId = ref<number | null>(null)
 const expandedItemId = ref<number | null>(null)
+const openGroupIds = ref(new Set<number>())
 
 const itemForm = reactive({
   type: 'CUSTOM' as MenuItemType,
@@ -527,7 +538,7 @@ const treeItems = computed<TreeNode[]>(() => {
 const activeItem = computed(
   () =>
     selectedItems.value.find((item) => item.id === expandedItemId.value) ||
-    selectedItems.value[0] ||
+    treeItems.value[0]?.item ||
     null
 )
 const activeItemId = computed(() => activeItem.value?.id ?? null)
@@ -564,31 +575,48 @@ watch(
   { immediate: true }
 )
 
-function setMenus(value: MenuGroup[]) {
+function setMenus(value: MenuGroup[], preferredMenuId = selectedMenuId.value) {
   menus.value = sortMenus(structuredClone(value))
   snapshot.value = JSON.stringify(menus.value)
   markSaved()
-  selectedMenuId.value =
-    menus.value.find((menu) => menu.location === 'PRIMARY')?.id ?? menus.value[0]?.id ?? null
-  expandedItemId.value = selectedMenu.value?.items?.[0]?.id ?? null
+
+  const preferredMenu = menus.value.find((menu) => menu.id === preferredMenuId)
+  const menu = preferredMenu ?? menus.value.find((menu) => menu.location === 'PRIMARY') ?? menus.value[0]
+  selectedMenuId.value = menu?.id ?? null
+  if (!preferredMenu?.items.some((item) => item.id === expandedItemId.value)) {
+    expandedItemId.value = normalizeItems(menu?.items || []).find((item) => !item.parentId)?.id ?? null
+  }
+  openGroupIds.value = new Set(menus.value.flatMap(({ items }) =>
+    items.flatMap(({ parentId }) => parentId && isGroupOpen(parentId) ? [parentId] : [])
+  ))
 }
 
 function resetMenus() {
   if (!snapshot.value) return
-  menus.value = sortMenus(JSON.parse(snapshot.value))
-  markSaved()
-  selectedMenuId.value =
-    menus.value.find((menu) => menu.location === 'PRIMARY')?.id ?? menus.value[0]?.id ?? null
-  expandedItemId.value = selectedMenu.value?.items?.[0]?.id ?? null
+  setMenus(JSON.parse(snapshot.value))
 }
 
 function selectMenu(menu: MenuGroup) {
+  if (selectedMenuId.value === menu.id) return
   selectedMenuId.value = menu.id
-  expandedItemId.value = normalizeItems(menu.items || [])[0]?.id ?? null
+  expandedItemId.value = treeItems.value[0]?.item.id ?? null
 }
 
 function selectItem(item: MenuItem) {
   expandedItemId.value = item.id
+}
+
+function isGroupOpen(id: number | null) {
+  return id !== null && openGroupIds.value.has(id)
+}
+
+function toggleGroup(item: MenuItem) {
+  if (item.id === null) return
+  if (openGroupIds.value.delete(item.id)) {
+    if (activeItem.value?.parentId === item.id) selectItem(item)
+  } else {
+    openGroupIds.value.add(item.id)
+  }
 }
 
 function syncActiveItemType() {
@@ -735,6 +763,7 @@ function addChildMenuItem(parent: MenuItem) {
   }
 
   selectedMenu.value.items.push(item)
+  openGroupIds.value.add(parent.id)
   expandedItemId.value = item.id
 }
 
@@ -840,6 +869,7 @@ function duplicateItem(item: MenuItem) {
 
 function deleteMenuItem(id: number | null) {
   if (!selectedMenu.value) return
+  const deletedItem = selectedItems.value.find((item) => item.id === id)
   const childIds = selectedMenu.value.items
     .filter((item) => item.parentId === id)
     .map((item) => item.id)
@@ -847,11 +877,28 @@ function deleteMenuItem(id: number | null) {
     (item) => item.id !== id && !childIds.includes(item.id)
   )
   normalizeSort(null)
-  expandedItemId.value = selectedItems.value[0]?.id ?? null
+  if (id !== null) openGroupIds.value.delete(id)
+  if (!selectedItems.value.some((item) => item.id === expandedItemId.value)) {
+    expandedItemId.value = deletedItem?.parentId ?? treeItems.value[0]?.item.id ?? null
+  }
+}
+
+function findSavedItem(item: MenuItem, menu: MenuGroup, savedMenu: MenuGroup): MenuItem | undefined {
+  if (item.id !== null && item.id > 0) {
+    return savedMenu.items.find((saved) => saved.id === item.id)
+  }
+
+  // New items get IDs on save. Match them within the saved parent by title and position.
+  const parent = item.parentId ? menu.items.find((candidate) => candidate.id === item.parentId) : undefined
+  const parentId = parent ? findSavedItem(parent, menu, savedMenu)?.id : null
+  return savedMenu.items.find((saved) =>
+    (saved.parentId ?? null) === parentId && saved.sort === item.sort && saved.title === item.title.trim()
+  )
 }
 
 async function saveMenus() {
   if (saving.value || menuLoadError.value) return
+  const selectedMenuIndex = menus.value.findIndex((menu) => menu.id === selectedMenuId.value)
   saving.value = true
   try {
     const saved = await $fetch<ApiResult<MenuGroup[]>>('/api/admin/menus', {
@@ -877,7 +924,21 @@ async function saveMenus() {
         }))
       }))
     })
-    setMenus(saved.data)
+    // The API returns menus in request order, including menus assigned a new ID.
+    const savedMenu = saved.data[selectedMenuIndex]
+    const currentMenu = selectedMenu.value
+    if (savedMenu && currentMenu && activeItem.value) {
+      expandedItemId.value = findSavedItem(activeItem.value, currentMenu, savedMenu)?.id ?? null
+    }
+    openGroupIds.value = new Set(menus.value.flatMap((menu, index) => {
+      const savedGroup = saved.data[index]
+      if (!savedGroup) return []
+      return menu.items.flatMap((item) => {
+        const id = isGroupOpen(item.id) ? findSavedItem(item, menu, savedGroup)?.id : null
+        return id == null ? [] : [id]
+      })
+    }))
+    setMenus(saved.data, savedMenu?.id)
     toast.add({ id: 'menus-save', title: '菜单已保存', color: 'success' })
   } catch (error: unknown) {
     toast.add({
@@ -1093,12 +1154,11 @@ function createTempId() {
 .menu-node {
   position: relative;
   min-height: 3.5rem;
-  gap: 0.75rem;
+  gap: 0.5rem;
   border: 1px solid #e4e7ec;
   border-radius: 0.65rem;
   background: #fff;
   padding: 0 1rem;
-  cursor: pointer;
   transition:
     border-color 0.2s ease,
     background 0.2s ease,
@@ -1156,6 +1216,9 @@ function createTempId() {
 }
 
 .node-grip,
+button.node-fold,
+.node-add-child,
+.node-more,
 .node-tools button {
   display: grid;
   place-items: center;
@@ -1177,18 +1240,60 @@ function createTempId() {
 }
 
 .node-grip:hover,
+.node-add-child:hover,
+.node-more:hover,
+.node-more[aria-expanded='true'],
+button.node-fold:hover,
 .node-tools button:hover:not(:disabled) {
   background: #f1f5f9;
   color: #6554c0;
 }
 
-.node-fold {
-  display: grid;
-  width: 1rem;
-  height: 1.5rem;
+.node-fold,
+.node-add-child {
+  width: 2rem;
+  height: 2rem;
   flex: 0 0 auto;
-  place-items: center;
-  color: #64748b;
+}
+
+button.node-fold[aria-expanded='true'] {
+  background: #efedf8;
+  color: #5142a6;
+}
+
+.node-fold > span {
+  transition: transform 160ms ease;
+}
+
+.node-fold[aria-expanded='true'] > span {
+  transform: rotate(90deg);
+}
+
+.node-add-child {
+  background: #f8fafc;
+}
+
+.node-select {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  gap: 0.625rem;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.375rem 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.node-fold:focus-visible,
+.node-select:focus-visible,
+.node-add-child:focus-visible,
+.node-more:focus-visible {
+  outline: 2px solid #6554c0;
+  outline-offset: 2px;
 }
 
 .node-icon {
@@ -1217,10 +1322,30 @@ function createTempId() {
 
 .node-content strong {
   display: block;
+  overflow: hidden;
   color: #202633;
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.node-child-count {
+  flex: none;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  background: #f1f0f8;
+  color: #5f5481;
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
 }
 
 .node-content small {
@@ -1244,15 +1369,11 @@ function createTempId() {
 }
 
 .node-tools {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
   display: flex;
   align-items: center;
   gap: 0.25rem;
   opacity: 0;
   pointer-events: none;
-  transform: translateY(-50%);
   transition: opacity 0.2s ease;
 }
 
@@ -1283,6 +1404,11 @@ function createTempId() {
   cursor: not-allowed;
 }
 
+.node-more,
+.menu-mobile-hint {
+  display: none;
+}
+
 .menu-child-area {
   position: relative;
   display: grid;
@@ -1291,7 +1417,6 @@ function createTempId() {
   padding-left: 2rem;
 }
 
-/* 垂直连接线，底部渐变淡出 */
 .menu-child-area::before {
   position: absolute;
   left: 0.5rem;
@@ -1299,7 +1424,7 @@ function createTempId() {
   bottom: 1.5rem;
   width: 2px;
   border-radius: 1px;
-  background: #fff;
+  background: #dbe4ff;
   content: '';
 }
 
@@ -1597,17 +1722,56 @@ function createTempId() {
   }
 
   .menu-node {
-    flex-wrap: wrap;
-    padding: 0.75rem;
+    min-height: 3.25rem;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
   }
 
-  .node-tools {
-    position: static;
-    width: 100%;
-    justify-content: flex-end;
-    opacity: 1;
-    pointer-events: auto;
-    transform: none;
+  .menu-node.is-child {
+    min-height: 3.25rem;
+  }
+
+  .menu-node > .admin-drag-handle,
+  .node-tools,
+  .node-content small,
+  .menu-node.is-child > .node-fold,
+  .menu-desktop-hint {
+    display: none;
+  }
+
+  .menu-mobile-hint {
+    display: inline;
+  }
+
+  .node-fold,
+  .node-add-child,
+  .node-more {
+    width: 2.25rem;
+    height: 2.5rem;
+  }
+
+  .node-more {
+    display: grid;
+    flex: none;
+  }
+
+  .node-select,
+  .node-heading {
+    gap: 0.375rem;
+  }
+
+  .menu-child-area {
+    margin-left: 0.875rem;
+    padding-left: 0.875rem;
+  }
+
+  .menu-child-area::before {
+    left: 0;
+  }
+
+  .menu-node.is-child::before {
+    left: -0.9375rem;
+    width: 0.625rem;
   }
 
   .icon-preset-grid {
@@ -1742,6 +1906,11 @@ function createTempId() {
     position: static;
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .node-fold > span {
+    transition: none;
+  }
+}
 @media (max-width: 640px) {
   .menu-live-preview {
     padding: 16px;
@@ -1761,14 +1930,6 @@ function createTempId() {
   pointer-events: auto;
 }
 @media (max-width: 760px) {
-  .admin-shell .menu-node .node-tools {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .admin-shell .menu-node .node-tools button {
-    color: #697386;
-    background: #fff;
-  }
   .admin-shell .menu-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

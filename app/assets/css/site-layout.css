@@ -1471,19 +1471,11 @@ html:has(.site-search-modal[open]) {
 .footer-registration {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   width: fit-content;
   max-width: 100%;
   min-height: 24px;
   line-height: 1.6;
   overflow-wrap: anywhere;
-}
-
-.footer-registration svg {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  opacity: .75;
 }
 
 .footer-bottom a {

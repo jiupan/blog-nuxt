@@ -82,8 +82,7 @@
             </template>
           </p>
           <a v-if="registrationNumber" class="footer-registration" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">
-            <FileBadgeIcon aria-hidden="true" />
-            <span>{{ registrationNumber }}</span>
+            {{ registrationNumber }}
           </a>
         </div>
         <nav v-if="footerBottomLinks.length" aria-label="页脚辅助导航">
@@ -96,7 +95,6 @@
 
 <script setup lang="ts">
 import type { FooterActionLink, FooterCopyrightPart, FooterGroup, FooterLink } from '~/composables/useSiteNavigation'
-import { FileBadge as FileBadgeIcon } from '@lucide/vue'
 import FooterMascot from './FooterMascot.vue'
 
 const props = defineProps<{

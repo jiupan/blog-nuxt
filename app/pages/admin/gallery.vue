@@ -662,9 +662,9 @@ async function uploadSelectedFiles(files: File[], collection: 'images' | 'covers
       await $fetch(url, { method: 'POST', body })
       uploadDone.value++
     }
-    regularPage.value = 1
-    coverPage.value = 1
-    memePage.value = 1
+    if (activeCollection.value === collection && (collection !== 'memes' || activeMemeGroup.value === group)) {
+      activePage.value = 1
+    }
     toast.add({ title: '上传完成', description: `已上传 ${files.length} 张图片`, color: 'success' })
   } catch (error: unknown) {
     toast.add({
