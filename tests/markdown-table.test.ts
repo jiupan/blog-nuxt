@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { renderMarkdown } from '../server/utils/markdown'
 
+it('renders body H1 headings as H2 and preserves anchors and the table of contents', async () => {
+  const { html, toc } = await renderMarkdown('# Title\n\n## Section\n\n### Detail\n\n```text\n# Code\n```')
+  expect(html).not.toMatch(/<h1\b/)
+  expect(html).toContain('<h2 id="title">Title</h2>')
+  expect(toc).toEqual([
+    { id: 'title', text: 'Title', level: 2 },
+    { id: 'section', text: 'Section', level: 2 },
+    { id: 'detail', text: 'Detail', level: 3 }
+  ])
+})
+
 describe('article table rendering', () => {
   it('keeps a semantic table with its complete data inside a focusable scroll region', async () => {
     const { html } = await renderMarkdown('| 模式 | 数量 |\n| :--- | ---: |\n| off | 1 |\n| auto | 2 |')

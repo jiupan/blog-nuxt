@@ -30,7 +30,6 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
       'del',
       'figcaption',
       'figure',
-      'h1',
       'h2',
       'h3',
       'h4',
@@ -52,7 +51,6 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
       a: ['href', 'name', 'target', 'rel'],
       code: ['class', 'style'],
       div: ['class', 'tabindex', 'role', 'aria-label'],
-      h1: ['id'],
       h2: ['id'],
       h3: ['id'],
       h4: ['id'],
@@ -66,6 +64,7 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
     },
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
     transformTags: {
+      h1: 'h2',
       a: sanitizeHtml.simpleTransform('a', { rel: 'nofollow noopener noreferrer', target: '_blank' }),
       img: sanitizeHtml.simpleTransform('img', { loading: 'lazy', decoding: 'async' })
     }
@@ -111,7 +110,7 @@ function createMarkdownRenderer(slugger: Slugger, toc: RenderedMarkdown['toc']) 
     if (!token) {
       return ''
     }
-    const level = Number(token.tag.replace('h', ''))
+    const level = Math.max(2, Number(token.tag.replace('h', '')))
     const text = nextToken?.content || ''
     const id = slugger.slug(text)
 
