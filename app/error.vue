@@ -26,7 +26,7 @@
               <UIcon name="i-lucide-arrow-left" class="size-4" />
               返回首页
             </button>
-            <button type="button" class="secondary-action" @click="goTo('/posts')">
+            <button type="button" class="secondary-action" @click="goTo('/archive')">
               阅读最新文章
               <UIcon name="i-lucide-arrow-right" class="size-4" />
             </button>

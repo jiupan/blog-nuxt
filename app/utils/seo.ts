@@ -22,14 +22,14 @@ export function canonicalSiteUrl(
   url.search = ''
   url.hash = ''
   const listing =
-    /^\/(posts|archive)?\/?$/.test(url.pathname) ||
+    /^\/(archive)?\/?$/.test(url.pathname) ||
     /^\/(categories|tags)\/[^/]+\/?$/.test(url.pathname)
   const page = seoPage(query.page)
   if (listing && page > 1) url.searchParams.set('page', String(page))
   const keys =
-    url.pathname === '/posts'
-      ? ['keyword']
-      : ['/', '/archive'].includes(url.pathname)
+    /^\/archive\/?$/.test(url.pathname)
+      ? ['category', 'year', 'keyword']
+      : url.pathname === '/'
         ? ['category', 'year']
         : []
   for (const key of keys) {

@@ -19,3 +19,16 @@ export function parseFooterBottomLinks(value: string) {
     })
     .filter(link => link.label && isPublicFooterLink(link.to))
 }
+
+export function mergeFooterArchiveLinks<T extends { to: string }>(links: T[]) {
+  const archiveLink = links.find(link => /^\/archive\/?$/.test(link.to))
+    ?? links.find(link => /^\/posts\/?$/.test(link.to))
+  return links.flatMap((link) => {
+    if (link === archiveLink) return [{ ...link, to: '/archive' }]
+    return /^\/(posts|archive)\/?$/.test(link.to) ? [] : [{ ...link, to: publicArchivePath(link.to) }]
+  })
+}
+
+export function publicArchivePath(path: string) {
+  return path.replace(/^\/posts\/?(?=[?#]|$)/, '/archive')
+}

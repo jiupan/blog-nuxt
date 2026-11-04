@@ -9,8 +9,8 @@ describe('public SEO URLs', () => {
     expect(canonicalSiteUrl('/categories/ai', { page: '2', utm_source: 'share' }, base)).toBe(
       base + '/categories/ai?page=2'
     )
-    expect(canonicalSiteUrl('/posts#heading', { page: '1', keyword: 'Nuxt' }, base)).toBe(
-      base + '/posts?keyword=Nuxt'
+    expect(canonicalSiteUrl('/archive#heading', { page: '1', keyword: 'Nuxt' }, base)).toBe(
+      base + '/archive?keyword=Nuxt'
     )
   })
   it.each(['0', '-2', '1.5', 'abc', 'Infinity', '999999999999999999999'])(

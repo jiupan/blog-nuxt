@@ -293,7 +293,7 @@
             <UTextarea
               v-model="form.footer_bottom_links"
               :rows="5"
-              placeholder="文章|/posts&#10;归档|/archive&#10;关于|/about"
+              placeholder="归档|/archive&#10;关于|/about"
               class="settings-control"
             />
             <p class="text-sm text-slate-500">
@@ -857,7 +857,7 @@ const defaultValue = (key: string) => {
     seo_description: '',
     footer_copyright: '©2026 {siteName}',
     footer_icp: '',
-    footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about',
+    footer_bottom_links: '归档|/archive\n关于|/about',
     footer_actions: defaultFooterActions,
     ai_api_key: '',
     ai_base_url: 'https://api.deepseek.com',
@@ -907,7 +907,7 @@ const aiSettingTabs = [
 ] as const
 
 const defaultFooterActions =
-  '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]'
+  '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]'
 
 const footerActionIconOptions = [
   { label: 'QQ', name: 'i-simple-icons-qq' },

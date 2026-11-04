@@ -48,7 +48,7 @@
           </NuxtLink>
         </nav>
 
-        <NuxtLink to="/posts" class="posts-link">
+        <NuxtLink to="/archive" class="posts-link">
           浏览文章
           <Icon name="i-lucide-external-link" aria-hidden="true" />
         </NuxtLink>

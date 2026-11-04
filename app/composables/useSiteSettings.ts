@@ -45,8 +45,8 @@ const defaults: SiteSettings = {
   seo_description: '',
   footer_copyright: '©2026 {siteName}',
   footer_icp: '',
-  footer_bottom_links: '文章|/posts\n归档|/archive\n关于|/about',
-  footer_actions: '[{"label":"文章","to":"/posts","icon":"i-lucide-library"},{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"全部文章","to":"/posts","icon":"i-lucide-newspaper"},{"label":"时间线","to":"/archive","icon":"i-lucide-clock-3"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]'
+  footer_bottom_links: '归档|/archive\n关于|/about',
+  footer_actions: '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]'
 }
 
 export function useSiteSettings() {

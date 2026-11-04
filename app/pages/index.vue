@@ -22,7 +22,7 @@
       </div>
 
       <div class="hero-board" :class="{ 'has-no-posts': !latest }" data-page-enter style="--page-enter-order: 0">
-        <NuxtLink :to="currentHeroPost ? postPath(currentHeroPost.slug) : '/posts'" class="hero-main">
+        <NuxtLink :to="currentHeroPost ? postPath(currentHeroPost.slug) : '/archive'" class="hero-main">
           <Transition name="hero-fade">
             <img
               :key="heroTransitionKey"

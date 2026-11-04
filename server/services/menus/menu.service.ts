@@ -151,8 +151,7 @@ export function defaultPrimaryMenu() {
     location: 'PRIMARY' as const,
     isActive: true,
     items: [
-      { id: -11, parentId: null, title: '文库', url: '/posts', type: 'CUSTOM' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 0, isVisible: true },
-      { id: -12, parentId: null, title: '专栏', url: '/archive', type: 'ARCHIVE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 1, isVisible: true },
+      { id: -12, parentId: null, title: '归档', url: '/archive', type: 'ARCHIVE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 1, isVisible: true },
       { id: -13, parentId: null, title: '友链', url: '/link', type: 'PAGE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 2, isVisible: true },
       { id: -14, parentId: null, title: '我的', url: '/about', type: 'PAGE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 3, isVisible: true }
     ]
@@ -170,7 +169,6 @@ export function defaultFooterMenu() {
     items: [
       { id: -21, parentId: null, title: '导航', url: null, type: 'CUSTOM' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 0, isVisible: true },
       { id: -22, parentId: -21, title: '首页', url: '/', type: 'HOME' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 0, isVisible: true },
-      { id: -23, parentId: -21, title: '文章', url: '/posts', type: 'CUSTOM' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 1, isVisible: true },
       { id: -24, parentId: -21, title: '归档', url: '/archive', type: 'ARCHIVE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 2, isVisible: true },
       { id: -25, parentId: -21, title: '关于', url: '/about', type: 'PAGE' as const, targetId: null, targetSlug: 'about', targetBlank: false, badge: '', icon: '', sort: 3, isVisible: true },
       { id: -26, parentId: null, title: '分类', url: null, type: 'CATEGORY' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 1, isVisible: true },

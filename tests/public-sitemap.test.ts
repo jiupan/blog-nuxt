@@ -22,6 +22,8 @@ it('publishes only public content and populated taxonomy URLs', async () => {
     sitemapHandler as unknown as () => Promise<{ loc: string; lastmod?: string }[]>
   )()
   expect(urls).toContainEqual({ loc: '/article-one.html', lastmod: '2026-11-02T01:00:00Z' })
+  expect(urls.map(item => item.loc)).toContain('/archive')
+  expect(urls.map(item => item.loc)).not.toContain('/posts')
   expect(urls.map((item) => item.loc)).toContain('/categories/AI%20%E5%B7%A5%E7%A8%8B')
   expect(urls.map((item) => item.loc)).toContain('/tags/nuxt')
   expect(urls.some((item) => /admin|login|register|empty|resume-print/.test(item.loc))).toBe(false)

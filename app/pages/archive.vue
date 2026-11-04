@@ -38,6 +38,7 @@
                 {{ filter.label }}
               </button>
             </nav>
+            <p v-if="activeKeyword" class="archive-search-filter">搜索关键词「{{ activeKeyword }}」</p>
           </section>
 
           <div class="archive-results" :aria-busy="listPending" data-page-enter style="--page-enter-order: 1">
@@ -89,12 +90,14 @@ const siteSettings = useSiteSettings()
 const route = useRoute()
 const activeCategory = computed(() => typeof route.query.category === 'string' ? `category:${route.query.category}` : 'all')
 const activeYear = computed(() => typeof route.query.year === 'string' ? route.query.year : 'all')
+const activeKeyword = computed(() => typeof route.query.keyword === 'string' ? route.query.keyword.trim() : '')
 const pageSize = 10
 const { currentPage, pageTo } = usePublicPagination()
 
 const archiveQuery = computed(() => ({
   page: currentPage.value,
   pageSize,
+  keyword: activeKeyword.value || undefined,
   category: activeCategory.value.startsWith('category:') ? activeCategory.value.slice('category:'.length) : undefined,
   year: activeYear.value === 'all' ? undefined : activeYear.value
 }))
@@ -126,7 +129,7 @@ const yearFilters = computed(() => [
   ...(data.value?.data.years || []).map(String)
 ])
 
-const hasFilters = computed(() => activeCategory.value !== 'all' || activeYear.value !== 'all')
+const hasFilters = computed(() => activeCategory.value !== 'all' || activeYear.value !== 'all' || Boolean(activeKeyword.value))
 
 const totalPages = computed(() => Math.ceil((data.value?.data.total || 0) / pageSize))
 
@@ -146,7 +149,7 @@ function onYearChange(event: Event) {
 }
 
 function resetFilters() {
-  void navigateTo({ path: route.path, query: { ...route.query, category: undefined, year: undefined, page: undefined } })
+  void navigateTo({ path: route.path, query: { ...route.query, category: undefined, year: undefined, keyword: undefined, page: undefined } })
 }
 
 
@@ -211,6 +214,7 @@ useSeoMeta({
 .archive-loading-indicator { width: 12px; height: 12px; flex: 0 0 12px; border: 1.5px solid transparent; border-radius: 50%; }
 .archive-loading-indicator.is-loading { border-color: color-mix(in srgb, var(--theme-accent) 18%, transparent); border-top-color: var(--theme-accent); animation: archive-loading-spin 800ms linear infinite; }
 .archive-filter-tools { flex-shrink: 0; gap: 18px; }
+.archive-search-filter { margin: 12px 0 0; color: var(--theme-text-muted); font-size: 13px; overflow-wrap: anywhere; }
 .archive-year-picker { position: relative; display: block; width: 104px; border-radius: 6px; }
 .archive-year-picker select { display: block; width: 100%; appearance: none; border: 0; border-radius: inherit; background: transparent; padding: 8px 22px 8px 0; color: var(--theme-text-muted); font: inherit; font-size: 13px; line-height: 20px; text-align: right; cursor: pointer; }
 .archive-year-picker select:hover { color: var(--theme-accent); }

@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { isPublicFooterLink, parseFooterBottomLinks } from '~/utils/footer-links'
+import { isPublicFooterLink, mergeFooterArchiveLinks, parseFooterBottomLinks, publicArchivePath } from '~/utils/footer-links'
 import type { ApiResult } from '~~/types/api'
 import type { MenuGroup as ApiMenuGroup, MenuItem as ApiMenuItem } from '~~/types/dto/menu'
 import type { PublicPostListPayload } from '~~/types/dto/post'
@@ -144,11 +144,19 @@ export async function useSiteNavigation() {
   const cloudTags = computed(() => tags.value.slice(0, 12))
   const primaryMenuItems = computed<MenuTreeItem[]>(() => {
     const items = (menuData.value?.data?.items || []).slice().sort((a, b) => a.sort - b.sort)
-    return items
+    const roots = items
       .filter((item) => !item.parentId)
       .map((item) => ({
         ...item,
         children: items.filter((child) => child.parentId === item.id)
+      }))
+    const hasArchive = roots.some(item => /^\/archive\/?$/.test(item.url || resolveFooterItemPath(item)))
+    return roots
+      .filter(item => !hasArchive || item.children.length || !/^\/posts\/?$/.test(item.url || ''))
+      .map(item => ({
+        ...item,
+        url: publicArchivePath(item.url || resolveFooterItemPath(item)),
+        children: item.children.map(child => ({ ...child, url: publicArchivePath(child.url || resolveFooterItemPath(child)) }))
       }))
   })
   const mobileMenuItems = computed<MobileMenuItem[]>(() => {
@@ -156,7 +164,7 @@ export async function useSiteNavigation() {
       const root = {
         key: `root-${item.id}`,
         title: item.title,
-        to: item.url || resolveMenuItemPath(item),
+        to: item.url || '/',
         icon: item.icon || undefined,
         fallbackIcon: iconForMenuItem(item),
         targetBlank: item.targetBlank
@@ -165,7 +173,7 @@ export async function useSiteNavigation() {
       const children = item.children.map((child) => ({
         key: `child-${child.id}`,
         title: child.title,
-        to: child.url || resolveMenuItemPath(child),
+        to: child.url || '/',
         icon: child.icon || undefined,
         fallbackIcon: iconForMenuItem(child),
         targetBlank: child.targetBlank
@@ -183,15 +191,15 @@ export async function useSiteNavigation() {
         const children = items.filter((item) => item.parentId === root.id)
         return {
           title: root.title,
-          links: footerLinksFor(root, children, categories.value, tags.value).filter(link => isPublicFooterLink(link.to))
+          links: mergeFooterArchiveLinks(footerLinksFor(root, children, categories.value, tags.value).filter(link => isPublicFooterLink(link.to)))
         }
       })
       .filter((group) => group.links.length)
   })
 
   const footerCopyrightParts = computed(() => parseFooterCopyright(siteSettings.value.footer_copyright))
-  const footerBottomLinks = computed(() => parseFooterBottomLinks(siteSettings.value.footer_bottom_links))
-  const footerActionLinks = computed(() => parseFooterActions(siteSettings.value.footer_actions).filter(link => isPublicFooterLink(link.to)))
+  const footerBottomLinks = computed(() => mergeFooterArchiveLinks(parseFooterBottomLinks(siteSettings.value.footer_bottom_links)))
+  const footerActionLinks = computed(() => mergeFooterArchiveLinks(parseFooterActions(siteSettings.value.footer_actions).filter(link => isPublicFooterLink(link.to))))
   const footerActionLeft = computed(() => footerActionLinks.value.slice(0, Math.ceil(footerActionLinks.value.length / 2)))
   const footerActionRight = computed(() => footerActionLinks.value.slice(Math.ceil(footerActionLinks.value.length / 2)))
   const isArticleRoute = computed(() => route.name === 'slug')
@@ -200,12 +208,8 @@ export async function useSiteNavigation() {
       return layoutScrollTitle.value || '文章'
     }
 
-    if (route.path.startsWith('/posts')) {
-      return '文库'
-    }
-
-    if (route.path.startsWith('/archive')) {
-      return '专栏'
+    if (/^\/archive\/?$/.test(route.path)) {
+      return '文章归档'
     }
 
     if (route.path.startsWith('/link')) {
@@ -314,10 +318,6 @@ function resolveFooterItemPath(item: MenuItem) {
   return '/'
 }
 
-function resolveMenuItemPath(item: MenuItem) {
-  return resolveFooterItemPath(item)
-}
-
 function iconForMenuItem(item: MenuItem) {
   if (item.type === 'HOME') return 'i-lucide-house'
   if (item.type === 'ARCHIVE') return 'i-lucide-archive'
@@ -325,7 +325,6 @@ function iconForMenuItem(item: MenuItem) {
   if (item.type === 'TAG') return 'i-lucide-tag'
   if (item.type === 'POST') return 'i-lucide-newspaper'
   if (item.type === 'PAGE') return 'i-lucide-link'
-  if (item.url?.startsWith('/posts')) return 'i-lucide-library'
   if (item.url?.startsWith('/archive')) return 'i-lucide-archive'
   if (item.url === '/') return 'i-lucide-house'
   return 'i-lucide-link'
@@ -333,11 +332,8 @@ function iconForMenuItem(item: MenuItem) {
 
 function parseFooterActions(value: string) {
   const fallback = [
-    { label: '文章', to: '/posts', icon: 'i-lucide-library', image: '', targetBlank: false },
     { label: '归档', to: '/archive', icon: 'i-lucide-archive', image: '', targetBlank: false },
     { label: '我的', to: '/about', icon: 'i-lucide-user-round', image: '', targetBlank: false },
-    { label: '全部文章', to: '/posts', icon: 'i-lucide-newspaper', image: '', targetBlank: false },
-    { label: '时间线', to: '/archive', icon: 'i-lucide-clock-3', image: '', targetBlank: false },
     { label: '友链', to: '/link', icon: 'i-lucide-link', image: '', targetBlank: false }
   ]
 

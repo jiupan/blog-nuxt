@@ -45,6 +45,7 @@ describe('public archive query', () => {
       page: 2,
       pageSize: 10,
       category: 'engineering',
+      keyword: ' Nuxt ',
       year: 2025
     }))
 
@@ -53,6 +54,11 @@ describe('public archive query', () => {
       where: {
         status: 'PUBLISHED',
         category: { slug: 'engineering' },
+        OR: [
+          { title: { contains: 'Nuxt', mode: 'insensitive' } },
+          { summary: { contains: 'Nuxt', mode: 'insensitive' } },
+          { content: { contains: 'Nuxt', mode: 'insensitive' } }
+        ],
         publishedAt: {
           gte: new Date('2025-01-01T00:00:00.000Z'),
           lt: new Date('2026-01-01T00:00:00.000Z')

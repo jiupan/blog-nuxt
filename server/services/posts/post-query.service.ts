@@ -28,6 +28,7 @@ export const publicPostListQuerySchema = z.object({
 export const publicArchiveQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(10),
+  keyword: z.string().optional().default(''),
   category: z.string().optional().default(''),
   year: z.coerce.number().int().min(1970).max(9999).optional()
 })
@@ -49,19 +50,10 @@ export type AdminPostListQuery = z.infer<typeof adminPostListQuerySchema>
 export async function listPublicPosts(query: PublicPostListQuery) {
   const page = query.page
   const pageSize = query.pageSize
-  const keyword = query.keyword.trim()
   const category = query.category.trim()
   const tag = query.tag.trim()
   const where = buildPublishedPostWhere({
-    ...(keyword
-      ? {
-          OR: [
-            { title: { contains: keyword, mode: 'insensitive' } },
-            { summary: { contains: keyword, mode: 'insensitive' } },
-            { content: { contains: keyword, mode: 'insensitive' } }
-          ]
-        }
-      : {}),
+    ...publicPostKeywordFilter(query.keyword),
     ...(category ? { category: { slug: category } } : {}),
     ...(tag ? { tags: { some: { tag: { slug: tag } } } } : {})
   })
@@ -94,6 +86,7 @@ export async function listPublicArchive(query: PublicArchiveQuery) {
   const now = new Date()
   const category = query.category.trim()
   const where = buildPublishedPostWhere({
+    ...publicPostKeywordFilter(query.keyword),
     ...(category ? { category: { slug: category } } : {})
   }, now)
 
@@ -135,6 +128,18 @@ export async function listPublicArchive(query: PublicArchiveQuery) {
     page: query.page,
     pageSize: query.pageSize,
     years: yearRows.map(row => row.year)
+  }
+}
+
+function publicPostKeywordFilter(rawKeyword: string): Prisma.PostWhereInput {
+  const keyword = rawKeyword.trim()
+  if (!keyword) return {}
+  return {
+    OR: [
+      { title: { contains: keyword, mode: 'insensitive' } },
+      { summary: { contains: keyword, mode: 'insensitive' } },
+      { content: { contains: keyword, mode: 'insensitive' } }
+    ]
   }
 }
 

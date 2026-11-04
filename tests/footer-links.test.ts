@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isPublicFooterLink, parseFooterBottomLinks } from '../app/utils/footer-links'
+import { isPublicFooterLink, mergeFooterArchiveLinks, parseFooterBottomLinks } from '../app/utils/footer-links'
 
 describe('public footer links', () => {
   it('hides legacy admin entries including absolute URLs and query strings', () => {
@@ -24,5 +24,18 @@ describe('public footer links', () => {
   it('allows the owner to clear all auxiliary links', () => {
     expect(parseFooterBottomLinks('')).toEqual([])
     expect(parseFooterBottomLinks(' \n\n ')).toEqual([])
+  })
+
+  it('merges old listing shortcuts while preserving filtered links', () => {
+    expect(mergeFooterArchiveLinks(parseFooterBottomLinks(
+      '文章|/posts\n归档|/archive/\n时间线|/archive\nNuxt|/posts?keyword=Nuxt&page=2\n关于|/about'
+    ))).toEqual([
+      { label: '归档', to: '/archive' },
+      { label: 'Nuxt', to: '/archive?keyword=Nuxt&page=2' },
+      { label: '关于', to: '/about' }
+    ])
+    expect(mergeFooterArchiveLinks([{ label: '文章', to: '/posts' }])).toEqual([
+      { label: '文章', to: '/archive' }
+    ])
   })
 })

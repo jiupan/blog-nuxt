@@ -43,7 +43,7 @@
             <span><UIcon :name="kind === 'category' ? 'i-lucide-folder-open' : 'i-lucide-tags'" class="size-7" /></span>
             <strong>暂无相关文章</strong>
             <p>可以浏览其他{{ kind === 'category' ? '分类' : '标签' }}，或者返回全部文章。</p>
-            <NuxtLink to="/posts">浏览全部文章</NuxtLink>
+            <NuxtLink to="/archive">浏览全部文章</NuxtLink>
           </div>
 
           <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
