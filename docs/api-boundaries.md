@@ -28,6 +28,7 @@
 ```
 
 前端统一通过 `app/utils/api-error.ts` 读取错误状态、错误 code 和用户可见文案。
+请求参数使用 `parseRequest(schema, input)` 校验。校验失败返回 HTTP 400，`data.code` 为 `VALIDATION_ERROR`，`data.issues` 包含字段路径与消息。
 
 ## 命名和权限规则
 
@@ -36,9 +37,12 @@
 | `/api/admin/**` | 必须调用 `requireAdmin(event)` | 可访问后台管理数据 | 后台页面只能作为体验层保护，服务端 `requireAdmin()` 是真正边界 |
 | `/api/ai/**` | 必须通过 `withAiUsage(event, feature, handler)` | 只能读取已发布文章或公开索引 | 登录、频率限制和使用额度都由 `withAiUsage()` 处理 |
 | `/api/admin/ai/**` | 必须调用 `requireAdmin(event)` | 可读取草稿、后台统计和索引状态 | 后台 AI 工具不走普通用户额度 |
-| `/api/posts/**` | 公开 | 只返回已发布且 `publishedAt <= now` 的文章 | 公开筛选条件集中在 `buildPublishedPostWhere()` |
+| `/api/agent/**` | 必须调用 `requireAgentToken(event)` | 授权的文章发布、图片上传和分类标签读取 | 使用独立的 Bearer 密钥，密钥管理走 `/api/admin/agent/**` |
+| `/api/resumes/**` | 必须调用 `requireUser(event)` | 简历列表和编辑按当前用户隔离，导出使用当前请求提交的简历 | PDF 导出由登录用户发起 |
+| `/api/posts/**`、`/api/archive` | 公开 | 文章列表和详情只返回已发布且 `publishedAt <= now` 的文章 | 公开筛选条件集中在 `buildPublishedPostWhere()`，文章对话另按登录用户或匿名会话隔离 |
 | `/api/categories`、`/api/tags` | 公开 | 只统计已发布文章 | 计数口径复用公开文章筛选 |
 | `/api/menus/**`、`/api/settings` | 公开 | 只返回前台展示需要的数据 | 后台编辑走 `/api/admin/**` |
+| `/api/gallery/memes` | 公开 | 公开的表情包索引 | 支持按组筛选 |
 | `/api/auth/**` | 按接口语义 | 登录、注册、登出、当前用户 | 登录和注册有内存级限流 |
 | `/uploads/**` | 公开静态资源 | 只读取上传目录下文件 | 非 JSON API，保留普通文件 404 |
 

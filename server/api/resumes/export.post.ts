@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { requireUser } from '~~/server/utils/auth'
 import { saveResumeSchema } from '~~/server/services/resumes/resume.schema'
 import {
@@ -7,13 +8,15 @@ import {
 import { withPdfPage } from '~~/server/services/resume-export/pdf-browser.service'
 
 function safePdfFileName(title: string) {
+  // Strip control characters before using the filename in a response header.
+  // eslint-disable-next-line no-control-regex
   const normalized = title.trim().replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
   return normalized || 'resume'
 }
 
 export default defineEventHandler(async (event) => {
   await requireUser(event)
-  const resume = saveResumeSchema.parse(await readBody(event))
+  const resume = parseRequest(saveResumeSchema, await readBody(event))
   const port = process.env.PORT || '3000'
 
   const pdf = await withPdfPage(async (page) => {
@@ -29,7 +32,7 @@ export default defineEventHandler(async (event) => {
         state: 'visible',
         timeout: 15_000
       })
-      await page.evaluate(() => document.fonts.ready.then(() => undefined))
+      await page.evaluate('document.fonts.ready.then(() => undefined)')
 
       return page.pdf({
         format: 'A4',

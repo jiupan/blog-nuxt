@@ -1,0 +1,19 @@
+.taxonomy-create-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.taxonomy-create-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .taxonomy-create-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+}

@@ -26,12 +26,3 @@ export type MenuGroup = {
   isActive?: boolean
   items: MenuItem[]
 }
-
-export type SaveMenuItemRequest = Omit<MenuItem, 'id'> & {
-  id?: number | null
-}
-
-export type SaveMenuRequest = Omit<MenuGroup, 'id' | 'items'> & {
-  id?: number | null
-  items: SaveMenuItemRequest[]
-}

@@ -49,7 +49,7 @@ describe('public archive query', () => {
       year: 2025
     }))
 
-    const itemQuery = prismaMock.post.findMany.mock.calls[0][0]
+    const itemQuery = prismaMock.post.findMany.mock.calls[0]![0]
     expect(itemQuery).toMatchObject({
       where: {
         status: 'PUBLISHED',

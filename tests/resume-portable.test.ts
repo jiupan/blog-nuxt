@@ -81,9 +81,9 @@ describe('portable resume JSON', () => {
 
   it('defaults older portable files to the classic template', () => {
     const portable = createPortableResume(sampleResume())
-    delete portable.layout.template
+    const { template: _template, ...legacyLayout } = portable.layout
 
-    expect(parsePortableResume(portable).layout.template).toBe('classic')
+    expect(parsePortableResume({ ...portable, layout: legacyLayout }).layout.template).toBe('classic')
   })
 
   it('fills missing IDs and replaces duplicate IDs from AI edits', () => {

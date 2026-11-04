@@ -100,7 +100,7 @@ describe('Agent credentials', () => {
     const second = await createAgentKey('Laptop', 1, encryptionSecret)
     expect(first.token).toMatch(/^blog_agent_[A-Za-z0-9_-]{43}$/)
     expect(second.token).not.toBe(first.token)
-    const call = db.agentApiKey.create.mock.calls[0][0]
+    const call = db.agentApiKey.create.mock.calls[0]![0]
     expect(call.data.tokenHash).toBe(hashAgentToken(first.token))
     expect(JSON.stringify(call.data)).not.toContain(first.token)
     expect(decryptAgentToken(call.data.encryptedToken, call.data.tokenHash, encryptionSecret)).toBe(
@@ -109,7 +109,7 @@ describe('Agent credentials', () => {
     expect(first.key.canCopy).toBe(true)
     expect(call.select).not.toHaveProperty('tokenHash')
     await listAgentKeys()
-    expect(db.agentApiKey.findMany.mock.calls[0][0].select).not.toHaveProperty('tokenHash')
+    expect(db.agentApiKey.findMany.mock.calls[0]![0].select).not.toHaveProperty('tokenHash')
   })
   it('lists copy availability without exposing ciphertext or token hashes', async () => {
     db.agentApiKey.findMany.mockResolvedValue([
@@ -154,7 +154,7 @@ describe('Agent credentials', () => {
     db.agentApiKey.findUnique.mockResolvedValue({ ...validKey, id: 999, encryptedToken: null })
     db.agentApiKey.update.mockResolvedValue({})
     await requireAgentToken({} as never)
-    const { encryptedToken } = db.agentApiKey.update.mock.calls[0][0].data
+    const { encryptedToken } = db.agentApiKey.update.mock.calls[0]![0].data
     expect(decryptAgentToken(encryptedToken, hashAgentToken(token), encryptionSecret)).toBe(token)
   })
   it.each([undefined, '', 'Basic aaa', 'Bearer invalid', 'Bearer blog_agent_short'])(
@@ -332,7 +332,7 @@ describe('Agent atomic publication', () => {
   it('retains a failure record without exposing internal errors, and retries that record', async () => {
     createPost.mockRejectedValueOnce(new Error('database internal details'))
     await expect(publishAgentPost(77, input())).rejects.toThrow('database internal details')
-    expect(db.agentPublication.upsert.mock.calls[0][0].create.error).not.toContain('internal')
+    expect(db.agentPublication.upsert.mock.calls[0]![0].create.error).not.toContain('internal')
     tx.agentPublication.findUnique.mockResolvedValue({
       id: 9,
       status: 'FAILED',

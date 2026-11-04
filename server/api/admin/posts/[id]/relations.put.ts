@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
-import { badRequest } from '~~/server/utils/api-error'
+import { badRequest, parseRequest } from '~~/server/utils/api-error'
 import { relationSources, relationTypes, savePostRelations } from '~~/server/services/related-posts/relation.service'
 
 const bodySchema = z.object({
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     throw badRequest('文章 ID 不正确')
   }
 
-  const body = bodySchema.parse(await readBody(event))
+  const body = parseRequest(bodySchema, await readBody(event))
   const relations = await savePostRelations(postId, body.items)
 
   return ok(relations, '关联文章已保存')

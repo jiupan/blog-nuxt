@@ -61,6 +61,10 @@ export async function usePostForm(options: UsePostFormOptions) {
   })
 
   const relationItems = ref<PostRelationItem[]>([])
+  const { isDirty, markSaved } = useAdminUnsavedChanges(
+    () => ({ form, relations: relationItems.value }),
+    '有尚未保存的修改，确定离开编辑器吗？'
+  )
   const writingAssistantResult = ref<WritingAssistantResult | null>(null)
   const seoCheckResult = ref<SeoCheckResult | null>(null)
   const { data: categoryData, refresh: refreshCategories } = await useFetch<{ data: TaxonomyItem[] }>('/api/admin/categories')
@@ -94,10 +98,8 @@ export async function usePostForm(options: UsePostFormOptions) {
     }
   }
 
-  const serialize = () => JSON.stringify({ form, relations: relationItems.value })
-  const savedSnapshot = ref(serialize())
+  markSaved()
   const savedAt = ref('')
-  const isDirty = computed(() => serialize() !== savedSnapshot.value)
   const listPath = useState('admin-post-list-path', () => '/admin/posts')
 
   async function save(status: PostStatus) {
@@ -118,7 +120,7 @@ export async function usePostForm(options: UsePostFormOptions) {
       const body = {
         ...form,
         status,
-        slug: form.slug
+        tagIds: [...form.tagIds]
       }
       const relations = relationItems.value.map(item => ({ ...item }))
       const snapshot = JSON.stringify({ form: body, relations })
@@ -131,7 +133,7 @@ export async function usePostForm(options: UsePostFormOptions) {
       }
 
       form.status = status
-      savedSnapshot.value = snapshot
+      markSaved(snapshot)
       savedAt.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 
       toast.add({
@@ -741,6 +743,7 @@ export async function usePostForm(options: UsePostFormOptions) {
     loadError,
     isDirty,
     savedAt,
+    listPath,
     generatingSummary,
     summaryGenerated,
     generatingSeoMeta,

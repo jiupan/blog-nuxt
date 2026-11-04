@@ -142,7 +142,7 @@ NUXT_PUBLIC_TWIKOO_ENV_ID="http://localhost:8080"
 docker compose up -d postgres twikoo
 ```
 
-默认会启动 PostgreSQL 16 + pgvector 和 Twikoo，本地端口分别为 `5432` 与 `8080`。
+默认会启动 PostgreSQL 16 + pgvector 和 Twikoo，本地端口分别为 `127.0.0.1:5432` 与 `8080`。如果也通过 Compose 启动 `app`，请先在 `.env` 中设置随机的 `NUXT_SESSION_PASSWORD`。
 
 ### 4. 初始化数据库
 
@@ -194,6 +194,10 @@ AI_RERANK_TOP_N="8"
 
 > [!NOTE]
 > Embedding 维度必须与数据库中的 `vector(1536)` 保持一致。配置完成后，可在后台知识库中同步文章、上传文件或重建索引。
+
+本地 `npm run dev` 从仓库根目录加载 `.env`。使用 Docker 时，把同样的变量写入运行应用容器的 `.env`，修改后重新创建 `app` 容器即可使用新值。
+
+每项配置依次使用非空的 `AI_*` 环境变量、兼容环境变量、后台保存的值、应用默认值。未设置的项可以在后台配置。兼容环境变量依次为对应的 `NITRO_AI_*`、`NUXT_AI_*`，以及适用的旧密钥名 `DEEPSEEK_API_KEY`、`OPENAI_API_KEY` 或 `DASHSCOPE_API_KEY`。
 
 ## 🧰 技术栈
 

@@ -1,7 +1,7 @@
 <template>
   <details class="post-setting-tool">
     <summary class="post-setting-tool-summary">
-      <span class="post-setting-tool-icon is-sky"><UIcon name="i-lucide-brain-circuit" class="size-4" /></span>
+      <span class="post-setting-tool-icon"><UIcon name="i-lucide-brain-circuit" class="size-4" /></span>
       <span class="post-setting-tool-copy"><strong>AI 知识库</strong><small>{{ statusText }}</small></span>
       <span v-if="document?.chunkCount" class="post-setting-tool-count">{{ document.chunkCount }}</span>
       <UIcon name="i-lucide-chevron-down" class="post-setting-tool-chevron size-4" />
@@ -35,3 +35,5 @@ function statusLabel(status?: string) { return ({ PENDING:'待同步',SYNCING:'�
 <style scoped>
 .post-knowledge-field{display:grid;gap:.75rem}.knowledge-toggle{display:flex;align-items:center;justify-content:space-between;gap:.75rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#f8fafc;padding:.7rem;cursor:pointer}.knowledge-toggle.is-active{border-color:#a5b4fc;background:#eef2ff}.knowledge-toggle strong,.knowledge-toggle small{display:block}.knowledge-toggle strong{font-size:.78rem}.knowledge-toggle small{margin-top:.18rem;color:#64748b;font-size:.68rem;line-height:1.4}.knowledge-toggle input{width:2.2rem;height:1.15rem;accent-color:#4f46e5}.post-knowledge-field dl{display:grid;gap:.4rem;margin:0}.post-knowledge-field dl div{display:flex;justify-content:space-between;font-size:.72rem}.post-knowledge-field dt{color:#64748b}.post-knowledge-field dd{margin:0;color:#172033;font-weight:800}.knowledge-error{margin:0;border-radius:.55rem;background:#fef2f2;color:#dc2626;padding:.55rem;font-size:.68rem;line-height:1.45}.knowledge-panel-actions{display:flex;flex-wrap:wrap;gap:.4rem}
 </style>
+
+<style scoped src="./post-setting-tool.css"></style>

@@ -58,4 +58,3 @@ export type PublicSiteSettingsKey =
 
 export type SiteSettingsPayload = Record<PublicSiteSettingsKey, string>
 export type AdminSettingsPayload = Record<SiteSettingsKey, string>
-export type UpdateSettingsRequest = Partial<Record<SiteSettingsKey, string>>

@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { z } from 'zod'
 import { requireLabUser, withAiUsage } from '~~/server/utils/ai-usage'
 import { ok } from '~~/server/utils/response'
@@ -9,7 +10,7 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const body = bodySchema.parse(await readBody(event))
+  const body = parseRequest(bodySchema, await readBody(event))
   const user = await requireLabUser(event)
   const startedAt = performance.now()
   try {

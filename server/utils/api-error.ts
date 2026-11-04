@@ -1,4 +1,5 @@
 import { createError } from 'h3'
+import type { ZodType } from 'zod'
 import type { ApiErrorCode, ApiErrorData } from '~~/types/api'
 
 type ApiErrorOptions = {
@@ -48,6 +49,14 @@ export function validationError(statusMessage: string, details?: Record<string, 
     code: API_ERROR_CODES.VALIDATION_ERROR,
     details
   })
+}
+
+export function parseRequest<T>(schema: ZodType<T>, input: unknown): T {
+  const result = schema.safeParse(input)
+  if (result.success) return result.data
+
+  const issues = result.error.issues.map(({ path, message }) => ({ path, message }))
+  throw validationError(issues[0]?.message ?? '请求参数不合法', { issues })
 }
 
 export function unauthorized(statusMessage = '未登录或登录已过期') {

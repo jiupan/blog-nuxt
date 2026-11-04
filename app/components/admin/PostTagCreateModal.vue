@@ -30,3 +30,5 @@ const open = defineModel<boolean>('open', { required: true })
 const name = defineModel<string>('name', { required: true })
 const slug = defineModel<string>('slug', { required: true })
 </script>
+
+<style scoped src="./post-taxonomy-modal.css"></style>

@@ -1,7 +1,7 @@
 <template>
   <details class="post-setting-tool">
     <summary class="post-setting-tool-summary">
-      <span class="post-setting-tool-icon is-sky"><UIcon name="i-lucide-network" class="size-4" /></span>
+      <span class="post-setting-tool-icon"><UIcon name="i-lucide-network" class="size-4" /></span>
       <span class="post-setting-tool-copy">
         <strong>继续阅读</strong>
         <small>配置前台关联文章推荐</small>
@@ -90,3 +90,68 @@ function moveRelation(index: number, direction: -1 | 1) {
   items.value = next
 }
 </script>
+
+<style scoped src="./post-setting-tool.css"></style>
+
+<style scoped>
+.post-relations-field {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.post-relations-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.post-relations-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.post-relation-item {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 0.7rem;
+}
+
+.post-relation-head {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.post-relation-head strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.post-relation-type {
+  min-height: 2.2rem;
+  font-size: 0.82rem;
+}
+
+.post-relation-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.post-relations-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 0.85rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+</style>

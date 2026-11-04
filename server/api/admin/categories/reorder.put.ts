@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
 import {
@@ -7,6 +8,6 @@ import {
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  const input = taxonomyOrderSchema.parse(await readBody(event))
+  const input = parseRequest(taxonomyOrderSchema, await readBody(event))
   return ok(await saveTaxonomyOrder('category', input))
 })

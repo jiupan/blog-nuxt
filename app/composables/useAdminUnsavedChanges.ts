@@ -1,4 +1,7 @@
-export function useAdminUnsavedChanges(source: () => unknown) {
+export function useAdminUnsavedChanges(
+  source: () => unknown,
+  leaveMessage = '有尚未保存的修改，确定离开吗？'
+) {
   const snapshot = () => JSON.stringify(source())
   const savedSnapshot = ref(snapshot())
   const isDirty = computed(() => snapshot() !== savedSnapshot.value)
@@ -11,7 +14,7 @@ export function useAdminUnsavedChanges(source: () => unknown) {
       if (loaded && !previous) markSaved()
     }
   )
-  onBeforeRouteLeave(() => !isDirty.value || window.confirm('有尚未保存的修改，确定离开吗？'))
+  onBeforeRouteLeave(() => !isDirty.value || window.confirm(leaveMessage))
   function beforeUnload(event: BeforeUnloadEvent) {
     if (!isDirty.value) return
     event.preventDefault()

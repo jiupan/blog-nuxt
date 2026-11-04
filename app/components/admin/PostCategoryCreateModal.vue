@@ -56,3 +56,61 @@ const iconsExpanded = ref(false)
 const visibleIconOptions = computed(() => visibleCategoryIcons(icon.value, iconsExpanded.value))
 
 </script>
+
+<style scoped src="./post-taxonomy-modal.css"></style>
+
+<style scoped>
+.taxonomy-icon-grid {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(auto-fill, minmax(5.75rem, 1fr));
+}
+
+.taxonomy-icon-option {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.55rem;
+  background: #fff;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 750;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.taxonomy-icon-option:hover,
+.taxonomy-icon-option.is-selected {
+  border-color: #818cf8;
+  background: #eef2ff;
+  color: #4338ca;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.1);
+}
+
+.taxonomy-icon-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taxonomy-icon-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+  border: 0;
+  background: transparent;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.25rem 0;
+}
+
+.taxonomy-icon-toggle:hover {
+  color: #4338ca;
+}
+</style>

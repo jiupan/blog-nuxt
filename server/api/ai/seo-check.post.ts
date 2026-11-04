@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { z } from 'zod'
 import { generateSeoCheckAdvice } from '~~/server/utils/ai'
 import { withAiUsage } from '~~/server/utils/ai-usage'
@@ -10,7 +11,7 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const body = bodySchema.parse(await readBody(event))
+  const body = parseRequest(bodySchema, await readBody(event))
 
   const result = await withAiUsage(event, 'seo-checker', async () => {
     const post = await getPublishedPostById(body.postId)

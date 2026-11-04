@@ -67,19 +67,3 @@ export type PostRelationItem = {
   reason: string
   source: PostRelationSource
 }
-
-export type CreatePostRequest = {
-  title: string
-  slug?: string
-  summary?: string
-  content: string
-  cover?: string
-  categoryId?: number | null
-  tagIds?: number[]
-  status: Extract<PostStatus, 'DRAFT' | 'PUBLISHED'>
-  seoTitle?: string
-  seoDescription?: string
-  isPinned?: boolean
-}
-
-export type UpdatePostRequest = CreatePostRequest

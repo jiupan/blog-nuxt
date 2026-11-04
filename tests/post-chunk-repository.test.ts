@@ -57,7 +57,7 @@ describe('post chunk repository writes', () => {
       embeddingText: 'text'
     }, [0.1, Number.NaN, 0.333333333], 'text-embedding-3-small', 1536)
 
-    const [sql, ...params] = prismaMock.$executeRawUnsafe.mock.calls[0]
+    const [sql, ...params] = prismaMock.$executeRawUnsafe.mock.calls[0]!
 
     expect(sql).toContain('INSERT INTO "PostChunk"')
     expect(sql).toContain('$14::vector')
@@ -114,7 +114,7 @@ describe('post chunk repository search SQL', () => {
   it('vector search filters active chunks to currently published posts', async () => {
     await vectorSearchPostChunks([0.25, 0.5], 'model-a', 768, { categoryId: 9, tagId: 10 })
 
-    const [sql, ...params] = prismaMock.$queryRawUnsafe.mock.calls[0]
+    const [sql, ...params] = prismaMock.$queryRawUnsafe.mock.calls[0]!
 
     expect(sql).toContain('c."embedding" <=> $1::vector AS "distance"')
     expect(sql).toContain('JOIN "Post" p ON p."id" = c."postId"')
@@ -130,7 +130,7 @@ describe('post chunk repository search SQL', () => {
 
   it('can scope vector search to one article', async () => {
     await vectorSearchPostChunks([0.25], 'model-a', 1536, { postId: 42 })
-    const [sql, ...params] = prismaMock.$queryRawUnsafe.mock.calls[0]
+    const [sql, ...params] = prismaMock.$queryRawUnsafe.mock.calls[0]!
     expect(sql).toContain('c."postId" = $4')
     expect(params).toEqual(['[0.25000000]', 'model-a', 1536, 42])
   })
@@ -138,7 +138,7 @@ describe('post chunk repository search SQL', () => {
   it('keyword search escapes LIKE wildcards and offsets filter placeholders', async () => {
     await keywordSearchPostChunks('100%_match\\test', 'model-b', 1536, { tagId: 6 })
 
-    const [sql, ...params] = prismaMock.$queryRawUnsafe.mock.calls[0]
+    const [sql, ...params] = prismaMock.$queryRawUnsafe.mock.calls[0]!
 
     expect(sql).toContain('websearch_to_tsquery(\'simple\', $1)')
     expect(sql).toContain('c."title" ILIKE $4')
@@ -158,8 +158,8 @@ describe('post chunk repository search SQL', () => {
     await vectorSearchKnowledgeFileChunks([0.25], 'model-a', 1536)
     await keywordSearchKnowledgeFileChunks('部署', 'model-a', 1536)
 
-    const vectorSql = prismaMock.$queryRawUnsafe.mock.calls[0][0]
-    const keywordSql = prismaMock.$queryRawUnsafe.mock.calls[1][0]
+    const vectorSql = prismaMock.$queryRawUnsafe.mock.calls[0]![0]
+    const keywordSql = prismaMock.$queryRawUnsafe.mock.calls[1]![0]
     expect(vectorSql).toContain('f."enabled" = true')
     expect(vectorSql).toContain('f."status" = \'SYNCED\'')
     expect(keywordSql).toContain('websearch_to_tsquery(\'simple\', $1)')
@@ -176,7 +176,7 @@ describe('raw SQL boundaries', () => {
         const content = readFileSync(file, 'utf8')
         return content.includes('$queryRawUnsafe') || content.includes('$executeRawUnsafe')
       })
-      .map((file) => relative(root, file))
+      .map((file) => relative(root, file).replaceAll('\\', '/'))
 
     expect(offenders).toEqual(['server/services/rag/post-chunk.repository.ts'])
   })

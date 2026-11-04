@@ -13,12 +13,19 @@ describe('article card progressive reveal', () => {
     expect(source).not.toContain(':inert="!revealed"')
   })
 
-  it('uses explicit component imports on every card collection page', () => {
-    for (const path of ['app/pages/index.vue', 'app/pages/archive.vue', 'app/components/PostCollection.vue']) {
+  it('uses an eager component import where cards reveal progressively', () => {
+    for (const path of ['app/pages/index.vue', 'app/components/PostCollection.vue']) {
       const source = readSource(path)
       expect(source).toContain("import CardReveal from '~/components/CardReveal.vue'")
       expect(source).not.toContain('<LazyCardReveal')
     }
+  })
+
+  it('renders archive cards directly when filters change', () => {
+    const source = readSource('app/pages/archive.vue')
+
+    expect(source).toContain('<ArchivePostCard v-for="post in posts"')
+    expect(source).not.toMatch(/<(?:Lazy)?CardReveal\b/)
   })
 
   it('switches the home card layout with CSS instead of a client-only media query', () => {

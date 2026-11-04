@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { z } from 'zod'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
@@ -13,7 +14,7 @@ const schema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  const body = schema.parse(await readBody(event))
+  const body = parseRequest(schema, await readBody(event))
   const startedAt = performance.now()
   const results = await searchPostChunks({ query: body.query, limit: body.topK })
   const retrievalMs = Math.round(performance.now() - startedAt)

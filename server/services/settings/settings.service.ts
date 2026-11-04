@@ -1,5 +1,5 @@
-import { prisma } from '~~/server/utils/prisma'
-import { validationError } from '~~/server/utils/api-error'
+import { prisma } from '../../utils/prisma'
+import { validationError } from '../../utils/api-error'
 import {
   publicSettingKeys,
   settingKeys,
@@ -117,43 +117,31 @@ export async function saveSettings(input: unknown) {
 }
 
 export async function getAiProviderSettings(): Promise<AiProviderSettings> {
-  const config = useRuntimeConfig()
   const settings = await getSettingsMap(['ai_api_key', 'ai_base_url', 'ai_model'])
-  const envBaseUrl = process.env.AI_BASE_URL
-  const envModel = process.env.AI_MODEL
 
   return {
-    apiKey: String(config.aiApiKey || settings.ai_api_key || '').trim(),
-    baseUrl: normalizeBaseUrl(String(envBaseUrl ? config.aiBaseUrl : (settings.ai_base_url || config.aiBaseUrl)).trim(), settingsDefaults.ai_base_url),
-    model: String(envModel ? config.aiModel : (settings.ai_model || config.aiModel)).trim()
+    apiKey: readAiSetting(settings, 'ai_api_key', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY'),
+    baseUrl: readAiSetting(settings, 'ai_base_url').replace(/\/+$/, ''),
+    model: readAiSetting(settings, 'ai_model')
   }
 }
 
 export async function getEmbeddingSettings(): Promise<EmbeddingSettings> {
-  const config = useRuntimeConfig()
   const settings = await getSettingsMap([
     'ai_embedding_api_key',
     'ai_embedding_base_url',
     'ai_embedding_model',
     'ai_embedding_dimensions'
   ])
-  const envBaseUrl = process.env.AI_EMBEDDING_BASE_URL
-  const envModel = process.env.AI_EMBEDDING_MODEL
-  const envDimensions = process.env.AI_EMBEDDING_DIMENSIONS
-
   return {
-    apiKey: String(config.aiEmbeddingApiKey || settings.ai_embedding_api_key || '').trim(),
-    baseUrl: normalizeBaseUrl(
-      String(envBaseUrl ? config.aiEmbeddingBaseUrl : (settings.ai_embedding_base_url || config.aiEmbeddingBaseUrl)).trim(),
-      settingsDefaults.ai_embedding_base_url
-    ),
-    model: String(envModel ? config.aiEmbeddingModel : (settings.ai_embedding_model || config.aiEmbeddingModel)).trim(),
-    dimensions: normalizeInteger(envDimensions ? config.aiEmbeddingDimensions : (settings.ai_embedding_dimensions || config.aiEmbeddingDimensions), 1536)
+    apiKey: readAiSetting(settings, 'ai_embedding_api_key', 'DASHSCOPE_API_KEY', 'OPENAI_API_KEY'),
+    baseUrl: readAiSetting(settings, 'ai_embedding_base_url').replace(/\/+$/, ''),
+    model: readAiSetting(settings, 'ai_embedding_model'),
+    dimensions: normalizeInteger(readAiSetting(settings, 'ai_embedding_dimensions'), 1536)
   }
 }
 
 export async function getRerankSettings(): Promise<RerankSettings> {
-  const config = useRuntimeConfig()
   const settings = await getSettingsMap([
     'ai_rerank_enabled',
     'ai_rerank_api_key',
@@ -161,20 +149,12 @@ export async function getRerankSettings(): Promise<RerankSettings> {
     'ai_rerank_model',
     'ai_rerank_top_n'
   ])
-  const envEnabled = process.env.AI_RERANK_ENABLED
-  const envBaseUrl = process.env.AI_RERANK_BASE_URL
-  const envModel = process.env.AI_RERANK_MODEL
-  const envTopN = process.env.AI_RERANK_TOP_N
-
   return {
-    enabled: parseEnabled(envEnabled ?? settings.ai_rerank_enabled ?? config.aiRerankEnabled),
-    apiKey: String(config.aiRerankApiKey || settings.ai_rerank_api_key || '').trim(),
-    baseUrl: normalizeBaseUrl(
-      String(envBaseUrl ? config.aiRerankBaseUrl : (settings.ai_rerank_base_url || config.aiRerankBaseUrl)).trim(),
-      settingsDefaults.ai_rerank_base_url
-    ),
-    model: String(envModel ? config.aiRerankModel : (settings.ai_rerank_model || config.aiRerankModel)).trim(),
-    topN: normalizeBoundedInteger(envTopN ? config.aiRerankTopN : (settings.ai_rerank_top_n || config.aiRerankTopN), 8, 1, 20)
+    enabled: parseEnabled(readAiSetting(settings, 'ai_rerank_enabled')),
+    apiKey: readAiSetting(settings, 'ai_rerank_api_key', 'DASHSCOPE_API_KEY'),
+    baseUrl: readAiSetting(settings, 'ai_rerank_base_url').replace(/\/+$/, ''),
+    model: readAiSetting(settings, 'ai_rerank_model'),
+    topN: normalizeBoundedInteger(readAiSetting(settings, 'ai_rerank_top_n'), 8, 1, 20)
   }
 }
 
@@ -201,8 +181,13 @@ function isSettingsKey(key: string): key is SettingsKey {
   return settingKeys.includes(key as SettingsKey)
 }
 
-function normalizeBaseUrl(value: string, fallback: string) {
-  return (value || fallback).replace(/\/+$/, '')
+function readAiSetting(settings: SettingsMap, key: Extract<SettingsKey, `ai_${string}`>, ...aliases: string[]) {
+  const name = key.toUpperCase()
+  for (const envKey of [name, `NITRO_${name}`, `NUXT_${name}`, ...aliases]) {
+    const value = process.env[envKey]?.trim()
+    if (value) return value
+  }
+  return settings[key].trim() || settingsDefaults[key]
 }
 
 function parseEnabled(value: unknown) {

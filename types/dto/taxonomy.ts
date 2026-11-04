@@ -12,23 +12,3 @@ export type TaxonomyItem = TaxonomySummary & {
     posts: number
   }
 }
-
-export type CreateCategoryRequest = {
-  name: string
-  slug?: string
-  icon?: string | null
-  isFeatured?: boolean
-}
-
-export type UpdateCategoryRequest = CreateCategoryRequest & {
-  slug: string
-}
-
-export type CreateTagRequest = {
-  name: string
-  slug?: string
-}
-
-export type UpdateTagRequest = CreateTagRequest & {
-  slug: string
-}

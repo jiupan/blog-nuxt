@@ -3,14 +3,14 @@ import { generatePostSummary } from '~~/server/utils/ai'
 import { withAiUsage } from '~~/server/utils/ai-usage'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
-import { notFound } from '~~/server/utils/api-error'
+import { notFound, parseRequest } from '~~/server/utils/api-error'
 
 const bodySchema = z.object({
   postId: z.coerce.number().int().positive()
 })
 
 export default defineEventHandler(async (event) => {
-  const body = bodySchema.parse(await readBody(event))
+  const body = parseRequest(bodySchema, await readBody(event))
 
   const result = await withAiUsage(event, 'article-summary', async () => {
     const now = new Date()

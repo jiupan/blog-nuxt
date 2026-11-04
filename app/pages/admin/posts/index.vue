@@ -383,6 +383,7 @@ import type {
 } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import { getApiErrorMessage } from '~/utils/api-error'
+import { postPath } from '~/utils/post-path'
 
 definePageMeta({
   layout: 'admin',
@@ -815,9 +816,6 @@ function knowledgeStatusText(status?: string) {
   )
 }
 
-function postPath(slug: string) {
-  return `/${slug}`
-}
 </script>
 
 <style scoped>

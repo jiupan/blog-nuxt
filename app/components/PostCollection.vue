@@ -134,13 +134,6 @@ useSeoMeta({
 .collection-heading h1 { margin: 0; color: var(--theme-text); font-family: Georgia, "Times New Roman", "Noto Serif SC", serif; font-size: clamp(42px, 7vw, 56px); font-weight: 650; line-height: 1.1; }
 .collection-heading p { margin: 16px 0 0; color: var(--theme-text-muted); font-size: 16px; line-height: 1.75; }
 .collection-list { display: grid; min-width: 0; gap: 14px; }
-.collection-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 16px 0 0; }
-.page-dot { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid var(--theme-border-soft); border-radius: 999px; background: var(--theme-surface); color: var(--theme-text-soft); font-weight: 800; cursor: pointer; transition: border-color 180ms ease, box-shadow 180ms ease; }
-.page-dot svg { width: 16px; height: 16px; }
-.page-dot:hover:not(:disabled):not(.is-active) { border-color: #4964f4; }
-.page-dot:disabled { opacity: .4; cursor: default; }
-.page-dot.is-active { background: #4964f4; color: white; }
-.page-ellipsis { display: grid; width: 22px; height: 38px; place-items: center; color: #9097a5; font-size: 15px; font-weight: 800; user-select: none; }
 .collection-empty { display: grid; min-height: 340px; place-items: center; align-content: center; gap: 9px; border: 1px solid var(--theme-border); border-radius: 20px; background: color-mix(in srgb, var(--theme-surface) 76%, transparent); color: var(--theme-text-muted); text-align: center; padding: 44px; }
 .collection-empty > span { display: grid; width: 58px; height: 58px; place-items: center; border-radius: 18px; background: #eef2f4; color: var(--theme-text-muted); }.collection-empty strong { color: var(--theme-text); font-size: 18px; }.collection-empty p { margin: 0; font-size: 13px; }.collection-empty a { margin-top: 8px; border-radius: 999px; background: var(--theme-text); color: #fff; padding: 9px 16px; font-size: 12px; font-weight: 800; }
 .collection-empty button { margin-top: 8px; border: 0; border-radius: 999px; background: var(--theme-text); color: var(--theme-surface); padding: 9px 16px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }

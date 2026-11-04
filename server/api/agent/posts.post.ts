@@ -1,12 +1,13 @@
-import { readValidatedBody, setResponseStatus } from 'h3'
+import { readBody, setResponseStatus } from 'h3'
 import { requireAgentToken } from '../../services/agent/agent-key.service'
 import { agentPostSchema } from '../../services/agent/agent.schema'
 import { publishAgentPost } from '../../services/agent/agent-publication.service'
+import { parseRequest } from '../../utils/api-error'
 import { ok } from '../../utils/response'
 
 export default defineEventHandler(async (event) => {
   const { keyId } = await requireAgentToken(event)
-  const input = await readValidatedBody(event, agentPostSchema.parse)
+  const input = parseRequest(agentPostSchema, await readBody(event))
   const result = await publishAgentPost(keyId, input)
   const origin = (
     process.env.NUXT_PUBLIC_SITE_URL ||

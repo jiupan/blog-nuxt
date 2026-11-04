@@ -1,4 +1,5 @@
-﻿import { requireAdmin } from '~~/server/utils/auth'
+﻿import { parseRequest } from '~~/server/utils/api-error'
+import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
 import { listAdminTags, listAdminTagsSchema, listAllAdminTags } from '~~/server/services/taxonomy/taxonomy.service'
 
@@ -8,5 +9,5 @@ export default defineEventHandler(async (event) => {
   if (!('page' in query) && !('pageSize' in query) && !('search' in query)) {
     return ok(await listAllAdminTags())
   }
-  return ok(await listAdminTags(listAdminTagsSchema.parse(query)))
+  return ok(await listAdminTags(parseRequest(listAdminTagsSchema, query)))
 })

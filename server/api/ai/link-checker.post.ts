@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { z } from 'zod'
 import { withAiUsage } from '~~/server/utils/ai-usage'
 import { getPublishedPostById } from '~~/server/utils/public-post'
@@ -9,7 +10,7 @@ const bodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const body = bodySchema.parse(await readBody(event))
+  const body = parseRequest(bodySchema, await readBody(event))
 
   const result = await withAiUsage(event, 'dead-link-checker', async () => {
     const post = await getPublishedPostById(body.postId)

@@ -306,10 +306,110 @@ const coverInputRef = ref<HTMLInputElement | null>(null)
 </script>
 
 <style scoped>
+.ai-summary-field {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.ai-summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ai-summary-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #059669;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+.cover-preview {
+  display: grid;
+  overflow: hidden;
+  margin-top: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.cover-preview img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.cover-preview-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+  padding: 0.45rem 0.55rem;
+}
+
+.cover-preview-meta span {
+  min-width: 0;
+  overflow: hidden;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taxonomy-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.taxonomy-field-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.taxonomy-field-stacked {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.taxonomy-inline-action {
+  align-self: flex-start;
+}
+
+.post-tag-picker.is-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .taxonomy-field {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .taxonomy-inline-action,
+  .taxonomy-field-main {
+    width: 100%;
+  }
+
+  .ai-summary-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .post-setting-group {
   overflow: hidden;
-  border: 1px solid #e5eaf2;
-  border-radius: 0.9rem;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
   background: #ffffff;
   box-shadow: none;
 }
@@ -349,7 +449,10 @@ const coverInputRef = ref<HTMLInputElement | null>(null)
 }
 
 .post-tag-picker {
+  display: flex;
   max-height: 9.5rem;
+  flex-wrap: wrap;
+  gap: 0.45rem;
   overflow-y: auto;
   padding: 0.15rem 0.2rem 0.15rem 0;
   scrollbar-width: thin;

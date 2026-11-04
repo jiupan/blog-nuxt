@@ -162,6 +162,8 @@ UPLOAD_DIR 不需要写在服务器 .env，compose 已固定为 /app/uploads
 NUXT_PUBLIC_TWIKOO_ENV_ID 必须是浏览器可访问的 HTTPS 地址，不能写 localhost
 ```
 
+需要启用 AI 时，在服务器 `.env` 中加入 README「AI 与知识库」章节的 `AI_*` 配置。`app` 在运行时读取这些变量，非空值覆盖对应的后台设置。修改后使用 `docker compose -f docker-compose.server.yml up -d --no-deps --force-recreate app` 重新创建应用容器。
+
 Twikoo 容器只监听服务器的 `127.0.0.1:8080`。Nginx 的 HTTPS `server` 块需要将 `/twikoo` 反向代理到该端口：
 
 ```nginx

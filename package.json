@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "nuxt preview",
     "test": "vitest run",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc --build",
     "postinstall": "nuxt prepare",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-sc": "^5.3.0",
+    "@lucide/vue": "1.22.0",
     "@napi-rs/canvas": "0.1.80",
     "@nuxt/image": "2.0.0",
     "@nuxt/ui": "4.9.0",

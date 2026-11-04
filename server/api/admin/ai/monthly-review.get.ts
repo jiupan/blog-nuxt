@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { z } from 'zod'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
@@ -9,7 +10,7 @@ const querySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  const query = querySchema.parse(getQuery(event))
+  const query = parseRequest(querySchema, getQuery(event))
   const result = await getMonthlyReview(query.month || getCurrentMonth())
 
   return ok(result)

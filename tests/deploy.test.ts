@@ -90,7 +90,7 @@ describe('deployment and image retention', () => {
     expect(result.stdout).toContain('=== 部署完成 ===')
   })
 
-  it.each([{ NEW_IMAGE: 'sha256:old' }, { CURRENT_STATE: 'unhealthy' }])('preserves the existing rollback tag on reruns or unhealthy installations: %j', (variables) => {
+  it.each<Record<string, string>>([{ NEW_IMAGE: 'sha256:old' }, { CURRENT_STATE: 'unhealthy' }])('preserves the existing rollback tag on reruns or unhealthy installations: %j', (variables) => {
     const result = deploy(variables)
     expect(result.status).toBe(0)
     expect(result.commands).not.toContain('image tag')

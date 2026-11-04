@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { requireAdmin } from '~~/server/utils/auth'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
-import { notFound } from '~~/server/utils/api-error'
+import { notFound, parseRequest } from '~~/server/utils/api-error'
 import { checkExternalLinks } from '~~/server/services/link-checker/link-checker.service'
 
 const bodySchema = z.object({
@@ -11,7 +11,7 @@ const bodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  const body = bodySchema.parse(await readBody(event))
+  const body = parseRequest(bodySchema, await readBody(event))
 
   const post = await prisma.post.findUnique({
     where: { id: body.postId },

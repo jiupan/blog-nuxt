@@ -3,7 +3,7 @@ import type { H3Event } from 'h3'
 import { z } from 'zod'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
-import { forbidden, rateLimited, unauthorized } from '~~/server/utils/api-error'
+import { forbidden, rateLimited, unauthorized, parseRequest } from '~~/server/utils/api-error'
 import { loginRateLimitPolicy } from '~~/server/services/security/security-policy'
 import {
   assertFixedWindowAllowed,
@@ -40,7 +40,7 @@ function recordFailedLogin(key: string) {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = loginSchema.parse(await readBody(event))
+  const body = parseRequest(loginSchema, await readBody(event))
   const attemptKey = getLoginAttemptKey(event, body.username)
 
   assertLoginAllowed(attemptKey)

@@ -1,4 +1,4 @@
-import { readValidatedBody } from 'h3'
+import { parseRequest } from '~~/server/utils/api-error'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
 import { createAgentKeySchema } from '~~/server/services/agent/agent.schema'
@@ -8,7 +8,7 @@ import { resolveAgentEncryptionSecret } from '~~/server/services/agent/agent-key
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
   setResponseHeader(event, 'Cache-Control', 'no-store')
-  const input = await readValidatedBody(event, createAgentKeySchema.parse)
+  const input = parseRequest(createAgentKeySchema, await readBody(event))
   const secret = resolveAgentEncryptionSecret(useRuntimeConfig(event).session.password)
   return ok(await createAgentKey(input.name, admin.id, secret), '密钥已创建，可在密钥列表再次复制')
 })

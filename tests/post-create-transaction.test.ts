@@ -72,7 +72,7 @@ describe('shared article creation', () => {
       tx as unknown as Prisma.TransactionClient
     )
     expect(cover).not.toHaveBeenCalled()
-    expect(tx.post.create.mock.calls[0][0].data).toMatchObject({
+    expect(tx.post.create.mock.calls[0]![0].data).toMatchObject({
       cover: '/uploads/own.webp',
       publishedAt: null
     })

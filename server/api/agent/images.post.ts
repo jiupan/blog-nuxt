@@ -1,15 +1,15 @@
-import { getValidatedQuery, readMultipartFormData, setResponseStatus } from 'h3'
+import { getQuery, readMultipartFormData, setResponseStatus } from 'h3'
 import { z } from 'zod'
 import { requireAgentToken } from '../../services/agent/agent-key.service'
 import { uploadImage } from '../../services/media/upload.service'
-import { badRequest } from '../../utils/api-error'
+import { badRequest, parseRequest } from '../../utils/api-error'
 import { ok } from '../../utils/response'
 
 export default defineEventHandler(async (event) => {
   await requireAgentToken(event)
-  const { purpose } = await getValidatedQuery(
-    event,
-    z.object({ purpose: z.enum(['image', 'cover']).default('image') }).strict().parse
+  const { purpose } = parseRequest(
+    z.object({ purpose: z.enum(['image', 'cover']).default('image') }).strict(),
+    getQuery(event)
   )
   const parts = await readMultipartFormData(event)
   const file = parts?.[0]

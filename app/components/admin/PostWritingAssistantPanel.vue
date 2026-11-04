@@ -1,7 +1,7 @@
 <template>
   <details class="post-setting-tool">
     <summary class="post-setting-tool-summary">
-      <span class="post-setting-tool-icon is-violet"><UIcon name="i-lucide-wand-sparkles" class="size-4" /></span>
+      <span class="post-setting-tool-icon"><UIcon name="i-lucide-wand-sparkles" class="size-4" /></span>
       <span class="post-setting-tool-copy">
         <strong>AI 写作助手</strong>
         <small>分析完成度并生成内容建议</small>
@@ -98,3 +98,14 @@ defineEmits<{
   applyTitle: [title: string]
 }>()
 </script>
+
+<style scoped src="./post-setting-tool.css"></style>
+
+<style scoped src="./post-ai-result.css"></style>
+
+<style scoped>
+.writing-assistant-field {
+  display: grid;
+  gap: 0.65rem;
+}
+</style>

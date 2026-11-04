@@ -22,8 +22,3 @@ export async function generateSeoMeta(post: SummaryPost): Promise<SeoMetaResult>
 
   return parseSeoMetaResult(text)
 }
-
-export async function generateSeoDescription(post: SummaryPost): Promise<{ seoDescription: string }> {
-  const result = await generateSeoMeta(post)
-  return { seoDescription: result.seoDescription }
-}

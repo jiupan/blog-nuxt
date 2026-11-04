@@ -1,0 +1,97 @@
+.writing-assistant-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.writing-assistant-result,
+.seo-check-result {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.writing-score {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #dbeafe;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+  padding: 0.7rem 0.8rem;
+}
+
+.writing-score span {
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.writing-score strong {
+  color: #1e3a8a;
+  font-size: 1.4rem;
+  font-weight: 950;
+}
+
+.writing-assistant-result section,
+.seo-check-result section {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 0.7rem;
+}
+
+.writing-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.writing-section-title h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.writing-assistant-result ul,
+.seo-check-result ul {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  color: #475569;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  padding-left: 1rem;
+}
+
+.writing-apply-list,
+.writing-title-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.writing-apply-list button,
+.writing-title-list button {
+  border: 1px solid #dbe3ef;
+  border-radius: 999px;
+  background: white;
+  color: #334155;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.35;
+  padding: 0.38rem 0.6rem;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.writing-apply-list button:hover,
+.writing-title-list button:hover {
+  border-color: #94a3b8;
+  background: #0f172a;
+  color: white;
+}

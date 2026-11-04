@@ -57,7 +57,7 @@ describe('Agent HTTP endpoints', () => {
       1,
       expect.objectContaining({ content: '# Hello\n\n<script>plain Markdown</script>' })
     )
-    expect(auth.mock.invocationCallOrder[0]).toBeLessThan(publish.mock.invocationCallOrder[0])
+    expect(auth.mock.invocationCallOrder[0]).toBeLessThan(publish.mock.invocationCallOrder[0]!)
   })
   it('returns HTTP 200 for replayed requests and null for a draft public URL', async () => {
     publish.mockResolvedValue({
@@ -75,6 +75,9 @@ describe('Agent HTTP endpoints', () => {
   ])('returns HTTP 400 for invalid payloads without entering publication', async (body) => {
     const response = await request(body)
     expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({
+      data: { code: 'VALIDATION_ERROR', issues: [expect.objectContaining({ message: expect.any(String) })] }
+    })
     expect(publish).not.toHaveBeenCalled()
   })
   it('requires credentials before processing article content', async () => {

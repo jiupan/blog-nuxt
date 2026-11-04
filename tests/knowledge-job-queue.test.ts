@@ -1,3 +1,4 @@
+import type { KnowledgeSyncJob } from '@prisma/client'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -28,7 +29,7 @@ const {
 
 const now = new Date('2026-07-15T12:00:00.000Z')
 
-function createJob(overrides: Record<string, unknown> = {}) {
+function createJob(overrides: Partial<KnowledgeSyncJob> = {}): KnowledgeSyncJob {
   return {
     id: 1,
     type: 'SINGLE_POST',

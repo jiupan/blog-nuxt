@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { z } from 'zod'
 import { withAiUsage } from '~~/server/utils/ai-usage'
 import { ok } from '~~/server/utils/response'
@@ -11,7 +12,7 @@ const querySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const query = querySchema.parse(getQuery(event))
+  const query = parseRequest(querySchema, getQuery(event))
   const items = await withAiUsage(event, 'semantic-search', () => {
     return searchPostChunks({
       query: query.q,

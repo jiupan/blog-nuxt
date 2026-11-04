@@ -3,7 +3,7 @@ import type { H3Event } from 'h3'
 import { z } from 'zod'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
-import { conflict, rateLimited } from '~~/server/utils/api-error'
+import { conflict, rateLimited, parseRequest } from '~~/server/utils/api-error'
 import { authPolicy, registerRateLimitPolicy } from '~~/server/services/security/security-policy'
 import {
   assertFixedWindowAllowed,
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
   const attemptKey = getRegisterAttemptKey(event)
   assertRegisterAllowed(attemptKey)
 
-  const body = registerSchema.parse(await readBody(event))
+  const body = parseRequest(registerSchema, await readBody(event))
   const email = body.email.toLowerCase()
   recordRegisterAttempt(attemptKey)
 

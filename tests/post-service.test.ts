@@ -114,7 +114,7 @@ describe('createPost', () => {
       status: PostStatus.PUBLISHED
     }))
 
-    const call = prismaMock.post.create.mock.calls[0][0]
+    const call = prismaMock.post.create.mock.calls[0]![0]
     expect(call.data.publishedAt).toBeInstanceOf(Date)
     expect(setKnowledgeEnabledMock).toHaveBeenCalledWith(1, true)
     expect(queueKnowledgePostSyncMock).toHaveBeenCalledWith(1)
@@ -130,7 +130,7 @@ describe('createPost', () => {
       cover: ''
     }))
 
-    expect(prismaMock.post.create.mock.calls[0][0].data.cover).toBe('/uploads/covers/default.webp')
+    expect(prismaMock.post.create.mock.calls[0]![0].data.cover).toBe('/uploads/covers/default.webp')
   })
 
   it('sets pinnedAt when creating a pinned post', async () => {
@@ -143,7 +143,7 @@ describe('createPost', () => {
       isPinned: true
     }))
 
-    const call = prismaMock.post.create.mock.calls[0][0]
+    const call = prismaMock.post.create.mock.calls[0]![0]
     expect(call.data.isPinned).toBe(true)
     expect(call.data.pinnedAt).toBeInstanceOf(Date)
   })
@@ -185,7 +185,7 @@ describe('updatePost', () => {
       tagIds: [1, 1, 2]
     }))
 
-    const call = prismaMock.post.update.mock.calls[0][0]
+    const call = prismaMock.post.update.mock.calls[0]![0]
     expect(call).toMatchObject({
       where: { id: 1 },
       data: expect.objectContaining({
@@ -213,7 +213,7 @@ describe('updatePost', () => {
       status: PostStatus.PUBLISHED
     }))
 
-    expect(prismaMock.post.update.mock.calls[0][0].data.publishedAt).toBe(publishedAt)
+    expect(prismaMock.post.update.mock.calls[0]![0].data.publishedAt).toBe(publishedAt)
   })
 
   it('preserves pinning when update input omits pinned state', async () => {
@@ -228,7 +228,7 @@ describe('updatePost', () => {
       status: PostStatus.DRAFT
     }))
 
-    const call = prismaMock.post.update.mock.calls[0][0]
+    const call = prismaMock.post.update.mock.calls[0]![0]
     expect(call.data.isPinned).toBe(true)
     expect(call.data.pinnedAt).toBe(pinnedAt)
   })
@@ -247,7 +247,7 @@ describe('updatePost', () => {
       status: PostStatus.ARCHIVED
     }))
 
-    expect(prismaMock.post.update.mock.calls[0][0].data.publishedAt).toBeNull()
+    expect(prismaMock.post.update.mock.calls[0]![0].data.publishedAt).toBeNull()
   })
 
   it('rejects empty normalized slugs', async () => {

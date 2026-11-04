@@ -64,7 +64,7 @@ describe('user management service', () => {
     expect(txMock.user.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ email: 'member@example.com', passwordHash: 'argon-hash' })
     }))
-    const auditInput = txMock.adminAuditLog.create.mock.calls[0][0]
+    const auditInput = txMock.adminAuditLog.create.mock.calls[0]![0]
     expect(JSON.stringify(auditInput)).not.toContain('very-secure-password')
     expect(JSON.stringify(auditInput)).not.toContain('argon-hash')
   })
@@ -117,7 +117,7 @@ describe('user management service', () => {
 
     await resetManagedUserPassword({ operatorId: 1, userId: 2, password: 'another-secure-password', context })
 
-    const auditInput = txMock.adminAuditLog.create.mock.calls[0][0]
+    const auditInput = txMock.adminAuditLog.create.mock.calls[0]![0]
     expect(auditInput.data.after).toEqual({ passwordReset: true })
     expect(JSON.stringify(auditInput)).not.toContain('another-secure-password')
     expect(JSON.stringify(auditInput)).not.toContain('argon-hash')

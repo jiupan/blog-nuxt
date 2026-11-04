@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { requireAdmin } from '~~/server/utils/auth'
 import { ok } from '~~/server/utils/response'
 import { updateUserRoleSchema, userIdSchema } from '~~/server/services/users/user.schema'
@@ -6,8 +7,8 @@ import { getUserAuditContext } from '~~/server/services/users/user-audit.service
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdmin(event)
-  const userId = userIdSchema.parse(getRouterParam(event, 'id'))
-  const body = updateUserRoleSchema.parse(await readBody(event))
+  const userId = parseRequest(userIdSchema, getRouterParam(event, 'id'))
+  const body = parseRequest(updateUserRoleSchema, await readBody(event))
   const user = await updateManagedUserRole({
     operatorId: admin.id,
     userId,

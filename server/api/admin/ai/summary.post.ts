@@ -1,3 +1,4 @@
+import { parseRequest } from '~~/server/utils/api-error'
 import { z } from 'zod'
 import { generatePostSummary } from '~~/server/utils/ai'
 import { requireAdmin } from '~~/server/utils/auth'
@@ -14,7 +15,7 @@ const bodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   await requireAdmin(event)
-  const body = bodySchema.parse(await readBody(event))
+  const body = parseRequest(bodySchema, await readBody(event))
 
   const [category, tags] = await Promise.all([
     body.categoryId
