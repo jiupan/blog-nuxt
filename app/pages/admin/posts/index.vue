@@ -84,6 +84,7 @@
           <USelect
             v-model="categoryFilter"
             :items="categoryOptions"
+            :ui="filterSelectUi"
             aria-label="按分类筛选"
             class="post-select"
             @update:model-value="applyFilters"
@@ -91,6 +92,7 @@
           <USelect
             v-model="tagFilter"
             :items="tagOptions"
+            :ui="filterSelectUi"
             aria-label="按标签筛选"
             class="post-select"
             @update:model-value="applyFilters"
@@ -98,6 +100,7 @@
           <USelect
             v-model="sortValue"
             :items="sortOptions"
+            :ui="filterSelectUi"
             aria-label="文章排序"
             class="post-sort"
             @update:model-value="applyFilters"
@@ -397,6 +400,12 @@ const sortOptions = [
   { label: '排序：标题 A-Z', value: 'title_asc' },
   { label: '排序：标题 Z-A', value: 'title_desc' }
 ]
+
+const filterSelectUi = {
+  content: 'w-max min-w-[min(var(--reka-select-trigger-width),var(--reka-select-content-available-width))] max-w-[min(26rem,var(--reka-select-content-available-width))]',
+  value: 'whitespace-normal text-clip wrap-anywhere text-start',
+  itemLabel: 'whitespace-normal text-clip wrap-anywhere'
+}
 
 const router = useRouter()
 const listPath = useState('admin-post-list-path', () => '/admin/posts')
@@ -863,10 +872,10 @@ function postPath(slug: string) {
   min-width: 170px;
 }
 .post-select {
-  width: 130px;
+  width: 164px;
 }
 .post-sort {
-  width: 160px;
+  width: 174px;
 }
 .post-bulkbar,
 .post-bulk-actions {
@@ -1055,7 +1064,7 @@ function postPath(slug: string) {
     display: none;
   }
   .post-select {
-    flex: 1;
+    flex: 1 1 130px;
   }
   .post-search {
     flex-basis: 100%;
