@@ -66,7 +66,6 @@
           <span>{{ tab.count }}</span>
         </button>
       </nav>
-      <p class="gallery-purpose-note">{{ activeCollection === 'covers' ? '保存文章时，未指定封面会从启用的图片中随机选取并固定保存。停用只影响后续选取，不会改变已有文章。' : activeCollection === 'memes' ? '用于首页装饰及写作插图；这里的图片暂未接入评论表情选择器。调整分组不改变图片地址。' : '正文插图和手动指定的文章封面，默认不参与随机选取。' }}</p>
       <div class="workspace-filterbar">
         <UInput
           v-model="searchQuery"
@@ -76,6 +75,7 @@
           aria-label="搜索图片"
           class="workspace-search"
         />
+        <p class="gallery-purpose-note" :title="galleryPurpose.full">{{ galleryPurpose.short }}</p>
         <span class="workspace-count">{{ activeFilteredCount }} 张图片</span>
         <UButton
           v-if="searchQuery"
@@ -561,6 +561,11 @@ async function retryUploads() {
 const toast = useToast()
 const searchQuery = ref('')
 const activeCollection = ref<'images' | 'covers' | 'memes'>('images')
+const galleryPurpose = computed(() => ({
+  images: { short: '正文插图、专用封面，不参与随机选取', full: '正文插图和手动指定的文章封面，默认不参与随机选取。' },
+  covers: { short: '未指定封面时选取，停用不影响已有文章', full: '保存文章时，未指定封面会从启用的图片中随机选取并固定保存。停用只影响后续选取，不会改变已有文章。' },
+  memes: { short: '首页装饰、写作插图，暂未接入评论', full: '用于首页装饰及写作插图；这里的图片暂未接入评论表情选择器。调整分组不改变图片地址。' }
+})[activeCollection.value])
 const uploadingCollection = ref<'images' | 'covers' | 'memes' | null>(null)
 const deletingPath = ref<string | null>(null)
 const imageInputRef = ref<HTMLInputElement | null>(null)
@@ -932,7 +937,18 @@ async function deleteSelected() {
 </script>
 
 <style scoped>
-.gallery-purpose-note, .gallery-upload-failures { padding: 14px 24px; color: var(--admin-muted); font-size: 13px; }
+.gallery-purpose-note {
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 32em;
+  margin: 0;
+  overflow: hidden;
+  color: var(--admin-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gallery-upload-failures { padding: 14px 24px; color: var(--admin-muted); font-size: 13px; }
 .gallery-upload-failures { border-bottom: 1px solid var(--admin-line); overflow-wrap: anywhere; }
 .gallery-usage { display: grid; gap: 8px; font-size: 13px; }
 .gallery-usage a { color: var(--admin-accent); }
