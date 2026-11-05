@@ -75,14 +75,14 @@
             <div v-if="summaryDialogOpen" class="summary-dialog-backdrop" @click="closeSummaryDialog" />
           </Transition>
           <Transition name="summary-dialog-panel" @after-enter="focusSummaryDialogInput">
-            <div v-if="summaryDialogOpen" class="summary-dialog-stage">
-              <section class="summary-dialog" role="dialog" aria-modal="true" aria-labelledby="summary-dialog-title">
-                <header class="summary-dialog-header"><div class="summary-dialog-identity"><span><Icon name="i-lucide-sparkles" /></span><div><strong id="summary-dialog-title">DyuGPT</strong><small>当前文章智能助手</small></div></div><div class="summary-dialog-head-actions"><button type="button" aria-label="历史会话" title="历史会话" :class="{ 'is-active': summaryHistoryOpen }" @click="toggleSummaryHistory"><Icon name="i-lucide-history" /></button><button v-if="summaryConversationId" type="button" aria-label="新建对话" title="新建对话" @click="resetSummaryConversation"><Icon name="i-lucide-message-square-plus" /></button><button type="button" aria-label="关闭对话" @click="closeSummaryDialog"><Icon name="i-lucide-x" /></button></div></header>
+            <div v-if="summaryDialogOpen" class="summary-dialog-stage" :style="summaryViewportStyle">
+              <section ref="summaryDialogEl" class="summary-dialog" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="summary-dialog-title">
+                <header class="summary-dialog-header"><div class="summary-dialog-identity"><span><Icon name="i-lucide-sparkles" /></span><div><strong id="summary-dialog-title">DyuGPT</strong><small :title="post.title">{{ post.title }}</small></div></div><div class="summary-dialog-head-actions"><button type="button" aria-label="历史会话" title="历史会话" :class="{ 'is-active': summaryHistoryOpen }" @click="toggleSummaryHistory"><Icon name="i-lucide-history" /></button><button v-if="summaryConversationId" type="button" aria-label="新建对话" title="新建对话" @click="resetSummaryConversation"><Icon name="i-lucide-message-square-plus" /></button><button type="button" aria-label="关闭对话" @click="closeSummaryDialog"><Icon name="i-lucide-x" /></button></div></header>
                 <div class="summary-dialog-rule" />
                 <Transition name="summary-history">
-                  <aside v-if="summaryHistoryOpen" class="summary-history-drawer" aria-label="历史会话"><header><div><strong>历史会话</strong><small>{{ summaryHistoryTotal }} 个对话</small></div><button type="button" aria-label="关闭历史会话" @click="summaryHistoryOpen = false"><Icon name="i-lucide-x" /></button></header><label class="summary-history-search"><Icon name="i-lucide-search" /><input v-model="summaryHistoryQuery" type="search" placeholder="搜索会话" /></label><div class="summary-history-list"><div v-if="summaryHistoryLoading && !summaryHistoryItems.length" class="summary-history-state"><Icon name="i-lucide-loader-circle" />正在加载</div><template v-else-if="summaryHistoryGroups.length"><section v-for="group in summaryHistoryGroups" :key="group.label"><h3>{{ group.label }}</h3><article v-for="item in group.items" :key="item.id" :class="{ 'is-current': item.id === summaryConversationId }"><button type="button" class="summary-history-main" @click="switchSummaryConversation(item.id)"><span><Icon name="i-lucide-message-circle" /></span><div><strong>{{ item.title }}</strong><small>{{ item.messageCount }} 条消息 · {{ formatConversationTime(item.lastMessageAt) }}</small></div></button><button type="button" class="summary-history-delete" aria-label="删除会话" @click="removeSummaryConversation(item)"><Icon name="i-lucide-trash-2" /></button></article></section><button v-if="summaryHistoryHasMore && !summaryHistoryQuery" type="button" class="summary-history-more" :disabled="summaryHistoryLoading" @click="loadSummaryHistory(false)">{{ summaryHistoryLoading ? '加载中…' : '加载更多' }}</button></template><div v-else class="summary-history-empty"><span><Icon name="i-lucide-messages-square" /></span><strong>{{ summaryHistoryQuery ? '没有匹配的会话' : '还没有历史会话' }}</strong><small>{{ summaryHistoryQuery ? '换个关键词试试' : '开始提问后，会话会保存在这里' }}</small></div></div></aside>
+                  <aside v-if="summaryHistoryOpen" class="summary-history-drawer" aria-label="历史会话"><header><div><strong>历史会话</strong><small>{{ summaryHistoryTotal }} 个对话</small></div><button type="button" aria-label="关闭历史会话" @click="summaryHistoryOpen = false"><Icon name="i-lucide-x" /></button></header><label class="summary-history-search"><Icon name="i-lucide-search" /><input v-model="summaryHistoryQuery" type="search" placeholder="搜索全部会话" maxlength="80" /></label><div class="summary-history-list"><div v-if="summaryHistoryLoading && !summaryHistoryItems.length" class="summary-history-state"><Icon name="i-lucide-loader-circle" />正在加载</div><template v-else-if="summaryHistoryGroups.length"><section v-for="group in summaryHistoryGroups" :key="group.label"><h3>{{ group.label }}</h3><article v-for="item in group.items" :key="item.id" :class="{ 'is-current': item.id === summaryConversationId }"><button type="button" class="summary-history-main" :disabled="summaryConversationBusy || summaryDialogLoading" @click="switchSummaryConversation(item.id)"><span><Icon name="i-lucide-message-circle" /></span><div><strong>{{ item.title }}</strong><small>{{ item.messageCount }} 条消息 · {{ formatConversationTime(item.lastMessageAt) }}</small></div></button><button type="button" class="summary-history-delete" aria-label="删除会话" :disabled="summaryConversationBusy || summaryDialogLoading" @click="removeSummaryConversation(item)"><Icon name="i-lucide-trash-2" /></button></article></section><button v-if="summaryHistoryHasMore" type="button" class="summary-history-more" :disabled="summaryHistoryLoading" @click="loadSummaryHistory(false)">{{ summaryHistoryLoading ? '加载中…' : '加载更多' }}</button></template><div v-else class="summary-history-empty"><span><Icon name="i-lucide-messages-square" /></span><strong>{{ summaryHistoryQuery ? '没有匹配的会话' : '还没有历史会话' }}</strong><small>{{ summaryHistoryQuery ? '换个关键词试试' : '开始提问后，会话会保存在这里' }}</small></div></div></aside>
                 </Transition>
-                <div ref="summaryMessagesEl" class="summary-dialog-messages">
+                <div ref="summaryMessagesEl" class="summary-dialog-messages" :aria-busy="summaryConversationBusy"><p v-if="summaryConversationBusy" role="status">正在切换会话…</p>
                   <div class="summary-dialog-message is-assistant">
                     <span class="summary-dialog-avatar"><Icon name="i-lucide-bot" aria-hidden="true" /></span>
                     <p>你好，我是这篇文章的 AI 助手。你可以围绕文章内容继续提问。</p>
@@ -102,13 +102,14 @@
                         :streaming="message.id === summaryStreamingId"
                         @go-to-citation="goToArticleCitation"
                       />
+                      <small v-if="message.role === 'ASSISTANT' && ['FAILED', 'STOPPED'].includes(message.status)" class="summary-message-status">{{ message.status === 'STOPPED' ? '已停止生成' : '生成失败' }}</small>
                     </div>
                   </div>
                   <div v-if="summaryDialogError" class="summary-dialog-error" role="status">
-                    <Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button type="button" @click="retrySummaryQuestion">重试</button>
+                    <Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button v-if="summaryRetryAction" type="button" :disabled="summaryDialogLoading || summaryConversationBusy" @click="runSummaryRetry">{{ summaryRetryLabel }}</button>
                   </div>
                 </div>
-                <footer class="summary-dialog-footer"><form class="summary-dialog-composer" @submit.prevent="sendSummaryDialogMessage"><textarea ref="summaryDialogInput" v-model="summaryDialogDraft" rows="1" placeholder="继续针对这篇文章提问…" aria-label="继续提问" @keydown.enter.exact.prevent="sendSummaryDialogMessage" /><button v-if="!summaryDialogLoading" type="submit" :disabled="!summaryDialogDraft.trim()" aria-label="发送消息"><Icon name="i-lucide-send" /></button><button v-else type="button" class="is-stop" aria-label="停止生成" @click="stopSummaryDialogRequest"><Icon name="i-lucide-square" /></button></form><p>回答仅基于当前文章内容，请注意核对重要信息</p></footer>
+                <footer class="summary-dialog-footer"><form class="summary-dialog-composer" @submit.prevent="sendSummaryDialogMessage"><textarea ref="summaryDialogInput" v-model="summaryDialogDraft" rows="1" maxlength="300" placeholder="继续针对这篇文章提问…" aria-label="继续提问" @keydown="handleSummaryComposerKeydown" /><button v-if="!summaryDialogLoading" type="submit" :disabled="summaryDialogDraft.trim().length < 2 || summaryConversationBusy || !summaryConversationRestored" aria-label="发送消息"><Icon name="i-lucide-send" /></button><button v-else type="button" class="is-stop" aria-label="停止生成" @click="stopSummaryDialogRequest"><Icon name="i-lucide-square" /></button></form><p>{{ summaryDialogDraft.length }}/300 · Enter 发送，Shift+Enter 换行 · 回答仅基于当前文章</p></footer>
               </section>
             </div>
           </Transition>
@@ -198,6 +199,7 @@
 </template>
 
 <script setup lang="ts">
+import { shouldSendChat, trapChatFocus } from '~/utils/chat-interaction'
 import { absoluteSiteUrl, serializeJsonLd } from '~/utils/seo'
 import type { ArticleChatCitation } from '~/utils/article-chat-markdown'
 import {
@@ -253,6 +255,54 @@ const summaryHistoryHasMore = ref(false)
 const summaryHistoryTotal = ref(0)
 const summaryDialogLoading = ref(false)
 const summaryDialogError = ref('')
+const summaryRetryAction = shallowRef<(() => Promise<void>) | null>(null)
+const summaryRetryLabel = ref('重试')
+const summaryConversationBusy = ref(false)
+const summaryDialogEl = ref<HTMLElement | null>(null)
+const summaryViewportStyle = ref<Record<string, string>>({})
+let summaryLastAttempt: { question: string, userId: number | string, assistantId: string } | null = null
+let summaryHistoryVersion = 0
+let summaryHistoryTimer: ReturnType<typeof setTimeout> | undefined
+let unlockSummaryModal: (() => void) | null = null
+function setSummaryError(error: unknown, retry: () => Promise<void>, label: string) {
+  summaryDialogError.value = getArticleChatError(error)
+  summaryRetryAction.value = retry
+  summaryRetryLabel.value = label
+}
+async function runSummaryRetry() { await summaryRetryAction.value?.() }
+watch(summaryDialogDraft, async () => {
+  await nextTick()
+  const input = summaryDialogInput.value
+  if (input) { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 116) + 'px' }
+})
+watch(summaryHistoryQuery, () => {
+  ++summaryHistoryVersion
+  clearTimeout(summaryHistoryTimer)
+  summaryHistoryTimer = setTimeout(() => { void loadSummaryHistory(true) }, 250)
+})
+watch(summaryDialogOpen, async open => {
+  unlockSummaryModal?.()
+  unlockSummaryModal = null
+  if (!open) return
+  const root = document.getElementById('__nuxt')
+  const wasInert = root?.inert ?? false
+  const overflow = document.body.style.overflow
+  document.body.style.overflow = 'hidden'
+  if (root) root.inert = true
+  const viewport = window.visualViewport
+  const update = () => { summaryViewportStyle.value = viewport ? { height: viewport.height + 'px', top: viewport.offsetTop + 'px' } : {} }
+  update()
+  viewport?.addEventListener('resize', update)
+  viewport?.addEventListener('scroll', update)
+  unlockSummaryModal = () => {
+    document.body.style.overflow = overflow
+    if (root) root.inert = wasInert
+    viewport?.removeEventListener('resize', update)
+    viewport?.removeEventListener('scroll', update)
+  }
+  await nextTick()
+  summaryDialogEl.value?.focus({ preventScroll: true })
+})
 const summaryDialogInput = ref<HTMLTextAreaElement | null>(null)
 const summaryMessagesEl = ref<HTMLElement | null>(null)
 const articleContentEl = ref<HTMLElement | null>(null)
@@ -272,10 +322,7 @@ const sidebarPosts = computed(() => {
   return (relatedData.value?.data?.items || []).filter((item: any) => item.slug !== post.value.slug)
 })
 const summaryHistoryGroups = computed(() => {
-  const query = summaryHistoryQuery.value.trim().toLocaleLowerCase()
-  const items = query
-    ? summaryHistoryItems.value.filter(item => item.title.toLocaleLowerCase().includes(query))
-    : summaryHistoryItems.value
+  const items = summaryHistoryItems.value
   const groups = new Map<string, ArticleConversationItem[]>()
   for (const item of items) {
     const label = conversationDateGroup(item.lastMessageAt)
@@ -300,6 +347,8 @@ const heroGradient = computed(() => heroGradients[post.value.id % heroGradients.
 layoutScrollTitle.value = post.value.title
 
 onBeforeUnmount(() => {
+  unlockSummaryModal?.()
+  clearTimeout(summaryHistoryTimer)
   summaryDialogController?.abort()
   layoutScrollTitle.value = ''
   window.removeEventListener('scroll', scheduleTocUpdate)
@@ -477,6 +526,8 @@ function closeSummaryDialog() {
   summarySavedScrollTop = summaryMessagesEl.value?.scrollTop ?? summarySavedScrollTop
   summaryHistoryOpen.value = false
   summaryDialogOpen.value = false
+  unlockSummaryModal?.()
+  unlockSummaryModal = null
   summaryEntryButton.value?.focus({ preventScroll: true })
 }
 
@@ -486,7 +537,8 @@ async function toggleSummaryHistory() {
 }
 
 async function loadSummaryHistory(reset: boolean) {
-  if (summaryHistoryLoading.value) return
+  if (summaryHistoryLoading.value && !reset) return
+  const version = ++summaryHistoryVersion
   if (reset) {
     summaryHistoryPage.value = 1
     summaryHistoryItems.value = []
@@ -494,40 +546,49 @@ async function loadSummaryHistory(reset: boolean) {
   summaryHistoryLoading.value = true
   try {
     const response = await $fetch<{ data: { items: ArticleConversationItem[], pagination: { page: number, total: number, hasMore: boolean } } }>(`/api/posts/${post.value.slug}/chat/conversations`, {
-      query: { page: summaryHistoryPage.value, pageSize: 20 }
+      query: { page: summaryHistoryPage.value, pageSize: 20, search: summaryHistoryQuery.value.trim() || undefined }
     })
+    if (version !== summaryHistoryVersion) return
     summaryHistoryItems.value.push(...response.data.items)
     summaryHistoryTotal.value = response.data.pagination.total
     summaryHistoryHasMore.value = response.data.pagination.hasMore
     if (response.data.pagination.hasMore) summaryHistoryPage.value += 1
   } catch (error: unknown) {
-    summaryDialogError.value = getArticleChatError(error)
+    if (version === summaryHistoryVersion) setSummaryError(error, () => loadSummaryHistory(true), '重新加载历史')
   } finally {
-    summaryHistoryLoading.value = false
+    if (version === summaryHistoryVersion) summaryHistoryLoading.value = false
   }
 }
 
 async function switchSummaryConversation(conversationId: number) {
+  if (summaryConversationBusy.value) return
   if (summaryDialogLoading.value || conversationId === summaryConversationId.value) {
     summaryHistoryOpen.value = false
     return
   }
   summaryDialogError.value = ''
+  summaryConversationBusy.value = true
   try {
     const response = await $fetch<{ data: { conversation: { id: number }, messages: ArticleChatMessage[] } }>(`/api/posts/${post.value.slug}/chat/conversations/${conversationId}`, { method: 'PUT' })
     summaryConversationId.value = response.data.conversation.id
     summaryMessages.value = response.data.messages
+    if (summaryLastAttempt?.question === summaryDialogDraft.value) summaryDialogDraft.value = ''
+    summaryLastAttempt = null
     summaryReferenceSelections.value = {}
     summaryHistoryOpen.value = false
     await scrollSummaryMessages(false)
     summaryDialogInput.value?.focus()
   } catch (error: unknown) {
-    summaryDialogError.value = getArticleChatError(error)
+    setSummaryError(error, () => switchSummaryConversation(conversationId), '重新切换')
+  } finally {
+    summaryConversationBusy.value = false
   }
 }
 
 async function removeSummaryConversation(item: ArticleConversationItem) {
+  if (summaryConversationBusy.value) return
   if (summaryDialogLoading.value || !window.confirm(`确定删除会话“${item.title}”吗？删除后无法恢复。`)) return
+  summaryConversationBusy.value = true
   try {
     await $fetch(`/api/posts/${post.value.slug}/chat/conversations/${item.id}`, { method: 'DELETE' })
     summaryHistoryItems.value = summaryHistoryItems.value.filter(conversation => conversation.id !== item.id)
@@ -539,7 +600,9 @@ async function removeSummaryConversation(item: ArticleConversationItem) {
       summaryDialogError.value = ''
     }
   } catch (error: unknown) {
-    summaryDialogError.value = getArticleChatError(error)
+    setSummaryError(error, () => removeSummaryConversation(item), '重试删除')
+  } finally {
+    summaryConversationBusy.value = false
   }
 }
 
@@ -596,7 +659,13 @@ function focusSummaryDialogInput() {
 }
 
 function handleSummaryDialogEscape(event: KeyboardEvent) {
-  if (event.key === 'Escape' && summaryDialogOpen.value) closeSummaryDialog()
+  if (!summaryDialogOpen.value || event.isComposing) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    if (summaryHistoryOpen.value) { summaryHistoryOpen.value = false; summaryDialogEl.value?.querySelector<HTMLButtonElement>('[aria-label="历史会话"]')?.focus() }
+    else closeSummaryDialog()
+  }
+  if (summaryDialogEl.value) trapChatFocus(event, summaryDialogEl.value)
 }
 
 async function restoreSummaryConversation() {
@@ -610,7 +679,7 @@ async function restoreSummaryConversation() {
       summaryConversationRestored = true
       summaryDialogError.value = ''
     } catch (error: unknown) {
-      summaryDialogError.value = getArticleChatError(error)
+      setSummaryError(error, restoreSummaryConversation, '重新加载会话')
     } finally {
       summaryRestorePromise = null
     }
@@ -618,21 +687,29 @@ async function restoreSummaryConversation() {
   return summaryRestorePromise
 }
 
-async function sendSummaryDialogMessage() {
-  const question = summaryDialogDraft.value.trim()
-  if (!question || summaryDialogLoading.value) return
-  summaryDialogDraft.value = ''
-  await submitSummaryQuestion(question)
+function handleSummaryComposerKeydown(event: KeyboardEvent) {
+  if (!shouldSendChat(event)) return
+  event.preventDefault()
+  void sendSummaryDialogMessage()
 }
 
-async function submitSummaryQuestion(question: string) {
-  if (summaryDialogLoading.value) return
-  const temporaryId = `pending-${Date.now()}`
+async function sendSummaryDialogMessage() {
+  const question = summaryDialogDraft.value.trim()
+  if (summaryConversationBusy.value || !summaryConversationRestored || summaryDialogLoading.value) return
+  if (question.length < 2 || question.length > 300) { summaryDialogError.value = '问题需要 2–300 个字'; summaryRetryAction.value = null; return }
+  summaryDialogDraft.value = ''
+  if (summaryLastAttempt?.question === question) await retrySummaryQuestion()
+  else await submitSummaryQuestion(question)
+}
+
+async function submitSummaryQuestion(question: string, retryUserId?: number) {
+  if (summaryDialogLoading.value || summaryConversationBusy.value) return
+  if (question.length < 2 || question.length > 300) { summaryDialogError.value = '问题需要 2–300 个字'; summaryRetryAction.value = null; return }
+  const temporaryId = retryUserId ?? `pending-${Date.now()}`
   const assistantTemporaryId = `stream-${Date.now()}`
-  summaryMessages.value.push(
-    { id: temporaryId, role: 'USER', content: question, status: 'COMPLETED' },
-    { id: assistantTemporaryId, role: 'ASSISTANT', content: '', status: 'PENDING' }
-  )
+  if (!retryUserId) summaryMessages.value.push({ id: temporaryId, role: 'USER', content: question, status: 'COMPLETED' })
+  summaryMessages.value.push({ id: assistantTemporaryId, role: 'ASSISTANT', content: '', status: 'PENDING' })
+  summaryLastAttempt = { question, userId: temporaryId, assistantId: assistantTemporaryId }
   summaryStreamingId.value = assistantTemporaryId
   summaryDialogLoading.value = true
   summaryDialogError.value = ''
@@ -643,12 +720,13 @@ async function submitSummaryQuestion(question: string) {
       method: 'POST',
       signal: summaryDialogController.signal,
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify({ conversationId: summaryConversationId.value || undefined, message: question })
+      body: JSON.stringify({ conversationId: summaryConversationId.value || undefined, message: question, retryMessageId: retryUserId })
     })
     if (!response.ok || !response.body) throw new Error(await readStreamHttpError(response))
     await consumeArticleChatStream(response.body, {
       meta: (data) => {
         const payload = data as { conversation: { id: number }, userMessage: ArticleChatMessage }
+        if (summaryLastAttempt) summaryLastAttempt.userId = payload.userMessage.id
         summaryConversationId.value = payload.conversation.id
         const index = summaryMessages.value.findIndex(item => item.id === temporaryId)
         if (index >= 0) summaryMessages.value[index] = payload.userMessage
@@ -669,11 +747,19 @@ async function submitSummaryQuestion(question: string) {
       error: data => { throw new Error(String((data as { message?: string }).message || '回答生成失败，请稍后重试')) }
     })
     if (summaryMessages.value.some(item => item.id === assistantTemporaryId)) throw new Error('回答连接已中断，请重试')
+    summaryLastAttempt = null
   } catch (error: unknown) {
     if (summaryDialogController?.signal.aborted) summaryDialogError.value = '已停止本次回答'
     else summaryDialogError.value = error instanceof Error ? error.message : getArticleChatError(error)
+    if (!summaryDialogDraft.value) summaryDialogDraft.value = question
+    summaryRetryAction.value = retrySummaryQuestion
+    summaryRetryLabel.value = '重新生成回答'
+    if (summaryDialogError.value.includes('已有回答') || summaryDialogError.value.includes('会话已变化')) {
+      summaryRetryAction.value = async () => { summaryConversationRestored = false; await restoreSummaryConversation(); summaryLastAttempt = null }
+      summaryRetryLabel.value = '重新加载会话'
+    }
     const partial = summaryMessages.value.find(item => item.id === assistantTemporaryId)
-    if (partial && !partial.content.trim()) summaryMessages.value = summaryMessages.value.filter(item => item.id !== assistantTemporaryId)
+    if (partial) { partial.status = summaryDialogController?.signal.aborted ? 'STOPPED' : 'FAILED'; if (!partial.content.trim()) partial.content = summaryDialogError.value }
   } finally {
     const follow = isSummaryAtEnd()
     summaryStreamingId.value = null
@@ -688,11 +774,14 @@ function stopSummaryDialogRequest() {
 }
 
 async function resetSummaryConversation() {
+  if (summaryConversationBusy.value) return
   if (summaryDialogLoading.value || !summaryConversationId.value) return
   summaryHistoryOpen.value = false
+  summaryConversationBusy.value = true
   try {
     await $fetch(`/api/posts/${post.value.slug}/chat`, { method: 'DELETE', body: { conversationId: summaryConversationId.value } })
     summaryConversationId.value = null
+    summaryLastAttempt = null
     summaryMessages.value = []
     summaryReferenceSelections.value = {}
     summarySavedScrollTop = null
@@ -701,16 +790,18 @@ async function resetSummaryConversation() {
     await nextTick()
     summaryDialogInput.value?.focus()
   } catch (error: unknown) {
-    summaryDialogError.value = getArticleChatError(error)
+    setSummaryError(error, resetSummaryConversation, '重试新建')
+  } finally {
+    summaryConversationBusy.value = false
   }
 }
 
 async function retrySummaryQuestion() {
-  if (summaryDialogLoading.value) return
-  const lastUser = [...summaryMessages.value].reverse().find(item => item.role === 'USER')
-  if (!lastUser) return
-  if (typeof lastUser.id === 'string' && lastUser.id.startsWith('pending-')) summaryMessages.value = summaryMessages.value.filter(item => item.id !== lastUser.id)
-  await submitSummaryQuestion(lastUser.content)
+  if (summaryDialogLoading.value || !summaryLastAttempt) return
+  const attempt = summaryLastAttempt
+  if (summaryDialogDraft.value.trim() === attempt.question) summaryDialogDraft.value = ''
+  summaryMessages.value = summaryMessages.value.filter(item => item.id !== attempt.assistantId && (typeof attempt.userId === 'number' || item.id !== attempt.userId))
+  await submitSummaryQuestion(attempt.question, typeof attempt.userId === 'number' ? attempt.userId : undefined)
 }
 
 async function scrollSummaryMessages(smooth = true) {
@@ -1181,12 +1272,15 @@ function scrollToTocHeading(id: string) {
 .summary-chat-form button:disabled { opacity: .48; cursor: not-allowed; box-shadow: none; }
 .summary-dialog-backdrop { position: fixed; inset: 0; z-index: 80; background: rgb(28 34 45 / 16%); backdrop-filter: blur(12px); touch-action: none; }
 .summary-dialog-stage { position: fixed; inset: 0; z-index: 81; display: grid; place-items: center; padding: 24px; pointer-events: none; }
-.summary-dialog { position: relative; display: flex; width: min(680px, 100%); height: min(750px, 80vh); overflow: hidden; flex-direction: column; border: 1px solid rgb(255 255 255 / 68%); border-radius: 30px; background: color-mix(in srgb, var(--theme-surface) 88%, transparent); box-shadow: 0 30px 80px -20px rgb(32 40 55 / 24%), 0 0 0 1px rgb(49 57 72 / 4%); backdrop-filter: blur(28px) saturate(125%); pointer-events: auto; }
+.summary-dialog { max-height: calc(100% - 24px); position: relative; display: flex; width: min(680px, 100%); height: min(750px, 80vh); overflow: hidden; flex-direction: column; border: 1px solid rgb(255 255 255 / 68%); border-radius: 30px; background: color-mix(in srgb, var(--theme-surface) 88%, transparent); box-shadow: 0 30px 80px -20px rgb(32 40 55 / 24%), 0 0 0 1px rgb(49 57 72 / 4%); backdrop-filter: blur(28px) saturate(125%); pointer-events: auto; }
 .summary-dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px 16px 22px; }
 .summary-dialog-identity { display: flex; align-items: center; gap: 11px; }
 .summary-dialog-identity>span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: linear-gradient(145deg,#b65348,#d17b68); color: #fff; box-shadow: 0 6px 16px rgb(182 83 72 / 22%); }
 .summary-dialog-identity>span :deep(svg) { width: 17px; height: 17px; }
-.summary-dialog-identity strong,.summary-dialog-identity small { display: block; }
+.summary-dialog-identity { min-width: 0; }
+.summary-dialog-identity strong { display: block; }
+.summary-dialog-identity>div { min-width: 0; }
+.summary-dialog-identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 36ch; display: block; }
 .summary-dialog-identity strong { color: var(--theme-text); font-size: 14px; letter-spacing: .02em; }
 .summary-dialog-identity small { margin-top: 2px; color: #9298a2; font-size: 11px; }
 .summary-dialog-head-actions { display: flex; gap: 7px; }.summary-dialog-head-actions button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 50%; background: var(--theme-surface-muted); color: var(--theme-text-faint); cursor: pointer; transition: background .18s ease,color .18s ease,transform .18s ease; }
@@ -1199,11 +1293,11 @@ function scrollToTocHeading(id: string) {
 .summary-history-drawer>header strong,.summary-history-drawer>header small { display: block; }.summary-history-drawer>header strong { color: var(--theme-text); font-size: 14px; }.summary-history-drawer>header small { margin-top: 3px; color: #9a9fa8; font-size: 10px; }
 .summary-history-drawer>header button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--theme-text-faint); cursor: pointer; }.summary-history-drawer>header button:hover { background: var(--theme-surface-hover); color: var(--theme-text-soft); }.summary-history-drawer>header button :deep(svg) { width: 14px; height: 14px; }
 .summary-history-search { display: flex; align-items: center; gap: 8px; margin: 0 14px 12px; border: 1px solid var(--theme-border-soft); border-radius: 12px; background: color-mix(in srgb, var(--theme-surface) 78%, transparent); color: var(--theme-text-faint); padding: 0 11px; }.summary-history-search:focus-within { border-color: #d9b1aa; box-shadow: 0 0 0 3px rgb(182 83 72 / 6%); }.summary-history-search :deep(svg) { width: 14px; height: 14px; }.summary-history-search input { width: 100%; height: 36px; border: 0; background: transparent; color: var(--theme-text); font: inherit; font-size: 12px; outline: 0; }
-.summary-history-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 10px 14px; scrollbar-width: thin; scrollbar-color: #dfe1e5 transparent; }.summary-history-list section+section { margin-top: 15px; }.summary-history-list h3 { margin: 0 8px 6px; color: #a1a5ad; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.summary-history-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 10px 14px; scrollbar-width: thin; scrollbar-color: #dfe1e5 transparent; }.summary-history-list section+section { margin-top: 15px; }.summary-history-list h3 { margin: 0 8px 6px; color: #a1a5ad; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
 .summary-history-list article { position: relative; display: flex; align-items: center; border-radius: 13px; transition: background .18s ease; }.summary-history-list article:hover,.summary-history-list article.is-current { background: rgb(238 231 230 / 72%); }.summary-history-list article.is-current::before { position: absolute; top: 12px; bottom: 12px; left: 0; width: 2px; border-radius: 2px; background: #b65348; content: ''; }
-.summary-history-main { display: grid; min-width: 0; flex: 1; grid-template-columns: 30px minmax(0,1fr); align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 9px 7px 9px 10px; text-align: left; }.summary-history-main>span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--theme-surface) 72%, transparent); color: #a8645c; }.summary-history-main>span :deep(svg) { width: 14px; height: 14px; }.summary-history-main div { min-width: 0; }.summary-history-main strong,.summary-history-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.summary-history-main strong { color: var(--theme-text-soft); font-size: 11px; font-weight: 680; }.summary-history-main small { margin-top: 4px; color: var(--theme-text-faint); font-size: 9px; }
-.summary-history-delete { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; margin-right: 6px; border: 0; border-radius: 9px; background: transparent; color: transparent; cursor: pointer; }.summary-history-list article:hover .summary-history-delete { color: #a8a1a1; }.summary-history-delete:hover { background: color-mix(in srgb, var(--theme-surface) 72%, transparent); color: #b65348!important; }.summary-history-delete :deep(svg) { width: 13px; height: 13px; }
-.summary-history-more { width: calc(100% - 16px); margin: 12px 8px 0; border: 1px solid var(--theme-border-soft); border-radius: 10px; background: color-mix(in srgb, var(--theme-surface) 65%, transparent); color: var(--theme-text-muted); cursor: pointer; font-size: 10px; padding: 8px; }.summary-history-state,.summary-history-empty { display: flex; min-height: 220px; align-items: center; justify-content: center; flex-direction: column; color: var(--theme-text-faint); font-size: 11px; }.summary-history-state :deep(svg) { width: 18px; height: 18px; margin-bottom: 8px; animation: summary-history-spin .9s linear infinite; }.summary-history-empty>span { display: grid; width: 42px; height: 42px; margin-bottom: 11px; place-items: center; border-radius: 14px; background: var(--theme-surface-hover); color: var(--theme-text-faint); }.summary-history-empty>span :deep(svg) { width: 19px; height: 19px; }.summary-history-empty strong { color: var(--theme-text-muted); font-size: 12px; }.summary-history-empty small { margin-top: 5px; font-size: 9px; }
+.summary-history-main { display: grid; min-width: 0; flex: 1; grid-template-columns: 30px minmax(0,1fr); align-items: center; gap: 9px; border: 0; background: transparent; cursor: pointer; padding: 9px 7px 9px 10px; text-align: left; }.summary-history-main>span { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--theme-surface) 72%, transparent); color: #a8645c; }.summary-history-main>span :deep(svg) { width: 14px; height: 14px; }.summary-history-main div { min-width: 0; }.summary-history-main strong,.summary-history-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.summary-history-main strong { color: var(--theme-text-soft); font-size: 13px; font-weight: 680; }.summary-history-main small { margin-top: 4px; color: var(--theme-text-faint); font-size: 12px; }
+.summary-history-delete { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; margin-right: 6px; border: 0; border-radius: 9px; background: transparent; color: var(--theme-text-muted); cursor: pointer; }.summary-history-list article:hover .summary-history-delete { color: #a8a1a1; }.summary-history-delete:hover { background: color-mix(in srgb, var(--theme-surface) 72%, transparent); color: #b65348!important; }.summary-history-delete :deep(svg) { width: 13px; height: 13px; }
+.summary-history-more { width: calc(100% - 16px); margin: 12px 8px 0; border: 1px solid var(--theme-border-soft); border-radius: 10px; background: color-mix(in srgb, var(--theme-surface) 65%, transparent); color: var(--theme-text-muted); cursor: pointer; font-size: 10px; padding: 8px; }.summary-history-state,.summary-history-empty { display: flex; min-height: 220px; align-items: center; justify-content: center; flex-direction: column; color: var(--theme-text-faint); font-size: 13px; }.summary-history-state :deep(svg) { width: 18px; height: 18px; margin-bottom: 8px; animation: summary-history-spin .9s linear infinite; }.summary-history-empty>span { display: grid; width: 42px; height: 42px; margin-bottom: 11px; place-items: center; border-radius: 14px; background: var(--theme-surface-hover); color: var(--theme-text-faint); }.summary-history-empty>span :deep(svg) { width: 19px; height: 19px; }.summary-history-empty strong { color: var(--theme-text-muted); font-size: 12px; }.summary-history-empty small { margin-top: 5px; font-size: 12px; }
 .summary-history-enter-active,.summary-history-leave-active { transition: opacity .24s ease,transform .28s cubic-bezier(.22,1,.36,1); }.summary-history-enter-from,.summary-history-leave-to { opacity: 0; transform: translateX(-20px); }
 @keyframes summary-history-spin { to { transform: rotate(360deg); } }
 .summary-dialog-messages { display: flex; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; flex-direction: column; gap: 28px; padding: 32px 26px; scrollbar-width: thin; scrollbar-color: #dfe2e7 transparent; }
@@ -1229,6 +1323,7 @@ function scrollToTocHeading(id: string) {
 .summary-dialog-footer { flex: 0 0 auto; padding: 14px 18px 16px; }
 .summary-dialog-composer { display: flex; align-items: flex-end; gap: 8px; border: 1px solid var(--theme-border-soft); border-radius: 22px; background: var(--theme-surface-muted); padding: 6px; transition: background .18s ease,border-color .18s ease,box-shadow .18s ease; }
 .summary-dialog-composer:focus-within { border-color: #d5aaa2; background: var(--theme-surface); box-shadow: 0 0 0 4px rgb(182 83 72 / 7%); }
+.summary-message-status { display: block; margin-top: 8px; color: var(--theme-text-muted); font-size: 12px; }
 .summary-dialog-composer textarea { width: 100%; min-height: 38px; max-height: 116px; resize: none; border: 0; background: transparent; color: var(--theme-text); font: inherit; font-size: 14px; line-height: 1.5; outline: none; padding: 9px 10px 7px; }
 .summary-dialog-composer button { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 0; border-radius: 50%; background: #b65348; color: #fff; cursor: pointer; transition: opacity .18s ease,transform .18s ease,background .18s ease; }
 .summary-dialog-composer button:hover { background: #a4473e; transform: scale(1.04); }.summary-dialog-composer button:disabled { background: #c7cbd1; cursor: not-allowed; opacity: .55; transform: none; }.summary-dialog-composer button.is-stop { background: #737a85; }

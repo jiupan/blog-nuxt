@@ -3,7 +3,10 @@ import { validationError } from '../../utils/api-error'
 
 export const articleChatInputSchema = z.object({
   conversationId: z.number().int().positive().optional(),
+  retryMessageId: z.number().int().positive().optional(),
   message: z.string().trim().min(2, '问题至少需要 2 个字').max(300, '问题不能超过 300 个字')
+}).refine(value => !value.retryMessageId || Boolean(value.conversationId), {
+  message: '重试需要指定原会话', path: ['conversationId']
 })
 
 export function parseArticleChatInput(value: unknown) {

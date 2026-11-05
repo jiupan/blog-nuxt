@@ -1,3 +1,4 @@
+import { prepareArticleChatTurn } from './article-chat-turn'
 import { createHash, randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { getCookie, setCookie } from 'h3'
@@ -17,7 +18,8 @@ const ipWindows: FixedWindowStore = new Map()
 
 export const articleConversationListSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(20).default(20)
+  pageSize: z.coerce.number().int().min(1).max(20).default(20),
+  search: z.string().trim().max(80).optional()
 })
 
 export async function getCurrentArticleConversation(event: H3Event, slug: string) {
@@ -30,7 +32,9 @@ export async function getCurrentArticleConversation(event: H3Event, slug: string
 
 export async function listArticleConversations(event: H3Event, slug: string, input: z.infer<typeof articleConversationListSchema>) {
   const [post, identity] = await Promise.all([requirePublishedPost(slug), resolveIdentity(event)])
-  const where = { postId: post.id, ...identityWhere(identity) }
+  const where = { postId: post.id, ...identityWhere(identity),
+    ...(input.search ? { messages: { some: { role: 'USER' as const, content: { contains: input.search, mode: 'insensitive' as const } } } } : {})
+  }
   const [total, conversations] = await Promise.all([
     prisma.articleChatConversation.count({ where }),
     prisma.articleChatConversation.findMany({
@@ -88,9 +92,9 @@ export async function sendArticleChatMessage(event: H3Event, slug: string, input
     ? await requireOwnedConversation(input.conversationId, post.id, identity)
     : await getOrCreateConversation(post.id, identity)
   const history = await prisma.articleChatMessage.findMany({
-    where: { conversationId: conversation.id, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 6
+    where: { conversationId: conversation.id, status: 'COMPLETED', ...(input.retryMessageId ? { id: { lt: input.retryMessageId } } : {}) }, orderBy: { createdAt: 'desc' }, take: 6
   }).then(items => items.reverse())
-  const userMessage = await prisma.articleChatMessage.create({ data: { conversationId: conversation.id, role: 'USER', content: input.message } })
+  const userMessage = await prepareArticleChatTurn(conversation.id, input)
   const retrievalQuery = buildRetrievalQuery(history, input.message)
   try {
     const results = await searchPostChunks({ query: retrievalQuery, postId: post.id, limit: settings.topK })
@@ -130,9 +134,9 @@ export async function streamArticleChatMessage(
     ? await requireOwnedConversation(input.conversationId, post.id, identity)
     : await getOrCreateConversation(post.id, identity)
   const history = await prisma.articleChatMessage.findMany({
-    where: { conversationId: conversation.id, status: 'COMPLETED' }, orderBy: { createdAt: 'desc' }, take: 6
+    where: { conversationId: conversation.id, status: 'COMPLETED', ...(input.retryMessageId ? { id: { lt: input.retryMessageId } } : {}) }, orderBy: { createdAt: 'desc' }, take: 6
   }).then(items => items.reverse())
-  const userMessage = await prisma.articleChatMessage.create({ data: { conversationId: conversation.id, role: 'USER', content: input.message } })
+  const userMessage = await prepareArticleChatTurn(conversation.id, input)
   await options.onMeta({ conversation: { id: conversation.id, postId: post.id }, userMessage: toMessageDto(userMessage) })
 
   const results = await searchPostChunks({ query: buildRetrievalQuery(history, input.message), postId: post.id, limit: settings.topK })

@@ -1,31 +1,34 @@
 <template>
   <form class="comment-composer" :class="`is-${variant}`" @submit.prevent="send">
-    <div class="comment-identity" role="group" aria-label="评论身份">
-      <button
-        v-for="option in identityOptions"
-        :key="option.value"
-        type="button"
-        class="comment-identity-option"
-        :class="{ 'is-active': identityChoice === option.value }"
-        :aria-pressed="identityChoice === option.value"
-        @click="chooseIdentity(option.value)"
-      >
-        <Icon :name="option.icon" aria-hidden="true" />
-        <span>{{ option.label }}</span>
-      </button>
-    </div>
+    <div class="comment-composer-header">
+      <div class="comment-identity" role="group" aria-label="评论身份">
+        <button
+          v-for="option in identityOptions"
+          :key="option.value"
+          type="button"
+          class="comment-identity-option"
+          :class="{ 'is-active': identityChoice === option.value }"
+          :aria-pressed="identityChoice === option.value"
+          @click="chooseIdentity(option.value)"
+        >
+          <Icon :name="option.icon" aria-hidden="true" />
+          <span>{{ option.label }}</span>
+        </button>
+      </div>
 
-    <div v-if="identityChoice === 'guest-named'" class="comment-guest-row">
-      <label class="comment-guest-label" :for="guestInputId">昵称</label>
-      <input
-        :id="guestInputId"
-        v-model="guestName"
-        class="comment-guest-input"
-        type="text"
-        :maxlength="COMMENT_NAME_MAX_LENGTH"
-        placeholder="2-24 个字符"
-        autocomplete="nickname"
-      >
+      <div class="comment-guest-row" :class="{ 'is-inactive': identityChoice !== 'guest-named' }" :aria-hidden="identityChoice !== 'guest-named'">
+        <label class="comment-guest-label" :for="guestInputId">昵称</label>
+        <input
+          :id="guestInputId"
+          v-model="guestName"
+          :disabled="identityChoice !== 'guest-named'"
+          class="comment-guest-input"
+          type="text"
+          :maxlength="COMMENT_NAME_MAX_LENGTH"
+          placeholder="2-24 个字符"
+          autocomplete="nickname"
+        >
+      </div>
     </div>
 
     <div v-if="variant === 'reply' && replyTarget" class="comment-reply-bar">
@@ -313,6 +316,7 @@ async function send() {
 .comment-emotion-grid button:hover { background: var(--theme-surface-muted); }
 .comment-emotions button:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 2px; }
 .comment-composer {
+  container-type: inline-size;
   border: 1px solid var(--theme-border);
   border-radius: 10px;
   background: var(--theme-surface-muted);
@@ -322,6 +326,22 @@ async function send() {
 .comment-composer.is-reply {
   margin-top: 10px;
   background: var(--theme-surface);
+}
+
+.comment-composer-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 280px);
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.comment-guest-row.is-inactive {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@container (max-width: 640px) {
+  .comment-composer-header { grid-template-columns: minmax(0, 1fr); }
 }
 
 .comment-identity {
@@ -367,7 +387,8 @@ async function send() {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  min-height: 34px;
+  min-width: 0;
 }
 
 .comment-guest-label {
@@ -377,7 +398,7 @@ async function send() {
 }
 
 .comment-guest-input {
-  width: min(260px, 100%);
+  width: 100%;
   min-width: 0;
   height: 34px;
   border: 1px solid var(--theme-border);
