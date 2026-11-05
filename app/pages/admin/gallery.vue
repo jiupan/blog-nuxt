@@ -1001,7 +1001,6 @@ async function deleteSelected() {
   background: #f5f6f8;
   cursor: pointer;
 }
-.gallery-thumb.is-cover { aspect-ratio: 16/9; }
 .gallery-thumb.is-meme { background: conic-gradient(#eef1f5 25%, #fff 0 50%, #eef1f5 0 75%, #fff 0) 0 0 / 16px 16px; }
 .gallery-thumb img {
   width: 100%;
