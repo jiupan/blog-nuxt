@@ -45,7 +45,9 @@
         <USelect
           v-model="postIdFilter"
           :items="postItems"
-          class="comments-filter"
+          class="comments-filter w-full min-w-0"
+          :content="{ align: 'start', position: 'popper' }"
+          :ui="{ content: 'w-[min(36rem,calc(100vw-2rem))] min-w-(--reka-select-trigger-width)', item: 'items-start py-2', itemLabel: 'whitespace-normal wrap-break-word leading-relaxed' }"
           aria-label="按文章筛选"
         />
         <UInput
@@ -58,7 +60,9 @@
         <USelect
           v-model="sort"
           :items="sortOptions"
-          class="comments-filter"
+          class="comments-filter w-full min-w-0"
+          :content="{ align: 'end' }"
+          :ui="{ content: 'min-w-40', itemLabel: 'whitespace-nowrap' }"
           aria-label="评论排序"
         />
       </div>
@@ -479,10 +483,10 @@ function formatDateTime(value?: string | Date | null) {
 }
 
 .comments-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(240px, 1.2fr) minmax(180px, 1fr) 150px;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   border-bottom: 1px solid var(--admin-line);
   padding: 18px 24px;
 }
@@ -493,7 +497,12 @@ function formatDateTime(value?: string | Date | null) {
 }
 
 .comments-filter {
-  width: 170px;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .comments-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .comments-state {
@@ -786,6 +795,7 @@ function formatDateTime(value?: string | Date | null) {
   }
 
   .comments-toolbar {
+    grid-template-columns: minmax(0, 1fr);
     padding: 16px;
   }
 

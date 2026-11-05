@@ -34,6 +34,7 @@
     </div>
 
     <textarea
+      ref="textarea"
       v-model="body"
       class="comment-input"
       :rows="variant === 'reply' ? 3 : 4"
@@ -42,6 +43,20 @@
       aria-label="评论内容"
       @keydown="handleKeydown"
     />
+
+    <div class="comment-emotions" @keydown.esc.stop.prevent="closeEmotions">
+      <button ref="emotionToggle" type="button" class="comment-emotion-toggle" :aria-expanded="emotionsOpen" :aria-controls="emotionsId" @click="emotionsOpen = !emotionsOpen">
+        <Icon name="i-lucide-smile" aria-hidden="true" /> 表情
+      </button>
+      <div v-if="emotionsOpen" :id="emotionsId" class="comment-emotion-panel" aria-label="选择表情">
+        <div class="comment-emotion-tabs" role="group" aria-label="表情分类">
+          <button v-for="(group, index) in emotionGroups" :key="group.label" type="button" :aria-pressed="emotionGroup === index" @click="emotionGroup = index">{{ group.label }}</button>
+        </div>
+        <div class="comment-emotion-grid" :class="{ 'is-text': emotionGroup === 1 }">
+          <button v-for="emotion in emotionGroups[emotionGroup]!.items" :key="emotion" type="button" :aria-label="`插入 ${emotion}`" @mousedown.prevent @click="insertEmotion(emotion)">{{ emotion }}</button>
+        </div>
+      </div>
+    </div>
 
     <div class="comment-composer-footer">
       <span class="comment-counter" :class="{ 'is-over': bodyLength > COMMENT_BODY_MAX_LENGTH }">
@@ -66,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
 import { createRequestId, useCommentContext } from '../../composables/usePostComments'
 import type { CommentDraft, CommentFeedback, CommentIdentityChoice } from '~/composables/usePostComments'
 import {
@@ -85,6 +100,34 @@ const emit = defineEmits<{ cancel: [] }>()
 
 const context = useCommentContext()
 const guestInputId = useId()
+const emotionsId = useId()
+const textarea = ref<HTMLTextAreaElement | null>(null)
+const emotionToggle = ref<HTMLButtonElement | null>(null)
+const emotionsOpen = ref(false)
+const emotionGroup = ref(0)
+const emotionGroups = [
+  { label: '常用表情', items: ['😀', '😁', '😂', '🤣', '😊', '🥰', '😍', '😎', '🤔', '🙃', '🥺', '😭', '😅', '😮', '😴', '🤯', '👍', '👏', '🙌', '🙏', '🤝', '💪', '❤️', '💔', '🔥', '✨', '🎉', '💯', '👀', '☕', '🍉', '🐱'] },
+  { label: '颜文字', items: ['(๑•̀ㅂ•́)و✧', '(≧▽≦)', '(｡･ω･｡)', '(╥﹏╥)', '(￣▽￣)', '٩(ˊᗜˋ*)و', 'ヾ(•ω•`)o', '(づ｡◕‿‿◕｡)づ', 'Σ(°△°|||)', '(ง •̀_•́)ง', '(´･ω･`)', '¯\\_(ツ)_/¯'] }
+]
+function closeEmotions() {
+  emotionsOpen.value = false
+  emotionToggle.value?.focus()
+}
+async function insertEmotion(value: string) {
+  const field = textarea.value
+  if (!field) return
+  const start = field.selectionStart
+  const end = field.selectionEnd
+  const next = body.value.slice(0, start) + value + body.value.slice(end)
+  if (countCommentCodePoints(next) > COMMENT_BODY_MAX_LENGTH) {
+    feedback.value = { kind: 'field', message: `评论内容不能超过 ${COMMENT_BODY_MAX_LENGTH} 个字符` }
+    return
+  }
+  body.value = next
+  await nextTick()
+  field.focus()
+  field.setSelectionRange(start + value.length, start + value.length)
+}
 const body = ref('')
 const feedback = ref<CommentFeedback>({ kind: 'idle', message: '' })
 const sending = ref(false)
@@ -257,6 +300,18 @@ async function send() {
 </script>
 
 <style scoped>
+.comment-emotions { margin-top: 8px; }
+.comment-emotion-toggle { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 6px; color: var(--theme-text-muted); font-size: 13px; cursor: pointer; }
+.comment-emotion-toggle:hover, .comment-emotion-tabs button[aria-pressed="true"] { background: var(--theme-surface); color: var(--theme-accent); }
+.comment-emotion-panel { width: min(100%, 380px); margin-top: 6px; padding: 10px; border: 1px solid var(--theme-border); border-radius: 8px; background: var(--theme-surface); }
+.comment-emotion-tabs { display: flex; gap: 8px; margin-bottom: 8px; }
+.comment-emotion-tabs button { padding: 5px 9px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+.comment-emotion-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.comment-emotion-grid.is-text { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.comment-emotion-grid button { min-width: 0; min-height: 36px; border-radius: 5px; font-size: 22px; cursor: pointer; }
+.comment-emotion-grid.is-text button { font-size: 12px; overflow-wrap: anywhere; }
+.comment-emotion-grid button:hover { background: var(--theme-surface-muted); }
+.comment-emotions button:focus-visible { outline: 2px solid var(--theme-accent); outline-offset: 2px; }
 .comment-composer {
   border: 1px solid var(--theme-border);
   border-radius: 10px;

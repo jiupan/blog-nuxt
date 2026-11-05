@@ -132,6 +132,41 @@ describe('comment request lifecycle', () => {
 })
 
 describe('comment editor snapshots', () => {
+  it('inserts an emoji at the selection and saves it in the draft', async () => {
+    const state = context()
+    holder.context = state
+    const el = mount(CommentComposer, { variant: 'root' })
+    input(el, 'textarea', 'hello world')
+    const field = el.querySelector('textarea')!
+    field.setSelectionRange(6, 11)
+    el.querySelector<HTMLButtonElement>('.comment-emotion-toggle')!.click()
+    await nextTick()
+    el.querySelector<HTMLButtonElement>('[aria-label="插入 😀"]')!.click()
+    await nextTick()
+    expect(field.value).toBe('hello 😀')
+    expect(field.selectionStart).toBe('hello 😀'.length)
+    expect(state.readDraft('guest-anonymous', null)?.body).toBe('hello 😀')
+  })
+
+  it('inserts kaomoji in replies and respects the comment length limit', async () => {
+    const state = context()
+    holder.context = state
+    state.replyTarget.value = { threadRootId: 1, commentId: 2, authorName: 'A' }
+    const el = mount(CommentComposer, { variant: 'reply' })
+    el.querySelector<HTMLButtonElement>('.comment-emotion-toggle')!.click()
+    await nextTick()
+    el.querySelectorAll<HTMLButtonElement>('.comment-emotion-tabs button')[1]!.click()
+    await nextTick()
+    el.querySelector<HTMLButtonElement>('[aria-label="插入 (≧▽≦)"]')!.click()
+    await nextTick()
+    expect(state.readDraft('guest-anonymous', 2)?.body).toBe('(≧▽≦)')
+    input(el, 'textarea', 'x'.repeat(2000))
+    el.querySelector<HTMLButtonElement>('[aria-label="插入 (≧▽≦)"]')!.click()
+    await nextTick()
+    expect(el.querySelector('textarea')!.value).toHaveLength(2000)
+    expect(el.textContent).toContain('不能超过')
+  })
+
   it('reuses unchanged retries but changes the request ID when a nickname changes', async () => {
     const state = context()
     holder.context = state
