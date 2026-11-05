@@ -132,6 +132,24 @@ describe('comment request lifecycle', () => {
 })
 
 describe('comment editor snapshots', () => {
+  it('opens a floating picker and dismisses it with outside clicks or Escape', async () => {
+    holder.context = context()
+    const el = mount(CommentComposer, { variant: 'root' })
+    const toggle = el.querySelector<HTMLButtonElement>('.comment-emotion-toggle')!
+    toggle.click()
+    await nextTick()
+    expect(el.querySelector('[role="dialog"]')).not.toBeNull()
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await nextTick()
+    expect(el.querySelector('[role="dialog"]')).toBeNull()
+    toggle.click()
+    await nextTick()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(toggle)
+  })
+
   it('inserts an emoji at the selection and saves it in the draft', async () => {
     const state = context()
     holder.context = state
