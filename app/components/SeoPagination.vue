@@ -1,6 +1,6 @@
 <template>
-  <nav v-if="total > 1" class="seo-pager" aria-label="文章分页">
-    <NuxtLink v-if="page > 1" :to="pageTo(page - 1)" class="page-dot" aria-label="上一页"
+  <nav v-if="total > 1" class="seo-pager" aria-label="文章分页" @click.capture="preparePageChange">
+    <NuxtLink v-if="page > 1" :to="pageTo(page - 1)" :data-page="page - 1" class="page-dot" aria-label="上一页"
       ><UIcon name="i-lucide-chevron-left"
     /></NuxtLink>
     <span v-else class="page-dot is-disabled" aria-disabled="true"
@@ -11,13 +11,14 @@
       <NuxtLink
         v-else
         :to="pageTo(item)"
+        :data-page="item"
         class="page-dot"
         :class="{ 'is-active': item === page }"
         :aria-current="item === page ? 'page' : undefined"
         >{{ item }}</NuxtLink
       >
     </template>
-    <NuxtLink v-if="page < total" :to="pageTo(page + 1)" class="page-dot" aria-label="下一页"
+    <NuxtLink v-if="page < total" :to="pageTo(page + 1)" :data-page="page + 1" class="page-dot" aria-label="下一页"
       ><UIcon name="i-lucide-chevron-right"
     /></NuxtLink>
     <span v-else class="page-dot is-disabled" aria-disabled="true"
@@ -27,12 +28,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 const props = defineProps<{
   page: number
   total: number
   pageTo: (page: number) => RouteLocationRaw
 }>()
+
+function preparePageChange(event: MouseEvent) {
+  // 在链接开始导航之前定位；不等待路由、接口或新列表渲染。
+  if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+  const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[data-page]') : null
+  if (!link || Number(link.dataset.page) === props.page || link.target === '_blank') return
+  const main = link.closest('main')
+  const top = main ? Math.max(0, main.getBoundingClientRect().top + window.scrollY - 96) : 0
+  window.scrollTo({ top, behavior: 'instant' })
+  if (main) {
+    if (!main.hasAttribute('tabindex')) main.tabIndex = -1
+    main.focus({ preventScroll: true })
+  }
+}
 const pages = computed(() => {
   const visible = [...new Set([1, props.total, props.page - 1, props.page, props.page + 1])]
     .filter((page) => page >= 1 && page <= props.total)

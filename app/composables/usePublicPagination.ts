@@ -23,8 +23,5 @@ export function usePublicPagination(
       void router.push(pageTo(page))
     }
   })
-  watch(currentPage, () => {
-    if (import.meta.client) window.scrollTo({ top: 0, behavior: 'smooth' })
-  })
   return { currentPage, pageTo }
 }
