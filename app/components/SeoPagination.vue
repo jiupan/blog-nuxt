@@ -42,8 +42,7 @@ function preparePageChange(event: MouseEvent) {
   const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[data-page]') : null
   if (!link || Number(link.dataset.page) === props.page || link.target === '_blank') return
   const main = link.closest('main')
-  const top = main ? Math.max(0, main.getBoundingClientRect().top + window.scrollY - 96) : 0
-  window.scrollTo({ top, behavior: 'instant' })
+  window.scrollTo({ top: 0, behavior: 'instant' })
   if (main) {
     if (!main.hasAttribute('tabindex')) main.tabIndex = -1
     main.focus({ preventScroll: true })

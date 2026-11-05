@@ -23,10 +23,10 @@ function mount() {
   return { main, scroll, order, second: main.querySelector<HTMLAnchorElement>('a[data-page="2"]')! }
 }
 
-it('positions at the list before navigation starts, using instant scroll despite global smooth CSS', () => {
+it('positions at the page top before navigation starts, using instant scroll despite global smooth CSS', () => {
   const { main, scroll, order, second } = mount()
   second.click()
-  expect(scroll).toHaveBeenCalledWith({ top: 304, behavior: 'instant' })
+  expect(scroll).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
   expect(order).toEqual(['scroll', 'navigation'])
   expect(document.activeElement).toBe(main)
 })
