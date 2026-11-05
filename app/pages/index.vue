@@ -115,15 +115,14 @@
               class="home-archive-list home-archive-desktop"
               :class="{ 'is-topic-revealing': topicRevealVersion > 0 }"
             >
-              <CardReveal
+              <div
                 v-for="(post, index) in posts"
                 :key="post.id"
                 class="topic-card-reveal"
                 :style="{ '--topic-card-order': index }"
-                variant="archive"
               >
                 <ArchivePostCard :post="post" />
-              </CardReveal>
+              </div>
             </div>
 
             <div
@@ -131,12 +130,11 @@
               class="post-grid"
               :class="{ 'home-grid-mobile': useArchiveCardStyle, 'is-topic-revealing': topicRevealVersion > 0 }"
             >
-              <CardReveal
+              <div
                 v-for="(post, index) in displayPosts"
                 :key="post.key"
                 class="topic-card-reveal"
                 :style="{ '--topic-card-order': index }"
-                variant="grid"
               >
                 <article class="post-card">
                   <NuxtLink
@@ -146,17 +144,14 @@
                       'has-loaded-image': post.cover && loadedCoverUrls.has(post.cover)
                     }"
                   >
-                    <img
+                    <PostCoverImage
                       v-if="post.cover && !failedCoverUrls.has(post.cover)"
                       :src="post.cover"
                       :alt="post.title"
                       class="cover-image"
-                      loading="lazy"
-                      decoding="async"
-                      fetchpriority="low"
                       @load="loadedCoverUrls.add(post.cover)"
                       @error="failedCoverUrls.add(post.cover)"
-                    >
+                    />
                     <span v-if="post.cover && !failedCoverUrls.has(post.cover)" class="cover-overlay"></span>
                     <span v-if="post.cover" class="cover-word">{{ post.coverWord }}</span>
                     <span v-if="post.cover" class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
@@ -183,7 +178,7 @@
                     </div>
                   </div>
                 </article>
-              </CardReveal>
+              </div>
             </div>
           </template>
 
@@ -211,13 +206,13 @@
 </template>
 
 <script setup lang="ts">
+import PostCoverImage from '~/components/PostCoverImage.vue'
 import { defaultSeoDescription } from '~/utils/seo'
 import type { Component } from 'vue'
 import type { ApiResult, GalleryImagePayload } from '~~/types/api'
 import type { PostSummary, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import { categoryNavigation } from '~/utils/category-navigation'
-import CardReveal from '~/components/CardReveal.vue'
 import {
   Archive as ArchiveIcon,
   BadgeCheck as BadgeCheckIcon,
@@ -823,6 +818,8 @@ function formatDate(value?: string | Date | null) {
   gap: 14px;
 }
 
+.topic-card-reveal { min-width: 0; }
+
 .is-topic-revealing .topic-card-reveal {
   animation: topic-card-enter 420ms cubic-bezier(.2, .78, .2, 1) both;
   animation-delay: calc(var(--topic-card-order, 0) * 35ms);
@@ -871,7 +868,7 @@ function formatDate(value?: string | Date | null) {
   backface-visibility: hidden;
   transform: translateZ(0) scale(1.001);
   transform-origin: center;
-  transition: transform .32s ease;
+  transition: transform .32s ease, opacity 400ms ease;
   will-change: transform;
 }
 

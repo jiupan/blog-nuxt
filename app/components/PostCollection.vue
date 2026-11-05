@@ -34,9 +34,7 @@
           </div>
 
           <div v-else-if="posts.length" class="collection-list" :aria-busy="listPending" data-page-enter style="--page-enter-order: 1">
-            <CardReveal v-for="post in posts" :key="post.id" variant="archive">
-              <ArchivePostCard :post="post" />
-            </CardReveal>
+            <ArchivePostCard v-for="post in posts" :key="post.id" :post="post" />
           </div>
 
           <div v-else class="collection-empty" data-page-enter style="--page-enter-order: 1">
@@ -67,7 +65,6 @@
 <script setup lang="ts">
 import type { ApiResult, PublicPostListPayload } from '~~/types/api'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
-import CardReveal from '~/components/CardReveal.vue'
 
 const props = defineProps<{
   kind: 'category' | 'tag'

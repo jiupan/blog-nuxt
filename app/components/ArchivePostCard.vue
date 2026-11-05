@@ -4,17 +4,13 @@
       class="archive-thumb"
       :class="{ 'is-loading': post.cover && !coverLoaded && !coverFailed }"
     >
-      <img
+      <PostCoverImage
         v-if="post.cover && !coverFailed"
-        ref="coverImage"
         :src="post.cover"
         :alt="post.title"
-        loading="lazy"
-        decoding="async"
-        fetchpriority="low"
         @load="coverLoaded = true"
         @error="coverFailed = true"
-      >
+      />
     </span>
     <div class="archive-copy">
       <span v-if="post.isPinned" class="archive-pinned">
@@ -53,6 +49,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import PostCoverImage from './PostCoverImage.vue'
+import { postPath } from '../utils/post-path'
 import type { PostSummary } from '~~/types/dto/post'
 import {
   Calendar as CalendarIcon,
@@ -65,7 +64,6 @@ const props = defineProps<{
   post: PostSummary
 }>()
 
-const coverImage = ref<HTMLImageElement | null>(null)
 const coverLoaded = ref(false)
 const coverFailed = ref(false)
 const categoryPath = computed(() => props.post.category ? `/categories/${encodeURIComponent(props.post.category.slug)}` : '')
@@ -89,12 +87,6 @@ watch(() => props.post.cover, () => {
   coverFailed.value = false
 })
 
-onMounted(() => {
-  if (coverImage.value?.complete) {
-    coverLoaded.value = coverImage.value.naturalWidth > 0
-    coverFailed.value = coverImage.value.naturalWidth === 0
-  }
-})
 </script>
 
 <style scoped>
@@ -155,7 +147,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 420ms ease;
+  transition: transform 420ms ease, opacity 400ms ease;
 }
 
 .archive-item:hover .archive-thumb img,

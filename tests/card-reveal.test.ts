@@ -3,24 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 const readSource = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-describe('article card progressive reveal', () => {
-  it('keeps real cards visible in the server-rendered fallback', () => {
-    const source = readSource('app/components/CardReveal.vue')
-
-    expect(source).toContain('const revealed = ref(true)')
-    expect(source).toContain('const placeholderVisible = ref(false)')
-    expect(source).not.toContain(':aria-hidden="!revealed"')
-    expect(source).not.toContain(':inert="!revealed"')
-  })
-
-  it('uses an eager component import where cards reveal progressively', () => {
-    for (const path of ['app/pages/index.vue', 'app/components/PostCollection.vue']) {
-      const source = readSource(path)
-      expect(source).toContain("import CardReveal from '~/components/CardReveal.vue'")
-      expect(source).not.toContain('<LazyCardReveal')
-    }
-  })
-
+describe('article card layouts', () => {
   it('renders archive cards directly when filters change', () => {
     const source = readSource('app/pages/archive.vue')
 
