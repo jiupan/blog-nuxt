@@ -1,6 +1,8 @@
 import { mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
-import { notFound } from '~~/server/utils/api-error'
+import { prisma } from '../../utils/prisma'
+import { readGalleryMetadata, updateGalleryMetadata } from './gallery-metadata'
+import { badRequest, conflict, notFound } from '~~/server/utils/api-error'
 import { resolveUploadPath, resolveUploadRoot, toUploadRelativePath, toUploadUrl } from './path-safety'
 
 const imageTypes: Record<string, string> = {
@@ -24,6 +26,8 @@ export type GalleryImage = {
   collection: 'images' | 'covers' | 'memes'
   memeGroup?: string
   updatedAt: string
+  randomEnabled?: boolean
+  filename?: string
 }
 
 export type MemeGroup = { id: string, name: string }
@@ -38,6 +42,7 @@ export type PublicMemeImage = {
 export async function listGalleryImages(): Promise<GalleryImage[]> {
   const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
   const images: GalleryImage[] = []
+  const metadata = await readGalleryMetadata()
 
   await walkMediaFiles(uploadRoot, uploadRoot, async ({ filepath, name, extension }) => {
     const type = imageTypes[extension]
@@ -50,13 +55,15 @@ export async function listGalleryImages(): Promise<GalleryImage[]> {
     if (!relativePath) return
 
     images.push({
-      name,
+      name: metadata[relativePath]?.displayName || name,
+      filename: name,
+      randomEnabled: metadata[relativePath]?.randomEnabled !== false,
       path: relativePath,
       url: toUploadUrl(relativePath),
       size: fileStat.size,
       type,
-      collection: resolveCollection(relativePath),
-      memeGroup: resolveMemeGroup(relativePath),
+      collection: metadata[relativePath]?.inRandomPool === true ? 'covers' : metadata[relativePath]?.inRandomPool === false ? 'images' : resolveCollection(relativePath),
+      memeGroup: metadata[relativePath]?.memeGroup === null ? undefined : metadata[relativePath]?.memeGroup ?? resolveMemeGroup(relativePath),
       updatedAt: fileStat.mtime.toISOString()
     })
   })
@@ -101,7 +108,7 @@ export async function deleteMemeGroup(id: string) {
   const group = groups.find(item => item.id === id)
   if (!group) throw notFound('表情包分组不存在')
   const images = await listGalleryImages()
-  if (images.some(image => image.collection === 'memes' && image.memeGroup === id)) throw badRequest('请先删除该分组中的表情包')
+  await updateGalleryMetadata(images.filter(image => image.collection === 'memes' && image.memeGroup === id).map(image => image.path), { memeGroup: null })
   await saveMemeGroups(groups.filter(item => item.id !== id))
   return group
 }
@@ -116,6 +123,7 @@ export async function listPublicMemeImages(memeGroup?: string): Promise<PublicMe
   const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
   const memeRoot = join(uploadRoot, 'memes')
   const images: PublicMemeImage[] = []
+  const metadata = await readGalleryMetadata()
 
   await walkMediaFiles(uploadRoot, memeRoot, async ({ filepath, name, extension }) => {
     if (!publicMemeExtensions.has(extension)) return
@@ -126,7 +134,7 @@ export async function listPublicMemeImages(memeGroup?: string): Promise<PublicMe
     const relativePath = toUploadRelativePath(uploadRoot, filepath)
     if (!relativePath) return
     if (memeGroup) {
-      const resolvedGroup = resolveMemeGroup(relativePath)
+      const resolvedGroup = metadata[relativePath]?.memeGroup === null ? undefined : metadata[relativePath]?.memeGroup ?? resolveMemeGroup(relativePath)
       if (memeGroup === 'ungrouped' ? resolvedGroup : resolvedGroup !== memeGroup) return
     }
 
@@ -140,15 +148,30 @@ export async function listPublicMemeImages(memeGroup?: string): Promise<PublicMe
   return sortByUpdatedAt(images)
 }
 
-export async function getRandomCoverUrl(): Promise<string | null> {
-  const covers = (await listGalleryImages()).filter(image => image.collection === 'covers')
+export async function getRandomCoverUrl(excludePostId?: number): Promise<string | null> {
+  const covers = (await listGalleryImages()).filter(image => image.collection === 'covers' && image.randomEnabled !== false)
   if (!covers.length) return null
-  return covers[Math.floor(Math.random() * covers.length)]?.url || null
+  const recent = await prisma.post.findMany({
+    where: { cover: { not: null }, ...(excludePostId ? { id: { not: excludePostId } } : {}) },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: Math.max(20, covers.length),
+    select: { cover: true }
+  })
+  // 优先未被近期文章使用的封面；都用过时选最久未用的，仍保留同优先级内的随机性。
+  const ranked = covers.map(image => ({ image, age: recent.findIndex(post => post.cover === image.url) }))
+  const unused = ranked.filter(item => item.age === -1)
+  const oldest = Math.max(...ranked.map(item => item.age))
+  const candidates = unused.length ? unused : ranked.filter(item => item.age === oldest)
+  return candidates[Math.floor(Math.random() * candidates.length)]?.image.url || null
 }
 
 export async function deleteGalleryImage(requestedPath: string) {
   const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
   const { filepath, relativePath } = resolveUploadPath(uploadRoot, requestedPath)
+  if (!(await listGalleryImages()).some(image => image.path === relativePath)) throw notFound('图片不存在或不可删除')
+
+  const usage = await getGalleryImageUsage(relativePath)
+  if (usage.posts.length || usage.settings.length) throw conflict('图片仍被文章或站点设置引用，请先替换引用；随机封面可先停用')
 
   await unlink(filepath).catch(() => {
     throw notFound('图片不存在或已删除')
@@ -196,4 +219,29 @@ function resolveMemeGroup(relativePath: string) {
 
 function sortByUpdatedAt<T extends { updatedAt: string }>(items: T[]) {
   return items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+}
+
+export async function getGalleryImageUsage(requestedPath: string) {
+  const { relativePath } = resolveUploadPath(resolveUploadRoot(useRuntimeConfig().uploadDir), requestedPath)
+  const url = toUploadUrl(relativePath)
+  const [posts, settings] = await Promise.all([
+    prisma.post.findMany({ where: { OR: [{ cover: { contains: url } }, { content: { contains: url } }] }, select: { id: true, title: true, slug: true, cover: true } }),
+    prisma.setting.findMany({ where: { value: { contains: url } }, select: { key: true } })
+  ])
+  return { posts: posts.map(post => ({ id: post.id, title: post.title, slug: post.slug, use: post.cover?.includes(url) ? '封面' : '正文' })), settings: settings.map(item => item.key) }
+}
+
+export async function updateGalleryImages(paths: string[], changes: { inRandomPool?: boolean, randomEnabled?: boolean, memeGroup?: string | null }) {
+  const images = await listGalleryImages()
+  if (changes.memeGroup) await requireMemeGroup(changes.memeGroup)
+  const normalized = paths.map(path => {
+    const relative = resolveUploadPath(resolveUploadRoot(useRuntimeConfig().uploadDir), path).relativePath
+    const image = images.find(item => item.path === relative)
+    if (!image) throw notFound('图片不存在')
+    if (changes.memeGroup !== undefined && image.collection !== 'memes') throw badRequest('只有表情素材可以调整分组')
+    if ((changes.inRandomPool !== undefined || changes.randomEnabled !== undefined) && image.collection === 'memes') throw badRequest('表情素材不能加入随机封面池')
+    if (changes.inRandomPool && !['.jpg', '.jpeg', '.png', '.webp'].includes(extname(relative).toLowerCase())) throw badRequest('随机封面仅支持 jpg/png/webp 图片')
+    return relative
+  })
+  await updateGalleryMetadata(normalized, changes)
 }

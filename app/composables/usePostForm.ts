@@ -715,7 +715,7 @@ export async function usePostForm(options: UsePostFormOptions) {
 
   function openGalleryPicker(mode: 'cover' | 'content') {
     galleryPickerMode.value = mode
-    galleryCollectionFilter.value = mode === 'cover' ? 'covers' : 'images'
+    galleryCollectionFilter.value = 'images'
     gallerySearchQuery.value = ''
     galleryPickerOpen.value = true
     refreshGallery()

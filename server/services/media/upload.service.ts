@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import sharp from 'sharp'
+import { updateGalleryMetadata } from './gallery-metadata'
 import { badRequest } from '../../utils/api-error'
 import { resolveUploadRoot, toUploadUrl } from './path-safety'
 import { normalizeSlug } from '../../utils/slug'
@@ -63,14 +64,18 @@ export async function uploadImage(input: Buffer, purpose: UploadPurpose, memeGro
   const relativePath = `${relativeDir}/${filename}`
 
   await mkdir(join(uploadRoot, relativeDir), { recursive: true })
+  let existed = false
   if (sourceName) {
     // Content-addressed Agent uploads are safe to retry and never overwrite an existing file.
     await writeFile(join(uploadRoot, relativePath), output.data, { flag: 'wx' }).catch(
       (error: NodeJS.ErrnoException) => {
         if (error.code !== 'EEXIST') throw error
+        existed = true
       }
     )
   } else await writeFile(join(uploadRoot, relativePath), output.data)
+
+  if (purpose === 'cover' && !existed) await updateGalleryMetadata([relativePath], { inRandomPool: false })
 
   return {
     url: toUploadUrl(relativePath),

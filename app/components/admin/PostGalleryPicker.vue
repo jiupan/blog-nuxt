@@ -65,15 +65,15 @@ const collectionFilter = defineModel<GalleryImage['collection']>('collectionFilt
 const searchQuery = defineModel<string>('searchQuery', { required: true })
 
 const galleryCollectionOptions = [
-  { value: 'images' as const, label: '普通图片', icon: 'i-lucide-image' },
-  { value: 'covers' as const, label: '封面', icon: 'i-lucide-panels-top-left' },
-  { value: 'memes' as const, label: '表情包', icon: 'i-lucide-smile' }
+  { value: 'images' as const, label: '图片素材', icon: 'i-lucide-image' },
+  { value: 'covers' as const, label: '随机封面池', icon: 'i-lucide-panels-top-left' },
+  { value: 'memes' as const, label: '表情素材', icon: 'i-lucide-smile' }
 ]
 
 function collectionLabel(collection: GalleryImage['collection']) {
-  if (collection === 'covers') return '封面'
-  if (collection === 'memes') return '表情包'
-  return '普通图片'
+  if (collection === 'covers') return '随机封面池'
+  if (collection === 'memes') return '表情素材'
+  return '图片素材'
 }
 
 const filteredImages = computed(() => {

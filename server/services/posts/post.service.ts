@@ -73,7 +73,7 @@ export async function updatePost(id: number, input: UpdatePostInput) {
 
   const slug = normalizePostSlug(input.slug)
   const isPinned = input.isPinned ?? current.isPinned ?? false
-  const cover = await resolvePostCover(input.cover)
+  const cover = await resolvePostCover(input.cover, id)
 
   if (!slug) {
     throw badRequest('文章别名不能为空')
@@ -108,9 +108,9 @@ export async function updatePost(id: number, input: UpdatePostInput) {
   }
 }
 
-async function resolvePostCover(cover: string | null | undefined) {
+async function resolvePostCover(cover: string | null | undefined, excludePostId?: number) {
   const specifiedCover = cover?.trim()
-  return specifiedCover || await getRandomCoverUrl()
+  return specifiedCover || await getRandomCoverUrl(excludePostId)
 }
 
 export async function autoSyncPublishedPost(postId: number, status: PostStatus) {

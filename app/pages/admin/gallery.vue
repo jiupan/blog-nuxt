@@ -42,6 +42,7 @@
     >
     <section
       class="workspace-panel gallery-library"
+      :aria-busy="pending || updatingImages || batchDeleting"
       :class="{ 'is-dragging': dragging }"
     >
       <nav
@@ -54,6 +55,7 @@
           type="button"
           :class="{ 'is-active': activeCollection === tab.value }"
           :aria-pressed="activeCollection === tab.value"
+          :disabled="batchDeleting || updatingImages"
           @click="activeCollection = tab.value"
         >
           <UIcon
@@ -64,9 +66,11 @@
           <span>{{ tab.count }}</span>
         </button>
       </nav>
+      <p class="gallery-purpose-note">{{ activeCollection === 'covers' ? '保存文章时，未指定封面会从启用的图片中随机选取并固定保存。停用只影响后续选取，不会改变已有文章。' : activeCollection === 'memes' ? '用于首页装饰及写作插图；这里的图片暂未接入评论表情选择器。调整分组不改变图片地址。' : '正文插图和手动指定的文章封面，默认不参与随机选取。' }}</p>
       <div class="workspace-filterbar">
         <UInput
           v-model="searchQuery"
+          :disabled="batchDeleting || updatingImages"
           icon="i-lucide-search"
           placeholder="搜索文件名或地址…"
           aria-label="搜索图片"
@@ -102,6 +106,7 @@
           type="button"
           :class="{ 'is-active': activeMemeGroup === group.id }"
           :aria-pressed="activeMemeGroup === group.id"
+          :disabled="batchDeleting || updatingImages"
           @click="selectMemeGroup(group.id)"
         >
           {{ group.name }}
@@ -122,8 +127,7 @@
           color="neutral"
           variant="ghost"
           icon="i-lucide-trash-2"
-          :disabled="Boolean(activeMemeImages.length)"
-          :title="activeMemeImages.length ? '请先移除分组内的图片' : '删除空分组'"
+          title="删除分组，图片保留并移到未分组"
           @click="removeActiveGroup"
         >
           删除分组
@@ -143,6 +147,11 @@
           >
             取消选择
           </UButton>
+          <template v-if="activeCollection === 'memes'">
+            <USelect v-model="moveGroup" :items="memeGroupTabs.map(group => ({ label: group.name, value: group.id }))" class="min-w-48" aria-label="移动到分组" />
+            <UButton size="sm" :loading="updatingImages" @click="updateImages(selectedPaths, { memeGroup: moveGroup === 'ungrouped' ? null : moveGroup })">移动分组</UButton>
+          </template>
+          <UButton v-else size="sm" :loading="updatingImages" @click="updateImages(selectedPaths, { inRandomPool: activeCollection !== 'covers', randomEnabled: true })">{{ activeCollection === 'covers' ? '移出随机池' : '加入随机池' }}</UButton>
           <UButton
             size="sm"
             color="error"
@@ -169,6 +178,11 @@
           :max="uploadTotal"
         />
       </div>
+      <div v-if="failedUploads.length" class="gallery-upload-failures" role="status">
+        <strong>{{ failedUploads.length }} 张上传失败</strong>
+        <p v-for="item in failedUploads" :key="item.file.name + item.file.size">{{ item.file.name }}：{{ item.error }}</p>
+        <UButton size="sm" :disabled="Boolean(uploadingCollection)" @click="retryUploads">仅重试失败项</UButton>
+      </div>
       <div
         v-if="error"
         class="workspace-empty"
@@ -185,7 +199,7 @@
         </UButton>
       </div>
       <div
-        v-else-if="pending"
+        v-else-if="pending && !images.length"
         class="workspace-loading"
         role="status"
         aria-label="正在加载图库"
@@ -197,6 +211,7 @@
       </div>
       <div
         v-else-if="activePageImages.length"
+        ref="galleryGrid"
         class="gallery-grid"
       >
         <article
@@ -216,7 +231,7 @@
           <button
             type="button"
             class="gallery-thumb"
-            :class="{ 'is-meme': activeCollection === 'memes' }"
+            :class="{ 'is-meme': activeCollection === 'memes', 'is-cover': activeCollection === 'covers' }"
             :aria-label="`查看${image.name}`"
             @click="openImage(image)"
           >
@@ -234,6 +249,8 @@
             </span>
           </button>
           <div class="gallery-card-body">
+            <small v-if="activeCollection === 'covers'">{{ image.randomEnabled === false ? '已停用' : '参与随机选取' }}</small>
+            <small v-if="image.type === 'image/gif'">GIF 动图</small>
             <button
               type="button"
               :title="image.name"
@@ -290,7 +307,7 @@
         </UButton>
       </div>
       <footer class="workspace-pagination">
-        <span>可拖入图片上传，点击缩略图查看详情</span>
+        <span>每页三行，最多 {{ pageSize }} 张；可拖入图片上传，点击缩略图查看详情</span>
         <div>
           <UButton
             size="xs"
@@ -327,7 +344,7 @@
     <USlideover
       :open="Boolean(previewImage)"
       :title="previewImage?.name || '图片详情'"
-      description="查看原图与文件信息，复制到文章中使用。"
+      description="查看图片用途、站内引用和文件信息。"
       :ui="{ content: 'sm:max-w-lg' }"
       @update:open="
         (value) => {
@@ -348,6 +365,7 @@
             >
           </div>
           <dl>
+            <div><dt>文件格式</dt><dd>{{ previewImage.type }}</dd></div>
             <div>
               <dt>文件大小</dt>
               <dd>{{ formatSize(previewImage.size) }}</dd>
@@ -358,7 +376,7 @@
             </div>
             <div>
               <dt>所属图库</dt>
-              <dd>{{ activeTab.label }}</dd>
+              <dd>{{ previewImage.collection === 'covers' ? '随机封面池' : previewImage.collection === 'memes' ? '表情素材' : '图片素材' }}</dd>
             </div>
             <div>
               <dt>上传 / 更新</dt>
@@ -397,17 +415,30 @@
               打开原图
             </UButton>
           </div>
+          <section class="gallery-usage" aria-label="站内引用">
+            <strong>站内引用</strong>
+            <p v-if="usageLoading">正在检查…</p>
+            <p v-else-if="usageError">{{ usageError }}</p>
+            <template v-else>
+              <p v-if="!usage.posts.length && !usage.settings.length">未发现文章或站点设置中的直接引用。</p>
+              <NuxtLink v-for="post in usage.posts" :key="post.id" :to="'/admin/posts/' + post.id">{{ post.title }} · {{ post.use }}</NuxtLink>
+              <p v-for="key in usage.settings" :key="key">站点设置：{{ key }}</p>
+            </template>
+            <small>首页动态装饰和复制到站外的地址不计入此列表。</small>
+          </section>
+          <UButton v-if="previewImage.collection !== 'memes'" :loading="updatingImages" @click="updateImages([previewImage.path], previewImage.collection === 'covers' ? { randomEnabled: previewImage.randomEnabled === false } : { inRandomPool: true, randomEnabled: true })">{{ previewImage.collection === 'covers' ? (previewImage.randomEnabled === false ? '启用随机选取' : '停止随机选取') : '加入随机封面池' }}</UButton>
           <div class="gallery-detail-delete">
             <UButton
               color="error"
               variant="ghost"
               icon="i-lucide-trash-2"
               :loading="deletingPath === previewImage.path"
+              :disabled="usageLoading || Boolean(usageError) || Boolean(usage.posts.length || usage.settings.length)"
               @click="deleteImage(previewImage)"
             >
               删除图片
             </UButton>
-            <small>已在文章中引用的图片，删除后会失效。</small>
+            <small>已被文章或站点设置直接引用的图片禁止删除；请先替换引用。</small>
           </div>
         </div>
       </template>
@@ -464,6 +495,7 @@
 </template>
 
 <script setup lang="ts">
+import { uploadGalleryFiles, type FailedGalleryUpload } from '~/utils/gallery-upload'
 import { getApiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({
@@ -472,6 +504,8 @@ definePageMeta({
 })
 
 type GalleryImage = {
+  randomEnabled?: boolean
+  filename?: string
   name: string
   path: string
   url: string
@@ -484,6 +518,46 @@ type GalleryImage = {
 
 type MemeGroup = { id: string; name: string }
 
+type FailedUpload = FailedGalleryUpload
+const failedUploads = ref<FailedUpload[]>([])
+const moveGroup = ref('ungrouped')
+const updatingImages = ref(false)
+const usageLoading = ref(false)
+const usageError = ref('')
+const usage = ref<{ posts: Array<{ id: number, title: string, use: string }>, settings: string[] }>({ posts: [], settings: [] })
+async function loadUsage(path: string) {
+  usageLoading.value = true
+  usageError.value = ''
+  usage.value = { posts: [], settings: [] }
+  try {
+    const result = await $fetch<{ data: typeof usage.value }>('/api/admin/gallery/usage', { query: { path } })
+    if (previewImage.value?.path === path) usage.value = result.data
+  } catch (error) {
+    if (previewImage.value?.path === path) usageError.value = getApiErrorMessage(error)
+  } finally { if (previewImage.value?.path === path) usageLoading.value = false }
+}
+async function updateImages(paths: string[], changes: { inRandomPool?: boolean, randomEnabled?: boolean, memeGroup?: string | null }) {
+  if (updatingImages.value) return
+  updatingImages.value = true
+  try {
+    await $fetch('/api/admin/gallery', { method: 'PUT', body: { paths: [...paths], changes } })
+    await refresh()
+    if (previewImage.value) previewImage.value = images.value.find(item => item.path === previewImage.value?.path) || null
+    selectedPaths.value = []
+    toast.add({ title: '图片用途已更新，图片地址保持不变', color: 'success' })
+  } catch (error) { toast.add({ title: '更新失败', description: getApiErrorMessage(error), color: 'error' }) }
+  finally { updatingImages.value = false }
+}
+async function retryUploads() {
+  if (uploadingCollection.value) return
+  const groups = new Map<string, FailedUpload[]>()
+  for (const item of failedUploads.value) {
+    const key = item.collection + ':' + item.group
+    groups.set(key, [...(groups.get(key) || []), item])
+  }
+  for (const items of groups.values()) await uploadSelectedFiles(items.map(item => item.file), items[0]!.collection, items[0]!.group)
+}
+
 const toast = useToast()
 const searchQuery = ref('')
 const activeCollection = ref<'images' | 'covers' | 'memes'>('images')
@@ -492,7 +566,29 @@ const deletingPath = ref<string | null>(null)
 const imageInputRef = ref<HTMLInputElement | null>(null)
 const coverInputRef = ref<HTMLInputElement | null>(null)
 const memeInputRef = ref<HTMLInputElement | null>(null)
-const pageSize = 12
+const galleryGrid = ref<HTMLElement | null>(null)
+const gridColumns = ref(4)
+const pageSize = computed(() => gridColumns.value * 3)
+let gridObserver: ResizeObserver | undefined
+watch(galleryGrid, grid => {
+  gridObserver?.disconnect()
+  if (!grid) return
+  const measure = () => {
+    const tracks = getComputedStyle(grid).gridTemplateColumns.split(/\s+/).filter(value => value.endsWith('px'))
+    if (tracks.length) gridColumns.value = tracks.length
+  }
+  measure()
+  if (typeof ResizeObserver !== 'undefined') {
+    gridObserver = new ResizeObserver(measure)
+    gridObserver.observe(grid)
+  }
+}, { flush: 'post' })
+watch(gridColumns, () => {
+  regularPage.value = 1
+  coverPage.value = 1
+  memePage.value = 1
+})
+onBeforeUnmount(() => gridObserver?.disconnect())
 const regularPage = ref(1)
 const coverPage = ref(1)
 const memePage = ref(1)
@@ -520,21 +616,21 @@ const memeGroupTabs = computed(() => [
 const galleryTabs = computed(() => [
   {
     value: 'images' as const,
-    label: '普通图片',
+    label: '图片素材',
     uploadLabel: '图片',
     icon: 'i-lucide-image',
     count: regularImages.value.length
   },
   {
     value: 'covers' as const,
-    label: '封面',
+    label: '随机封面池',
     uploadLabel: '封面',
     icon: 'i-lucide-panels-top-left',
     count: coverImages.value.length
   },
   {
     value: 'memes' as const,
-    label: '表情包',
+    label: '表情素材',
     uploadLabel: '表情包',
     icon: 'i-lucide-smile-plus',
     count: memeImages.value.length
@@ -621,11 +717,11 @@ async function createGroup() {
 
 async function removeActiveGroup() {
   const group = memeGroups.value.find((item) => item.id === activeMemeGroup.value)
-  if (!group || !window.confirm(`确定删除空分组“${group.name}”吗？`)) return
+  if (!group || !window.confirm(`删除分组“${group.name}”？分组内图片将保留并移到未分组。`)) return
   try {
     await $fetch('/api/admin/gallery/groups', { method: 'DELETE', body: { id: group.id } })
     activeMemeGroup.value = 'ungrouped'
-    await refreshMemeGroups()
+    await Promise.all([refreshMemeGroups(), refresh()])
     toast.add({ title: '分组已删除', color: 'success' })
   } catch (error: unknown) {
     toast.add({ title: '删除失败', description: getErrorMessage(error), color: 'error' })
@@ -642,30 +738,24 @@ async function handleDrop(event: DragEvent) {
   dragging.value = false
   await uploadSelectedFiles(Array.from(event.dataTransfer?.files || []), activeCollection.value)
 }
-async function uploadSelectedFiles(files: File[], collection: 'images' | 'covers' | 'memes') {
+async function uploadSelectedFiles(files: File[], collection: 'images' | 'covers' | 'memes', targetGroup?: string) {
   if (!files.length || uploadingCollection.value) return
   uploadingCollection.value = collection
   uploadTotal.value = files.length
   uploadDone.value = 0
-  const group = activeMemeGroup.value
+  const group = targetGroup ?? activeMemeGroup.value
+  const remainingFailures = failedUploads.value.filter(item => !files.includes(item.file))
   try {
-    for (const file of files) {
-      const body = new FormData()
-      body.append('file', file)
-      const groupQuery = group === 'ungrouped' ? '' : `&memeGroup=${encodeURIComponent(group)}`
-      const url =
-        collection === 'memes'
-          ? `/api/admin/upload?purpose=meme${groupQuery}`
-          : collection === 'covers'
-            ? '/api/admin/upload?purpose=cover'
-            : '/api/admin/upload'
-      await $fetch(url, { method: 'POST', body })
-      uploadDone.value++
-    }
-    if (activeCollection.value === collection && (collection !== 'memes' || activeMemeGroup.value === group)) {
+    const failures = await uploadGalleryFiles(files, {
+      collection, group, upload: (url, body) => $fetch<unknown, '/api/admin/upload'>(url as '/api/admin/upload', { method: 'POST', body }),
+      errorMessage: getApiErrorMessage, onProgress: processed => { uploadDone.value = processed }
+    })
+    if (activeCollection.value === collection && (collection !== 'memes' || activeMemeGroup.value === group) && files.length > failures.length) {
+      searchQuery.value = ''
       activePage.value = 1
     }
-    toast.add({ title: '上传完成', description: `已上传 ${files.length} 张图片`, color: 'success' })
+    failedUploads.value = [...remainingFailures, ...failures]
+    toast.add({ title: failures.length ? '部分图片上传失败' : '上传完成', description: `成功 ${files.length - failures.length} 张，失败 ${failures.length} 张`, color: failures.length ? 'error' : 'success' })
   } catch (error: unknown) {
     toast.add({
       title: '上传未全部完成',
@@ -673,8 +763,7 @@ async function uploadSelectedFiles(files: File[], collection: 'images' | 'covers
       color: 'error'
     })
   } finally {
-    await refresh()
-    uploadingCollection.value = null
+    try { await refresh() } finally { uploadingCollection.value = null }
   }
 }
 
@@ -682,12 +771,12 @@ function filterImages(source: GalleryImage[]) {
   const query = searchQuery.value.trim().toLowerCase()
   if (!query) return source
   return source.filter((image) => {
-    return image.name.toLowerCase().includes(query) || image.url.toLowerCase().includes(query)
+    return image.name.toLowerCase().includes(query) || image.url.toLowerCase().includes(query) || Boolean(image.filename?.toLowerCase().includes(query))
   })
 }
 
 function totalPages(total: number) {
-  return Math.max(1, Math.ceil(total / pageSize))
+  return Math.max(1, Math.ceil(total / pageSize.value))
 }
 
 function clampPage(page: number, total: number) {
@@ -695,8 +784,8 @@ function clampPage(page: number, total: number) {
 }
 
 function paginateImages(source: GalleryImage[], page: number) {
-  const start = (clampPage(page, totalPages(source.length)) - 1) * pageSize
-  return source.slice(start, start + pageSize)
+  const start = (clampPage(page, totalPages(source.length)) - 1) * pageSize.value
+  return source.slice(start, start + pageSize.value)
 }
 
 async function copyUrl(url: string) {
@@ -806,6 +895,7 @@ watch(images, (value) => {
   selectedPaths.value = selectedPaths.value.filter((path) => value.some((image) => image.path === path))
 })
 function openImage(image: GalleryImage) {
+  void loadUsage(image.path)
   dimensions.width = 0
   dimensions.height = 0
   copied.value = ''
@@ -817,29 +907,36 @@ function readDimensions(event: Event) {
   dimensions.height = image.naturalHeight
 }
 async function deleteSelected() {
-  if (
-    !selectedPaths.value.length ||
-    batchDeleting.value ||
-    !confirm(`删除选中的 ${selectedPaths.value.length} 张图片？已在文章中引用的图片会失效。`)
-  )
-    return
+  if (!selectedPaths.value.length || batchDeleting.value) return
   batchDeleting.value = true
   const paths = [...selectedPaths.value]
-  const results = await Promise.allSettled(
-    paths.map((path) => $fetch('/api/admin/gallery', { method: 'DELETE', body: { path } }))
-  )
-  const failed = results.filter((result) => result.status === 'rejected').length
-  selectedPaths.value = paths.filter((_, index) => results[index]?.status === 'rejected')
-  toast.add({
-    title: failed ? `${paths.length - failed} 张已删除，${failed} 张删除失败` : '所选图片已删除',
-    color: failed ? 'error' : 'success'
-  })
-  await refresh()
-  batchDeleting.value = false
+  try {
+    const references = await Promise.all(paths.map(path => $fetch<{ data: typeof usage.value }>('/api/admin/gallery/usage', { query: { path } })))
+    const protectedPaths = paths.filter((_, index) => references[index]!.data.posts.length || references[index]!.data.settings.length)
+    const deletable = paths.filter(path => !protectedPaths.includes(path))
+    if (!deletable.length) {
+      toast.add({ title: '所选图片均有站内引用，请先替换引用', color: 'error' })
+      return
+    }
+    if (!confirm('删除 ' + deletable.length + ' 张图片？另有 ' + protectedPaths.length + ' 张存在站内引用，将保留。')) return
+    const results = await Promise.allSettled(deletable.map(path => $fetch('/api/admin/gallery', { method: 'DELETE', body: { path } })))
+    const failed = deletable.filter((_, index) => results[index]?.status === 'rejected')
+    selectedPaths.value = [...protectedPaths, ...failed]
+    toast.add({ title: '已删除 ' + (deletable.length - failed.length) + ' 张，保留引用图片 ' + protectedPaths.length + ' 张，失败 ' + failed.length + ' 张', color: failed.length ? 'error' : 'success' })
+    await refresh()
+    if (previewImage.value && !images.value.some(image => image.path === previewImage.value?.path)) previewImage.value = null
+  } catch (error) {
+    toast.add({ title: '批量删除未完成', description: getApiErrorMessage(error), color: 'error' })
+  } finally { batchDeleting.value = false }
 }
 </script>
 
 <style scoped>
+.gallery-purpose-note, .gallery-upload-failures { padding: 14px 24px; color: var(--admin-muted); font-size: 13px; }
+.gallery-upload-failures { border-bottom: 1px solid var(--admin-line); overflow-wrap: anywhere; }
+.gallery-usage { display: grid; gap: 8px; font-size: 13px; }
+.gallery-usage a { color: var(--admin-accent); }
+.gallery-usage small { color: var(--admin-muted); }
 .gallery-library {
   position: relative;
 }
@@ -888,11 +985,14 @@ async function deleteSelected() {
   background: #f5f6f8;
   cursor: pointer;
 }
+.gallery-thumb.is-cover { aspect-ratio: 16/9; }
+.gallery-thumb.is-meme { background: conic-gradient(#eef1f5 25%, #fff 0 50%, #eef1f5 0 75%, #fff 0) 0 0 / 16px 16px; }
 .gallery-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
+.gallery-thumb.is-cover img { object-fit: cover; }
 .gallery-thumb.is-meme img {
   object-fit: contain;
   padding: 16px;
