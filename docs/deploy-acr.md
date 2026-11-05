@@ -84,6 +84,16 @@ docs/deploy-acr.md
 
 服务器 `.env` 不进 Git，不要提交。
 
+## 依赖锁文件检查
+
+当前 Docker 构建使用 Node 22.17.0 / npm 10.9.2。修改依赖后，除本地测试外，提交前还应使用构建版本的 npm 检查锁文件：
+
+```bash
+npx --yes npm@10.9.2 ci --dry-run --ignore-scripts --no-audit --no-fund
+```
+
+已有 `node_modules` 上的构建和测试不能代替这项检查。若出现 `Missing: ... from lock file`，需用 npm 10.9.2 修复锁文件并重新检查；不要改用 `npm install` 绕过 Docker 中的 `npm ci`。
+
 ## GitHub Secrets
 
 位置：
