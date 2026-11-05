@@ -29,7 +29,7 @@ Jiupan Blog 以文章系统为基础，重点覆盖内容的创作、发布与�
 | RAG 知识库 | 文章和 Markdown / TXT / PDF / DOCX 文件分块，pgvector 向量检索、关键词检索、可选 Rerank |
 | 问答与对话 | 带参考来源的站内问答，文章级流式对话，对话历史、重命名与删除 |
 | 管理与安全 | 用户和角色管理、实时权限校验、操作审计、登录/注册/AI 限流 |
-| 互动与工具 | Twikoo 评论；简历的结构化编辑、模板切换、JSON 导入导出、在线保存和 PDF 导出 |
+| 互动与工具 | 原生评论（账号与访客身份、楼中楼、审核队列）；简历的结构化编辑、模板切换、JSON 导入导出、在线保存和 PDF 导出 |
 
 ### 一组贯穿内容生命周期的 AI 工具
 
@@ -91,7 +91,7 @@ flowchart LR
     Services --> Models[OpenAI-compatible APIs]
     Worker[知识库 Worker] --> DB
     Worker --> Models
-    Web --> Twikoo[Twikoo]
+    Web --> Comments[原生评论]
 ```
 
 - 前台页面优先 SSR，兼顾首屏体验与 SEO。
@@ -130,7 +130,6 @@ ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="change-me-now"
 SITE_URL="http://localhost:3000"
 SITE_NAME="Jiupan Blog"
-NUXT_PUBLIC_TWIKOO_ENV_ID="http://localhost:8080"
 ```
 
 > [!IMPORTANT]
@@ -139,10 +138,10 @@ NUXT_PUBLIC_TWIKOO_ENV_ID="http://localhost:8080"
 ### 3. 启动依赖服务
 
 ```bash
-docker compose up -d postgres twikoo
+docker compose up -d postgres
 ```
 
-默认会启动 PostgreSQL 16 + pgvector 和 Twikoo，本地端口分别为 `127.0.0.1:5432` 与 `8080`。如果也通过 Compose 启动 `app`，请先在 `.env` 中设置随机的 `NUXT_SESSION_PASSWORD`。
+默认会启动 PostgreSQL 16 + pgvector，本地端口为 `127.0.0.1:5432`。如果也通过 Compose 启动 `app`，请先在 `.env` 中设置随机的 `NUXT_SESSION_PASSWORD`。
 
 ### 4. 初始化数据库
 
@@ -208,7 +207,7 @@ AI_RERANK_TOP_N="8"
 | 服务端 | Nitro Server API、Zod、nuxt-auth-utils、nuxt-security |
 | 数据与检索 | PostgreSQL 16、pgvector、Prisma 6 |
 | 图像与文档 | Nuxt Image、Sharp、Mammoth、PDF Parse、Playwright |
-| 互动 | Twikoo |
+| 互动 | 原生评论 |
 | 质量与交付 | ESLint、vue-tsc、Vitest、Docker Compose |
 
 ## 🗂️ 项目结构
@@ -258,11 +257,11 @@ npm run build
 项目提供：
 
 - `Dockerfile`：生产镜像构建。
-- `docker-compose.yml`：本地 PostgreSQL、Twikoo 与应用编排。
+- `docker-compose.yml`：本地 PostgreSQL 与应用编排。
 - `docker-compose.server.yml`：服务器环境编排。
 - GitHub Actions + 阿里云 ACR 自动部署流程。
 
-生产环境请使用强密码与 HTTPS，并持久化 PostgreSQL、Twikoo、上传目录和知识文件目录。完整流程参见 [ACR 自动部署手册](docs/deploy-acr.md)。
+生产环境请使用强密码与 HTTPS，并持久化 PostgreSQL、上传目录和知识文件目录。完整流程参见 [ACR 自动部署手册](docs/deploy-acr.md)。
 
 <a id="documentation"></a>
 
@@ -272,6 +271,8 @@ npm run build
 - [API 边界约定](docs/api-boundaries.md)
 - [认证和限流策略](docs/security-policy.md)
 - [前台内容缓存策略](docs/content-cache-strategy.md)
+- [评论系统交接说明](docs/comments-handover.md)
+- [评论导入工具](docs/comments-import.md)
 - [阿里云 ACR 自动部署](docs/deploy-acr.md)
 
 ---

@@ -1,0 +1,5 @@
+[
+  { "id": 1, "slug": "hello-nuxt-blog", "title": "第一篇博客" },
+  { "id": 2, "slug": "old-slug", "title": "旧链接对应的文章" },
+  { "id": 3, "slug": "中文标题", "title": "中文标题" }
+]

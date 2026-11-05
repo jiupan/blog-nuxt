@@ -11,16 +11,6 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
 
-  twikoo:
-    image: imaegoo/twikoo
-    restart: unless-stopped
-    environment:
-      TWIKOO_THROTTLE: ${TWIKOO_THROTTLE:-1000}
-    volumes:
-      - twikoo-data:/app/data
-    ports:
-      - "8080:8080"
-
   app:
     build: .
     init: true
@@ -28,13 +18,11 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
-      - twikoo
     env_file:
       - path: .env
         required: false
     environment:
       DATABASE_URL: postgresql://blog:blog_password@postgres:5432/nuxt_blog?schema=public
-      NUXT_PUBLIC_TWIKOO_ENV_ID: ${NUXT_PUBLIC_TWIKOO_ENV_ID:-http://localhost:8080}
       UPLOAD_DIR: /app/uploads
       KNOWLEDGE_FILE_DIR: /app/data/knowledge-files
       SITE_URL: http://localhost
@@ -43,10 +31,9 @@ services:
       - uploads:/app/uploads
       - knowledge-files:/app/data/knowledge-files
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
 volumes:
   postgres-data:
-  twikoo-data:
   uploads:
   knowledge-files:

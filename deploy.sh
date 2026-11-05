@@ -12,7 +12,7 @@ set -a
 . ./.env
 set +a
 
-required_vars="APP_IMAGE POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD DATABASE_URL NUXT_SESSION_PASSWORD ADMIN_USERNAME ADMIN_PASSWORD SITE_URL SITE_NAME NUXT_PUBLIC_TWIKOO_ENV_ID"
+required_vars="APP_IMAGE POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD DATABASE_URL NUXT_SESSION_PASSWORD ADMIN_USERNAME ADMIN_PASSWORD SITE_URL SITE_NAME"
 for var_name in $required_vars; do
   if [ -z "${!var_name}" ]; then
     echo "ERROR: .env 缺少 $var_name"
@@ -68,8 +68,8 @@ if [ -n "$current_container_id" ]; then
   fi
 fi
 
-echo "=== 启动数据库和 Twikoo ==="
-docker compose -f docker-compose.server.yml up -d postgres twikoo
+echo "=== 启动数据库 ==="
+docker compose -f docker-compose.server.yml up -d postgres
 
 echo "=== 等待数据库就绪 ==="
 docker compose -f docker-compose.server.yml exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"

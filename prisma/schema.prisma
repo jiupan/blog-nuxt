@@ -23,6 +23,7 @@ model User {
   targetAuditLogs          AdminAuditLog[]           @relation("AuditTarget")
   resumes                  Resume[]
   agentApiKeys             AgentApiKey[]
+  comments                 Comment[]
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 }
@@ -44,6 +45,9 @@ model AdminAuditLog {
   id           Int      @id @default(autoincrement())
   operatorId   Int?
   targetUserId Int?
+  // 评论审核目标。刻意不建外键：评论会随文章硬删除被级联清理，审计记录必须比目标活得久。
+  commentId    Int?
+  postId       Int?
   action       String
   before       Json?
   after        Json?
@@ -55,6 +59,8 @@ model AdminAuditLog {
 
   @@index([operatorId, createdAt])
   @@index([targetUserId, createdAt])
+  @@index([commentId, createdAt])
+  @@index([postId, createdAt])
   @@index([action, createdAt])
 }
 
@@ -80,6 +86,7 @@ model Post {
   knowledgeDocument        KnowledgeDocument?
   knowledgeSyncJobs        KnowledgeSyncJob[]
   articleChatConversations ArticleChatConversation[]
+  comments                 Comment[]
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   publishedAt              DateTime?
@@ -164,6 +171,67 @@ model ArticleChatMessage {
   conversation   ArticleChatConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+/// 原生评论。楼中楼只保留一层展示：threadRootId 指向主评论，replyToId 指向被回复的那一条。
+model Comment {
+  id                 Int                @id @default(autoincrement())
+  postId             Int
+  threadRootId       Int?
+  replyToId          Int?
+  /// ACCOUNT / GUEST / LEGACY。登录用户选择访客身份时仍记为 GUEST，不关联账户。
+  authorKind         CommentAuthorKind
+  authorUserId       Int?
+  /// 只存访客凭证的摘要，不存明文。
+  guestTokenHash     String?
+  /// 展示名快照，账号改名或评论删除后仍然保留。
+  authorName         String
+  body               String
+  bodyFormat         CommentBodyFormat @default(MARKDOWN)
+  status             CommentStatus     @default(PENDING)
+  /// 仅导入记录有值，与 legacyId 组成联合唯一键。
+  legacySource       String?
+  legacyId           String?
+  /// 原生写入的幂等标识，与 requestFingerprint 组成快照摘要。
+  requestId          String?
+  requestFingerprint String?
+  /// null 表示历史点赞数未知，0 表示确认没有点赞。导入时缺失字段不能补成 0。
+  legacyLikeCount    Int?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+
+  post       Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author     User?     @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  threadRoot Comment?  @relation("CommentThreadRoot", fields: [threadRootId], references: [id], onDelete: NoAction)
+  replies    Comment[] @relation("CommentThreadRoot")
+  replyTo    Comment?  @relation("CommentReplyTo", fields: [replyToId], references: [id], onDelete: NoAction)
+  repliedBy  Comment[] @relation("CommentReplyTo")
+
+  @@unique([postId, requestId])
+  @@unique([legacySource, legacyId])
+  @@index([postId, status, createdAt, id])
+  @@index([postId, threadRootId, status, createdAt, id])
+  @@index([threadRootId, status, createdAt, id])
+  @@index([status, createdAt, id])
+  @@index([authorUserId, status, createdAt])
+}
+
+/// 固定窗口限流桶。计数在数据库内用 ON CONFLICT 条件更新封顶，重启和多副本都不会绕过。
+model CommentRateBucket {
+  id          Int                  @id @default(autoincrement())
+  scope       CommentRateScope
+  /// 账号 id、访客凭证摘要或 IP 的 HMAC，原始值不落库。
+  keyHash     String
+  windowKind  CommentRateWindow
+  windowStart DateTime
+  count       Int                  @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([scope, keyHash, windowStart, windowKind])
+  @@index([expiresAt])
 }
 
 model Category {
@@ -540,4 +608,34 @@ enum MenuItemType {
   PAGE
   ARCHIVE
   HOME
+}
+
+enum CommentAuthorKind {
+  ACCOUNT
+  GUEST
+  LEGACY
+}
+
+enum CommentStatus {
+  PENDING
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+enum CommentBodyFormat {
+  MARKDOWN
+  LEGACY_HTML
+}
+
+enum CommentRateScope {
+  ACCOUNT
+  GUEST
+  IP
+}
+
+enum CommentRateWindow {
+  MINUTE
+  TEN_MINUTES
+  HOUR
 }

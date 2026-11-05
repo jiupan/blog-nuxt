@@ -5,6 +5,9 @@ import { prisma } from '~~/server/utils/prisma'
 import { normalizePostSlug } from '~~/server/utils/slug'
 import { notFound } from '~~/server/utils/api-error'
 import { getAdminPostRelations, getPostRelations } from '~~/server/services/related-posts/relation.service'
+import { buildPublishedPostWhere } from './post-visibility'
+
+export { buildPublishedPostWhere }
 
 const postInclude = {
   category: true,
@@ -260,14 +263,6 @@ export async function getAdminPostDetail(id: number) {
     ...mapPostTags(post),
     tagIds: post.tags.map((item) => item.tagId),
     relations
-  }
-}
-
-export function buildPublishedPostWhere(input: Prisma.PostWhereInput = {}, now = new Date()): Prisma.PostWhereInput {
-  return {
-    ...input,
-    status: PostStatus.PUBLISHED,
-    publishedAt: { lte: now }
   }
 }
 

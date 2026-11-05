@@ -24,7 +24,7 @@ export default defineNuxtConfig({
   security: {
     headers: {
       contentSecurityPolicy: {
-        'img-src': ["'self'", 'data:', 'https://owo.imaegoo.com'],
+        'img-src': ["'self'", 'data:'],
         'upgrade-insecure-requests': true
       }
     },
@@ -96,6 +96,44 @@ export default defineNuxtConfig({
         }
       }
     },
+    // 评论写接口必须关掉 xssValidator：它的默认实现会把正文里的 < 和 > 转义，
+    // 与原值不一致就直接抛一个裸 400，绕开项目统一的 VALIDATION_ERROR 结构。
+    // 评论正文本身由受限 Markdown 加 sanitize-html 白名单处理。
+    '/api/comments/**': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: { maxRequestSizeInBytes: 16 * 1024 }
+      }
+    },
+    '/api/posts/:slug/comments': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: { maxRequestSizeInBytes: 16 * 1024 }
+      }
+    },
+    '/api/posts/:slug/comments/:id': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: { maxRequestSizeInBytes: 16 * 1024 }
+      }
+    },
+    '/api/posts/:slug/comments/:id/replies': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: { maxRequestSizeInBytes: 16 * 1024 }
+      }
+    },
+    '/api/admin/comments/**': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: { maxRequestSizeInBytes: 16 * 1024 }
+      }
+    },
     '/api/admin/knowledge/files/**': {
       cors: false,
       security: {
@@ -119,6 +157,12 @@ export default defineNuxtConfig({
       }
     },
     uploadDir: process.env.UPLOAD_DIR || './uploads',
+    // 允许发起评论写入的站点 origin，逗号分隔。留空时只用 public.siteUrl。
+    commentAllowedOrigins: process.env.NUXT_COMMENT_ALLOWED_ORIGINS || '',
+    // 限流桶 key 的 HMAC 密钥。没配就退回 session 密码。
+    commentRateSecret: process.env.NUXT_COMMENT_RATE_SECRET || '',
+    // 可信直连代理的 IP/CIDR，逗号分隔。默认不信任转发头。
+    commentTrustedProxies: process.env.NUXT_COMMENT_TRUSTED_PROXIES || '',
     knowledgeFileDir: process.env.KNOWLEDGE_FILE_DIR || './data/knowledge-files',
     knowledgeWorkerEnabled: process.env.KNOWLEDGE_WORKER_ENABLED !== 'false',
     knowledgeWorkerPollIntervalMs: Number(process.env.KNOWLEDGE_WORKER_POLL_INTERVAL_MS || 2000),
@@ -126,9 +170,7 @@ export default defineNuxtConfig({
     knowledgeWorkerLeaseTimeoutMs: Number(process.env.KNOWLEDGE_WORKER_LEASE_TIMEOUT_MS || 60000),
     public: {
       siteUrl: process.env.SITE_URL || 'https://blog.ittx.cn',
-      siteName: process.env.SITE_NAME || 'Jiupan Blog',
-      twikooEnvId: process.env.NUXT_PUBLIC_TWIKOO_ENV_ID || '',
-      twikooRegion: process.env.NUXT_PUBLIC_TWIKOO_REGION || ''
+      siteName: process.env.SITE_NAME || 'Jiupan Blog'
     }
   },
   site: { url: process.env.SITE_URL || 'https://blog.ittx.cn', name: process.env.SITE_NAME || 'Jiupan Blog' },

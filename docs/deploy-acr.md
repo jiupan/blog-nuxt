@@ -14,7 +14,7 @@
   -> scp docker-compose.server.yml 和 deploy.sh 到服务器
   -> ssh 登录服务器
   -> docker compose pull app
-  -> docker compose up -d postgres twikoo
+  -> docker compose up -d postgres
   -> prisma migrate deploy
   -> docker compose up -d app
 ```
@@ -25,7 +25,7 @@
 本地电脑：提交代码和 git push
 GitHub：运行 Actions，构建镜像，推送 ACR，SSH 到服务器
 阿里云 ACR：保存 Docker 镜像
-ECS 服务器：运行 PostgreSQL、Twikoo、Nuxt app 和持久化数据卷
+ECS 服务器：运行 PostgreSQL、Nuxt app 和持久化数据卷
 ```
 
 ## 当前镜像信息
@@ -146,9 +146,6 @@ ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="请换成后台强密码"
 SITE_URL="https://blog.ittx.cn"
 SITE_NAME="Jiupan Blog"
-NUXT_PUBLIC_TWIKOO_ENV_ID="https://blog.ittx.cn/twikoo"
-NUXT_PUBLIC_TWIKOO_REGION=
-TWIKOO_THROTTLE=1000
 ```
 
 关键规则：
@@ -159,23 +156,9 @@ DATABASE_URL 必须使用 @postgres:5432，不能使用 @localhost:5432
 SITE_NAME 有空格时必须加引号
 生产环境 SITE_URL 使用正式域名，不要使用 localhost
 UPLOAD_DIR 不需要写在服务器 .env，compose 已固定为 /app/uploads
-NUXT_PUBLIC_TWIKOO_ENV_ID 必须是浏览器可访问的 HTTPS 地址，不能写 localhost
 ```
 
 需要启用 AI 时，在服务器 `.env` 中加入 README「AI 与知识库」章节的 `AI_*` 配置。`app` 在运行时读取这些变量，非空值覆盖对应的后台设置。修改后使用 `docker compose -f docker-compose.server.yml up -d --no-deps --force-recreate app` 重新创建应用容器。
-
-Twikoo 容器只监听服务器的 `127.0.0.1:8080`。Nginx 的 HTTPS `server` 块需要将 `/twikoo` 反向代理到该端口：
-
-```nginx
-location = /twikoo {
-    proxy_pass http://127.0.0.1:8080/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
 
 错误示例：
 
@@ -332,7 +315,7 @@ SSH 到服务器，执行 /opt/blog-nuxt/deploy.sh。
 5. 阻止 DATABASE_URL 指向 localhost 或 127.0.0.1
 6. docker compose pull app
 7. 为当前可用的上一版应用镜像保留本地 rollback 标签
-8. docker compose up -d postgres twikoo
+8. docker compose up -d postgres
 9. pg_isready 检查数据库
 10. 使用临时 app 容器执行 prisma migrate deploy
 11. docker compose up -d --no-deps --wait --wait-timeout 120 app
@@ -569,13 +552,6 @@ docker compose -f docker-compose.server.yml logs -f app
 docker compose -f docker-compose.server.yml logs postgres --tail=80
 ```
 
-查看 Twikoo 日志：
-
-```bash
-docker compose -f docker-compose.server.yml logs twikoo --tail=80
-docker compose -f docker-compose.server.yml logs -f twikoo
-```
-
 重启 app：
 
 ```bash
@@ -615,7 +591,6 @@ docker compose -f docker-compose.server.yml down -v
 
 ```text
 postgres-data
-twikoo-data
 uploads
 knowledge-files
 ```
@@ -623,8 +598,7 @@ knowledge-files
 含义：
 
 ```text
-postgres-data：PostgreSQL 数据
-twikoo-data：Twikoo 评论和配置数据
+postgres-data：PostgreSQL 数据，含原生评论表
 uploads：后台上传的图片等文件
 knowledge-files：知识库上传文件
 ```

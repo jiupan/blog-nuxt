@@ -16,7 +16,10 @@ export const API_ERROR_CODES = {
   BAD_REQUEST: 'BAD_REQUEST',
   CONFLICT: 'CONFLICT',
   NOT_FOUND: 'NOT_FOUND',
-  RATE_LIMITED: 'RATE_LIMITED'
+  RATE_LIMITED: 'RATE_LIMITED',
+  ORIGIN_NOT_ALLOWED: 'ORIGIN_NOT_ALLOWED',
+  COMMENT_DISABLED: 'COMMENT_DISABLED',
+  COMMENT_CLOSED: 'COMMENT_CLOSED'
 } as const
 
 export function fail(options: ApiErrorOptions) {
@@ -99,5 +102,32 @@ export function rateLimited(statusMessage: string, details?: Record<string, unkn
     statusMessage,
     code: API_ERROR_CODES.RATE_LIMITED,
     details
+  })
+}
+
+/** 写请求的来源不在允许列表内。公共错误不说明允许了哪些来源。 */
+export function originNotAllowed(statusMessage = '请求来源不被允许') {
+  return fail({
+    statusCode: 403,
+    statusMessage,
+    code: API_ERROR_CODES.ORIGIN_NOT_ALLOWED
+  })
+}
+
+/** 账号被禁用，不能再写入评论。 */
+export function commentDisabled(statusMessage = '账号已被禁用') {
+  return fail({
+    statusCode: 403,
+    statusMessage,
+    code: API_ERROR_CODES.COMMENT_DISABLED
+  })
+}
+
+/** 目标讨论已关闭（例如主评论被隐藏），不再接受新回复。 */
+export function commentClosed(statusMessage = '该评论已关闭，不能再回复') {
+  return fail({
+    statusCode: 409,
+    statusMessage,
+    code: API_ERROR_CODES.COMMENT_CLOSED
   })
 }

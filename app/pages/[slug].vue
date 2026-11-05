@@ -119,7 +119,7 @@
           <ArticleImagePreview :container="articleContentEl" :html="post.rendered.html" />
         </div>
 
-        <TwikooComment :post-slug="post.slug" data-page-enter style="--page-enter-order: 3" />
+        <CommentSection :post-id="post.id" :post-slug="post.slug" data-page-enter style="--page-enter-order: 3" />
 
       </main>
 
@@ -206,7 +206,6 @@ import {
   Eye as EyeIcon,
   FileText as FileTextIcon
 } from '@lucide/vue'
-import TwikooComment from '~/components/comment/TwikooComment.vue'
 
 const route = useRoute()
 const config = useRuntimeConfig()

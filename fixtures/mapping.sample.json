@@ -1,0 +1,7 @@
+{
+  "allowedHosts": ["legacy.example.com"],
+  "postAliases": {
+    "archives/old-slug.html": "old-slug"
+  },
+  "emojiHosts": ["twikoo.example.com"]
+}

@@ -43,7 +43,7 @@ function deploy(variables: Record<string, string> = {}) {
     'POSTGRES_DB=blog', 'POSTGRES_USER=blog', 'POSTGRES_PASSWORD=test-only',
     'DATABASE_URL=postgresql://blog:test-only@postgres:5432/blog',
     'NUXT_SESSION_PASSWORD=test-only', 'ADMIN_USERNAME=admin', 'ADMIN_PASSWORD=test-only',
-    'SITE_URL=https://example.com', 'SITE_NAME=Blog', 'NUXT_PUBLIC_TWIKOO_ENV_ID=https://example.com/comments'
+    'SITE_URL=https://example.com', 'SITE_NAME=Blog'
   ].join('\n'))
   try {
     const result = spawnSync(bash, ['-c', mockCommands, 'deploy.sh'], {
