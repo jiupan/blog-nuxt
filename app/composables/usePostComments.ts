@@ -206,20 +206,22 @@ export function createPostCommentsContext(options: {
     return response.data
   }
 
-  async function loadThreads(append: boolean, cursor: string | null) {
+  async function loadThreads(append: boolean, cursor: string | null, background = false) {
     const version = ++listRequestVersion
     if (append) loadingMore.value = true
-    else loading.value = true
-    loadError.value = false
+    else if (!background) loading.value = true
+    if (!background) loadError.value = false
 
     try {
       const data = await fetchThreads(cursor)
       if (version !== listRequestVersion) return
+      loadError.value = false
+      if (background) expandedReplies.value = {}
       threads.value = append ? [...threads.value, ...data.items] : data.items
       total.value = data.total
       nextCursor.value = data.nextCursor
     } catch {
-      if (version !== listRequestVersion) return
+      if (version !== listRequestVersion || background) return
       loadError.value = true
       if (!append) {
         threads.value = []
@@ -350,7 +352,9 @@ export function createPostCommentsContext(options: {
       )
 
       const result = response.data
-      if (options.postSlug.value === postSlug) await reload()
+      if (!result.pendingReview && options.postSlug.value === postSlug) {
+        void loadThreads(false, null, true)
+      }
 
       return { ok: true, payload: result }
     } catch (error) {

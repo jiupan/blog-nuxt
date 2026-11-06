@@ -40,7 +40,8 @@ function mount(component: typeof CommentComposer | typeof CommentThread, props: 
   document.body.append(el)
   const app = createApp(component, props)
   const stub = defineComponent({ render: () => h('span') })
-  for (const name of ['Icon', 'CommentAvatar', 'CommentBody', 'CommentComposer']) app.component(name, stub)
+  for (const name of ['Icon', 'CommentAvatar', 'CommentBody']) app.component(name, stub)
+  app.component('CommentComposer', CommentComposer)
   app.mount(el)
   unmounts.push(() => { app.unmount(); el.remove() })
   return el
@@ -65,6 +66,25 @@ afterEach(() => {
 })
 
 describe('comment request lifecycle', () => {
+  it('acknowledges a pending reply outside the editor and clears its submitted draft', async () => {
+    const state = context()
+    holder.context = state
+    state.replyTarget.value = { threadRootId: 1, commentId: 1, authorName: 'A' }
+    const submission = deferred<{ data: SubmitCommentPayload }>()
+    fetchMock.mockImplementation(async url => url === '/api/comments/session' ? session : submission.promise)
+    const el = mount(CommentThread, { thread: thread() })
+    input(el, 'textarea', '同意')
+    send(el)
+    await nextTick()
+    expect(el.textContent).toContain('提交中…')
+    submission.resolve({ data: receipt })
+    await flush()
+    expect(el.querySelector('textarea')).toBeNull()
+    expect(el.querySelector('[role="status"]')?.textContent).toContain('回复已提交，审核通过后会显示。')
+    expect(state.readDraft('guest-anonymous', 1)).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
   it('establishes one guest session before concurrent anonymous submissions', async () => {
     const state = context()
     const credential = deferred<unknown>()

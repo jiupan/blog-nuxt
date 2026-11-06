@@ -69,7 +69,7 @@
       <span class="comment-hint">Ctrl / ⌘ + Enter 发送</span>
       <button type="submit" class="comment-submit" :disabled="!canSubmit">
         <Icon name="i-lucide-send" aria-hidden="true" />
-        <span>{{ variant === 'reply' ? '发布回复' : '发表评论' }}</span>
+        <span>{{ sending ? '提交中…' : variant === 'reply' ? '发布回复' : '发表评论' }}</span>
       </button>
     </div>
 
@@ -100,7 +100,7 @@ const props = defineProps<{
   variant: 'root' | 'reply'
 }>()
 
-const emit = defineEmits<{ cancel: [] }>()
+const emit = defineEmits<{ cancel: [], submitted: [feedback: CommentFeedback] }>()
 
 const context = useCommentContext()
 const guestInputId = useId()
@@ -321,16 +321,17 @@ async function send() {
   if (context.readDraft(identity, id, postId)?.requestId === requestId) {
     context.clearDraft(identity, id, postId)
   }
-  if (!sameContext || draft.value.requestId !== requestId) return
+  if (!sameContext) return
 
   feedback.value = result.payload.pendingReview
-    ? { kind: 'pending', message: '评论已提交，审核通过后会出现在讨论里。' }
-    : { kind: 'success', message: '评论已发布。' }
+    ? { kind: 'pending', message: props.variant === 'reply' ? '回复已提交，审核通过后会显示。' : '评论已提交，审核通过后会显示。' }
+    : { kind: 'success', message: props.variant === 'reply' ? '回复已发布。' : '评论已发布。' }
 
+  if (draft.value.requestId !== requestId) return
   body.value = ''
   draft.value = { body: '', displayName: displayName.value, requestId: createRequestId() }
 
-  if (props.variant === 'reply') emit('cancel')
+  if (props.variant === 'reply') emit('submitted', feedback.value)
 }
 </script>
 

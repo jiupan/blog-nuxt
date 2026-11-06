@@ -32,7 +32,7 @@
           </button>
         </div>
 
-        <p v-if="actionFeedback" class="comment-feedback is-field" role="status">{{ actionFeedback.message }}</p>
+        <p v-if="actionFeedback" class="comment-feedback" :class="`is-${actionFeedback.kind}`" role="status">{{ actionFeedback.message }}</p>
       </div>
     </div>
 
@@ -81,7 +81,7 @@
       <button v-else-if="expandFailed" type="button" class="comment-expand" @click="expand">重新加载回复</button>
     </div>
 
-    <CommentComposer v-if="isReplying" variant="reply" @cancel="handleCancel" />
+    <CommentComposer v-if="isReplying" variant="reply" @cancel="handleCancel" @submitted="handleSubmitted" />
   </article>
 </template>
 
@@ -166,6 +166,11 @@ async function removeComment(commentId: number) {
   deleting.value = false
 
   if (feedback) actionFeedback.value = feedback
+}
+
+function handleSubmitted(feedback: CommentFeedback) {
+  actionFeedback.value = feedback
+  handleCancel()
 }
 
 function handleCancel() {
@@ -325,6 +330,16 @@ function handleCancel() {
   padding: 7px 10px;
   color: var(--theme-danger);
   font-size: 13px;
+}
+
+.comment-feedback.is-pending {
+  background: var(--theme-warning-soft);
+  color: var(--theme-warning);
+}
+
+.comment-feedback.is-success {
+  background: var(--theme-success-soft);
+  color: var(--theme-success);
 }
 
 @media (max-width: 640px) {
