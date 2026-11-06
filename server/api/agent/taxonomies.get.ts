@@ -7,6 +7,7 @@ export default defineEventHandler(async (event) => {
   const [categories, tags] = await Promise.all([listAdminCategories(), listAllAdminTags()])
   return ok({
     categories: categories.map(({ id, name, slug }) => ({ id, name, slug })),
-    tags: tags.map(({ id, name, slug }) => ({ id, name, slug }))
+    tags: tags.map(({ id, name, slug }) => ({ id, name, slug })),
+    capabilities: { tagNames: true }
   })
 })

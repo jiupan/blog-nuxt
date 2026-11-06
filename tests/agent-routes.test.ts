@@ -98,7 +98,8 @@ describe('Agent HTTP endpoints', () => {
         { id: 3, name: 'First', slug: 'first' },
         { id: 1, name: 'Second', slug: 'second' }
       ],
-      tags: [{ id: 2, name: 'Tag', slug: 'tag' }]
+      tags: [{ id: 2, name: 'Tag', slug: 'tag' }],
+      capabilities: { tagNames: true }
     })
     expect(auth).toHaveBeenCalled()
   })

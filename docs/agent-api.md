@@ -27,12 +27,15 @@ curl "$BLOG_BASE_URL/api/agent/taxonomies" \
   "message": "成功",
   "data": {
     "categories": [{ "id": 1, "name": "AI 与实践", "slug": "ai" }],
-    "tags": [{ "id": 2, "name": "AI", "slug": "ai" }]
+    "tags": [{ "id": 2, "name": "AI", "slug": "ai" }],
+    "capabilities": { "tagNames": true }
   }
 }
 ```
 
 ## 创建文章
+
+使用 `tagNames` 前，先确认分类标签接口返回 `data.capabilities.tagNames: true`。同名标签会复用，新增标签与文章在同一事务中保存。分类通过已有 ID 选择。
 
 把请求保存为 UTF-8 编码的 `article.json`：
 
@@ -74,7 +77,8 @@ Invoke-RestMethod -Method Post -Uri "$env:BLOG_BASE_URL/api/agent/posts" `
 | --- | --- |
 | `status` | `DRAFT` 或 `PUBLISHED`；省略为草稿。明确要求直接发布时传 `PUBLISHED` |
 | `categoryId` | 已有分类 ID，省略或 `null` 表示无分类 |
-| `tagIds` | 已有标签 ID，最多 30 项；不自动创建分类或标签 |
+| `tagIds` | 已有标签 ID，最多 30 项，服务端去重 |
+| `tagNames` | 可选，最多 3 个标签名称，每个去掉首尾空白后 1～40 字符且可生成别名。已有同名标签会复用（忽略大小写），其余随文章一同创建。与 `tagIds` 合计最多 30 项 |
 | `slug` | 自定义访问别名，服务器会规范化；省略自动生成 |
 | `summary` | 最多 2000 字符 |
 | `cover` | HTTP/HTTPS 图片地址或站内 `/uploads/` 地址；省略沿用图库随机封面 |

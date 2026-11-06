@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { Prisma, type Post } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
 import { badRequest, conflict, unauthorized } from '../../utils/api-error'
+import { normalizeSlug } from '../../utils/slug'
 import { autoSyncPublishedPost, createPost } from '../posts/post.service'
 import type { AgentPostInput } from './agent.schema'
 
@@ -12,6 +13,35 @@ type PublicationPost = Pick<Post, 'id' | 'slug' | 'title' | 'status' | 'publishe
 
 export function hashAgentPayload(input: AgentPostInput) {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex')
+}
+
+async function resolveAgentTagIds(tx: Prisma.TransactionClient, input: AgentPostInput) {
+  if (!input.tagNames?.length) return input.tagIds
+  const ids = new Set(input.tagIds)
+  const tags = await tx.tag.findMany({
+    orderBy: { id: 'asc' },
+    select: { id: true, name: true, slug: true, sort: true }
+  })
+  const slugs = new Set(tags.map((tag) => tag.slug))
+  let sort = tags.reduce((last, tag) => Math.max(last, tag.sort), -1)
+  for (const name of input.tagNames) {
+    const existing = tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase())
+    if (existing) {
+      ids.add(existing.id)
+      continue
+    }
+
+    const base = normalizeSlug(name)
+    let slug = base
+    for (let suffix = 2; slugs.has(slug); suffix++) {
+      slug = `${base}-${suffix}`
+    }
+    const tag = await tx.tag.create({ data: { name, slug, sort: ++sort } })
+    tags.push(tag)
+    slugs.add(slug)
+    ids.add(tag.id)
+  }
+  return [...ids]
 }
 
 export async function publishAgentPost(keyId: number, input: AgentPostInput) {
@@ -77,7 +107,8 @@ export async function publishAgentPost(keyId: number, input: AgentPostInput) {
                   data: { status: 'PENDING', error: null }
                 })
               : await tx.agentPublication.create({ data: metadata })
-            const post = await createPost({ ...input, isPinned: false }, tx)
+            const tagIds = await resolveAgentTagIds(tx, input)
+            const post = await createPost({ ...input, tagIds, isPinned: false }, tx)
             await tx.agentPublication.update({
               where: { id: record.id },
               data: { status: 'SUCCESS', postId: post.id, error: null }

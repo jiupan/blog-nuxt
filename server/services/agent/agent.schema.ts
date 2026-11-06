@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { normalizeSlug } from '../../utils/slug'
 
 const httpUrl = z
   .string()
@@ -33,6 +34,14 @@ export const agentPostSchema = z
       .max(30)
       .default([])
       .transform((ids) => [...new Set(ids)].sort((a, b) => a - b)),
+    tagNames: z
+      .array(
+        z.string().trim().min(1).max(40)
+          .refine((name) => Boolean(normalizeSlug(name)), '标签名称需要包含可生成别名的字符')
+      )
+      .max(3)
+      .optional()
+      .transform((names) => (names?.length ? [...new Set(names)].sort() : undefined)),
     status: z.enum(['DRAFT', 'PUBLISHED']).default('DRAFT'),
     cover: z.union([httpUrl, z.string().regex(/^\/uploads\/[a-zA-Z0-9_./%-]+$/)]).optional(),
     seoTitle: z.string().trim().max(200).optional(),
@@ -43,6 +52,10 @@ export const agentPostSchema = z
       .default([])
   })
   .strict()
+  .refine((input) => input.tagIds.length + (input.tagNames?.length ?? 0) <= 30, {
+    path: ['tagNames'],
+    message: '已有标签和按名称添加的标签合计最多 30 项'
+  })
 
 export type AgentPostInput = z.infer<typeof agentPostSchema>
 

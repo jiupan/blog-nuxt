@@ -220,6 +220,7 @@ describe('Agent article contract', () => {
     })
     expect(a.status).toBe('DRAFT')
     expect(a.tagIds).toEqual([1, 3])
+    expect(JSON.parse(JSON.stringify(a))).not.toHaveProperty('tagNames')
     expect(hashAgentPayload(a)).toBe(hashAgentPayload(b))
   })
   it.each([
@@ -229,6 +230,9 @@ describe('Agent article contract', () => {
     { status: 'ARCHIVED' },
     { requestId: 'bad id' },
     { tagIds: [0] },
+    { tagNames: ['---'] },
+    { tagNames: ['a', 'b', 'c', 'd'] },
+    { tagIds: Array.from({ length: 30 }, (_, i) => i + 1), tagNames: ['SQLite'] },
     { isPinned: true },
     { authorId: 1 },
     { sources: [{ title: '原文', url: 'javascript:alert(1)' }] },
@@ -240,6 +244,19 @@ describe('Agent article contract', () => {
 })
 
 describe('Agent atomic publication', () => {
+  it('reuses names across case differences and appends a new tag without taking an existing slug', async () => {
+    tx.tag.findMany.mockResolvedValue([
+      { id: 1, name: 'SQLite', slug: 'embedded-db', sort: 3 },
+      { id: 3, name: 'C', slug: 'c', sort: 8 }
+    ])
+    tx.tag.create.mockResolvedValue({ id: 5, name: 'C++', slug: 'c-2', sort: 9 })
+    await publishAgentPost(77, agentPostSchema.parse({ ...input(), tagNames: [' sqlite ', 'C++'] }))
+    expect(tx.tag.create).toHaveBeenCalledExactlyOnceWith({
+      data: { name: 'C++', slug: 'c-2', sort: 9 }
+    })
+    expect(createPost).toHaveBeenCalledWith(expect.objectContaining({ tagIds: [1, 3, 5] }), tx)
+  })
+
   it('creates the record and article in the same serializable transaction, then syncs after commit', async () => {
     const result = await publishAgentPost(77, input())
     expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), {
@@ -279,14 +296,16 @@ describe('Agent atomic publication', () => {
     expect(result.post).not.toHaveProperty('content')
   })
   it('returns the existing article on a network retry without creating or syncing again', async () => {
+    const payload = agentPostSchema.parse({ ...input(), tagNames: ['SQLite'] })
     tx.agentPublication.findUnique.mockResolvedValue({
       status: 'SUCCESS',
-      payloadHash: hashAgentPayload(input()),
+      payloadHash: hashAgentPayload(payload),
       post
     })
-    const result = await publishAgentPost(77, input())
+    const result = await publishAgentPost(77, payload)
     expect(result.replayed).toBe(true)
     expect(createPost).not.toHaveBeenCalled()
+    expect(tx.tag.create).not.toHaveBeenCalled()
     expect(sync).not.toHaveBeenCalled()
   })
   it('rejects reuse of the same request ID for different content without overwriting its record', async () => {
