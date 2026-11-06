@@ -7,9 +7,10 @@ import ArchivePostCard from '../app/components/ArchivePostCard.vue'
 
 let dispose: (() => void) | undefined
 beforeEach(() => {
+  vi.stubGlobal('IntersectionObserver', undefined)
   vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(false)
 })
-afterEach(() => { dispose?.(); document.body.innerHTML = ''; vi.restoreAllMocks() })
+afterEach(() => { dispose?.(); document.body.innerHTML = ''; vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 it('keeps an actual image in SSR HTML for browsers without JavaScript', async () => {
   const html = await renderToString(createApp(PostCoverImage, { src: '/cover.webp', alt: '封面' }))
@@ -48,6 +49,39 @@ it('recognizes cached covers even when the load event already fired', async () =
   dispose = () => app.unmount()
   await nextTick()
   expect(host.querySelector('.is-pending')).toBeNull()
+  expect(loaded).toHaveBeenCalledOnce()
+})
+
+it('keeps a cached offscreen cover hidden until its first viewport entry', async () => {
+  let notifyIntersection!: (visible: boolean) => void
+  const disconnect = vi.fn()
+  vi.stubGlobal('IntersectionObserver', class {
+    constructor(callback: IntersectionObserverCallback) {
+      notifyIntersection = (isIntersecting) => {
+        callback([{ isIntersecting } as IntersectionObserverEntry], this as unknown as IntersectionObserver)
+      }
+    }
+    observe = vi.fn()
+    disconnect = disconnect
+  })
+  vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
+  vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(800)
+  const loaded = vi.fn()
+  const host = document.createElement('div')
+  const app = createApp(PostCoverImage, { src: '/cached.webp', alt: '封面', onLoad: loaded })
+  app.mount(host)
+  dispose = () => app.unmount()
+  notifyIntersection(false)
+  await nextTick()
+  expect(host.querySelector('.is-pending')).not.toBeNull()
+  expect(loaded).not.toHaveBeenCalled()
+
+  notifyIntersection(true)
+  await nextTick()
+  expect(host.querySelector('.is-pending')).toBeNull()
+  expect(disconnect).toHaveBeenCalledOnce()
+  notifyIntersection(false)
+  notifyIntersection(true)
   expect(loaded).toHaveBeenCalledOnce()
 })
 

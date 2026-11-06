@@ -868,7 +868,7 @@ function formatDate(value?: string | Date | null) {
   backface-visibility: hidden;
   transform: translateZ(0) scale(1.001);
   transform-origin: center;
-  transition: transform .32s ease, opacity 400ms ease;
+  transition: transform .32s ease, var(--post-cover-fade);
   will-change: transform;
 }
 
