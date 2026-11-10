@@ -21,7 +21,7 @@ export const settingsDefaults = {
   footer_copyright: '©2026 {siteName}',
   footer_icp: '',
   footer_bottom_links: '归档|/archive\n关于|/about',
-  footer_actions: '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]',
+  footer_actions: '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"书签","to":"/link","icon":"i-lucide-link"}]',
   ai_api_key: '',
   ai_base_url: 'https://api.deepseek.com',
   ai_model: 'deepseek-v4-flash',

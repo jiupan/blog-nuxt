@@ -196,11 +196,12 @@ const tools: ToolItem[] = [
   },
   {
     id: 'links',
-    title: '友链导航',
-    description: '访问常用站点、技术资源和持续关注的内容来源。',
+    title: '书签',
+    description: '逛逛站外收录的文章、工具和小站。',
     category: 'site',
     tone: 'rose',
-    icon: LinkIcon
+    icon: LinkIcon,
+    href: '/link'
   },
   {
     id: 'about',

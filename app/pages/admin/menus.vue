@@ -479,7 +479,7 @@ const itemTypeOptions: Array<{ label: string; value: MenuItemType }> = [
 
 const pageOptions = [
   { label: '关于', url: '/about', slug: 'about' },
-  { label: '友链', url: '/link', slug: 'link' },
+  { label: '书签', url: '/link', slug: 'link' },
   { label: '文章归档', url: '/archive', slug: 'archive' },
   { label: '后台', url: '/admin', slug: 'admin' }
 ]

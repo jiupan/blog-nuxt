@@ -48,7 +48,8 @@ const groups = [
       { label: '文章', to: '/admin/posts', icon: 'i-lucide-file-text' },
       { label: '分类', to: '/admin/categories', icon: 'i-lucide-folder' },
       { label: '标签', to: '/admin/tags', icon: 'i-lucide-hash' },
-      { label: '图库', to: '/admin/gallery', icon: 'i-lucide-images' }
+      { label: '图库', to: '/admin/gallery', icon: 'i-lucide-images' },
+      { label: '书签', to: '/admin/bookmarks', icon: 'i-lucide-bookmark' }
     ]
   },
   {

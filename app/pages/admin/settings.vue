@@ -299,7 +299,7 @@
             <p class="text-sm text-slate-500">
               每行一个链接，格式为
               <code>显示名称|路径或 URL</code>
-              。留空则隐藏，可填写友链、隐私说明等页面；指向后台的链接不会在公开页脚显示。
+              。留空则隐藏，可填写书签、隐私说明等页面；指向后台的链接不会在公开页脚显示。
             </p>
           </div>
         </div>
@@ -907,7 +907,7 @@ const aiSettingTabs = [
 ] as const
 
 const defaultFooterActions =
-  '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"友链","to":"/link","icon":"i-lucide-link"}]'
+  '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"书签","to":"/link","icon":"i-lucide-link"}]'
 
 const footerActionIconOptions = [
   { label: 'QQ', name: 'i-simple-icons-qq' },

@@ -323,6 +323,42 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+enum BookmarkCategory {
+  ARTICLE
+  TOOL
+  SITE
+}
+
+enum BookmarkStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+model Bookmark {
+  id          Int              @id @default(autoincrement())
+  title       String
+  url         String           @unique
+  category    BookmarkCategory
+  note        String
+  status      BookmarkStatus   @default(DRAFT)
+  sort        Int
+  publishedAt DateTime?
+  featuredOn  BookmarkPage[]
+
+  @@index([sort, id])
+}
+
+model BookmarkPage {
+  id         Int       @id
+  revision   Int       @default(0)
+  title      String
+  intro      String
+  showRandom Boolean   @default(true)
+  featuredId Int?
+  featured   Bookmark? @relation(fields: [featuredId], references: [id], onDelete: SetNull)
+}
+
 model Menu {
   id          Int          @id @default(autoincrement())
   name        String

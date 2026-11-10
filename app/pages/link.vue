@@ -1,571 +1,403 @@
 <template>
-  <div class="link-page">
-    <section class="link-hero" data-page-enter style="--page-enter-order: 0">
-      <div class="hero-pill">
-        <LinkIcon aria-hidden="true" />
-        Blogroll
+  <div class="walk-page">
+    <header class="walk-intro">
+      <div>
+        <h1>{{ title }}</h1>
+        <p v-if="page?.settings.intro">{{ page.settings.intro }}</p>
       </div>
-      <h1>友链</h1>
-      <p>
-        这里收集常去的网站、喜欢的工具，以及值得反复阅读的内容来源。
-      </p>
-    </section>
+      <div class="walk-trail" aria-hidden="true">
+        <span class="trail-start" />
+        <span class="trail-turn" />
+        <span class="trail-return" />
+        <span class="trail-end" />
+        <span class="trail-caption">走走停停</span>
+      </div>
+    </header>
 
-    <section class="link-shell">
-      <div class="link-group" data-page-enter style="--page-enter-order: 1">
-        <div class="group-heading">
-          <h2>星标推荐</h2>
-          <span aria-hidden="true"></span>
+    <div v-if="error" class="walk-unavailable">
+      <p role="status">书签暂时没能加载。</p>
+      <UButton variant="outline" color="neutral" :loading="status === 'pending'" @click="refresh()">
+        重新加载
+      </UButton>
+    </div>
+
+    <template v-else-if="page">
+      <article v-if="featured" class="walk-feature">
+        <div class="feature-label">
+          <Icon name="i-lucide-bookmark" aria-hidden="true" />
+          <span>最近捡到</span>
+          <time v-if="featured.publishedAt" :datetime="featured.publishedAt">{{ formatDate(featured.publishedAt) }}</time>
         </div>
+        <h2>{{ featured.title }}</h2>
+        <p>{{ featured.note }}</p>
+        <a :href="featured.url" target="_blank" rel="noopener noreferrer" class="feature-link">
+          去看看 <Icon name="i-lucide-arrow-up-right" aria-hidden="true" />
+        </a>
+      </article>
 
-        <div class="featured-grid">
-          <a
-            v-for="link in featuredLinks"
-            :key="link.url"
-            :href="link.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="featured-card"
+      <section class="walk-drawer" aria-labelledby="bookmark-drawer-title">
+        <div class="drawer-heading">
+          <h2 id="bookmark-drawer-title">书签抽屉</h2>
+          <UButton
+            v-if="page.settings.showRandom && page.items.length > 1"
+            variant="outline"
+            color="neutral"
+            icon="i-lucide-shuffle"
+            class="random-button"
+            :disabled="!interactive"
+            @click="pickBookmark"
           >
-            <span class="featured-avatar" :class="link.avatarClass">{{ link.initials }}</span>
-            <span class="featured-copy">
-              <strong>{{ link.name }}</strong>
-              <small>{{ link.description }}</small>
-              <em>{{ link.label }}</em>
-            </span>
-          </a>
+            随便逛一个
+          </UButton>
         </div>
-      </div>
-
-      <div class="link-group" data-page-enter style="--page-enter-order: 2">
-        <div class="group-heading">
-          <h2>技术与工具</h2>
-          <span aria-hidden="true"></span>
-        </div>
-
-        <div class="compact-grid">
-          <a
-            v-for="link in regularLinks"
-            :key="link.url"
-            :href="link.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="compact-card"
+        <div v-if="availableCategories.length > 1" class="bookmark-filters" role="group" aria-label="按分类浏览">
+          <button
+            v-for="category in filters"
+            :key="category"
+            type="button"
+            :aria-pressed="activeCategory === category"
+            :disabled="!interactive"
+            @click="selectCategory(category)"
           >
-            <span class="compact-avatar" :class="link.avatarClass">{{ link.initials }}</span>
-            <span>
-              <strong>{{ link.name }}</strong>
-              <small>{{ link.description }}</small>
-            </span>
+            {{ category === 'all' ? '全部' : bookmarkCategories[category] }}
+          </button>
+        </div>
+        <div v-if="picked" class="walk-pick">
+          <span>散步去向</span>
+          <a :href="picked.url" target="_blank" rel="noopener noreferrer">
+            {{ picked.title }} <Icon name="i-lucide-arrow-up-right" aria-hidden="true" />
           </a>
         </div>
-      </div>
+        <p class="sr-only" role="status">{{ announcement }}</p>
 
-      <section class="exchange-panel" data-page-enter style="--page-enter-order: 3">
-        <div class="exchange-copy">
-          <h2>申请交换链接</h2>
-          <p>
-            欢迎原创内容、长期维护的个人站点互换链接。添加前可以先把本站信息放到你的友链页，再通过邮件告诉我。
-          </p>
-          <div class="site-snippet">
-            <p><span>名称：</span>{{ siteName }}</p>
-            <p><span>简介：</span>{{ siteDescription }}</p>
-            <p><span>网址：</span>{{ siteUrl }}</p>
-            <p><span>头像：</span>{{ siteLogo || '可使用站点 favicon 或首页头像' }}</p>
-          </div>
-        </div>
-
-        <div class="exchange-action">
-          <a href="mailto:hello@example.com">
-            <SendIcon aria-hidden="true" />
-            邮件申请
-          </a>
-          <p>请附上站点名称、地址、简介和头像链接。</p>
-        </div>
+        <ul v-if="visibleItems.length" class="bookmark-list">
+          <li v-for="item in visibleItems" :key="item.id">
+            <a :href="item.url" target="_blank" rel="noopener noreferrer" class="bookmark-link">
+              <span class="bookmark-category">{{ bookmarkCategories[item.category] }}</span>
+              <span class="bookmark-copy">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.note }}</span>
+              </span>
+              <span class="bookmark-source">
+                <span>{{ domain(item.url) }}</span>
+                <Icon name="i-lucide-arrow-up-right" aria-hidden="true" />
+              </span>
+            </a>
+          </li>
+        </ul>
+        <p v-else-if="!featured" class="walk-empty">书签抽屉还空着，等下次散步带点东西回来。</p>
+        <p v-else class="walk-empty">这次先留下一条主推荐。</p>
       </section>
-    </section>
+
+      <p v-if="page.items.length" class="walk-footer">沿途留下 {{ page.items.length }} 条书签</p>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import {
-  Link as LinkIcon,
-  Send as SendIcon
-} from '@lucide/vue'
+import type { ApiResult } from '~~/types/api'
+import { bookmarkCategories } from '~~/types/dto/bookmark'
+import type { BookmarkCategory, PublicBookmarksPayload } from '~~/types/dto/bookmark'
 
-type FriendLink = {
-  name: string
-  description: string
-  url: string
-  label?: string
-  initials: string
-  avatarClass: string
+type CategoryFilter = BookmarkCategory | 'all'
+
+const { data, error, status, refresh } = await useFetch<ApiResult<PublicBookmarksPayload>>('/api/bookmarks')
+const page = computed(() => data.value?.data)
+const title = computed(() => page.value?.settings.title || '站外散步')
+const featured = computed(() => page.value?.items.find(item => item.id === page.value?.settings.featuredId))
+const list = computed(() => page.value?.items.filter(item => item.id !== featured.value?.id) ?? [])
+const availableCategories = computed(() => (Object.keys(bookmarkCategories) as BookmarkCategory[])
+  .filter(category => list.value.some(item => item.category === category)))
+const filters = computed<CategoryFilter[]>(() => ['all', ...availableCategories.value])
+const activeCategory = ref<CategoryFilter>('all')
+const visibleItems = computed(() => list.value.filter(item => activeCategory.value === 'all' || item.category === activeCategory.value))
+const randomPool = computed(() => activeCategory.value === 'all' ? page.value?.items ?? [] : visibleItems.value)
+const pickedId = ref<number>()
+const lastPickedId = ref<number>()
+const picked = computed(() => randomPool.value.find(item => item.id === pickedId.value))
+const announcement = ref('')
+const interactive = ref(false)
+
+onMounted(() => { interactive.value = true })
+
+watch(availableCategories, (categories) => {
+  if (activeCategory.value !== 'all' && !categories.includes(activeCategory.value)) selectCategory('all')
+})
+
+function selectCategory(category: CategoryFilter) {
+  activeCategory.value = category
+  pickedId.value = undefined
+  announcement.value = `${category === 'all' ? '全部' : bookmarkCategories[category]}，${visibleItems.value.length} 条书签`
 }
 
-const config = useRuntimeConfig()
-const siteSettings = useSiteSettings()
+function pickBookmark() {
+  const pool = randomPool.value
+  const candidates = pool.length > 1 ? pool.filter(item => item.id !== lastPickedId.value) : pool
+  const item = candidates[Math.floor(Math.random() * candidates.length)]
+  if (!item) return
+  pickedId.value = item.id
+  lastPickedId.value = item.id
+  announcement.value = `选中了 ${item.title}，可在散步去向打开。`
+}
 
-const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
-const siteUrl = computed(() => config.public.siteUrl || 'http://localhost:3000')
-const siteLogo = computed(() => siteSettings.value.site_logo)
-const siteDescription = computed(() => siteSettings.value.sidebar_description || siteSettings.value.site_subtitle || '记录技术、写作和日常思考')
-
-const featuredLinks: FriendLink[] = [
-  {
-    name: 'Nuxt',
-    description: '直观、完整的 Vue 全栈框架，也是这个博客当前使用的技术底座。',
-    url: 'https://nuxt.com',
-    label: 'Framework / Vue',
-    initials: 'Nu',
-    avatarClass: 'avatar-green'
-  },
-  {
-    name: 'Prisma',
-    description: '面向 TypeScript 的现代 ORM，用来管理本站的数据模型与数据库访问。',
-    url: 'https://www.prisma.io',
-    label: 'Database / ORM',
-    initials: 'Pr',
-    avatarClass: 'avatar-blue'
-  }
-]
-
-const regularLinks: FriendLink[] = [
-  {
-    name: 'Vue',
-    description: '渐进式 JavaScript 框架',
-    url: 'https://vuejs.org',
-    initials: 'Vu',
-    avatarClass: 'avatar-emerald'
-  },
-  {
-    name: 'Vite',
-    description: '快速的前端构建工具',
-    url: 'https://vite.dev',
-    initials: 'Vi',
-    avatarClass: 'avatar-purple'
-  },
-  {
-    name: 'TypeScript',
-    description: 'JavaScript 的类型系统',
-    url: 'https://www.typescriptlang.org',
-    initials: 'Ts',
-    avatarClass: 'avatar-sky'
-  },
-  {
-    name: 'MDN Web Docs',
-    description: 'Web 标准与浏览器文档',
-    url: 'https://developer.mozilla.org',
-    initials: 'MD',
-    avatarClass: 'avatar-gray'
-  },
-  {
-    name: 'Nuxt UI',
-    description: 'Nuxt 生态里的 UI 组件库',
-    url: 'https://ui.nuxt.com',
-    initials: 'UI',
-    avatarClass: 'avatar-teal'
-  }
-]
+const dateFormatter = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Shanghai'
+})
+const formatDate = (date: string) => dateFormatter.format(new Date(date)).replaceAll('/', '.')
+const domain = (url: string) => new URL(url).hostname.replace(/^www\./, '')
 
 useSeoMeta({
-  title: () => `友链 - ${siteName.value}`,
-  description: '友链与常用资源'
+  title: () => title.value,
+  description: () => page.value?.settings.intro.replace(/\s+/g, ' ').trim() || '沿途捡到的文章、工具和小站。'
 })
 </script>
 
 <style scoped>
-.link-page {
-  min-height: 70vh;
-  color: var(--theme-text);
-}
-
-.link-hero,
-.link-shell {
-  width: min(100% - 32px, 1040px);
-  margin: 0 auto;
-}
-
-.link-hero {
-  display: grid;
-  justify-items: center;
-  padding: 84px 0 78px;
-  text-align: center;
-}
-
-.hero-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid var(--theme-border);
-  border-radius: 999px;
-  border: 1px solid var(--theme-border);
-  background: color-mix(in srgb, var(--theme-surface) 72%, transparent);
-  padding: 5px 12px;
-  color: var(--theme-text-muted);
-  font-size: 12px;
-  font-weight: 800;
-  box-shadow: 0 8px 20px rgba(38, 50, 56, 0.05);
-}
-
-.hero-pill svg {
-  width: 14px;
-  height: 14px;
-  color: var(--theme-text-muted);
-}
-
-.link-hero h1 {
-  margin: 18px 0 0;
-  color: var(--theme-text);
-  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
-  font-size: clamp(42px, 7vw, 58px);
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1.1;
-}
-
-.link-hero p {
-  max-width: 640px;
-  margin: 18px 0 0;
-  color: var(--theme-text-muted);
-  font-size: 17px;
-  line-height: 1.8;
-}
-
-.link-shell {
-  padding-bottom: 84px;
-}
-
-.link-group + .link-group {
-  margin-top: 58px;
-}
-
-.group-heading {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  margin-bottom: 28px;
-}
-
-.group-heading h2,
-.exchange-panel h2 {
-  margin: 0;
-  color: var(--theme-text);
-  font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
-  font-size: 26px;
-  font-weight: 550;
-  letter-spacing: 0;
-}
-
-.group-heading span {
-  height: 1px;
-  flex: 1;
-  background: var(--theme-border);
-}
-
-.featured-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-}
-
-.featured-card,
-.compact-card,
-.exchange-panel {
+.walk-page {
+  --walk-ink: var(--theme-text-strong);
+  --walk-muted: var(--theme-text-soft);
+  --walk-blue: color-mix(in srgb, var(--theme-accent) 80%, var(--walk-ink));
+  --walk-wash: var(--theme-accent-soft);
+  --walk-serif: "Songti SC", "Noto Serif SC", SimSun, serif;
+  width: min(calc(100% - 32px), 930px);
+  margin: clamp(24px, 5vw, 52px) auto clamp(36px, 7vw, 72px);
+  padding: clamp(16px, 5vw, 54px);
   border: 1px solid var(--theme-border-soft);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--theme-surface) 92%, transparent);
-  box-shadow:
-    0 2px 12px rgb(var(--theme-shadow) / 6%),
-    0 16px 30px rgb(var(--theme-shadow) / 5%);
+  border-radius: 16px;
+  background: var(--theme-surface);
+  color: var(--walk-ink);
 }
 
-.featured-card {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  min-height: 150px;
-  padding: 28px;
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
-}
-
-.featured-card:hover,
-.compact-card:hover {
-  border-color: color-mix(in srgb, #55b58c 54%, var(--theme-border));
-  box-shadow:
-    0 4px 18px rgb(var(--theme-shadow) / 10%),
-    0 24px 42px rgb(var(--theme-shadow) / 14%);
-  transform: translateY(-3px);
-}
-
-.featured-avatar,
-.compact-avatar {
+.walk-intro {
   display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 999px;
-  color: #ffffff;
-  font-weight: 900;
-  letter-spacing: 0;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
-}
-
-.featured-avatar {
-  width: 92px;
-  height: 92px;
-  font-size: 24px;
-}
-
-.featured-copy {
-  min-width: 0;
-}
-
-.featured-copy strong,
-.compact-card strong {
-  display: block;
-  color: var(--theme-text);
-  font-weight: 850;
-  line-height: 1.35;
-}
-
-.featured-copy strong {
-  font-size: 20px;
-}
-
-.featured-copy small {
-  display: block;
-  margin-top: 8px;
-  color: var(--theme-text-muted);
-  font-size: 14px;
-  line-height: 1.75;
-}
-
-.featured-copy em {
-  display: inline-flex;
-  margin-top: 12px;
-  border-radius: 6px;
-  background: var(--theme-success-soft);
-  padding: 5px 8px;
-  color: var(--theme-success);
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 800;
-}
-
-.compact-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.compact-card {
-  display: flex;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
   align-items: center;
   gap: 16px;
-  min-width: 0;
-  min-height: 86px;
-  padding: 18px;
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  padding: 4px 0 clamp(25px, 4vw, 44px);
 }
 
-.compact-avatar {
-  width: 52px;
-  height: 52px;
-  font-size: 15px;
+.walk-intro h1 {
+  font: 700 clamp(38px, 6.6vw, 68px)/1.12 var(--walk-serif);
+  letter-spacing: -.045em;
+  overflow-wrap: anywhere;
 }
 
-.compact-card span:last-child {
-  min-width: 0;
-}
-
-.compact-card strong,
-.compact-card small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.compact-card strong {
-  font-size: 16px;
-}
-
-.compact-card small {
-  display: block;
-  margin-top: 4px;
-  color: var(--theme-text-muted);
-  font-size: 13px;
-}
-
-.exchange-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 44px;
-  align-items: start;
-  margin-top: 72px;
-  padding: 38px;
-}
-
-.exchange-copy p {
-  max-width: 680px;
+.walk-intro p {
   margin: 14px 0 0;
-  color: var(--theme-text-muted);
-  line-height: 1.85;
-}
-
-.site-snippet {
-  margin-top: 22px;
-  border: 1px solid var(--theme-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--theme-surface-muted) 88%, transparent);
-  padding: 16px;
-  color: var(--theme-text-soft);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
+  color: var(--walk-muted);
+  font-size: clamp(14px, 2vw, 17px);
   line-height: 1.65;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
-.site-snippet p {
-  margin: 0;
-  line-height: inherit;
+.walk-trail {
+  position: relative;
+  height: clamp(68px, 14vw, 116px);
+  color: var(--walk-blue);
+  background-image: radial-gradient(circle, color-mix(in srgb, currentColor 30%, transparent) 1px, transparent 1.2px);
+  background-size: 13px 13px;
+  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 90%, transparent);
 }
 
-.site-snippet span {
-  color: var(--theme-text);
-  font-weight: 850;
+.trail-turn,
+.trail-return {
+  position: absolute;
+  border: 2px dashed currentColor;
 }
 
-.exchange-action {
-  display: grid;
-  justify-items: end;
-  gap: 14px;
+.trail-turn {
+  inset: 52% 43% 23% 13%;
+  border-top: 0;
+  border-right: 0;
+  border-radius: 0 0 0 22px;
 }
 
-.exchange-action a {
+.trail-return {
+  inset: 19% 13% 23% 56%;
+  border-left: 0;
+  border-radius: 0 32px 29px 0;
+}
+
+.trail-start,
+.trail-end {
+  position: absolute;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: var(--theme-surface);
+}
+
+.trail-start { top: calc(52% - 5px); left: calc(13% - 4px); }
+.trail-end {
+  top: calc(19% - 4px);
+  left: calc(56% - 6px);
+  background: currentColor;
+  box-shadow: 0 0 0 5px var(--walk-wash);
+}
+
+.trail-caption {
+  position: absolute;
+  top: 28%;
+  left: 24%;
+  padding: 0 4px;
+  background: var(--theme-surface);
+  font-size: 12px;
+  letter-spacing: .12em;
+}
+
+.walk-feature {
+  padding: clamp(15px, 3.2vw, 27px) clamp(16px, 3.5vw, 31px);
+  border-inline-start: 3px solid var(--walk-blue);
+  border-radius: 5px 15px 15px 5px;
+  background: var(--walk-wash);
+}
+
+.feature-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--walk-blue);
+  font-size: 12px;
+}
+
+.feature-label time { margin-inline-start: auto; }
+.walk-feature h2 {
+  margin: 7px 0 0;
+  font-size: clamp(20px, 3.2vw, 28px);
+  font-weight: 700;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+
+.walk-feature p {
+  max-width: 58ch;
+  margin: 5px 0 0;
+  color: var(--walk-muted);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.feature-link {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-height: 48px;
-  border-radius: 8px;
-  border: 1px solid color-mix(in srgb, #2f8f68 72%, var(--theme-border));
-  background: linear-gradient(135deg, #277a5b, #356f5b);
-  padding: 0 20px;
-  color: #ffffff;
+  gap: 6px;
+  min-height: 40px;
+  margin-top: 6px;
+  color: var(--walk-blue);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.walk-drawer { margin-top: clamp(22px, 4vw, 36px); }
+.walk-intro + .walk-drawer { margin-top: 0; }
+.drawer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.drawer-heading h2 {
+  font: 700 clamp(22px, 3.3vw, 28px)/1.3 var(--walk-serif);
+  letter-spacing: -.025em;
+}
+
+.random-button {
+  background: var(--theme-surface);
+  color: var(--walk-blue);
+  box-shadow: inset 0 0 0 1px var(--theme-border);
+}
+.random-button:hover:not(:disabled) { background: var(--walk-wash); }
+.bookmark-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 10px;
+}
+
+.bookmark-filters button {
+  min-height: 34px;
+  padding: 3px 11px;
+  border-radius: 7px;
+  color: var(--walk-muted);
   font-size: 14px;
-  font-weight: 850;
-  box-shadow: 0 14px 28px rgb(20 83 62 / 18%);
-  transition: border-color 160ms ease, box-shadow 160ms ease, filter 160ms ease, transform 160ms ease;
+  cursor: pointer;
 }
 
-.exchange-action a:hover {
-  border-color: #55b58c;
-  box-shadow: 0 18px 34px rgb(47 143 104 / 24%);
-  filter: brightness(1.08);
-  transform: translateY(-1px);
+.bookmark-filters button:hover:not(:disabled),
+.bookmark-filters button[aria-pressed="true"] {
+  background: var(--walk-wash);
+  color: var(--walk-blue);
 }
 
-.exchange-action a:focus-visible {
-  outline: 3px solid color-mix(in srgb, #55b58c 32%, transparent);
-  outline-offset: 3px;
+.walk-pick {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--walk-wash);
+  color: var(--walk-muted);
+  overflow-wrap: anywhere;
 }
 
-.exchange-action svg {
-  width: 18px;
-  height: 18px;
+.walk-pick a { color: var(--walk-blue); text-decoration: underline; text-underline-offset: 3px; }
+.walk-pick .iconify,
+.bookmark-source .iconify { vertical-align: -.15em; }
+.bookmark-list { margin: 0; padding: 0; list-style: none; }
+.bookmark-link {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 66px;
+  padding: 10px 3px;
+  border-top: 1px solid var(--theme-border);
+  text-decoration: none;
 }
 
-.exchange-action p {
-  max-width: 190px;
+.bookmark-link:hover,
+.bookmark-link:focus-visible { background: var(--theme-surface-muted); }
+.bookmark-link:hover strong,
+.bookmark-link:focus-visible strong { color: var(--walk-blue); text-decoration: underline; text-underline-offset: 3px; }
+.bookmark-category, .bookmark-source { color: var(--walk-muted); font-size: 12px; }
+.bookmark-copy strong, .bookmark-copy span { display: block; overflow-wrap: anywhere; }
+.bookmark-copy strong { font-size: 16px; font-weight: 650; }
+.bookmark-copy span { color: var(--walk-muted); font-size: 14px; }
+.bookmark-source { display: flex; align-items: center; gap: 12px; }
+.bookmark-source span:not(.iconify) { max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bookmark-source .iconify { flex: none; font-size: 16px; }
+.walk-empty { padding: 8px 0 14px; color: var(--walk-muted); }
+.walk-footer {
   margin: 0;
-  color: var(--theme-text-faint);
+  padding-top: 12px;
+  border-top: 1px solid var(--theme-border);
+  color: var(--walk-muted);
   font-size: 12px;
-  line-height: 1.65;
-  text-align: right;
+}
+.walk-unavailable { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--walk-muted); }
+.walk-page :is(a, button):focus-visible { outline: 2px solid var(--walk-blue); outline-offset: 3px; }
+
+@media (max-width: 600px) {
+  .bookmark-source span:not(.iconify) { display: none; }
 }
 
-.avatar-green {
-  background: linear-gradient(135deg, #354f52, #84a98c);
+@media (max-width: 460px) {
+  .walk-page { width: calc(100% - 24px); }
+  .walk-intro { grid-template-columns: minmax(0, 1fr) 60px; gap: 4px; }
+  .trail-caption { display: none; }
+  .bookmark-link { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 8px; }
 }
 
-.avatar-blue {
-  background: linear-gradient(135deg, var(--theme-text-strong), var(--theme-text-muted));
-}
-
-.avatar-emerald {
-  background: linear-gradient(135deg, #236f5a, #77bfa3);
-}
-
-.avatar-purple {
-  background: linear-gradient(135deg, #6d5a8d, #a48fc7);
-}
-
-.avatar-sky {
-  background: linear-gradient(135deg, #386c8f, #8bb7d5);
-}
-
-.avatar-gray {
-  background: linear-gradient(135deg, #48545f, #aab4bd);
-}
-
-.avatar-teal {
-  background: linear-gradient(135deg, #2c6f73, #88b7b5);
-}
-
-@media (max-width: 860px) {
-  .link-hero {
-    padding: 64px 0 56px;
-  }
-
-  .featured-grid,
-  .compact-grid,
-  .exchange-panel {
-    grid-template-columns: 1fr;
-  }
-
-  .exchange-action {
-    justify-items: start;
-  }
-
-  .exchange-action p {
-    max-width: none;
-    text-align: left;
-  }
-}
-
-@media (max-width: 640px) {
-  .link-hero,
-  .link-shell {
-    width: min(100% - 24px, 1040px);
-  }
-
-  .link-hero h1 {
-    font-size: 42px;
-  }
-
-  .link-hero p {
-    font-size: 15px;
-  }
-
-  .featured-card {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 0;
-    padding: 22px;
-  }
-
-  .featured-avatar {
-    width: 72px;
-    height: 72px;
-    font-size: 20px;
-  }
-
-  .exchange-panel {
-    margin-top: 56px;
-    padding: 24px;
-  }
-
-  .exchange-action a {
-    width: 100%;
-  }
+@media (pointer: coarse) {
+  .bookmark-filters button, .feature-link, .random-button { min-height: 44px; }
 }
 </style>

@@ -40,7 +40,7 @@
           <NuxtLink to="/archive" aria-label="文章归档" data-tooltip="文章归档">
             <Icon name="i-lucide-archive" aria-hidden="true" />
           </NuxtLink>
-          <NuxtLink to="/link" aria-label="友情链接" data-tooltip="友情链接">
+          <NuxtLink to="/link" aria-label="书签" data-tooltip="书签">
             <Icon name="i-lucide-link" aria-hidden="true" />
           </NuxtLink>
           <NuxtLink to="/admin" aria-label="管理后台" data-tooltip="管理后台">

@@ -161,6 +161,7 @@ const pageNames: Record<string, string> = {
   comments: '评论',
   menus: '菜单',
   gallery: '图库',
+  bookmarks: '书签',
   sidebar: '侧栏',
   knowledge: 'AI 知识库',
   agent: 'Agent 接入',
