@@ -22,7 +22,8 @@
 | --- | --- | --- |
 | 后台 API | `/api/admin/**` 必须调用 `requireAdmin(event)` | 401 未登录，403 非管理员 |
 | 普通 AI API | `/api/ai/**` 必须通过 `withAiUsage()` | 401 未登录，429 超限 |
-| 登录失败 | 同一 IP + 用户名，15 分钟最多 5 次失败 | 429，包含 `retryAfterSeconds` |
+| 登录 | 同一 IP + 用户名，15 分钟最多 5 次验证尝试，成功登录后重置 | 429，包含 `retryAfterSeconds` |
+| 登录 IP 总量 | 同一 IP 每分钟最多 30 次登录请求 | 429，包含 `retryAfterSeconds` |
 | 注册 | 同一 IP，1 小时最多 5 次注册尝试 | 429 |
 | AI 用户频率 | 同一用户，1 分钟最多 5 次 | 429 |
 | AI IP 频率 | 同一 IP，1 小时最多 60 次 | 429 |
@@ -36,14 +37,14 @@
 
 ## 实现取舍
 
-- 当前限流是进程内 fixed-window，适合单实例或低并发自部署。
+- 当前限流是进程内 fixed-window，适合单实例或低并发自部署。各 Map 最多保留 10,000 个键，随请求定期清理过期桶。达到上限时拒绝分配新桶，已有活跃桶继续执行原配额。
 - 多实例部署时，限流计数不会跨进程同步；需要升级为 Redis、数据库或边缘网关限流。
 - AI 每日额度使用 `AiUsageLog` 统计成功请求，能够跨进程保持一致。
 - 登录和注册限流不写数据库，避免认证入口增加额外写入成本。
 - 评论限流另走数据库桶：`CommentRateBucket` 以 scope、keyHash、windowStart、windowKind 为唯一键，用 ON CONFLICT 条件更新在库内封顶，重启和多副本都绕不过去。
 - 评论限流的 IP 只用服务端密钥 HMAC 后入桶。日志与报告都不记录原始 IP、Cookie、邮箱或整段正文。
 - 访客凭证是 256 位随机令牌，只存摘要。生产环境 Cookie 为 Secure、HttpOnly、SameSite=Lax、Path=/ 与 Host 前缀，开发环境用独立 Cookie 名。
-- 默认仅使用 socket 对端 IP。通过 `NUXT_COMMENT_TRUSTED_PROXIES` 显式填写直连代理的 IP/CIDR（逗号分隔）后，才接受这些代理提供的转发头；不要把任意访客网段加入可信列表。代理必须覆盖 `X-Real-IP`，或清除此头并正确追加 `X-Forwarded-For`。
+- 登录、注册、AI 和评论共用可信客户端 IP 规则，默认仅使用 socket 对端 IP。通过 `NUXT_COMMENT_TRUSTED_PROXIES` 显式填写直连代理的 IP/CIDR（逗号分隔）后，才接受这些代理提供的转发头；不要把任意访客网段加入可信列表。代理必须覆盖 `X-Real-IP`，或清除此头并正确追加 `X-Forwarded-For`。
 - Compose 的应用端口仅绑定 `127.0.0.1:3000`，供宿主机反代访问。Docker 环境中的 socket 对端通常是网桥网关，需核实实际来源地址后配置可信代理；未配置时限流会按代理地址合并计数。若反代在其他容器中，应通过容器网络访问应用。
 - 评论运行配置使用 `NUXT_COMMENT_ALLOWED_ORIGINS`、`NUXT_COMMENT_RATE_SECRET`，可在预构建镜像启动时覆盖；旧的无 `NUXT_` 前缀名称不再使用。
 - 评论正文关闭原始 HTML，只走受限 Markdown，再过一遍 sanitize-html 白名单。评论里不放外链图片，头像由展示名首字生成，不请求第三方头像服务。

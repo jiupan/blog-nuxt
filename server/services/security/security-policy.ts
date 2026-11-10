@@ -5,7 +5,9 @@ export const authPolicy = {
 
 export const loginRateLimitPolicy = {
   windowMs: 15 * 60 * 1000,
-  limit: 5
+  limit: 5,
+  ipWindowMs: 60 * 1000,
+  ipLimit: 30
 } as const
 
 export const registerRateLimitPolicy = {

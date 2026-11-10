@@ -8,13 +8,13 @@ import { prisma } from '../../utils/prisma'
 import { answerBlogFromResults, streamBlogAnswerFromResults } from '../rag/ask.service'
 import { unwrapArticleAnswer } from '../ai/article-answer-format'
 import { searchPostChunks } from '../rag/retrieval.service'
-import { consumeFixedWindow, getClientIp, type FixedWindowStore } from '../security/rate-limit.service'
+import { consumeFixedWindow, createFixedWindowStore, getClientIp } from '../security/rate-limit.service'
 import { getKnowledgeRuntimeSettings } from '../settings/settings.service'
 import type { SessionUser } from '../security/access-control.service'
 import type { articleChatInputSchema } from './article-chat.schema'
 
 const anonymousCookie = process.env.NODE_ENV === 'production' ? '__Host-article-chat' : 'article-chat'
-const ipWindows: FixedWindowStore = new Map()
+const ipWindows = createFixedWindowStore()
 
 export const articleConversationListSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

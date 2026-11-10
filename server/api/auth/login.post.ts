@@ -1,49 +1,44 @@
 import argon2 from 'argon2'
-import type { H3Event } from 'h3'
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
 import { forbidden, rateLimited, unauthorized, parseRequest } from '~~/server/utils/api-error'
 import { loginRateLimitPolicy } from '~~/server/services/security/security-policy'
 import {
-  assertFixedWindowAllowed,
   clearFixedWindow,
+  consumeFixedWindow,
+  createFixedWindowStore,
   getClientIp,
-  incrementFixedWindow,
   retryAfterSeconds,
-  type FixedWindowStore
+  type FixedWindowState
 } from '~~/server/services/security/rate-limit.service'
 
-const loginAttempts: FixedWindowStore = new Map()
+const loginAttempts = createFixedWindowStore()
+const ipAttempts = createFixedWindowStore()
+// Match the Argon2 cost of accounts created by register and seed.
+const dummyPasswordHash = '$argon2id$v=19$m=65536,t=3,p=4$QBhFLWZM9nlNuXKz6VjVDg$gllDpW7oVKLr4bK9mwyKXJCSelt+kcgpvXPCW4PEczk'
 
 const loginSchema = z.object({
   username: z.string().trim().min(1),
   password: z.string().min(1)
 })
 
-function getLoginAttemptKey(event: H3Event, username: string) {
-  const ip = getClientIp(event)
-  return `${ip}:${username.trim().toLowerCase()}`
-}
-
-function assertLoginAllowed(key: string) {
-  assertFixedWindowAllowed(loginAttempts, key, loginRateLimitPolicy.limit, (state) => {
-    const retrySeconds = retryAfterSeconds(state.resetAt)
-    throw rateLimited(`登录尝试过多，请 ${Math.ceil(retrySeconds / 60)} 分钟后再试`, {
-      retryAfterSeconds: retrySeconds
-    })
+function rejectLoginAttempt(state: FixedWindowState): never {
+  const retrySeconds = retryAfterSeconds(state.resetAt)
+  throw rateLimited(`登录尝试过多，请 ${Math.ceil(retrySeconds / 60)} 分钟后再试`, {
+    retryAfterSeconds: retrySeconds
   })
-}
-
-function recordFailedLogin(key: string) {
-  incrementFixedWindow(loginAttempts, key, loginRateLimitPolicy.windowMs)
 }
 
 export default defineEventHandler(async (event) => {
   const body = parseRequest(loginSchema, await readBody(event))
-  const attemptKey = getLoginAttemptKey(event, body.username)
+  const ip = getClientIp(event)
+  const accountKey = createHash('sha256').update(body.username.toLowerCase()).digest('hex')
+  const attemptKey = `${ip}:${accountKey}`
 
-  assertLoginAllowed(attemptKey)
+  consumeFixedWindow(ipAttempts, ip, loginRateLimitPolicy.ipWindowMs, loginRateLimitPolicy.ipLimit, rejectLoginAttempt)
+  consumeFixedWindow(loginAttempts, attemptKey, loginRateLimitPolicy.windowMs, loginRateLimitPolicy.limit, rejectLoginAttempt)
 
   const user = await prisma.user.findFirst({
     where: {
@@ -54,8 +49,8 @@ export default defineEventHandler(async (event) => {
     }
   })
 
-  if (!user || !(await argon2.verify(user.passwordHash, body.password))) {
-    recordFailedLogin(attemptKey)
+  const passwordMatches = await argon2.verify(user?.passwordHash ?? dummyPasswordHash, body.password)
+  if (!user || !passwordMatches) {
     throw unauthorized('用户名或密码错误')
   }
 

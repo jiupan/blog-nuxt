@@ -4,11 +4,11 @@ import { requireUser, type SessionUser } from '~~/server/utils/auth'
 import { unauthorized } from '~~/server/utils/api-error'
 import { createAiQuotaBlockedError, createAiRateLimitedError } from '~~/server/services/ai/errors'
 import { aiUsagePolicy } from '~~/server/services/security/security-policy'
-import { consumeFixedWindow, getClientIp, type FixedWindowStore } from '~~/server/services/security/rate-limit.service'
+import { consumeFixedWindow, createFixedWindowStore, getClientIp } from '~~/server/services/security/rate-limit.service'
 import { getKnowledgeRuntimeSettings } from '~~/server/services/settings/settings.service'
 
-const userWindows: FixedWindowStore = new Map()
-const ipWindows: FixedWindowStore = new Map()
+const userWindows = createFixedWindowStore()
+const ipWindows = createFixedWindowStore()
 
 export async function requireLabUser(event: H3Event) {
   const user = await requireUser(event) as SessionUser

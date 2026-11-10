@@ -5,7 +5,10 @@ const prisma = new PrismaClient()
 
 async function main() {
   const username = process.env.ADMIN_USERNAME || 'admin'
-  const password = process.env.ADMIN_PASSWORD || 'change-me-now'
+  const password = process.env.ADMIN_PASSWORD
+  if (!password || password.trim().length < 12 || password.trim() === 'change-me-now') {
+    throw new Error('Set ADMIN_PASSWORD to a non-placeholder password of at least 12 characters before seeding.')
+  }
 
   const passwordHash = await argon2.hash(password, {
     type: argon2.argon2id

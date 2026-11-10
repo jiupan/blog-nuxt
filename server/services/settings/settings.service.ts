@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma'
 import { validationError } from '../../utils/api-error'
+import { aiSecretKeys, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
 import {
   publicSettingKeys,
   settingKeys,
@@ -59,7 +60,7 @@ export async function getPublicSettings(): Promise<PublicSettingsMap> {
 }
 
 export async function getAdminSettings() {
-  return getSettingsMap()
+  return describeAdminSettings(await getSettingsMap())
 }
 
 const knowledgeSettingKeys = [
@@ -70,7 +71,23 @@ const knowledgeSettingKeys = [
 ] as const satisfies readonly SettingsKey[]
 
 export async function getKnowledgeAdminSettings() {
-  return getSettingsMap(knowledgeSettingKeys)
+  return describeAdminSettings(await getSettingsMap(knowledgeSettingKeys))
+}
+
+const aiSecretAliases: Record<AiSecretKey, string[]> = {
+  ai_api_key: ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY'],
+  ai_embedding_api_key: ['DASHSCOPE_API_KEY', 'OPENAI_API_KEY'],
+  ai_rerank_api_key: ['DASHSCOPE_API_KEY']
+}
+
+function describeAdminSettings(values: SettingsMap) {
+  const { ai_api_key, ai_embedding_api_key, ai_rerank_api_key, ...settings } = values
+  const secrets = { ai_api_key, ai_embedding_api_key, ai_rerank_api_key }
+  const aiSecretStatus = Object.fromEntries(aiSecretKeys.map(key => [key, {
+    stored: Boolean(secrets[key].trim()),
+    environment: Boolean(readAiEnvironment(key, aiSecretAliases[key]))
+  }])) as AiSecretStatuses
+  return { ...settings, aiSecretStatus }
 }
 
 export async function saveKnowledgeSettings(input: unknown) {
@@ -93,6 +110,7 @@ export async function saveSettings(input: unknown) {
   const current = await getSettingsMap()
   const ops = settingKeys
     .filter((key) => parsed.data[key] !== undefined)
+    .filter((key) => parsed.data[key] !== '' || !aiSecretKeys.some(secret => secret === key))
     .map((key) => {
       const value = parsed.data[key] || ''
       return prisma.setting.upsert({
@@ -120,7 +138,7 @@ export async function getAiProviderSettings(): Promise<AiProviderSettings> {
   const settings = await getSettingsMap(['ai_api_key', 'ai_base_url', 'ai_model'])
 
   return {
-    apiKey: readAiSetting(settings, 'ai_api_key', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY'),
+    apiKey: readAiSetting(settings, 'ai_api_key', ...aiSecretAliases.ai_api_key),
     baseUrl: readAiSetting(settings, 'ai_base_url').replace(/\/+$/, ''),
     model: readAiSetting(settings, 'ai_model')
   }
@@ -134,7 +152,7 @@ export async function getEmbeddingSettings(): Promise<EmbeddingSettings> {
     'ai_embedding_dimensions'
   ])
   return {
-    apiKey: readAiSetting(settings, 'ai_embedding_api_key', 'DASHSCOPE_API_KEY', 'OPENAI_API_KEY'),
+    apiKey: readAiSetting(settings, 'ai_embedding_api_key', ...aiSecretAliases.ai_embedding_api_key),
     baseUrl: readAiSetting(settings, 'ai_embedding_base_url').replace(/\/+$/, ''),
     model: readAiSetting(settings, 'ai_embedding_model'),
     dimensions: normalizeInteger(readAiSetting(settings, 'ai_embedding_dimensions'), 1536)
@@ -151,7 +169,7 @@ export async function getRerankSettings(): Promise<RerankSettings> {
   ])
   return {
     enabled: parseEnabled(readAiSetting(settings, 'ai_rerank_enabled')),
-    apiKey: readAiSetting(settings, 'ai_rerank_api_key', 'DASHSCOPE_API_KEY'),
+    apiKey: readAiSetting(settings, 'ai_rerank_api_key', ...aiSecretAliases.ai_rerank_api_key),
     baseUrl: readAiSetting(settings, 'ai_rerank_base_url').replace(/\/+$/, ''),
     model: readAiSetting(settings, 'ai_rerank_model'),
     topN: normalizeBoundedInteger(readAiSetting(settings, 'ai_rerank_top_n'), 8, 1, 20)
@@ -182,12 +200,16 @@ function isSettingsKey(key: string): key is SettingsKey {
 }
 
 function readAiSetting(settings: SettingsMap, key: Extract<SettingsKey, `ai_${string}`>, ...aliases: string[]) {
+  return readAiEnvironment(key, aliases) || settings[key].trim() || settingsDefaults[key]
+}
+
+function readAiEnvironment(key: Extract<SettingsKey, `ai_${string}`>, aliases: string[]) {
   const name = key.toUpperCase()
   for (const envKey of [name, `NITRO_${name}`, `NUXT_${name}`, ...aliases]) {
     const value = process.env[envKey]?.trim()
     if (value) return value
   }
-  return settings[key].trim() || settingsDefaults[key]
+  return ''
 }
 
 function parseEnabled(value: unknown) {

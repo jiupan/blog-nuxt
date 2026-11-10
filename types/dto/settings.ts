@@ -57,4 +57,12 @@ export type PublicSiteSettingsKey =
   | 'footer_actions'
 
 export type SiteSettingsPayload = Record<PublicSiteSettingsKey, string>
-export type AdminSettingsPayload = Record<SiteSettingsKey, string>
+
+export const aiSecretKeys = ['ai_api_key', 'ai_embedding_api_key', 'ai_rerank_api_key'] as const
+export type AiSecretKey = typeof aiSecretKeys[number]
+export type AiSecretStatus = { stored: boolean, environment: boolean }
+export type AiSecretStatuses = Record<AiSecretKey, AiSecretStatus>
+
+export type AdminSettingsPayload = Record<Exclude<SiteSettingsKey, AiSecretKey>, string> & {
+  aiSecretStatus: AiSecretStatuses
+}

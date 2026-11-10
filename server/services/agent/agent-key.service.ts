@@ -11,7 +11,7 @@ import {
 import {
   consumeFixedWindow,
   retryAfterSeconds,
-  type FixedWindowStore
+  createFixedWindowStore
 } from '../security/rate-limit.service'
 export { hashAgentToken } from './agent-key-crypto'
 
@@ -23,7 +23,7 @@ export const agentKeySelect = {
   lastUsedAt: true,
   createdAt: true
 } as const
-const requestWindows: FixedWindowStore = new Map()
+const requestWindows = createFixedWindowStore()
 
 export async function listAgentKeys() {
   const keys = await prisma.agentApiKey.findMany({
@@ -103,9 +103,6 @@ export async function requireAgentToken(event: H3Event) {
   ) {
     throw unauthorized('Agent 密钥无效或已停用')
   }
-  // This mirrors the existing per-process request limiter; revoked keys never enter the map.
-  for (const [id, state] of requestWindows)
-    if (state.resetAt <= Date.now()) requestWindows.delete(id)
   consumeFixedWindow(requestWindows, String(key.id), 60_000, 60, (state) => {
     setResponseHeader(event, 'Retry-After', retryAfterSeconds(state.resetAt))
     throw rateLimited('Agent 请求过于频繁，请稍后重试')

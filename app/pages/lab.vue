@@ -276,3 +276,5 @@ useSeoMeta({
   description: '博客 AI 实验功能集合'
 })
 </script>
+
+<style src="~/assets/css/lab.css"></style>

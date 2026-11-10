@@ -12,7 +12,7 @@ export default defineNuxtConfig({
       }
     }
   },
-  css: ['~/assets/css/main.css', '~/assets/css/site-layout.css', '~/assets/css/lab.css', 'md-editor-v3/lib/style.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/site-layout.css', 'md-editor-v3/lib/style.css'],
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',

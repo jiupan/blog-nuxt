@@ -1,18 +1,16 @@
 import argon2 from 'argon2'
-import type { H3Event } from 'h3'
 import { z } from 'zod'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
 import { conflict, rateLimited, parseRequest } from '~~/server/utils/api-error'
 import { authPolicy, registerRateLimitPolicy } from '~~/server/services/security/security-policy'
 import {
-  assertFixedWindowAllowed,
-  getClientIp,
-  incrementFixedWindow,
-  type FixedWindowStore
+  consumeFixedWindow,
+  createFixedWindowStore,
+  getClientIp
 } from '~~/server/services/security/rate-limit.service'
 
-const registerAttempts: FixedWindowStore = new Map()
+const registerAttempts = createFixedWindowStore()
 
 const registerSchema = z.object({
   username: z.string()
@@ -26,27 +24,12 @@ const registerSchema = z.object({
     .max(128, '密码不能超过 128 位')
 })
 
-function getRegisterAttemptKey(event: H3Event) {
-  return getClientIp(event)
-}
-
-function assertRegisterAllowed(key: string) {
-  assertFixedWindowAllowed(registerAttempts, key, registerRateLimitPolicy.limit, () => {
-    throw rateLimited('注册过于频繁，请稍后再试')
-  })
-}
-
-function recordRegisterAttempt(key: string) {
-  incrementFixedWindow(registerAttempts, key, registerRateLimitPolicy.windowMs)
-}
-
 export default defineEventHandler(async (event) => {
-  const attemptKey = getRegisterAttemptKey(event)
-  assertRegisterAllowed(attemptKey)
-
   const body = parseRequest(registerSchema, await readBody(event))
   const email = body.email.toLowerCase()
-  recordRegisterAttempt(attemptKey)
+  consumeFixedWindow(registerAttempts, getClientIp(event), registerRateLimitPolicy.windowMs, registerRateLimitPolicy.limit, () => {
+    throw rateLimited('注册过于频繁，请稍后再试')
+  })
 
   const exists = await prisma.user.findFirst({
     where: {

@@ -72,6 +72,7 @@ export const publicSettingKeys = [
 ] as const satisfies readonly SettingsKey[]
 
 const optionalUrl = z.string().url().or(z.literal('')).optional()
+const optionalSecret = z.string().trim().nullable().optional()
 
 export const settingsInputSchema = z.object({
   site_title: z.string().optional(),
@@ -95,15 +96,15 @@ export const settingsInputSchema = z.object({
   footer_icp: z.string().trim().max(80).optional(),
   footer_bottom_links: z.string().optional(),
   footer_actions: z.string().optional(),
-  ai_api_key: z.string().optional(),
+  ai_api_key: optionalSecret,
   ai_base_url: optionalUrl,
   ai_model: z.string().optional(),
-  ai_embedding_api_key: z.string().optional(),
+  ai_embedding_api_key: optionalSecret,
   ai_embedding_base_url: optionalUrl,
   ai_embedding_model: z.string().optional(),
   ai_embedding_dimensions: z.string().optional(),
   ai_rerank_enabled: z.enum(['true', 'false']).optional(),
-  ai_rerank_api_key: z.string().optional(),
+  ai_rerank_api_key: optionalSecret,
   ai_rerank_base_url: optionalUrl,
   ai_rerank_model: z.string().optional(),
   ai_rerank_top_n: z.string().optional(),

@@ -127,13 +127,13 @@ cp .env.example .env
 DATABASE_URL="postgresql://blog:blog_password@localhost:5432/nuxt_blog?schema=public"
 NUXT_SESSION_PASSWORD="replace-with-at-least-32-characters-secret"
 ADMIN_USERNAME="admin"
-ADMIN_PASSWORD="change-me-now"
+ADMIN_PASSWORD=""
 SITE_URL="http://localhost:3000"
 SITE_NAME="Jiupan Blog"
 ```
 
 > [!IMPORTANT]
-> `NUXT_SESSION_PASSWORD` 至少使用 32 位随机字符；无论本地还是生产环境，都不要沿用默认管理员密码。
+> `NUXT_SESSION_PASSWORD` 至少使用 32 位随机字符。执行 seed 前，将 `ADMIN_PASSWORD` 设置为至少 12 位的独立密码。
 
 ### 3. 启动依赖服务
 

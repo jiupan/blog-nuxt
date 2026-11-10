@@ -624,11 +624,10 @@
                 description="用于调用对话模型；服务器环境变量优先于此处配置。"
                 icon="i-lucide-key-round"
               >
-                <UInput
-                  v-model="configForm.ai_api_key"
-                  type="password"
-                  icon="i-lucide-lock-keyhole"
-                  placeholder="留空则使用环境变量"
+                <AdminAiSecretInput
+                  v-model="secretDrafts.ai_api_key"
+                  label="API 密钥"
+                  :status="settingsData?.data.aiSecretStatus?.ai_api_key"
                 />
               </AdminKnowledgeConfigField>
               <AdminKnowledgeConfigField
@@ -663,11 +662,10 @@
                 description="用于生成文章和文件向量；环境变量配置优先。"
                 icon="i-lucide-key-round"
               >
-                <UInput
-                  v-model="configForm.ai_embedding_api_key"
-                  type="password"
-                  icon="i-lucide-lock-keyhole"
-                  placeholder="留空则使用环境变量"
+                <AdminAiSecretInput
+                  v-model="secretDrafts.ai_embedding_api_key"
+                  label="Embedding 密钥"
+                  :status="settingsData?.data.aiSecretStatus?.ai_embedding_api_key"
                 />
               </AdminKnowledgeConfigField>
               <AdminKnowledgeConfigField
@@ -723,11 +721,10 @@
                 description="未配置密钥时系统会自动跳过精排。"
                 icon="i-lucide-key-round"
               >
-                <UInput
-                  v-model="configForm.ai_rerank_api_key"
-                  type="password"
-                  icon="i-lucide-lock-keyhole"
-                  placeholder="留空则使用环境变量"
+                <AdminAiSecretInput
+                  v-model="secretDrafts.ai_rerank_api_key"
+                  label="Rerank 密钥"
+                  :status="settingsData?.data.aiSecretStatus?.ai_rerank_api_key"
                 />
               </AdminKnowledgeConfigField>
               <AdminKnowledgeConfigField
@@ -882,6 +879,7 @@
 <script setup lang="ts">
 import { useAdminUnsavedChanges } from '~/composables/useAdminUnsavedChanges'
 import type { ApiResult } from '~~/types/api'
+import { aiSecretKeys, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
 import type {
   KnowledgeDocumentItem,
   KnowledgeFileItem,
@@ -950,21 +948,13 @@ const {
   refresh: refreshQueries
 } = await useFetch<ApiResult<RagQueryLog[]>>('/api/admin/knowledge/queries')
 const queryLogs = computed(() => queryData.value?.data || [])
-const {
-  data: settingsData,
-  error: configError,
-  refresh: refreshConfig
-} = await useFetch<ApiResult<Record<string, string>>>('/api/admin/knowledge/config')
 const configForm = reactive({
-  ai_api_key: '',
   ai_base_url: 'https://api.deepseek.com',
   ai_model: 'deepseek-v4-flash',
-  ai_embedding_api_key: '',
   ai_embedding_base_url: 'https://api.openai.com/v1',
   ai_embedding_model: 'text-embedding-3-small',
   ai_embedding_dimensions: '1536',
   ai_rerank_enabled: 'false',
-  ai_rerank_api_key: '',
   ai_rerank_base_url: 'https://api.cohere.com/v2',
   ai_rerank_model: 'rerank-v3.5',
   ai_rerank_top_n: '8',
@@ -975,16 +965,26 @@ const configForm = reactive({
   rag_daily_user_limit: '20',
   rag_ip_hourly_limit: '60'
 })
-if (settingsData.value?.data)
-  Object.assign(
-    configForm,
-    Object.fromEntries(
-      Object.keys(configForm).map((key) => [
-        key,
-        settingsData.value!.data[key] || configForm[key as keyof typeof configForm]
-      ])
-    )
-  )
+type KnowledgeSettingsPayload = typeof configForm & { aiSecretStatus: AiSecretStatuses }
+const {
+  data: settingsData,
+  error: configError,
+  refresh: refreshConfig
+} = await useFetch<ApiResult<KnowledgeSettingsPayload>>('/api/admin/knowledge/config')
+
+function loadConfig(settings: KnowledgeSettingsPayload) {
+  for (const key of Object.keys(configForm) as (keyof typeof configForm)[]) {
+    configForm[key] = settings[key] ?? configForm[key]
+  }
+}
+
+if (settingsData.value?.data) loadConfig(settingsData.value.data)
+const emptySecretDrafts: Record<AiSecretKey, string | null> = {
+  ai_api_key: '',
+  ai_embedding_api_key: '',
+  ai_rerank_api_key: ''
+}
+const secretDrafts = reactive({ ...emptySecretDrafts })
 type KnowledgeDetail = KnowledgeDocumentItem & {
   chunks: Array<{
     id: number
@@ -1215,9 +1215,8 @@ async function runRetrieval() {
 }
 const {
   isDirty: configDirty,
-  markSaved: markConfigSaved,
-  snapshot: configSnapshot
-} = useAdminUnsavedChanges(() => configForm)
+  markSaved: markConfigSaved
+} = useAdminUnsavedChanges(() => ({ settings: configForm, secrets: secretDrafts }))
 const selectedChunks = computed(() => selectedFile.value?.chunks || selectedDocument.value?.chunks || [])
 const activeLoadError = computed(
   () =>
@@ -1235,18 +1234,32 @@ async function retryActive() {
   if (activeTab.value === 'config') {
     await refreshConfig()
     if (settingsData.value?.data) {
-      Object.assign(configForm, settingsData.value.data)
+      loadConfig(settingsData.value.data)
+      Object.assign(secretDrafts, emptySecretDrafts)
       markConfigSaved()
     }
   } else await refreshAll()
 }
 async function saveConfig() {
   if (savingConfig.value || configError.value) return
-  const submittedSnapshot = configSnapshot()
+  const submittedSettings = { ...configForm }
+  const submittedSecrets = { ...secretDrafts }
+  const secretChanges = aiSecretKeys.filter(key => submittedSecrets[key] === null || submittedSecrets[key]?.trim())
   savingConfig.value = true
   try {
-    await $fetch('/api/admin/knowledge/config', { method: 'PUT', body: { ...configForm } })
-    markConfigSaved(submittedSnapshot)
+    await $fetch('/api/admin/knowledge/config', {
+      method: 'PUT',
+      body: {
+        ...submittedSettings,
+        ...Object.fromEntries(secretChanges.map(key => [key, submittedSecrets[key]]))
+      }
+    })
+    for (const key of aiSecretKeys) {
+      const status = settingsData.value?.data.aiSecretStatus?.[key]
+      if (status && secretChanges.includes(key)) status.stored = submittedSecrets[key] !== null
+      if (secretDrafts[key] === submittedSecrets[key]) secretDrafts[key] = ''
+    }
+    markConfigSaved(JSON.stringify({ settings: submittedSettings, secrets: emptySecretDrafts }))
     toast.add({ id: 'knowledge-config-save', title: 'AI 模型与检索配置已保存', color: 'success' })
   } catch (error: unknown) {
     toast.add({

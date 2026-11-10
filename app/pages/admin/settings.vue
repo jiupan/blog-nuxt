@@ -1036,17 +1036,17 @@ watch(
         footer_icp: val.data.footer_icp ?? defaultValue('footer_icp'),
         footer_bottom_links: val.data.footer_bottom_links ?? defaultValue('footer_bottom_links'),
         footer_actions: val.data.footer_actions ?? defaultValue('footer_actions'),
-        ai_api_key: val.data.ai_api_key || defaultValue('ai_api_key'),
+        ai_api_key: '',
         ai_base_url: val.data.ai_base_url || defaultValue('ai_base_url'),
         ai_model: val.data.ai_model || defaultValue('ai_model'),
-        ai_embedding_api_key: val.data.ai_embedding_api_key || defaultValue('ai_embedding_api_key'),
+        ai_embedding_api_key: '',
         ai_embedding_base_url:
           val.data.ai_embedding_base_url || defaultValue('ai_embedding_base_url'),
         ai_embedding_model: val.data.ai_embedding_model || defaultValue('ai_embedding_model'),
         ai_embedding_dimensions:
           val.data.ai_embedding_dimensions || defaultValue('ai_embedding_dimensions'),
         ai_rerank_enabled: val.data.ai_rerank_enabled || defaultValue('ai_rerank_enabled'),
-        ai_rerank_api_key: val.data.ai_rerank_api_key || defaultValue('ai_rerank_api_key'),
+        ai_rerank_api_key: '',
         ai_rerank_base_url: val.data.ai_rerank_base_url || defaultValue('ai_rerank_base_url'),
         ai_rerank_model: val.data.ai_rerank_model || defaultValue('ai_rerank_model'),
         ai_rerank_top_n: val.data.ai_rerank_top_n || defaultValue('ai_rerank_top_n')
