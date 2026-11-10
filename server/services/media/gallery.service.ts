@@ -4,6 +4,7 @@ import { prisma } from '../../utils/prisma'
 import { readGalleryMetadata, updateGalleryMetadata } from './gallery-metadata'
 import { badRequest, conflict, notFound } from '~~/server/utils/api-error'
 import { resolveUploadPath, resolveUploadRoot, toUploadRelativePath, toUploadUrl } from './path-safety'
+import type { PublicMemeImagePayload } from '~~/types/api'
 
 const imageTypes: Record<string, string> = {
   '.jpg': 'image/jpeg',
@@ -32,12 +33,6 @@ export type GalleryImage = {
 
 export type MemeGroup = { id: string, name: string }
 const memeGroupsFilename = '.groups.json'
-
-export type PublicMemeImage = {
-  name: string
-  url: string
-  updatedAt: string
-}
 
 export async function listGalleryImages(): Promise<GalleryImage[]> {
   const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
@@ -119,10 +114,10 @@ async function saveMemeGroups(groups: MemeGroup[]) {
   await writeFile(join(memeRoot, memeGroupsFilename), JSON.stringify(groups, null, 2), 'utf8')
 }
 
-export async function listPublicMemeImages(memeGroup?: string): Promise<PublicMemeImage[]> {
+export async function listPublicMemeImages(memeGroup?: string): Promise<PublicMemeImagePayload[]> {
   const uploadRoot = resolveUploadRoot(useRuntimeConfig().uploadDir)
   const memeRoot = join(uploadRoot, 'memes')
-  const images: PublicMemeImage[] = []
+  const images: PublicMemeImagePayload[] = []
   const metadata = await readGalleryMetadata()
 
   await walkMediaFiles(uploadRoot, memeRoot, async ({ filepath, name, extension }) => {
@@ -133,15 +128,15 @@ export async function listPublicMemeImages(memeGroup?: string): Promise<PublicMe
 
     const relativePath = toUploadRelativePath(uploadRoot, filepath)
     if (!relativePath) return
-    if (memeGroup) {
-      const resolvedGroup = metadata[relativePath]?.memeGroup === null ? undefined : metadata[relativePath]?.memeGroup ?? resolveMemeGroup(relativePath)
-      if (memeGroup === 'ungrouped' ? resolvedGroup : resolvedGroup !== memeGroup) return
-    }
+    const storedGroup = metadata[relativePath]?.memeGroup
+    const resolvedGroup = storedGroup === undefined ? resolveMemeGroup(relativePath) : storedGroup
+    if (memeGroup && (memeGroup === 'ungrouped' ? resolvedGroup : resolvedGroup !== memeGroup)) return
 
     images.push({
       name,
       url: toUploadUrl(relativePath),
-      updatedAt: fileStat.mtime.toISOString()
+      updatedAt: fileStat.mtime.toISOString(),
+      memeGroup: resolvedGroup || null
     })
   })
 

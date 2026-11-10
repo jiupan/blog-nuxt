@@ -56,7 +56,7 @@
           >
             <span class="hero-link-icon">
               <img v-if="item.memeIcon" :src="item.memeIcon" alt="" aria-hidden="true">
-              <component v-else :is="homeIcon(item.icon, FileTextIcon)" aria-hidden="true" />
+              <Icon v-else :name="item.icon" mode="svg" aria-hidden="true" />
             </span>
             <span>{{ item.title }}</span>
           </NuxtLink>
@@ -78,7 +78,7 @@
           @blur="hideTopicTooltip"
           @click="selectCategory(tab.slug)"
         >
-          <component :is="homeIcon(tab.icon, FolderIcon)" aria-hidden="true" />
+          <Icon :name="tab.icon" mode="svg" aria-hidden="true" />
           {{ tab.label }}
         </button>
       </nav>
@@ -156,7 +156,7 @@
                     <span v-if="post.cover" class="cover-word">{{ post.coverWord }}</span>
                     <span v-if="post.cover" class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
                       <img v-if="post.memeIcon" :src="post.memeIcon" :alt="`${post.title} 表情包图标`" loading="lazy" decoding="async">
-                      <component v-else :is="homeIcon(post.icon, FileTextIcon)" aria-hidden="true" />
+                      <Icon v-else :name="post.icon" mode="svg" aria-hidden="true" />
                     </span>
                   </NuxtLink>
                   <div class="post-body">
@@ -208,91 +208,12 @@
 <script setup lang="ts">
 import PostCoverImage from '~/components/PostCoverImage.vue'
 import { defaultSeoDescription } from '~/utils/seo'
-import type { Component } from 'vue'
-import type { ApiResult, GalleryImagePayload } from '~~/types/api'
+import type { ApiResult, PublicMemeImagePayload } from '~~/types/api'
 import type { PostSummary, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import { categoryNavigation } from '~/utils/category-navigation'
-import {
-  Archive as ArchiveIcon,
-  BadgeCheck as BadgeCheckIcon,
-  BookOpen as BookOpenIcon,
-  Bot as BotIcon,
-  BrainCircuit as BrainCircuitIcon,
-  Camera as CameraIcon,
-  Code2 as Code2Icon,
-  Coffee as CoffeeIcon,
-  Command as CommandIcon,
-  Cpu as CpuIcon,
-  Database as DatabaseIcon,
-  FileText as FileTextIcon,
-  Flame as FlameIcon,
-  Folder as FolderIcon,
-  Gamepad2 as Gamepad2Icon,
-  Globe2 as Globe2Icon,
-  Heart as HeartIcon,
-  History as HistoryIcon,
-  House as HouseIcon,
-  Image as ImageIcon,
-  LayoutList as LayoutListIcon,
-  Leaf as LeafIcon,
-  Library as LibraryIcon,
-  LockKeyhole as LockKeyholeIcon,
-  Mail as MailIcon,
-  Music as MusicIcon,
-  Newspaper as NewspaperIcon,
-  Palette as PaletteIcon,
-  PenTool as PenToolIcon,
-  Pin as PinIcon,
-  Rocket as RocketIcon,
-  SmilePlus as SmilePlusIcon,
-  Sparkles as SparklesIcon,
-  Terminal as TerminalIcon,
-  UserRound as UserRoundIcon,
-  Zap as ZapIcon
-} from '@lucide/vue'
-
-const homeIconMap: Record<string, Component> = {
-  'i-lucide-archive': ArchiveIcon,
-  'i-lucide-badge-check': BadgeCheckIcon,
-  'i-lucide-book-open': BookOpenIcon,
-  'i-lucide-bot': BotIcon,
-  'i-lucide-brain-circuit': BrainCircuitIcon,
-  'i-lucide-camera': CameraIcon,
-  'i-lucide-code-2': Code2Icon,
-  'i-lucide-coffee': CoffeeIcon,
-  'i-lucide-command': CommandIcon,
-  'i-lucide-cpu': CpuIcon,
-  'i-lucide-database': DatabaseIcon,
-  'i-lucide-file-text': FileTextIcon,
-  'i-lucide-flame': FlameIcon,
-  'i-lucide-folder': FolderIcon,
-  'i-lucide-gamepad-2': Gamepad2Icon,
-  'i-lucide-globe-2': Globe2Icon,
-  'i-lucide-heart': HeartIcon,
-  'i-lucide-history': HistoryIcon,
-  'i-lucide-home': HouseIcon,
-  'i-lucide-image': ImageIcon,
-  'i-lucide-layout-list': LayoutListIcon,
-  'i-lucide-leaf': LeafIcon,
-  'i-lucide-library': LibraryIcon,
-  'i-lucide-lock-keyhole': LockKeyholeIcon,
-  'i-lucide-mail': MailIcon,
-  'i-lucide-music': MusicIcon,
-  'i-lucide-newspaper': NewspaperIcon,
-  'i-lucide-palette': PaletteIcon,
-  'i-lucide-pen-tool': PenToolIcon,
-  'i-lucide-rocket': RocketIcon,
-  'i-lucide-smile-plus': SmilePlusIcon,
-  'i-lucide-sparkles': SparklesIcon,
-  'i-lucide-terminal': TerminalIcon,
-  'i-lucide-user-round': UserRoundIcon,
-  'i-lucide-zap': ZapIcon
-}
-
-function homeIcon(icon: string | null | undefined, fallback: Component) {
-  return homeIconMap[icon || ''] || fallback
-}
+import { resolveCategoryIcon } from '~/utils/category-icons'
+import { Pin as PinIcon } from '@lucide/vue'
 
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
@@ -305,13 +226,12 @@ const categorySlug = computed({
   set: (category: string) => { void navigateTo({ path: route.path, query: { ...route.query, category: category || undefined, page: undefined } }) }
 })
 const { currentPage, pageTo } = usePublicPagination()
-const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }, { data: heroMemeData }] = await Promise.all([
+const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }] = await Promise.all([
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
   useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 6 } }),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/tags'),
-  useFetch<ApiResult<GalleryImagePayload[]>>('/api/gallery/memes'),
-  useFetch<ApiResult<GalleryImagePayload[]>>('/api/gallery/memes', { query: computed(() => ({ group: siteSettings.value.hero_meme_group || undefined })) })
+  useFetch<ApiResult<PublicMemeImagePayload[]>>('/api/gallery/memes')
 ])
 
 assertPublicPageExists(data.value?.data)
@@ -334,8 +254,15 @@ const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
 
 const categories = computed(() => categoryData.value?.data || [])
 const tags = computed(() => tagData.value?.data || [])
-const memeIcons = computed(() => memeData.value?.data.map((image) => image.url) || [])
-const heroMemeIcons = computed(() => siteSettings.value.hero_meme_group ? heroMemeData.value?.data.map(image => image.url) || [] : [])
+const memeImages = computed(() => memeData.value?.data || [])
+const memeIcons = computed(() => memeImages.value.map(image => image.url))
+const heroMemeIcons = computed(() => {
+  const group = siteSettings.value.hero_meme_group
+  if (!group) return []
+
+  const memeGroup = group === 'ungrouped' ? null : group
+  return memeImages.value.filter(image => image.memeGroup === memeGroup).map(image => image.url)
+})
 const heroMemeOffset = useState('home-hero-meme-offset', () => Math.floor(Math.random() * 10000))
 const latest = computed(() => heroAll.value[0])
 const currentHeroPost = computed(() => activeHeroPost.value || latest.value)
@@ -450,7 +377,7 @@ const topicTabs = computed(() => [
   ...categoryNavigation(categories.value).map((category) => ({
     label: category.name,
     tooltip: `查看 ${category.name} 分类的文章`,
-    icon: category.icon || 'i-lucide-folder',
+    icon: resolveCategoryIcon(category.icon),
     slug: category.slug,
     active: categorySlug.value === category.slug
   }))
@@ -717,7 +644,7 @@ function formatDate(value?: string | Date | null) {
   gap: 10px;
   margin: 12px 0;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding: 4px;
 }
 
 .topic-tab {
@@ -746,36 +673,25 @@ function formatDate(value?: string | Date | null) {
 }
 
 .topic-tab.is-active {
-  border-color: #4964f4;
-  background: #4964f4;
-  color: white;
+  border-color: var(--theme-accent);
+  background: var(--theme-accent);
+  color: var(--theme-accent-foreground);
 }
 
-.topic-tab:hover {
-  border-color: #d8deea;
+.topic-tab:hover:not(.is-active) {
+  border-color: var(--theme-border);
   background: var(--theme-surface-muted);
   box-shadow: 0 10px 24px rgb(31 43 68 / 8%);
-  outline: none;
 }
 
 .topic-tab:focus-visible {
-  border-color: #8da0ff;
-  background: var(--theme-surface);
-  box-shadow: 0 0 0 3px rgb(73 100 244 / 14%);
-  outline: none;
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
 }
 
 .topic-tab.is-active:hover {
   border-color: var(--theme-accent-hover);
   background: var(--theme-accent-hover);
-  color: white;
-}
-
-.topic-tab.is-active:focus-visible {
-  border-color: var(--theme-accent-hover);
-  background: #4964f4;
-  color: white;
-  box-shadow: 0 0 0 3px rgb(73 100 244 / 18%);
 }
 
 .topic-tab:disabled { cursor: default; }
@@ -1203,60 +1119,6 @@ function formatDate(value?: string | Date | null) {
   justify-content: space-between;
   margin: 10px 0;
   color: #444b55;
-}
-
-.pager {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin: 16px 0 0;
-}
-
-.page-dot,
-.page-next {
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--theme-border-soft);
-  border-radius: 999px;
-  background: var(--theme-surface);
-  font-weight: 800;
-}
-
-.page-dot {
-  width: 38px;
-  height: 38px;
-  color: var(--theme-text-soft);
-  cursor: pointer;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.page-dot:hover:not(:disabled):not(.is-active) {
-  border-color: #4964f4;
-}
-
-.page-dot:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.page-dot.is-active {
-  background: #4964f4;
-  color: white;
-}
-
-.page-ellipsis { display: grid; width: 22px; height: 38px; place-items: center; color: #9097a5; font-size: 15px; font-weight: 800; user-select: none; }
-
-.page-next {
-  min-width: 76px;
-  height: 38px;
-  padding: 0 24px;
-  font-size: 24px;
-}
-
-.pager .page-next {
-  width: auto;
-  font-size: 14px;
 }
 
 .empty-card {

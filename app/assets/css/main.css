@@ -20,6 +20,7 @@
   --theme-scrollbar-hover: #c7cbd1;
   --theme-accent: #4f67f5;
   --theme-accent-hover: #435be3;
+  --theme-accent-foreground: #fff;
   --theme-accent-soft: #eef2ff;
   --theme-shadow: 31 43 68;
   --theme-overlay: 15 23 42;
@@ -55,6 +56,7 @@
   --theme-scrollbar-hover: #747b86;
   --theme-accent: #7c8dff;
   --theme-accent-hover: #91a0ff;
+  --theme-accent-foreground: var(--theme-page);
   --theme-accent-soft: #273354;
   --theme-shadow: 0 0 0;
   --theme-overlay: 3 7 18;

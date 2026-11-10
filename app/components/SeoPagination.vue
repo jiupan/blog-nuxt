@@ -76,12 +76,21 @@ const pages = computed(() => {
   color: var(--theme-text-soft, #64748b);
   font-weight: 700;
 }
-.page-dot:hover {
-  border-color: #4964f4;
+.page-dot[href]:hover {
+  border-color: var(--theme-accent);
+}
+.page-dot:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
 }
 .page-dot.is-active {
-  background: #4964f4;
-  color: #fff;
+  border-color: var(--theme-accent);
+  background: var(--theme-accent);
+  color: var(--theme-accent-foreground);
+}
+.page-dot.is-active[href]:hover {
+  border-color: var(--theme-accent-hover);
+  background: var(--theme-accent-hover);
 }
 .page-dot.is-disabled {
   opacity: 0.4;

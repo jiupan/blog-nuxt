@@ -62,6 +62,13 @@ export type GalleryImagePayload = {
   updatedAt: string
 }
 
+export type PublicMemeImagePayload = {
+  name: string
+  url: string
+  updatedAt: string
+  memeGroup: string | null
+}
+
 export type * from './dto/post'
 export type * from './dto/taxonomy'
 export type * from './dto/menu'

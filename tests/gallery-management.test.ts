@@ -63,11 +63,16 @@ it('moves memes and deletes populated groups without changing URLs or deleting i
   const group = await gallery.createMemeGroup('cats')
   await file('memes/original/2026/cat.gif')
   const path = 'memes/original/2026/cat.gif'
+  expect(await gallery.listPublicMemeImages()).toMatchObject([{ url: '/uploads/' + path, memeGroup: 'original' }])
   await gallery.updateGalleryImages([path], { memeGroup: group.id })
-  expect(await gallery.listPublicMemeImages(group.id)).toHaveLength(1)
+  const grouped = await gallery.listPublicMemeImages()
+  expect(grouped).toMatchObject([{ url: '/uploads/' + path, memeGroup: group.id }])
+  expect(await gallery.listPublicMemeImages(group.id)).toEqual(grouped)
   await gallery.deleteMemeGroup(group.id)
   expect(await gallery.listPublicMemeImages(group.id)).toHaveLength(0)
-  expect(await gallery.listPublicMemeImages('ungrouped')).toMatchObject([{ url: '/uploads/' + path }])
+  const ungrouped = await gallery.listPublicMemeImages()
+  expect(ungrouped).toMatchObject([{ url: '/uploads/' + path, memeGroup: null }])
+  expect(await gallery.listPublicMemeImages('ungrouped')).toEqual(ungrouped)
   await access(join(root, path))
 })
 

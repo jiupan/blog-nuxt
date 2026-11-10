@@ -76,6 +76,27 @@ export const categoryIconOptions = [
   { name: 'i-lucide-zap', label: '效率' }
 ] as const
 
+const supportedCategoryIcons = new Set<string>([
+  ...categoryIconOptions.map(option => option.name),
+  // 已保存的分类仍可使用旧版首页支持的图标。
+  'i-lucide-badge-check',
+  'i-lucide-code-2',
+  'i-lucide-command',
+  'i-lucide-file-text',
+  'i-lucide-globe-2',
+  'i-lucide-history',
+  'i-lucide-home',
+  'i-lucide-layout-list',
+  'i-lucide-library',
+  'i-lucide-mail',
+  'i-lucide-smile-plus',
+  'i-lucide-user-round'
+])
+
+export function resolveCategoryIcon(icon: string | null | undefined) {
+  return icon && supportedCategoryIcons.has(icon) ? icon : defaultCategoryIcon
+}
+
 export function visibleCategoryIcons(selectedIcon: string, expanded: boolean) {
   if (expanded) return categoryIconOptions
   const primary = categoryIconOptions.slice(0, primaryCategoryIconCount)
