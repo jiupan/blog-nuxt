@@ -12,3 +12,12 @@ export type TaxonomyItem = TaxonomySummary & {
     posts: number
   }
 }
+
+export type TaxonomyOverviewItem = TaxonomyItem & {
+  posts: { id: number; title: string; slug: string }[]
+}
+
+export type TaxonomyOverviewPayload = {
+  items: TaxonomyOverviewItem[]
+  totalPosts: number
+}

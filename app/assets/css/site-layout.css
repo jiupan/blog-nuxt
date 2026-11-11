@@ -1053,7 +1053,7 @@ html:has(.site-search-modal[open]) {
     padding: 12px 10px;
   }
 
-  .mobile-stats-card div {
+  .mobile-stats-card > a {
     display: grid;
     gap: 3px;
     justify-items: center;

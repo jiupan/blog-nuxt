@@ -63,7 +63,7 @@
 
     <section v-if="visibleCategories.length && moduleVisible('categories')" class="sidebar-section topics-section" :style="moduleStyle('categories')">
       <div class="section-title">
-        <h3>探索话题</h3>
+        <h3><NuxtLink to="/categories">探索话题</NuxtLink></h3>
         <CompassIcon aria-hidden="true" />
       </div>
       <div class="topic-list">
@@ -79,7 +79,7 @@
 
     <section v-if="visibleTags.length && moduleVisible('tags')" class="sidebar-section popular-tags-section" :style="moduleStyle('tags')">
       <div class="section-title">
-        <h3>热门标签</h3>
+        <h3><NuxtLink to="/tags">热门标签</NuxtLink></h3>
         <TagIcon aria-hidden="true" />
       </div>
       <div class="popular-tags">
@@ -436,6 +436,10 @@ function hideBrokenImage(event: Event) {
   font-family: Georgia, "Noto Serif SC", serif;
   font-size: 18px;
   font-weight: 700;
+}
+
+.section-title h3 a:hover {
+  color: var(--theme-accent);
 }
 
 .section-title > svg {

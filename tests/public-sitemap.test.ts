@@ -23,6 +23,8 @@ it('publishes only public content and populated taxonomy URLs', async () => {
   )()
   expect(urls).toContainEqual({ loc: '/article-one.html', lastmod: '2026-11-02T01:00:00Z' })
   expect(urls.map(item => item.loc)).toContain('/archive')
+  expect(urls.map(item => item.loc)).toContain('/categories')
+  expect(urls.map(item => item.loc)).toContain('/tags')
   expect(urls.map(item => item.loc)).not.toContain('/posts')
   expect(urls).toContainEqual({ loc: '/categories/AI%20%E5%B7%A5%E7%A8%8B', _encoded: true })
   expect(urls).toContainEqual({ loc: '/tags/nuxt', _encoded: true })

@@ -4,18 +4,18 @@
       <div v-if="open" class="mobile-sidebar-overlay" @click.self="$emit('close')">
         <aside class="mobile-sidebar-panel" aria-label="侧边信息">
           <section class="mobile-stats-card">
-            <div>
+            <NuxtLink to="/archive" @click="$emit('close')">
               <span>文章</span>
               <strong>{{ totalPosts }}</strong>
-            </div>
-            <div>
+            </NuxtLink>
+            <NuxtLink to="/tags" @click="$emit('close')">
               <span>标签</span>
               <strong>{{ tags.length }}</strong>
-            </div>
-            <div>
+            </NuxtLink>
+            <NuxtLink to="/categories" @click="$emit('close')">
               <span>分类</span>
               <strong>{{ categories.length }}</strong>
-            </div>
+            </NuxtLink>
           </section>
 
           <div class="mobile-panel-group">

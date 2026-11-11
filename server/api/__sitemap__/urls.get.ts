@@ -11,6 +11,8 @@ export default defineEventHandler(async () => {
   return [
     { loc: '/', changefreq: 'daily', priority: 1 },
     { loc: '/archive', changefreq: 'daily', priority: 0.8 },
+    { loc: '/categories', changefreq: 'daily', priority: 0.6 },
+    { loc: '/tags', changefreq: 'daily', priority: 0.6 },
     { loc: '/about', changefreq: 'monthly', priority: 0.5 },
     { loc: '/tools' },
     { loc: '/link' },
