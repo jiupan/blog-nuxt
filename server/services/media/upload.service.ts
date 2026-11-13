@@ -10,6 +10,8 @@ import { normalizeSlug } from '../../utils/slug'
 const maxUploadSize = 50 * 1024 * 1024
 const maxAvatarVideoSize = 5 * 1024 * 1024
 const maxInputPixels = 40_000_000
+const maxAnimatedAvatarPixels = 80_000_000
+const maxAnimatedAvatarEdge = 512
 const allowedFormats = new Set(['jpeg', 'png', 'webp'])
 const memeFormats = new Set(['jpeg', 'png', 'webp', 'gif'])
 const unsafeSvgPattern = /<\s*(?:script|foreignobject|iframe|object|embed|link|style)\b|(?:\s|<)on[a-z]+\s*=|javascript:/i
@@ -119,9 +121,17 @@ async function optimizeImage(input: Buffer, purpose: UploadPurpose) {
     }
   }
 
-  const animated = purpose !== 'favicon' && format === 'webp' && (metadata.pages ?? 1) > 1
+  const frames = metadata.pages ?? 1
+  const animated = purpose !== 'favicon' && format === 'webp' && frames > 1
+  const animatedAvatar = animated && purpose === 'avatar'
+  const pixelLimit = animatedAvatar ? maxAnimatedAvatarPixels : maxInputPixels
+  if (animated && metadata.width * metadata.height * frames > pixelLimit) {
+    throw badRequest(`动图所有帧合计不能超过 ${pixelLimit / 10_000} 万像素，请缩小尺寸或减少帧数后重试`)
+  }
+
   // Sharp applies the pixel limit to the stacked image when all frames are loaded.
-  const transformer = sharp(input, { limitInputPixels: maxInputPixels, animated })
+  const transformer = sharp(input, { limitInputPixels: pixelLimit, animated })
+  const squareLimit = animatedAvatar ? maxAnimatedAvatarEdge : purpose === 'favicon' ? 512 : undefined
 
   try {
     if (!animated) {
@@ -132,8 +142,8 @@ async function optimizeImage(input: Buffer, purpose: UploadPurpose) {
     }
 
     transformer.resize({
-      width: purpose === 'favicon' ? 512 : 1600,
-      height: purpose === 'favicon' ? 512 : undefined,
+      width: squareLimit ?? 1600,
+      height: squareLimit,
       fit: 'inside',
       withoutEnlargement: true
     })

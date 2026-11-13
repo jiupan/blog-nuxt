@@ -133,6 +133,25 @@ describe('Agent local image uploads', () => {
       expect((await request(formFor(), `?purpose=${purpose}`)).status).toBe(400)
     }
   )
+  it('accepts a larger animation as an avatar while keeping the regular WebP limit', async () => {
+    const edge = 4600
+    const framePixels = edge * edge
+    const input = await sharp(Buffer.concat([Buffer.alloc(framePixels, 40), Buffer.alloc(framePixels, 200)]), {
+      raw: { width: edge, height: edge * 2, pageHeight: edge, channels: 1 }
+    }).webp({ delay: [120, 230], loop: 0 }).toBuffer()
+
+    await expect(uploadImage(input, 'image')).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining('4000 万像素')
+    })
+    const avatar = await uploadImage(input, 'avatar')
+    expect(avatar).toMatchObject({ url: expect.stringMatching(/^\/uploads\/avatars\/.*\.webp$/), mediaType: 'image' })
+    const image = await handler(new Request(`https://blog.example${avatar.url}`))
+    expect(image.status).toBe(200)
+    expect(await sharp(Buffer.from(await image.arrayBuffer()), { animated: true }).metadata()).toMatchObject({
+      format: 'webp', width: 512, pageHeight: 512, pages: 2, delay: [120, 230], loop: 0
+    })
+  })
   it('requires one file, rejects extra fields and checks authentication first', async () => {
     expect((await request(new FormData())).status).toBe(400)
     const extra = formFor()
