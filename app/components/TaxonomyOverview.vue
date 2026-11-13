@@ -8,12 +8,12 @@
           :key="stat.to"
           :to="stat.to"
           :aria-label="stat.label"
-          :title="stat.label"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path :d="stat.icon" fill="currentColor" fill-rule="evenodd" />
           </svg>
           <b>{{ stat.count ?? '—' }}</b>
+          <span class="taxonomy-stat-tooltip" aria-hidden="true">{{ stat.label }}</span>
         </NuxtLink>
       </nav>
     </header>
@@ -76,19 +76,19 @@ const stats = computed(() => [
     to: `/${props.kind}`,
     icon: statIcons[props.kind],
     count: data.value ? items.value.length : undefined,
-    label: data.value ? `共 ${items.value.length} 个${label}` : label
+    label: data.value ? `全站共 ${items.value.length} 个${label}` : label
   },
   {
     to: '/archive',
     icon: statIcons.archive,
     count: data.value?.data.totalPosts,
-    label: data.value ? `共 ${data.value.data.totalPosts} 篇文章` : '浏览全部文章'
+    label: data.value ? `全站共 ${data.value.data.totalPosts} 篇文章` : '浏览全部文章'
   },
   {
     to: otherPath,
     icon: statIcons[props.kind === 'categories' ? 'tags' : 'categories'],
     count: otherData.value?.data.length,
-    label: otherData.value ? `共 ${otherData.value.data.length} 个${otherLabel}` : `浏览全部${otherLabel}`
+    label: otherData.value ? `全站共 ${otherData.value.data.length} 个${otherLabel}` : `浏览全部${otherLabel}`
   }
 ])
 
@@ -108,7 +108,7 @@ useSeoMeta({
 
 <style scoped>
 .taxonomy-page {
-  width: min(100% - 40px, 1340px);
+  width: var(--site-content-width);
   min-height: 70vh;
   margin: 0 auto;
   padding: 64px 0 80px;
@@ -134,16 +134,39 @@ useSeoMeta({
   box-shadow: 0 8px 16px -4px rgb(var(--theme-shadow) / 5%);
 }
 .taxonomy-stats a {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 5px 14px;
   border-radius: 999px;
-  transition: background-color .18s, color .18s;
+  transition: background-color .18s;
 }
-.taxonomy-stats a:hover { background: var(--theme-accent-soft); }
 .taxonomy-stats svg { width: 20px; height: 20px; flex: none; color: var(--theme-accent); }
 .taxonomy-stats b { font-size: 20px; font-weight: 800; line-height: 1; }
+.taxonomy-stat-tooltip {
+  position: absolute;
+  z-index: 2;
+  bottom: calc(100% + 11px);
+  left: 50%;
+  transform: translateX(-50%);
+  visibility: hidden;
+  padding: 7px 12px;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.taxonomy-stats a:focus-visible { background: var(--theme-accent-soft); }
+.taxonomy-stats a:focus-visible .taxonomy-stat-tooltip { visibility: visible; }
+@media (hover: hover) {
+  .taxonomy-stats a:hover { background: var(--theme-accent-soft); }
+  .taxonomy-stats a:hover .taxonomy-stat-tooltip { visibility: visible; }
+}
 .taxonomy-grid { display: grid; gap: 12px; }
 .taxonomy-card {
   display: grid;
@@ -227,6 +250,7 @@ useSeoMeta({
   .taxonomy-stats { gap: 0; }
   .taxonomy-stats a { padding: 8px 10px; }
   .taxonomy-stats b { font-size: 17px; }
+  .taxonomy-stats a:first-child .taxonomy-stat-tooltip { left: 0; transform: none; }
   .taxonomy-card, .is-tags .taxonomy-card { grid-template-columns: 100px minmax(0, 1fr); gap: 12px; padding: 10px; }
   .taxonomy-card-label { min-height: 94px; padding: 10px 7px; }
   .taxonomy-card-label h2 { font-size: 14px; }

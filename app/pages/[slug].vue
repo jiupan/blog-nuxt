@@ -972,7 +972,7 @@ function scrollToTocHeading(id: string) {
 }
 
 .post-hero-inner {
-  width: min(100% - 32px, 1290px);
+  width: var(--site-content-width);
   margin: 0 auto;
 }
 
@@ -1039,7 +1039,7 @@ function scrollToTocHeading(id: string) {
   position: relative;
   isolation: isolate;
   display: grid;
-  width: min(100% - 32px, 1290px);
+  width: var(--site-content-width);
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 14px;
   align-items: start;
@@ -1770,10 +1770,6 @@ function scrollToTocHeading(id: string) {
     padding: 92px 0 48px;
   }
 
-  .post-hero-inner {
-    width: min(100% - 28px, 560px);
-  }
-
   .post-hero-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -1838,7 +1834,6 @@ function scrollToTocHeading(id: string) {
   }
 
   .post-shell {
-    width: min(100% - 20px, 560px);
     margin-top: -18px;
     padding-top: 30px;
   }

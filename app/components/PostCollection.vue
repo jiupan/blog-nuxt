@@ -123,7 +123,7 @@ useSeoMeta({
 
 <style scoped>
 .collection-page { min-height: 100vh; color: var(--theme-text); }
-.collection-shell { width: min(100% - 32px, 1290px); margin: 0 auto; padding: 56px 0 88px; }
+.collection-shell { width: var(--site-content-width); margin: 0 auto; padding: 56px 0 88px; }
 .collection-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; align-items: start; }
 .collection-main { min-width: 0; padding-right: 8px; }
 .collection-heading { margin-bottom: 44px; border-bottom: 1px solid var(--theme-border); padding-bottom: 34px; }
@@ -136,5 +136,5 @@ useSeoMeta({
 .collection-empty button { margin-top: 8px; border: 0; border-radius: 999px; background: var(--theme-text); color: var(--theme-surface); padding: 9px 16px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
 .collection-sidebar { position: sticky; top: 84px; display: grid; gap: 10px; }
 @media (max-width: 980px) { .collection-layout { grid-template-columns: 1fr; }.collection-sidebar { position: static; } }
-@media (max-width: 640px) { .collection-shell { width: min(100% - 20px, 1290px); padding: 34px 0 60px; }.collection-heading { margin-bottom: 24px; padding: 0 10px 26px; }.collection-heading h1 { font-size: 38px; }.collection-empty { min-height: 280px; padding: 28px 18px; } }
+@media (max-width: 640px) { .collection-shell { padding: 34px 0 60px; }.collection-heading { margin-bottom: 24px; padding: 0 10px 26px; }.collection-heading h1 { font-size: 38px; }.collection-empty { min-height: 280px; padding: 28px 18px; } }
 </style>

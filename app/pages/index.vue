@@ -462,7 +462,7 @@ function formatDate(value?: string | Date | null) {
 }
 
 .home-shell {
-  width: min(100% - 32px, 1290px);
+  width: var(--site-content-width);
   margin: 0 auto;
 }
 
@@ -1170,17 +1170,13 @@ function formatDate(value?: string | Date | null) {
 }
 
 @media (max-width: 760px) {
-  .home-shell {
-    width: min(100% - 24px, 1290px);
-  }
-
   .mobile-hero-carousel {
     display: flex;
     gap: 12px;
-    margin: 0 -12px 12px;
+    margin: 0 calc(-1 * var(--site-gutter)) 12px;
     overflow-x: auto;
-    padding: 0 12px 2px;
-    scroll-padding-inline: 12px;
+    padding: 0 var(--site-gutter) 2px;
+    scroll-padding-inline: var(--site-gutter);
     scroll-snap-type: x mandatory;
     overscroll-behavior-x: contain;
     touch-action: pan-x pan-y;

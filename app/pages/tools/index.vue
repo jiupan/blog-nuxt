@@ -349,7 +349,7 @@ useSeoMeta({
 }
 
 .tools-shell {
-  width: min(100% - 48px, 1152px);
+  width: var(--site-content-width);
   min-height: 680px;
   margin: 0 auto;
   padding: 54px 0 88px;
@@ -889,7 +889,7 @@ useSeoMeta({
 }
 
 @media (max-width: 640px) {
-  .tools-shell { width: min(100% - 28px, 1152px); padding: 34px 0 64px; }
+  .tools-shell { padding: 34px 0 64px; }
   .tools-kicker { margin-bottom: 30px; }
   .tools-hero { margin-bottom: 32px; }
   .tools-hero h1 { display: block; font-size: 36px; }

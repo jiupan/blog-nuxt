@@ -3,6 +3,8 @@
 
 :root {
   color-scheme: light;
+  --site-gutter: 20px;
+  --site-content-width: min(100% - 2 * var(--site-gutter), 1340px);
   --theme-page: #f3f6fc;
   --theme-page-soft: #f7f9fd;
   --theme-surface: #fff;

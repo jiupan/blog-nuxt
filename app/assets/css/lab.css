@@ -23,7 +23,7 @@
 .lab-shell {
   position: relative;
   z-index: 1;
-  width: min(100% - 32px, 1290px);
+  width: var(--site-content-width);
   margin: 0 auto;
   padding: 96px 0 84px;
 }
@@ -2121,7 +2121,6 @@
 
 @media (max-width: 760px) {
   .lab-shell {
-    width: min(100% - 28px, 1290px);
     padding: 64px 0 56px;
   }
 

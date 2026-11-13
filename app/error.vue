@@ -156,7 +156,7 @@ function goTo(path: string) {
 .error-stage {
   position: relative;
   z-index: 1;
-  width: min(100% - 32px, 620px);
+  width: var(--site-content-width);
   padding: 46px 0;
   perspective: 1100px;
 }
@@ -314,7 +314,7 @@ function goTo(path: string) {
 @keyframes float-three { 0%, 100% { transform: translate(0) scale(1); } 35% { transform: translate(36px, 34px) scale(1.08); } 68% { transform: translate(-34px, -18px) scale(.92); } }
 
 @media (max-width: 640px) {
-  .error-stage { width: min(100% - 20px, 620px); padding: 28px 0; }
+  .error-stage { padding: 28px 0; }
   .error-card { border-radius: 24px; padding: 38px 18px 24px; }
   .error-code { font-size: clamp(6rem, 34vw, 8rem); }
   .error-divider { margin: 24px 0 18px; }

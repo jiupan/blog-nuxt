@@ -199,7 +199,7 @@ useSeoMeta({
     radial-gradient(circle at 18% 18%, rgb(96 165 250 / 13%), transparent 30%),
     radial-gradient(circle at 83% 78%, rgb(129 140 248 / 13%), transparent 32%),
     linear-gradient(145deg, #f8fafc, #f2f5fb 48%, #f8fafc);
-  padding: clamp(20px, 3.5vw, 34px) 12px;
+  padding-block: clamp(20px, 3.5vw, 34px);
   isolation: isolate;
 }
 
@@ -243,7 +243,7 @@ useSeoMeta({
 
 .about-card {
   display: flex;
-  width: min(100%, 530px);
+  width: var(--site-content-width);
   align-items: center;
   flex-direction: column;
   border: 1px solid rgb(255 255 255 / 88%);
@@ -552,7 +552,7 @@ useSeoMeta({
 
 @media (max-width: 640px) {
   .about-stage {
-    padding: 20px 20px 24px;
+    padding-block: 20px 24px;
   }
 
   .about-card {
@@ -591,11 +591,6 @@ useSeoMeta({
 }
 
 @media (max-width: 380px) {
-  .about-stage {
-    padding-right: 16px;
-    padding-left: 16px;
-  }
-
   .about-actions {
     align-items: stretch;
     flex-direction: column;

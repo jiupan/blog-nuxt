@@ -159,7 +159,7 @@ useSeoMeta({
   --walk-blue: color-mix(in srgb, var(--theme-accent) 80%, var(--walk-ink));
   --walk-wash: var(--theme-accent-soft);
   --walk-serif: "Songti SC", "Noto Serif SC", SimSun, serif;
-  width: min(calc(100% - 32px), 930px);
+  width: var(--site-content-width);
   margin: clamp(24px, 5vw, 52px) auto clamp(36px, 7vw, 72px);
   padding: clamp(16px, 5vw, 54px);
   border: 1px solid var(--theme-border-soft);
@@ -391,7 +391,6 @@ useSeoMeta({
 }
 
 @media (max-width: 460px) {
-  .walk-page { width: calc(100% - 24px); }
   .walk-intro { grid-template-columns: minmax(0, 1fr) 60px; gap: 4px; }
   .trail-caption { display: none; }
   .bookmark-link { grid-template-columns: 30px minmax(0, 1fr) auto; gap: 8px; }

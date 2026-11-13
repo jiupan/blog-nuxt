@@ -177,7 +177,7 @@ useSeoMeta({
 }
 
 .archive-shell {
-  width: min(100% - 32px, 1290px);
+  width: var(--site-content-width);
   margin: 0 auto;
   padding: 20px 0 30px;
 }
@@ -408,7 +408,6 @@ useSeoMeta({
 
 @media (max-width: 640px) {
   .archive-shell {
-    width: min(100% - 20px, 1290px);
     padding-top: 20px;
   }
 
