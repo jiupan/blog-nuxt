@@ -32,13 +32,16 @@
     <div v-else class="taxonomy-grid" data-page-enter style="--page-enter-order: 1">
       <section v-for="item in items" :key="item.id" class="taxonomy-card" :aria-labelledby="`taxonomy-${item.id}`">
         <NuxtLink :to="itemPath(item.slug)" class="taxonomy-card-label" :aria-label="`浏览${label}「${item.name}」下的 ${item._count?.posts || 0} 篇文章`">
-          <UIcon :name="kind === 'categories' ? resolveCategoryIcon(item.icon) : 'i-lucide-tag'" aria-hidden="true" />
+          <UIcon v-if="kind === 'categories'" :name="resolveCategoryIcon(item.icon)" aria-hidden="true" />
+          <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+            <path :d="statIcons.tags" fill="currentColor" fill-rule="evenodd" />
+          </svg>
           <h2 :id="`taxonomy-${item.id}`" :title="item.name">{{ item.name }}</h2>
           <span>{{ item._count?.posts || 0 }}<span class="sr-only"> 篇文章</span></span>
         </NuxtLink>
         <ul v-if="item.posts.length" class="taxonomy-posts">
           <li v-for="post in item.posts" :key="post.id">
-            <NuxtLink :to="postPath(post.slug)" :title="post.title">{{ post.title }}</NuxtLink>
+            <NuxtLink :to="postPath(post.slug)" :title="post.title"><span>{{ post.title }}</span></NuxtLink>
           </li>
         </ul>
         <p v-else class="taxonomy-no-posts">暂时没有已发布的文章</p>
@@ -169,13 +172,20 @@ useSeoMeta({
 }
 .taxonomy-grid { display: grid; gap: 12px; }
 .taxonomy-card {
+  --taxonomy-highlight: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface));
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr);
-  gap: 14px;
+  gap: 16px;
   padding: 16px;
   border: 1px solid var(--theme-border);
   border-radius: 12px;
   background: var(--theme-surface);
+  box-shadow: 0 8px 16px -4px rgb(var(--theme-shadow) / 5%);
+  transition: border-color .3s, box-shadow .3s;
+}
+.taxonomy-card:has(:focus-visible) {
+  border-color: var(--theme-accent);
+  box-shadow: 0 8px 12px -3px color-mix(in srgb, var(--theme-accent) 14%, transparent);
 }
 .taxonomy-card-label {
   display: flex;
@@ -189,10 +199,9 @@ useSeoMeta({
   border-radius: 10px;
   background: var(--theme-surface-muted);
   text-align: center;
-  transition: color .18s, background-color .18s;
+  transition: color .3s, background-color .3s;
 }
-.taxonomy-card-label:hover { background: var(--theme-accent-soft); color: var(--theme-accent); }
-.taxonomy-card-label > .iconify { width: 22px; height: 22px; color: var(--theme-accent); }
+.taxonomy-card-label > :is(.iconify, svg) { width: 22px; height: 22px; color: var(--theme-accent); }
 .taxonomy-card-label h2 {
   max-width: 100%;
   margin: 0;
@@ -208,30 +217,50 @@ useSeoMeta({
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: center;
-  gap: 4px 24px;
+  gap: 4px 12px;
   min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.taxonomy-posts li { display: flex; min-width: 0; align-items: center; gap: 8px; }
-.taxonomy-posts li::before { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: var(--theme-accent); opacity: .45; content: ''; }
+.taxonomy-posts li { min-width: 0; }
+.taxonomy-posts a::before { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: var(--theme-accent); opacity: .45; content: ''; }
 .taxonomy-posts a {
-  display: block;
-  min-width: 0;
-  padding: 6px 0;
-  overflow: hidden;
-  color: var(--theme-text-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--theme-text);
   font-size: 15px;
   line-height: 20px;
+  transition: color .3s, background-color .3s;
+}
+.taxonomy-posts a span {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: color .18s;
 }
-.taxonomy-posts a:hover { color: var(--theme-accent); }
+.taxonomy-card-label:focus-visible,
+.taxonomy-posts a:focus-visible {
+  background: var(--taxonomy-highlight);
+  color: var(--theme-accent);
+}
+@media (hover: hover) {
+  .taxonomy-card:hover {
+    border-color: var(--theme-accent);
+    box-shadow: 0 8px 12px -3px color-mix(in srgb, var(--theme-accent) 14%, transparent);
+  }
+  .taxonomy-card-label:hover,
+  .taxonomy-posts a:hover {
+    background: var(--taxonomy-highlight);
+    color: var(--theme-accent);
+  }
+}
 .taxonomy-no-posts { align-self: center; color: var(--theme-text-muted); font-size: 14px; }
 .is-tags .taxonomy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.is-tags .taxonomy-card { grid-template-columns: 120px minmax(0, 1fr); }
+.is-tags .taxonomy-card { grid-template-columns: 120px minmax(0, 1fr); gap: 14px; }
 .is-tags .taxonomy-posts { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .taxonomy-empty { display: grid; min-height: 260px; justify-items: center; align-content: center; gap: 14px; border: 1px solid var(--theme-border); border-radius: 18px; background: var(--theme-surface); color: var(--theme-text-muted); }
 .taxonomy-empty > .iconify { width: 32px; height: 32px; }
@@ -255,9 +284,9 @@ useSeoMeta({
   .taxonomy-card-label { min-height: 94px; padding: 10px 7px; }
   .taxonomy-card-label h2 { font-size: 14px; }
   .taxonomy-posts { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .taxonomy-posts a { padding: 5px 0; font-size: 13px; }
+  .taxonomy-posts a { padding: 5px 6px; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .taxonomy-page a { transition: none; }
+  .taxonomy-page a, .taxonomy-card { transition: none; }
 }
 </style>
