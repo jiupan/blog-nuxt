@@ -54,9 +54,9 @@ const request = (form: FormData, query = '') =>
   handler(
     new Request(`https://blog.example/api/agent/images${query}`, { method: 'POST', body: form })
   )
-const formFor = (data = png, name = 'diagram.png') => {
+const formFor = (data = png, name = 'diagram.png', type = 'image/png') => {
   const form = new FormData()
-  form.append('file', new Blob([new Uint8Array(data)], { type: 'image/png' }), name)
+  form.append('file', new Blob([new Uint8Array(data)], { type }), name)
   return form
 }
 beforeEach(() => {
@@ -99,6 +99,33 @@ describe('Agent local image uploads', () => {
     const filename = first.url.split('/').pop()
     const folder = join(root, ...first.url.replace('/uploads/', '').split('/').slice(0, -1))
     expect((await readdir(folder)).filter((name) => name === filename)).toHaveLength(1)
+  })
+  it('resizes and serves animated WebP with all frames, delays and the loop count', async () => {
+    const width = 1700
+    const pageHeight = 17
+    const frameSize = width * pageHeight * 3
+    const frames = Buffer.concat([Buffer.alloc(frameSize, 40), Buffer.alloc(frameSize, 200)])
+    const delay = [120, 230]
+    const input = await sharp(frames, { raw: { width, height: pageHeight * 2, pageHeight, channels: 3 } })
+      .withMetadata({ orientation: 6 })
+      .webp({ delay, loop: 2 })
+      .toBuffer()
+
+    const upload = await request(formFor(input, 'animation.webp', 'image/webp'))
+    expect(upload.status).toBe(200)
+    const { data } = await upload.json()
+    const image = await handler(new Request(data.absoluteUrl))
+    expect(image.status).toBe(200)
+    expect(image.headers.get('content-type')).toBe('image/webp')
+    expect(await sharp(Buffer.from(await image.arrayBuffer()), { animated: true }).metadata()).toMatchObject({
+      format: 'webp', width: 1600, pageHeight: 16, pages: 2, delay, loop: 2, orientation: 6
+    })
+
+    const favicon = await uploadImage(input, 'favicon')
+    const faviconImage = await handler(new Request(`https://blog.example${favicon.url}`))
+    const faviconMetadata = await sharp(Buffer.from(await faviconImage.arrayBuffer())).metadata()
+    expect(faviconMetadata).toMatchObject({ format: 'png', height: 512 })
+    expect(faviconMetadata.pages ?? 1).toBe(1)
   })
   it.each(['avatar', 'meme', 'favicon', 'other'])(
     'rejects unsupported upload purpose %s',

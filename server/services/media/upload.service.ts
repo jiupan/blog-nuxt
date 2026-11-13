@@ -119,16 +119,25 @@ async function optimizeImage(input: Buffer, purpose: UploadPurpose) {
     }
   }
 
-  const transformer = sharp(input, { limitInputPixels: maxInputPixels })
-    .rotate()
-    .resize({
+  const animated = purpose !== 'favicon' && format === 'webp' && (metadata.pages ?? 1) > 1
+  // Sharp applies the pixel limit to the stacked image when all frames are loaded.
+  const transformer = sharp(input, { limitInputPixels: maxInputPixels, animated })
+
+  try {
+    if (!animated) {
+      transformer.rotate()
+    } else if (metadata.orientation && metadata.orientation > 1 && metadata.orientation <= 8) {
+      // Preserve orientation without rotating the stacked frames or copying the rest of the EXIF data.
+      transformer.withExif({ IFD0: { Orientation: String(metadata.orientation) } })
+    }
+
+    transformer.resize({
       width: purpose === 'favicon' ? 512 : 1600,
       height: purpose === 'favicon' ? 512 : undefined,
       fit: 'inside',
       withoutEnlargement: true
     })
 
-  try {
     if (purpose === 'favicon') {
       return {
         data: await transformer
