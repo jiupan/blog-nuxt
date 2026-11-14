@@ -4,7 +4,7 @@
       <img v-if="item.cover && brokenCover !== item.cover" :src="item.cover" alt="" loading="lazy" decoding="async" @error="brokenCover = item.cover">
       <img v-else-if="siteIcon" :src="siteIcon" alt="" class="friend-cover-logo" loading="lazy" decoding="async" @error="brokenAvatar = siteIcon">
       <span v-else class="friend-cover-initial" aria-hidden="true">{{ initial }}</span>
-      <span class="friend-cover-category">{{ bookmarkSectionLabel(item) }}</span>
+      <span class="friend-cover-category">{{ item.sectionName }}</span>
     </span>
     <span class="friend-card-main">
       <span class="friend-avatar" :style="{ '--friend-art': artColor }" aria-hidden="true">
@@ -14,7 +14,7 @@
       <span class="friend-card-copy">
         <span class="friend-card-name">
           <strong>{{ item.title }}</strong>
-          <span v-if="variant === 'search'" class="friend-card-group">{{ bookmarkSectionLabel(item) }}</span>
+          <span v-if="variant === 'search'" class="friend-card-group">{{ item.sectionName }}</span>
         </span>
         <span class="friend-card-description">{{ item.note }}</span>
       </span>
@@ -23,7 +23,6 @@
 </template>
 
 <script setup lang="ts">
-import { bookmarkSectionLabel } from '~~/types/dto/bookmark'
 import type { PublicBookmark } from '~~/types/dto/bookmark'
 
 const { item, variant = 'compact' } = defineProps<{ item: PublicBookmark; variant?: 'cover' | 'compact' | 'search' }>()

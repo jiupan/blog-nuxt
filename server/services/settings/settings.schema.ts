@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { animatedAvatarCompression } from '~~/types/dto/settings'
+import { animatedAvatarCompression, embeddingDimensions } from '~~/types/dto/settings'
 
 export const settingsDefaults = {
   site_title: 'Jiupan Blog',
@@ -31,7 +31,7 @@ export const settingsDefaults = {
   ai_embedding_api_key: '',
   ai_embedding_base_url: 'https://api.openai.com/v1',
   ai_embedding_model: 'text-embedding-3-small',
-  ai_embedding_dimensions: '1536',
+  ai_embedding_dimensions: embeddingDimensions,
   ai_rerank_enabled: 'false',
   ai_rerank_api_key: '',
   ai_rerank_base_url: 'https://api.cohere.com/v2',
@@ -110,7 +110,7 @@ export const settingsInputSchema = z.object({
   ai_embedding_api_key: optionalSecret,
   ai_embedding_base_url: optionalUrl,
   ai_embedding_model: z.string().optional(),
-  ai_embedding_dimensions: z.string().optional(),
+  ai_embedding_dimensions: z.literal(embeddingDimensions, '当前数据库仅支持 1536 维').optional(),
   ai_rerank_enabled: z.enum(['true', 'false']).optional(),
   ai_rerank_api_key: optionalSecret,
   ai_rerank_base_url: optionalUrl,

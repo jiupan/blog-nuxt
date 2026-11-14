@@ -70,6 +70,14 @@ export type AiSecretKey = typeof aiSecretKeys[number]
 export type AiSecretStatus = { stored: boolean, environment: boolean }
 export type AiSecretStatuses = Record<AiSecretKey, AiSecretStatus>
 
+export const embeddingDimensions = '1536'
+export const aiRuntimeSettingKeys = [
+  'ai_base_url', 'ai_model', 'ai_embedding_base_url', 'ai_embedding_model', 'ai_embedding_dimensions',
+  'ai_rerank_enabled', 'ai_rerank_base_url', 'ai_rerank_model', 'ai_rerank_top_n'
+] as const
+export type AiRuntimeSettingKey = typeof aiRuntimeSettingKeys[number]
+export type AiRuntimeValues = Record<AiRuntimeSettingKey, { value: string; source: 'environment' | 'database' | 'default' }>
+
 export type AdminSettingsPayload = Record<Exclude<SiteSettingsKey, AiSecretKey>, string> & {
   aiSecretStatus: AiSecretStatuses
 }

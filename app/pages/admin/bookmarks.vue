@@ -1,7 +1,7 @@
 <template>
   <div class="workspace-page">
     <AdminPageActions>
-      <UButton size="sm" icon="i-lucide-plus" :disabled="locked" @click="openEditor(undefined, $event)">收录链接</UButton>
+      <UButton size="sm" icon="i-lucide-plus" :disabled="locked || !sections.length" @click="openEditor(undefined, $event)">收录链接</UButton>
     </AdminPageActions>
 
     <section class="workspace-panel">
@@ -13,7 +13,7 @@
         <UButton to="/link" target="_blank" rel="noopener" color="neutral" variant="outline" trailing-icon="i-lucide-arrow-up-right" size="sm" class="shrink-0">查看导航页</UButton>
       </div>
 
-      <nav class="workspace-tabs" aria-label="网站导航管理">
+      <nav class="workspace-tabs bookmark-tabs" aria-label="网站导航管理">
         <button v-for="view in views" :key="view.value" type="button" :class="{ 'is-active': tab === view.value }" :aria-pressed="tab === view.value" :disabled="busy" @click="switchTab(view.value)">
           <UIcon :name="view.icon" class="size-4" aria-hidden="true" />{{ view.label }}
         </button>
@@ -31,52 +31,61 @@
           <div v-if="tab === 'items'">
             <div class="bookmark-toolbar">
               <UInput v-model="query" icon="i-lucide-search" aria-label="搜索链接" placeholder="搜索标题或网址" class="bookmark-search" />
-              <USelect v-model="sectionFilter" :items="sectionOptions" aria-label="筛选分组" />
+              <USelect v-model="sectionFilter" :items="sectionOptions" aria-label="筛选分类" />
               <USelect v-model="statusFilter" :items="statusOptions" aria-label="筛选状态" />
             </div>
             <p class="bookmark-count bookmark-muted" role="status">显示 {{ filtered.length }} 条，共 {{ items.length }} 条</p>
-            <ul v-if="filtered.length" class="bookmark-list">
-              <li v-for="item in filtered" :key="item.id" class="bookmark-row">
-                <div class="bookmark-copy">
-                  <strong>{{ item.title }}</strong>
-                  <small>{{ bookmarkSectionLabel(item) }} · {{ domain(item.url) }}</small>
-                </div>
-                <div class="bookmark-badges">
-                  <UBadge :color="item.status === 'PUBLISHED' ? 'primary' : 'neutral'" variant="soft" size="sm">{{ statusLabels[item.status] }}</UBadge>
-                  <UBadge v-if="item.status === 'PUBLISHED' && isSpotlight(item)" color="warning" variant="soft" size="sm">精选</UBadge>
+            <section v-for="group in visibleGroups" :key="group.id" class="bookmark-group" :aria-labelledby="'bookmark-group-' + group.id">
+              <div class="bookmark-group-header">
+                <div>
+                  <h3 :id="'bookmark-group-' + group.id">{{ group.name }} <span>{{ group.items.length }}</span></h3>
+                  <p v-if="group.description" class="bookmark-muted">{{ group.description }}</p>
                 </div>
                 <div class="bookmark-actions">
-                  <UButton
-                    v-if="item.status === 'PUBLISHED'"
-                    :icon="isSpotlight(item) ? 'i-lucide-star-off' : 'i-lucide-star'"
-                    color="neutral"
-                    variant="ghost"
-                    size="sm"
-                    :title="isSpotlight(item) ? '移出精选' : '加入精选'"
-                    :aria-label="`${isSpotlight(item) ? '移出精选' : '加入精选'} ${item.title}`"
-                    :disabled="locked"
-                    @click="toggleSpotlight(item)"
-                  />
-                  <UButton size="sm" color="neutral" variant="outline" :disabled="locked" :aria-label="`编辑 ${item.title}`" @click="openEditor(item, $event)">编辑</UButton>
+                  <UButton v-if="publishedCount(group.id) > 1" size="sm" color="neutral" variant="ghost" icon="i-lucide-list-ordered" :disabled="locked" @click="openOrder(group.id)">调整顺序</UButton>
+                  <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="locked" @click="openEditor(undefined, $event, group.id)">收录链接</UButton>
                 </div>
-              </li>
-            </ul>
-            <div v-else class="bookmark-empty">
-              <p>{{ items.length ? '没有符合条件的链接。' : '还没有收录链接。' }}</p>
-              <UButton v-if="items.length" size="sm" color="neutral" variant="outline" @click="resetFilters">清除筛选</UButton>
-              <UButton v-else size="sm" icon="i-lucide-plus" :disabled="locked" @click="openEditor(undefined, $event)">收录第一条链接</UButton>
+              </div>
+              <ul v-if="group.items.length" class="bookmark-list">
+                <li v-for="item in group.items" :key="item.id" class="bookmark-row">
+                  <div class="bookmark-copy">
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ domain(item.url) }}</small>
+                  </div>
+                  <div class="bookmark-badges">
+                    <UBadge :color="item.status === 'PUBLISHED' ? 'primary' : 'neutral'" variant="soft" size="sm">{{ statusLabels[item.status] }}</UBadge>
+                    <UBadge v-if="item.status === 'PUBLISHED' && isSpotlight(item)" color="warning" variant="soft" size="sm">精选</UBadge>
+                  </div>
+                  <div class="bookmark-actions">
+                    <UButton
+                      v-if="item.status === 'PUBLISHED'"
+                      :icon="isSpotlight(item) ? 'i-lucide-star-off' : 'i-lucide-star'"
+                      color="neutral"
+                      variant="ghost"
+                      size="sm"
+                      :title="isSpotlight(item) ? '移出精选' : '加入精选'"
+                      :aria-label="`${isSpotlight(item) ? '移出精选' : '加入精选'} ${item.title}`"
+                      :disabled="locked"
+                      @click="toggleSpotlight(item)"
+                    />
+                    <UButton size="sm" color="neutral" variant="outline" :disabled="locked" :aria-label="`编辑 ${item.title}`" @click="openEditor(item, $event)">编辑</UButton>
+                  </div>
+                </li>
+              </ul>
+              <p v-else class="bookmark-group-empty bookmark-muted">此分类还没有链接。</p>
+            </section>
+            <div v-if="!visibleGroups.length" class="bookmark-empty">
+              <p>{{ sections.length ? '没有符合条件的链接。' : '还没有分类。先创建分类，再收录链接。' }}</p>
+              <UButton v-if="sections.length" size="sm" color="neutral" variant="outline" @click="resetFilters">清除筛选</UButton>
+              <UButton v-else size="sm" icon="i-lucide-plus" :disabled="locked" @click="switchTab('sections'); editSection()">新建分类</UButton>
             </div>
           </div>
 
           <div v-else-if="tab === 'order'">
-            <div class="bookmark-toolbar">
-              <USelect :model-value="sortSection" :items="sortOptions" aria-label="选择排序分组" :disabled="busy" @update:model-value="value => { if (value) selectSortSection(value) }" />
-              <div class="bookmark-actions">
-                <UButton size="sm" color="neutral" variant="outline" :disabled="!orderDirty || busy" @click="order = null">撤销调整</UButton>
-                <UButton size="sm" :loading="busy" :disabled="!orderDirty || stale" @click="saveOrder">保存顺序</UButton>
-              </div>
+            <div v-if="sortOptions.length" ref="sortToolbar" class="bookmark-toolbar" role="group" aria-label="选择展示区">
+              <UButton v-for="option in sortOptions" :key="option.value" size="sm" :color="sortSection === option.value ? 'primary' : 'neutral'" :variant="sortSection === option.value ? 'soft' : 'outline'" :aria-pressed="sortSection === option.value" :disabled="busy" @click="selectSortSection(option.value)">{{ option.label }} · {{ option.count }}</UButton>
             </div>
-            <p class="bookmark-hint bookmark-muted">选择前台分组，拖动手柄或用上下箭头调整。保存后更新前台默认顺序。</p>
+            <p v-if="sortItems.length > 1" class="bookmark-hint bookmark-muted">拖动手柄或用上下箭头调整，保存后更新前台默认顺序。</p>
             <AdminSortableList v-if="sortItems.length" :key="sortSection" :items="sortItems" :disabled="locked" role="list" @reorder="setOrder">
               <div v-for="(item, index) in sortItems" :key="item.id" class="admin-sortable-item bookmark-row bookmark-sort-row" role="listitem">
                 <span class="admin-drag-handle" aria-hidden="true"><UIcon name="i-lucide-grip-vertical" /></span>
@@ -87,7 +96,58 @@
                 </div>
               </div>
             </AdminSortableList>
-            <p v-else class="bookmark-empty bookmark-muted">这个分组还没有已发布的链接。</p>
+            <p v-else class="bookmark-empty bookmark-muted">发布链接后，可在这里调整展示顺序。</p>
+            <div v-if="orderDirty" class="bookmark-order-actions">
+              <span class="bookmark-muted">有未保存的顺序调整</span>
+              <UButton size="sm" color="neutral" variant="ghost" :disabled="busy" @click="order = null">撤销调整</UButton>
+              <UButton size="sm" :loading="busy" :disabled="locked" @click="saveOrder">保存链接顺序</UButton>
+            </div>
+          </div>
+
+          <div v-else-if="tab === 'sections'">
+            <div class="bookmark-section-toolbar">
+              <div>
+                <h3>导航页分类</h3>
+                <p class="bookmark-muted">分类顺序与前台一致。有链接的分类需先移走链接才能删除。</p>
+              </div>
+              <UButton size="sm" icon="i-lucide-plus" :disabled="locked || sectionOrderDirty || !!sectionEditor" @click="editSection()">新建分类</UButton>
+            </div>
+            <form v-if="sectionEditor" class="bookmark-section-form" @submit.prevent="saveSection">
+              <h4>{{ sectionEditor.id ? '编辑分类' : '新建分类' }}</h4>
+              <UFormField label="分类名称" required>
+                <UInput id="bookmark-section-name" v-model="sectionEditor.fields.name" required maxlength="32" class="w-full" :disabled="busy" />
+              </UFormField>
+              <UFormField label="分类简介" help="显示在前台分类标题下方。">
+                <UTextarea v-model="sectionEditor.fields.description" :rows="2" maxlength="120" class="w-full" :disabled="busy" />
+              </UFormField>
+              <div class="bookmark-actions">
+                <UButton type="submit" size="sm" :loading="busy" :disabled="locked || !sectionDirty || !sectionEditor.fields.name.trim()">保存分类</UButton>
+                <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="busy" @click="closeSection">取消</UButton>
+              </div>
+            </form>
+            <AdminSortableList v-if="orderedSections.length" :items="orderedSections" :disabled="locked || !!sectionEditor" role="list" @reorder="setSectionOrder">
+              <div v-for="(section, index) in orderedSections" :key="section.id" class="admin-sortable-item bookmark-row bookmark-category-row" role="listitem">
+                <span class="admin-drag-handle" aria-hidden="true"><UIcon name="i-lucide-grip-vertical" /></span>
+                <div class="bookmark-copy">
+                  <strong>{{ section.name }} <span class="bookmark-muted">· {{ sectionCounts.get(section.id) ?? 0 }} 条</span></strong>
+                  <small v-if="section.description">{{ section.description }}</small>
+                </div>
+                <div class="bookmark-category-actions">
+                  <div class="admin-order-buttons">
+                    <button type="button" :aria-label="'上移 ' + section.name" :disabled="locked || !!sectionEditor || index === 0" @click="moveSection(index, -1)"><UIcon name="i-lucide-chevron-up" /></button>
+                    <button type="button" :aria-label="'下移 ' + section.name" :disabled="locked || !!sectionEditor || index === orderedSections.length - 1" @click="moveSection(index, 1)"><UIcon name="i-lucide-chevron-down" /></button>
+                  </div>
+                  <UButton size="sm" color="neutral" variant="outline" :aria-label="'编辑分类 ' + section.name" :disabled="locked || sectionOrderDirty || !!sectionEditor" @click="editSection(section)">编辑</UButton>
+                  <UButton v-if="!sectionCounts.get(section.id)" size="sm" color="error" variant="ghost" :aria-label="'删除分类 ' + section.name" :disabled="locked || sectionOrderDirty || !!sectionEditor" @click="deleteSection(section)">删除</UButton>
+                </div>
+              </div>
+            </AdminSortableList>
+            <p v-else-if="!sectionEditor" class="bookmark-empty bookmark-muted">创建第一个分类后，就可以收录链接。</p>
+            <div v-if="sectionOrderDirty" class="bookmark-order-actions">
+              <span class="bookmark-muted">有未保存的分类顺序调整</span>
+              <UButton size="sm" color="neutral" variant="ghost" :disabled="busy" @click="sectionOrder = null">撤销调整</UButton>
+              <UButton size="sm" :disabled="locked" :loading="busy" @click="saveSectionOrder">保存分类顺序</UButton>
+            </div>
           </div>
 
           <form v-else class="bookmark-settings" @submit.prevent="saveSettings">
@@ -114,6 +174,11 @@
               <UButton type="submit" size="sm" :loading="busy" :disabled="!settingsDirty || locked">保存设置</UButton>
               <UButton type="button" size="sm" color="neutral" variant="ghost" :disabled="!settingsDirty || busy" @click="resetSettings">撤销修改</UButton>
             </div>
+            <fieldset>
+              <legend>全站主导航</legend>
+              <p class="bookmark-muted">在「站点外观 → 主导航」管理全站顶部的菜单项。</p>
+              <div><UButton to="/admin/menus" color="neutral" variant="outline" trailing-icon="i-lucide-arrow-right" size="sm">管理主导航菜单</UButton></div>
+            </fieldset>
           </form>
         </template>
       </div>
@@ -141,14 +206,9 @@
           <UFormField label="标题" required :error="fieldErrors.title">
             <UInput v-model="editor.fields.title" name="title" required maxlength="80" class="w-full" :disabled="busy" @update:model-value="delete fieldErrors.title" />
           </UFormField>
-          <div class="bookmark-fields">
-            <UFormField label="类型" required>
-              <USelect v-model="editor.fields.category" :items="categoryOptions" class="w-full" :disabled="busy" />
-            </UFormField>
-            <UFormField v-if="editor.fields.category === 'SITE'" label="网站分组">
-              <USelect v-model="editor.fields.friendGroup" :items="groupOptions" class="w-full" :disabled="busy" />
-            </UFormField>
-          </div>
+          <UFormField label="分类" required :error="fieldErrors.sectionId">
+            <USelect v-model="editor.fields.sectionId" name="sectionId" :items="categoryOptions" class="w-full" :disabled="busy" @update:model-value="delete fieldErrors.sectionId" />
+          </UFormField>
           <UFormField label="推荐语" help="发布时必填。写一句它适合谁，或为什么值得收藏。" :error="fieldErrors.note">
             <UTextarea v-model="editor.fields.note" name="note" :rows="3" maxlength="180" class="w-full" :disabled="busy" @update:model-value="delete fieldErrors.note" />
           </UFormField>
@@ -189,8 +249,8 @@
 
 <script setup lang="ts">
 import type { ApiResult } from '~~/types/api'
-import { bookmarkCategories, bookmarkSection, bookmarkSectionLabel, bookmarkSections, friendLinkGroups, isBookmarkSpotlight } from '~~/types/dto/bookmark'
-import type { AdminBookmark, AdminBookmarksPayload, BookmarkAction, BookmarkFields } from '~~/types/dto/bookmark'
+import { isBookmarkSpotlight } from '~~/types/dto/bookmark'
+import type { AdminBookmark, AdminBookmarksPayload, BookmarkAction, BookmarkFields, BookmarkSection, BookmarkSectionFields } from '~~/types/dto/bookmark'
 import { getApiErrorMessage } from '~/utils/api-error'
 import { moveArrayItem } from '~/utils/reorder'
 
@@ -201,6 +261,7 @@ const { data, error: loadError, status, refresh } = await useFetch<ApiResult<Adm
 const payload = computed(() => data.value?.data)
 const views = [
   { value: 'items', label: '收录列表', icon: 'i-lucide-bookmark' },
+  { value: 'sections', label: '分类管理', icon: 'i-lucide-folders' },
   { value: 'order', label: '展示排序', icon: 'i-lucide-list-ordered' },
   { value: 'settings', label: '页面设置', icon: 'i-lucide-sliders-horizontal' }
 ] as const
@@ -212,13 +273,13 @@ const feedback = ref('')
 const locked = computed(() => !payload.value || !!loadError.value || busy.value || stale.value || status.value === 'pending')
 
 const items = computed(() => payload.value?.items ?? [])
+const sections = computed(() => payload.value?.sections ?? [])
 const isSpotlight = (item: AdminBookmark) => isBookmarkSpotlight(item, payload.value?.settings.featuredId)
 const options = <T extends Record<string, string>>(labels: T) => (Object.keys(labels) as Array<keyof T & string>).map(value => ({ value, label: labels[value] }))
-const categoryOptions = options(bookmarkCategories)
-const groupOptions = options(friendLinkGroups)
-type SortSection = keyof typeof bookmarkSections | 'spotlight'
-const sortOptions: Array<{ value: SortSection; label: string }> = [{ value: 'spotlight', label: '精选收录' }, ...options(bookmarkSections)]
-const sectionOptions = [{ value: 'all', label: '全部分组' }, ...sortOptions]
+const categoryOptions = computed(() => sections.value.map(({ id, name }) => ({ value: id, label: name })))
+type SortSection = number | 'spotlight'
+const spotlightOption = { value: 'spotlight', label: '精选收录' } as const
+const sectionOptions = computed(() => [{ value: 'all', label: '全部分类' } as const, ...categoryOptions.value, spotlightOption])
 const statusLabels = { DRAFT: '草稿', PUBLISHED: '已发布', HIDDEN: '已下架' }
 const statusOptions = [{ value: 'all', label: '全部状态' }, ...options(statusLabels)]
 const query = ref('')
@@ -230,8 +291,24 @@ const filtered = computed(() => {
   return items.value.filter(item =>
     (!keyword || item.title.toLowerCase().includes(keyword) || item.url.toLowerCase().includes(keyword))
     && (statusFilter.value === 'all' || item.status === statusFilter.value)
-    && (sectionFilter.value === 'all' || (sectionFilter.value === 'spotlight' ? item.status === 'PUBLISHED' && isSpotlight(item) : bookmarkSection(item) === sectionFilter.value))
+    && (sectionFilter.value === 'all' || (sectionFilter.value === 'spotlight' ? item.status === 'PUBLISHED' && isSpotlight(item) : item.sectionId === sectionFilter.value))
   )
+})
+const visibleGroups = computed(() => sections.value.flatMap((section) => {
+  if (typeof sectionFilter.value === 'number' && sectionFilter.value !== section.id) return []
+  const groupItems = filtered.value.filter(item => item.sectionId === section.id)
+  if (!groupItems.length && (query.value.trim() || statusFilter.value !== 'all' || sectionFilter.value === 'spotlight')) return []
+  return [{ ...section, items: groupItems }]
+}))
+
+const sectionCounts = computed(() => {
+  const counts = new Map<number, number>()
+  for (const item of items.value) counts.set(item.sectionId, (counts.get(item.sectionId) ?? 0) + 1)
+  return counts
+})
+
+watch(sections, (latest) => {
+  if (typeof sectionFilter.value === 'number' && !latest.some(section => section.id === sectionFilter.value)) sectionFilter.value = 'all'
 })
 
 function resetFilters() {
@@ -241,17 +318,35 @@ function resetFilters() {
 }
 
 function switchTab(value: typeof tab.value) {
-  if (tab.value === value) return
+  if (tab.value === value) return true
+  if (tab.value === 'order' && orderDirty.value && !window.confirm('链接顺序尚未保存。放弃调整并切换？')) return false
+  if (tab.value === 'sections' && (sectionDirty.value || sectionOrderDirty.value) && !window.confirm('分类修改尚未保存。放弃修改并切换？')) return false
+  order.value = null
+  sectionOrder.value = null
+  sectionEditor.value = null
   feedback.value = ''
   if (!stale.value) failure.value = ''
   tab.value = value
+  return true
 }
 
-const sortSection = ref<SortSection>('spotlight')
+const published = computed(() => items.value.filter(item => item.status === 'PUBLISHED'))
+function itemsInDisplaySection(section: SortSection) {
+  return published.value.filter(item => section === 'spotlight' ? isSpotlight(item) : !isSpotlight(item) && item.sectionId === section)
+}
+const publishedCount = (section: SortSection) => itemsInDisplaySection(section).length
+const sortOptions = computed(() => [...categoryOptions.value, spotlightOption].map(option => ({
+  ...option, count: publishedCount(option.value)
+})).filter(option => option.count > 0))
+const preferredSortSection = ref<SortSection>()
+const sortSection = computed(() =>
+  sortOptions.value.find(option => option.value === preferredSortSection.value)?.value
+    ?? sortOptions.value.find(option => option.count > 1)?.value
+    ?? sortOptions.value[0]?.value
+)
+const sortToolbar = useTemplateRef<HTMLElement>('sortToolbar')
 const order = ref<number[] | null>(null)
-const originalSortItems = computed(() => items.value.filter(item => item.status === 'PUBLISHED' && (
-  sortSection.value === 'spotlight' ? isSpotlight(item) : !isSpotlight(item) && bookmarkSection(item) === sortSection.value
-)))
+const originalSortItems = computed(() => sortSection.value === undefined ? [] : itemsInDisplaySection(sortSection.value))
 const sortItems = computed(() => {
   if (!order.value) return originalSortItems.value
   const byId = new Map(originalSortItems.value.map(item => [item.id, item]))
@@ -263,7 +358,14 @@ function selectSortSection(value: SortSection) {
   if (value === sortSection.value) return
   if (orderDirty.value && !window.confirm('这个分组的顺序尚未保存。放弃调整并切换分组？')) return
   order.value = null
-  sortSection.value = value
+  preferredSortSection.value = value
+}
+
+async function openOrder(value: SortSection) {
+  if (!switchTab('order')) return
+  selectSortSection(value)
+  await nextTick()
+  sortToolbar.value?.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus()
 }
 
 function setOrder(reordered: AdminBookmark[]) {
@@ -279,7 +381,48 @@ async function saveOrder() {
   const groupIds = new Set(originalSortItems.value.map(item => item.id))
   const reordered = order.value.values()
   const ids = items.value.map(item => groupIds.has(item.id) ? reordered.next().value ?? item.id : item.id)
-  if (await send({ action: 'reorder', ids }, '已保存分组顺序')) order.value = null
+  if (await send({ action: 'reorder', ids }, '已保存链接顺序')) order.value = null
+}
+
+const sectionEditor = ref<{ id?: number; fields: BookmarkSectionFields; original: BookmarkSectionFields } | null>(null)
+const sectionDirty = computed(() => !!sectionEditor.value && JSON.stringify(sectionEditor.value.fields) !== JSON.stringify(sectionEditor.value.original))
+const sectionOrder = ref<BookmarkSection[] | null>(null)
+const sectionOrderDirty = computed(() => !!sectionOrder.value && sectionOrder.value.some(({ id }, index) => id !== sections.value[index]?.id))
+const orderedSections = computed(() => sectionOrderDirty.value && sectionOrder.value ? sectionOrder.value : sections.value)
+
+async function editSection(section?: BookmarkSection) {
+  const fields = { name: section?.name ?? '', description: section?.description ?? '' }
+  sectionEditor.value = { id: section?.id, fields, original: { ...fields } }
+  await nextTick()
+  document.getElementById('bookmark-section-name')?.focus()
+}
+
+function closeSection() {
+  if (sectionDirty.value && !window.confirm('放弃未保存的分类修改？')) return
+  sectionEditor.value = null
+}
+
+async function saveSection() {
+  if (!sectionEditor.value) return
+  const { id, fields } = sectionEditor.value
+  if (await send({ action: 'saveSection', id, fields }, id ? '已保存分类' : '已创建分类')) sectionEditor.value = null
+}
+
+async function deleteSection(section: BookmarkSection) {
+  if (!window.confirm(`确定删除空分类「${section.name}」？`)) return
+  await send({ action: 'deleteSection', id: section.id }, '已删除分类')
+}
+
+function setSectionOrder(reordered: BookmarkSection[]) {
+  sectionOrder.value = reordered
+}
+
+function moveSection(index: number, direction: -1 | 1) {
+  setSectionOrder(moveArrayItem(orderedSections.value, index, index + direction))
+}
+
+async function saveSectionOrder() {
+  if (await send({ action: 'reorderSections', ids: orderedSections.value.map(section => section.id) }, '已保存分类顺序')) sectionOrder.value = null
 }
 
 function pageSettings() {
@@ -308,7 +451,7 @@ const editor = ref<{ id?: number; status: AdminBookmark['status']; fields: Bookm
 const editorForm = useTemplateRef<HTMLFormElement>('editorForm')
 const imageFields = [{ key: 'avatar', label: '图标' }, { key: 'cover', label: '精选封面' }] as const
 type ImageField = typeof imageFields[number]['key']
-type InputField = 'url' | 'title' | 'note'
+type InputField = 'url' | 'title' | 'note' | 'sectionId'
 const uploading = ref<ImageField>()
 const failedImages = reactive<Partial<Record<ImageField, string>>>({})
 const fieldErrors = ref<Partial<Record<InputField, string>>>({})
@@ -320,7 +463,8 @@ let editorTrigger: HTMLElement | undefined
 useAdminUnsavedChanges(() => ({
   editor: editorDirty.value,
   order: orderDirty.value,
-  settings: settingsDirty.value
+  settings: settingsDirty.value,
+  sections: sectionDirty.value || sectionOrderDirty.value
 }))
 
 async function send(action: BookmarkAction, message: string) {
@@ -345,13 +489,14 @@ async function send(action: BookmarkAction, message: string) {
 }
 
 async function reload() {
-  if (orderDirty.value && !window.confirm('重新加载会清除尚未保存的顺序调整。继续？')) return
+  if ((orderDirty.value || sectionOrderDirty.value) && !window.confirm('重新加载会清除尚未保存的顺序调整。继续？')) return
   const previousSettings = pageSettings()
   await refresh()
   if (loadError.value || !payload.value) return
   stale.value = false
   failure.value = ''
   order.value = null
+  sectionOrder.value = null
   const latestSettings = pageSettings()
   const mergeSetting = <K extends keyof typeof settings>(key: K) => {
     if (settings[key] === previousSettings[key]) settings[key] = latestSettings[key]
@@ -361,13 +506,13 @@ async function reload() {
     const latestItem = items.value.find(item => item.id === editor.value?.id)
     if (latestItem) editor.value.status = latestItem.status
   }
-  feedback.value = editor.value ? '已加载最新列表，编辑内容已保留' : '已重新加载收录列表'
+  feedback.value = editor.value || sectionEditor.value ? '已加载最新列表，编辑内容已保留' : '已重新加载收录列表'
 }
 
-function openEditor(item: AdminBookmark | undefined, event: MouseEvent) {
-  if (locked.value) return
+function openEditor(item: AdminBookmark | undefined, event: MouseEvent, groupId?: number) {
+  const sectionId = item?.sectionId ?? groupId ?? (typeof sectionFilter.value === 'number' ? sectionFilter.value : sections.value[0]?.id)
+  if (locked.value || sectionId === undefined || !switchTab('items')) return
   editorTrigger = event.currentTarget as HTMLElement
-  tab.value = 'items'
   failure.value = ''
   feedback.value = ''
   fieldErrors.value = {}
@@ -378,8 +523,7 @@ function openEditor(item: AdminBookmark | undefined, event: MouseEvent) {
     title: item?.title ?? '',
     url: item?.url ?? '',
     note: item?.note ?? '',
-    category: item?.category ?? 'SITE',
-    friendGroup: item?.friendGroup ?? 'RECOMMENDED',
+    sectionId,
     isSpotlight: item ? isSpotlight(item) : false,
     avatar: item?.avatar ?? '',
     cover: item?.cover ?? ''
@@ -438,6 +582,7 @@ function validateEditor(fields: BookmarkFields, publish: boolean) {
     errors.url = '请输入有效的 HTTP 或 HTTPS 网址'
   }
   if (!fields.title.trim()) errors.title = '请填写标题'
+  if (!sections.value.some(section => section.id === fields.sectionId)) errors.sectionId = '请选择分类'
   if (publish && !fields.note.trim()) errors.note = '发布前请填写推荐语'
   fieldErrors.value = errors
   const first = Object.keys(errors)[0]
@@ -474,10 +619,20 @@ async function toggleSpotlight(item: AdminBookmark) {
 .bookmark-search { width: min(100%, 320px); }
 .bookmark-count, .bookmark-hint { margin: 12px 0; }
 .bookmark-muted, .bookmark-copy small { color: var(--admin-muted); font-size: 13px; }
+.bookmark-group { margin-block: 16px; padding-inline: 14px; border: 1px solid var(--admin-line); border-radius: 10px; }
+.bookmark-group-header, .bookmark-section-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-block: 14px; }
+.bookmark-group-header h3, .bookmark-section-toolbar h3, .bookmark-section-form h4 { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+.bookmark-group-header h3 span { margin-inline-start: 5px; color: var(--admin-muted); font-size: 12px; font-weight: 400; }
+.bookmark-group-header p, .bookmark-section-toolbar p { margin-top: 3px; overflow-wrap: anywhere; }
+.bookmark-group-empty { border-top: 1px solid var(--admin-line); padding-block: 12px; }
 .bookmark-list { margin: 0; padding: 0; list-style: none; }
 .bookmark-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; min-height: 61px; padding: 9px 0; border-top: 1px solid var(--admin-line); }
 .bookmark-copy strong, .bookmark-copy small { display: block; overflow-wrap: anywhere; }
-.bookmark-sort-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+.bookmark-sort-row, .bookmark-category-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+.bookmark-category-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
+.bookmark-section-form { display: grid; gap: 12px; max-width: 640px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--admin-line); border-radius: 8px; }
+.bookmark-order-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block: 12px; border-top: 1px solid var(--admin-line); }
+.bookmark-order-actions > span { margin-inline-end: auto; }
 .bookmark-empty { display: grid; justify-items: start; gap: 12px; padding: 24px 0; }
 .bookmark-feedback { margin-bottom: 12px; color: var(--ui-error); font-size: 13px; }
 .bookmark-success { margin-bottom: 12px; color: var(--admin-accent); font-size: 13px; }
@@ -485,7 +640,6 @@ async function toggleSpotlight(item: AdminBookmark) {
 .bookmark-settings { max-width: 700px; }
 .bookmark-settings fieldset { display: grid; gap: 14px; min-width: 0; padding: 14px 16px 16px; border: 1px solid var(--admin-line); border-radius: 8px; }
 .bookmark-settings legend { padding-inline: 4px; font-size: 14px; font-weight: 650; }
-.bookmark-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .bookmark-appearance { border: 1px solid var(--ui-border); border-radius: 8px; }
 .bookmark-appearance summary { padding: 12px; font-weight: 650; cursor: pointer; }
 .bookmark-appearance summary span { margin-inline-start: 8px; font-weight: 400; }
@@ -496,8 +650,15 @@ async function toggleSpotlight(item: AdminBookmark) {
 .bookmark-thumbnail.is-cover { width: 68px; }
 .bookmark-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
 @media (max-width: 540px) {
+  .bookmark-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; padding-inline: 8px; }
+  .bookmark-tabs > button { justify-content: center; gap: 4px; }
   .bookmark-search { width: 100%; }
   .bookmark-row { gap: 6px; }
   .bookmark-badges { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .bookmark-category-row { grid-template-columns: auto minmax(0, 1fr); }
+  .bookmark-category-actions { grid-column: 2; justify-content: flex-start; }
+}
+@media (max-width: 360px) {
+  .bookmark-tabs .iconify { display: none; }
 }
 </style>

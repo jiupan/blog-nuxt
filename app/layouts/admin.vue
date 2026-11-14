@@ -156,19 +156,23 @@ const { data: sessionData } = await useFetch<{ data: { user: { username?: string
 const username = computed(() => sessionData.value?.data.user?.username || '')
 const pageNames: Record<string, string> = {
   posts: '文章',
-  categories: '分类',
-  tags: '标签',
+  categories: '文章分类',
+  tags: '文章标签',
   comments: '评论',
-  menus: '菜单',
+  menus: '主导航',
   gallery: '图库',
-  bookmarks: '网站导航',
+  bookmarks: '网站收录',
   sidebar: '侧栏',
   knowledge: 'AI 知识库',
-  agent: 'Agent 接入',
+  agent: 'Agent 发布接入',
   users: '用户管理',
   settings: '站点设置'
 }
-const pageName = computed(() => pageNames[route.path.split('/')[2] || ''] || '工作台')
+const pageName = computed(() => {
+  if (route.path === '/admin/settings' && ['footer', 'footerActions', 'footerMenu'].includes(String(route.query.tab))) return '页脚'
+  if (route.path === '/admin/menus' && route.query.location === 'footer') return '页脚菜单'
+  return pageNames[route.path.split('/')[2] || ''] || '工作台'
+})
 const accountItems = [
   [{ label: username.value || '管理员', type: 'label' as const }],
   [

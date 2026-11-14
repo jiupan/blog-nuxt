@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { aiSecretKeys } from '../types/dto/settings'
+import { aiRuntimeSettingKeys, aiSecretKeys } from '../types/dto/settings'
 
 const { setting } = vi.hoisted(() => ({ setting: { findMany: vi.fn(), upsert: vi.fn() } }))
 vi.mock('../server/utils/prisma', () => ({ prisma: { setting } }))
@@ -8,12 +8,26 @@ const { getAdminSettings, getAiProviderSettings, getKnowledgeAdminSettings, save
 
 beforeEach(() => {
   vi.resetAllMocks()
-  for (const key of aiSecretKeys) {
+  for (const key of [...aiSecretKeys, ...aiRuntimeSettingKeys]) {
     const name = key.toUpperCase()
     for (const prefix of ['', 'NUXT_', 'NITRO_']) vi.stubEnv(prefix + name, undefined)
   }
   for (const alias of ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'DASHSCOPE_API_KEY']) vi.stubEnv(alias, undefined)
   setting.findMany.mockResolvedValue(aiSecretKeys.map(key => ({ key, value: 'stored-test-secret-' + key })))
+})
+
+it('shows the effective values and identifies server overrides', async () => {
+  setting.findMany.mockResolvedValue([
+    { key: 'ai_model', value: 'saved-chat-model' },
+    { key: 'ai_embedding_model', value: 'saved-embedding-model' }
+  ])
+  vi.stubEnv('AI_MODEL', 'deployed-chat-model')
+  vi.stubEnv('AI_BASE_URL', 'https://models.example.com/v1/')
+  const { aiRuntime } = await getKnowledgeAdminSettings()
+  expect(aiRuntime.ai_model).toEqual({ value: 'deployed-chat-model', source: 'environment' })
+  expect(aiRuntime.ai_base_url).toEqual({ value: 'https://models.example.com/v1', source: 'environment' })
+  expect(aiRuntime.ai_embedding_model).toEqual({ value: 'saved-embedding-model', source: 'database' })
+  expect(aiRuntime.ai_embedding_dimensions).toEqual({ value: '1536', source: 'default' })
 })
 afterEach(() => vi.unstubAllEnvs())
 

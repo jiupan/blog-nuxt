@@ -8,7 +8,7 @@ export function isPublicFooterLink(to: string) {
   }
 }
 
-export function parseFooterBottomLinks(value: string) {
+export function parseFooterBottomLinks(value: string, { includeHidden = false } = {}) {
   return value
     .split('\n')
     .map(line => line.trim())
@@ -17,7 +17,7 @@ export function parseFooterBottomLinks(value: string) {
       const [label, to] = line.split('|').map(part => part?.trim())
       return { label: label || '', to: to || '/' }
     })
-    .filter(link => link.label && isPublicFooterLink(link.to))
+    .filter(link => link.label && (includeHidden || isPublicFooterLink(link.to)))
 }
 
 export function mergeFooterArchiveLinks<T extends { to: string }>(links: T[]) {

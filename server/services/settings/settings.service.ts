@@ -1,6 +1,6 @@
 import { prisma } from '../../utils/prisma'
 import { validationError } from '../../utils/api-error'
-import { aiSecretKeys, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
+import { aiRuntimeSettingKeys, aiSecretKeys, type AiRuntimeValues, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
 import {
   publicSettingKeys,
   settingKeys,
@@ -35,7 +35,7 @@ export type KnowledgeRuntimeSettings = {
   ipHourlyLimit: number
 }
 
-export async function getSettingsMap(keys: readonly SettingsKey[] = settingKeys): Promise<SettingsMap> {
+async function readSettings(keys: readonly SettingsKey[]) {
   const rows = await prisma.setting.findMany({
     where: {
       key: {
@@ -44,14 +44,20 @@ export async function getSettingsMap(keys: readonly SettingsKey[] = settingKeys)
     }
   })
   const settings = { ...settingsDefaults } as SettingsMap
+  const storedKeys = new Set<SettingsKey>()
 
   for (const row of rows) {
     if (isSettingsKey(row.key)) {
       settings[row.key] = row.value
+      storedKeys.add(row.key)
     }
   }
 
-  return settings
+  return { settings, storedKeys }
+}
+
+export async function getSettingsMap(keys: readonly SettingsKey[] = settingKeys): Promise<SettingsMap> {
+  return (await readSettings(keys)).settings
 }
 
 export async function getPublicSettings(): Promise<PublicSettingsMap> {
@@ -81,7 +87,18 @@ const knowledgeSettingKeys = [
 ] as const satisfies readonly SettingsKey[]
 
 export async function getKnowledgeAdminSettings() {
-  return describeAdminSettings(await getSettingsMap(knowledgeSettingKeys))
+  const { settings: values, storedKeys } = await readSettings(knowledgeSettingKeys)
+  const aiRuntime = Object.fromEntries(aiRuntimeSettingKeys.map((key) => {
+    const env = readAiEnvironment(key, [])
+    const stored = values[key].trim()
+    let value = env || stored || settingsDefaults[key]
+    if (key.endsWith('_url')) value = value.replace(/\/+$/, '')
+    if (key === 'ai_rerank_enabled') value = String(parseEnabled(value))
+    if (key === 'ai_rerank_top_n') value = String(normalizeBoundedInteger(value, 8, 1, 20))
+    if (key === 'ai_embedding_dimensions') value = String(normalizeInteger(value, 1536))
+    return [key, { value, source: env ? 'environment' : stored && storedKeys.has(key) ? 'database' : 'default' }]
+  })) as AiRuntimeValues
+  return { ...describeAdminSettings(values), aiRuntime }
 }
 
 const aiSecretAliases: Record<AiSecretKey, string[]> = {
@@ -132,8 +149,11 @@ export async function saveSettings(input: unknown) {
 
   await Promise.all(ops)
 
-  const embeddingChanged = ['ai_embedding_model', 'ai_embedding_dimensions']
-    .some((key) => parsed.data[key as SettingsKey] !== undefined && parsed.data[key as SettingsKey] !== current[key as SettingsKey])
+  const embeddingChanged = (['ai_embedding_model', 'ai_embedding_dimensions', 'ai_embedding_base_url'] as const)
+    .some((key) => {
+      const next = parsed.data[key]
+      return next !== undefined && readAiSetting(current, key) !== readAiSetting({ ...current, [key]: next }, key)
+    })
   if (embeddingChanged) {
     await Promise.all([
       prisma.knowledgeDocument.updateMany({ where: { enabled: true, indexedHash: { not: null } }, data: { status: 'STALE' } }),

@@ -323,31 +323,27 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
-enum BookmarkCategory {
-  ARTICLE
-  TOOL
-  SITE
-}
-
 enum BookmarkStatus {
   DRAFT
   PUBLISHED
   HIDDEN
 }
 
-enum FriendLinkGroup {
-  RECOMMENDED
-  LIFE
-  TECH
+model BookmarkSection {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String     @default("")
+  sort        Int
+  bookmarks   Bookmark[]
 }
 
 model Bookmark {
   id          Int              @id @default(autoincrement())
   title       String
   url         String           @unique
-  category    BookmarkCategory
+  sectionId   Int
+  section     BookmarkSection  @relation(fields: [sectionId], references: [id], onDelete: Restrict)
   note        String
-  friendGroup FriendLinkGroup  @default(RECOMMENDED)
   isSpotlight Boolean          @default(false)
   avatar      String           @default("")
   cover       String           @default("")
@@ -357,6 +353,7 @@ model Bookmark {
   featuredOn  BookmarkPage[]
 
   @@index([sort, id])
+  @@index([sectionId])
 }
 
 model BookmarkPage {

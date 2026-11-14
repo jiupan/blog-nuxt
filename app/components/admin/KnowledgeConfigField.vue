@@ -21,13 +21,19 @@
       :aria-labelledby="labelId"
     >
       <slot />
+      <p v-if="runtime" class="config-runtime">
+        当前生效：{{ runtime.value }} · {{ sources[runtime.source] }}
+      </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ label: string; description: string; icon: string; wide?: boolean }>()
+import type { AiRuntimeValues } from '~~/types/dto/settings'
+
+defineProps<{ label: string; description: string; icon: string; wide?: boolean; runtime?: AiRuntimeValues[keyof AiRuntimeValues] }>()
 const labelId = useId()
+const sources = { environment: '服务器环境变量', database: '后台配置', default: '默认值' }
 </script>
 
 <style scoped>
@@ -77,6 +83,10 @@ const labelId = useId()
 }
 .config-field-control {
   min-width: 0;
+}
+.config-field-control .config-runtime {
+  max-width: none;
+  overflow-wrap: anywhere;
 }
 .config-field-control :deep([data-slot='root']),
 .config-field-control :deep(input),

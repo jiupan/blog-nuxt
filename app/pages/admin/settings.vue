@@ -8,7 +8,7 @@
         icon="i-lucide-check"
         size="sm"
         :loading="saving"
-        :disabled="!form || (!isDirty && !saving)"
+        :disabled="!form || !isDirty || saving || !!uploading || uploadingFooterActionId !== null"
         @click="save"
       >
         保存设置
@@ -21,26 +21,21 @@
     <div v-if="form" class="workspace-editor-layout">
       <nav class="workspace-settings-nav" aria-label="设置分类">
         <button
-          v-for="tab in settingTabs"
+          v-for="tab in visibleTabs"
           :key="tab.value"
           type="button"
           :class="{ 'is-active': activeTab === tab.value }"
           :aria-pressed="activeTab === tab.value"
-          @click="activeTab = tab.value"
+          @click="selectTab(tab.value)"
         >
           <UIcon :name="settingIcons[tab.value]" class="size-4" />
           {{ tab.label }}
         </button>
-        <NuxtLink to="/admin/knowledge?tab=config" class="settings-ai-link">
-          <UIcon name="i-lucide-orbit" class="size-4" />
-          AI 模型与检索
-          <UIcon name="i-lucide-arrow-up-right" class="size-3" />
-        </NuxtLink>
       </nav>
       <section class="admin-panel settings-admin-panel">
         <header class="settings-section-head">
           <h2>{{ currentSettingLabel }}</h2>
-          <p>{{ settingDescriptions[activeTab] || '管理 AI 服务与索引。' }}</p>
+          <p>{{ settingDescriptions[activeTab] }}</p>
         </header>
         <div v-if="activeTab === 'basic'" class="settings-form">
           <div class="settings-brand-preview">
@@ -175,6 +170,9 @@
             <p class="text-xs text-slate-400">粘贴图片 URL，或点击上传按钮选择本地图片</p>
           </div>
 
+        </div>
+
+        <div v-else-if="activeTab === 'home'" class="settings-form">
           <div class="settings-row">
             <label class="settings-label">首页轮播表情包分组</label>
             <UDropdownMenu
@@ -221,7 +219,7 @@
             <small>搜索结果预览</small>
             <strong>{{ form.site_title || '站点标题' }}</strong>
             <p>{{ form.seo_description || '填写站点描述，帮助读者了解博客的主题与内容。' }}</p>
-            <span v-if="form.seo_noindex === 'true'">当前已屏蔽搜索引擎，页面不会参与索引。</span>
+            <span v-if="form.seo_noindex === 'true'">{{ savedFields?.seo_noindex === 'true' ? '已启用全站禁止收录。' : '保存后将要求搜索引擎停止收录全站公开页面。' }}</span>
           </div>
           <div class="settings-row">
             <label class="settings-checkbox">
@@ -230,10 +228,10 @@
                 :checked="form.seo_noindex === 'true'"
                 @change="toggleNoindex"
               >
-              <span>屏蔽搜索引擎</span>
+              <span>禁止搜索引擎收录</span>
             </label>
             <p class="text-sm text-slate-500">
-              为所有页面添加 robots noindex 标签，阻止搜索引擎索引。
+              为全站添加 noindex 标记，搜索引擎重新抓取后才会更新收录状态。
             </p>
           </div>
 
@@ -289,310 +287,35 @@
           </div>
 
           <div class="settings-row">
-            <label class="settings-label">底部右侧链接</label>
-            <UTextarea
-              v-model="form.footer_bottom_links"
-              :rows="5"
-              placeholder="归档|/archive&#10;关于|/about"
-              class="settings-control"
-            />
-            <p class="text-sm text-slate-500">
-              每行一个链接，格式为
-              <code>显示名称|路径或 URL</code>
-              。留空则隐藏，可填写书签、隐私说明等页面；指向后台的链接不会在公开页脚显示。
-            </p>
+            <div class="settings-row-head">
+              <div>
+                <h3 class="settings-label">辅助链接</h3>
+                <p class="text-sm text-slate-500">显示在页脚最下方，与版权信息并列。</p>
+              </div>
+              <UButton type="button" size="sm" icon="i-lucide-plus" variant="outline" @click="footerLinks.push({ id: ++nextFooterLinkId, label: '', to: '' })">添加链接</UButton>
+            </div>
+            <p v-if="!footerLinks.length" class="text-sm text-slate-500">暂未添加辅助链接。</p>
+            <ul v-else class="footer-link-fields settings-control">
+              <li v-for="(link, index) in footerLinks" :key="link.id">
+                <UInput v-model="link.label" :aria-label="`链接 ${index + 1} 名称`" placeholder="显示名称" />
+                <UInput v-model="link.to" :aria-label="`链接 ${index + 1} 地址`" placeholder="/about 或 https://…" />
+                <div class="admin-order-buttons">
+                  <button type="button" :aria-label="`上移链接 ${index + 1}`" :disabled="index === 0" @click="footerLinks = moveArrayItem(footerLinks, index, index - 1)"><UIcon name="i-lucide-chevron-up" /></button>
+                  <button type="button" :aria-label="`下移链接 ${index + 1}`" :disabled="index === footerLinks.length - 1" @click="footerLinks = moveArrayItem(footerLinks, index, index + 1)"><UIcon name="i-lucide-chevron-down" /></button>
+                </div>
+                <UButton type="button" size="sm" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="`移除链接 ${index + 1}`" @click="footerLinks.splice(index, 1)" />
+              </li>
+            </ul>
+            <div v-if="footerLinks.some(link => link.label.trim())" class="footer-link-preview">
+              <span>辅助链接预览</span>
+              <strong v-for="link in footerLinks.filter(link => link.label.trim())" :key="link.id">{{ link.label }}</strong>
+            </div>
           </div>
         </div>
 
-        <div v-else-if="activeTab === 'ai'" class="ai-settings-grid">
-          <nav class="ai-settings-switcher" aria-label="AI 设置分类">
-            <button
-              v-for="tab in aiSettingTabs"
-              :key="tab.value"
-              type="button"
-              class="ai-settings-switch"
-              :class="{ 'is-active': activeAiTab === tab.value }"
-              @click="activeAiTab = tab.value"
-            >
-              <UIcon :name="tab.icon" class="size-4" />
-              <span>{{ tab.label }}</span>
-            </button>
-          </nav>
-
-          <section v-if="activeAiTab === 'chat'" class="ai-settings-card">
-            <div class="ai-settings-card-head">
-              <span class="ai-settings-icon is-chat">
-                <UIcon name="i-lucide-message-square-text" class="size-5" />
-              </span>
-              <div>
-                <h2>对话模型</h2>
-                <p>用于摘要、SEO、写作助手、关联推荐等生成类能力。</p>
-              </div>
-            </div>
-
-            <div class="ai-settings-fields">
-              <div class="settings-row">
-                <label class="settings-label">AI API Key</label>
-                <UInput
-                  v-model="form.ai_api_key"
-                  type="password"
-                  icon="i-lucide-key-round"
-                  placeholder="sk-..."
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  若服务器环境变量已配置
-                  <code>AI_API_KEY</code>
-                  或
-                  <code>DEEPSEEK_API_KEY</code>
-                  ，会优先使用环境变量。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">AI Base URL</label>
-                <UInput
-                  v-model="form.ai_base_url"
-                  icon="i-lucide-globe-2"
-                  placeholder="https://api.deepseek.com"
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  DeepSeek OpenAI 兼容接口地址，默认
-                  <code>https://api.deepseek.com</code>
-                  。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">AI 模型</label>
-                <UInput
-                  v-model="form.ai_model"
-                  icon="i-lucide-cpu"
-                  placeholder="deepseek-v4-flash"
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  当前默认使用
-                  <code>deepseek-v4-flash</code>
-                  。
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section v-else-if="activeAiTab === 'embedding'" class="ai-settings-card">
-            <div class="ai-settings-card-head">
-              <span class="ai-settings-icon is-vector">
-                <UIcon name="i-lucide-brain-circuit" class="size-5" />
-              </span>
-              <div>
-                <h2>Embedding 向量模型</h2>
-                <p>用于文章分块向量化，支撑语义搜索和后续问问博客。</p>
-              </div>
-            </div>
-
-            <div class="ai-settings-fields">
-              <div class="settings-row">
-                <label class="settings-label">Embedding API Key</label>
-                <UInput
-                  v-model="form.ai_embedding_api_key"
-                  type="password"
-                  icon="i-lucide-key-round"
-                  placeholder="sk-..."
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  若服务器环境变量已配置
-                  <code>AI_EMBEDDING_API_KEY</code>
-                  或
-                  <code>OPENAI_API_KEY</code>
-                  ，会优先使用环境变量。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">Embedding Base URL</label>
-                <UInput
-                  v-model="form.ai_embedding_base_url"
-                  icon="i-lucide-globe-2"
-                  placeholder="https://api.openai.com/v1"
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  OpenAI 兼容 embedding 接口地址，默认
-                  <code>https://api.openai.com/v1</code>
-                  。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">Embedding 模型</label>
-                <UInput
-                  v-model="form.ai_embedding_model"
-                  icon="i-lucide-cpu"
-                  placeholder="text-embedding-3-small"
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  当前 pgvector 表固定为 1536 维，默认使用
-                  <code>text-embedding-3-small</code>
-                  。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">Embedding 维度</label>
-                <UInput
-                  v-model="form.ai_embedding_dimensions"
-                  icon="i-lucide-ruler"
-                  placeholder="1536"
-                  disabled
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  当前数据库向量列固定为 1536 维；如需更换维度，需要先迁移 pgvector 列和索引。
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section v-else-if="activeAiTab === 'rerank'" class="ai-settings-card">
-            <div class="ai-settings-card-head">
-              <span class="ai-settings-icon is-rerank">
-                <UIcon name="i-lucide-list-filter" class="size-5" />
-              </span>
-              <div>
-                <h2>Rerank 精排</h2>
-                <p>对混合检索候选结果二次排序，减少进入问答上下文的噪声。</p>
-              </div>
-            </div>
-
-            <div class="ai-settings-fields">
-              <div class="settings-row">
-                <label class="settings-checkbox">
-                  <input
-                    type="checkbox"
-                    :checked="form.ai_rerank_enabled === 'true'"
-                    @change="toggleRerank"
-                  >
-                  <span>启用 Rerank</span>
-                </label>
-                <p class="text-sm text-slate-500">
-                  默认关闭；未配置 API Key 或模型时会自动跳过精排。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">Rerank API Key</label>
-                <UInput
-                  v-model="form.ai_rerank_api_key"
-                  type="password"
-                  icon="i-lucide-key-round"
-                  placeholder="sk-..."
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  若服务器环境变量已配置
-                  <code>AI_RERANK_API_KEY</code>
-                  或
-                  <code>DASHSCOPE_API_KEY</code>
-                  ，会优先使用环境变量。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">Rerank Base URL</label>
-                <UInput
-                  v-model="form.ai_rerank_base_url"
-                  icon="i-lucide-globe-2"
-                  placeholder="https://api.cohere.com/v2"
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  可填兼容模式 base URL，或 DashScope 原生完整 endpoint，例如
-                  <code
-                    >https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank</code
-                  >
-                  。
-                </p>
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">Rerank 模型</label>
-                <UInput
-                  v-model="form.ai_rerank_model"
-                  icon="i-lucide-cpu"
-                  placeholder="rerank-v3.5"
-                  class="settings-control"
-                />
-              </div>
-
-              <div class="settings-row">
-                <label class="settings-label">输出 Top N</label>
-                <UInput
-                  v-model="form.ai_rerank_top_n"
-                  icon="i-lucide-list-ordered"
-                  placeholder="8"
-                  class="settings-control"
-                />
-                <p class="text-sm text-slate-500">
-                  建议 5-10；数值越大，问答上下文覆盖更广但延迟更高。
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <section v-else class="ai-settings-card">
-            <div class="ai-settings-card-head">
-              <span class="ai-settings-icon is-index">
-                <UIcon name="i-lucide-database-zap" class="size-5" />
-              </span>
-              <div>
-                <h2>向量索引管理</h2>
-                <p>重建已发布文章的语义检索索引，索引完成后 Lab 的语义搜索才会有结果。</p>
-              </div>
-              <UButton
-                class="ai-index-action"
-                size="sm"
-                icon="i-lucide-refresh-cw"
-                :loading="rebuildingIndex"
-                @click="rebuildAiIndex"
-              >
-                重建索引
-              </UButton>
-            </div>
-
-            <div class="ai-index-status">
-              <span>
-                <strong>{{ aiIndexStatus?.indexedPosts ?? 0 }}</strong>
-                已索引文章
-              </span>
-              <span>
-                <strong>{{ aiIndexStatus?.chunks ?? 0 }}</strong>
-                Chunk
-              </span>
-              <span>
-                <strong>{{ aiIndexStatus?.staleChunks ?? 0 }}</strong>
-                失效 Chunk
-              </span>
-              <span>
-                <strong>{{ formatIndexDate(aiIndexStatus?.lastIndexedAt) }}</strong>
-                最后索引
-              </span>
-            </div>
-
-            <div v-if="aiIndexStatus?.models.length" class="ai-index-models">
-              <div
-                v-for="item in aiIndexStatus.models"
-                :key="`${item.model}-${item.dimensions}`"
-                class="ai-index-model"
-              >
-                <span>{{ item.model }}</span>
-                <strong>{{ item.dimensions }} 维 · {{ item.chunks }} chunks</strong>
-              </div>
-            </div>
-          </section>
+        <div v-else-if="activeTab === 'footerMenu'" class="settings-row">
+          <p class="text-sm text-slate-500">管理页脚中部的链接分栏。菜单编辑器支持预览、排序和添加子链接。</p>
+          <div><UButton to="/admin/menus?location=footer" color="neutral" variant="outline" trailing-icon="i-lucide-arrow-right">编辑页脚分栏菜单</UButton></div>
         </div>
 
         <div v-else class="settings-form">
@@ -786,6 +509,7 @@ import { moveArrayItem } from '~/utils/reorder'
 import { useAdminUnsavedChanges } from '~/composables/useAdminUnsavedChanges'
 import type { ApiResult } from '~~/types/api'
 import { getApiErrorMessage } from '~/utils/api-error'
+import { isPublicFooterLink, parseFooterBottomLinks } from '~/utils/footer-links'
 import type { AdminSettingsPayload } from '~~/types/dto/settings'
 
 definePageMeta({
@@ -808,30 +532,6 @@ type SettingsForm = {
   footer_icp: string
   footer_bottom_links: string
   footer_actions: string
-  ai_api_key: string
-  ai_base_url: string
-  ai_model: string
-  ai_embedding_api_key: string
-  ai_embedding_base_url: string
-  ai_embedding_model: string
-  ai_embedding_dimensions: string
-  ai_rerank_enabled: string
-  ai_rerank_api_key: string
-  ai_rerank_base_url: string
-  ai_rerank_model: string
-  ai_rerank_top_n: string
-}
-
-type AiIndexStatus = {
-  indexedPosts: number
-  chunks: number
-  staleChunks: number
-  lastIndexedAt?: string | null
-  models: Array<{
-    model: string
-    dimensions: number
-    chunks: number
-  }>
 }
 
 type FooterActionItem = {
@@ -843,43 +543,13 @@ type FooterActionItem = {
   targetBlank: boolean
 }
 
-const defaultValue = (key: string) => {
-  const map: Record<string, string> = {
-    site_title: 'Jiupan Blog',
-    site_subtitle: '个人博客',
-    site_brand: 'DYU',
-    site_logo: '',
-    site_favicon: '',
-    hero_meme_group: '',
-    home_post_card_style: 'grid',
-    seo_noindex: 'false',
-    seo_keywords: '',
-    seo_description: '',
-    footer_copyright: '©2026 {siteName}',
-    footer_icp: '',
-    footer_bottom_links: '归档|/archive\n关于|/about',
-    footer_actions: defaultFooterActions,
-    ai_api_key: '',
-    ai_base_url: 'https://api.deepseek.com',
-    ai_model: 'deepseek-v4-flash',
-    ai_embedding_api_key: '',
-    ai_embedding_base_url: 'https://api.openai.com/v1',
-    ai_embedding_model: 'text-embedding-3-small',
-    ai_embedding_dimensions: '1536',
-    ai_rerank_enabled: 'false',
-    ai_rerank_api_key: '',
-    ai_rerank_base_url: 'https://api.cohere.com/v2',
-    ai_rerank_model: 'rerank-v3.5',
-    ai_rerank_top_n: '8'
-  }
-  return map[key] || ''
-}
-
 const settingTabs = [
-  { label: '基本设置', value: 'basic' },
-  { label: 'SEO 设置', value: 'seo' },
-  { label: '底部信息', value: 'footer' },
-  { label: '底部快捷入口', value: 'footerActions' }
+  { label: '站点信息', value: 'basic', area: 'site' },
+  { label: '首页展示', value: 'home', area: 'site' },
+  { label: '搜索与收录', value: 'seo', area: 'site' },
+  { label: '版权与备案', value: 'footer', area: 'footer' },
+  { label: '图标入口', value: 'footerActions', area: 'footer' },
+  { label: '分栏链接', value: 'footerMenu', area: 'footer' }
 ] as const
 
 const siteSettingKeys = [
@@ -898,13 +568,6 @@ const siteSettingKeys = [
   'footer_bottom_links',
   'footer_actions'
 ] as const satisfies readonly (keyof SettingsForm)[]
-
-const aiSettingTabs = [
-  { label: '对话模型', value: 'chat', icon: 'i-lucide-message-square-text' },
-  { label: 'Embedding', value: 'embedding', icon: 'i-lucide-brain-circuit' },
-  { label: 'Rerank', value: 'rerank', icon: 'i-lucide-list-filter' },
-  { label: '索引管理', value: 'index', icon: 'i-lucide-database-zap' }
-] as const
 
 const defaultFooterActions =
   '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"书签","to":"/link","icon":"i-lucide-link"}]'
@@ -966,16 +629,23 @@ const footerActionIconOptions = [
 
 const collapsedFooterIconCount = 12
 
-const activeTab = ref<(typeof settingTabs)[number]['value'] | 'ai'>('basic')
-const activeAiTab = ref<(typeof aiSettingTabs)[number]['value']>('chat')
+type SettingTab = typeof settingTabs[number]['value']
+const route = useRoute()
+const router = useRouter()
+const selectedTab = computed(() => settingTabs.find(tab => tab.value === route.query.tab) ?? settingTabs[0])
+const activeTab = computed(() => selectedTab.value.value)
+const visibleTabs = computed(() => settingTabs.filter(tab => tab.area === selectedTab.value.area))
+const selectTab = (value: SettingTab) => router.replace({ query: { ...route.query, tab: value === 'basic' ? undefined : value } })
 const form = ref<SettingsForm | null>(null)
+const footerLinks = ref<Array<{ id: number; label: string; to: string }>>([])
+let nextFooterLinkId = 0
+const savedFields = ref<SettingsForm>()
 const footerActionItems = ref<FooterActionItem[]>([])
 const expandedFooterIconItems = ref(new Set<number>())
 const uploadingFooterActionId = ref<number | null>(null)
 const footerImageUploadErrorId = ref<number | null>(null)
 const saving = ref(false)
 const saved = ref(false)
-const rebuildingIndex = ref(false)
 const uploading = ref<string | null>(null)
 const logoUploaded = ref(false)
 const faviconUploaded = ref(false)
@@ -1012,90 +682,100 @@ const heroMemeGroupMenuItems = computed(() =>
     }
   }))
 )
-const { data: aiIndexData, refresh: refreshAiIndexStatus } = await useFetch<
-  ApiResult<AiIndexStatus>
->('/api/admin/ai/index/status')
-const aiIndexStatus = computed(() => aiIndexData.value?.data || null)
-
 watch(
   data,
   (val) => {
     if (val?.data && !form.value) {
       form.value = {
-        site_title: val.data.site_title || defaultValue('site_title'),
-        site_subtitle: val.data.site_subtitle || defaultValue('site_subtitle'),
-        site_brand: val.data.site_brand || defaultValue('site_brand'),
-        site_logo: val.data.site_logo || defaultValue('site_logo'),
-        site_favicon: val.data.site_favicon || defaultValue('site_favicon'),
-        hero_meme_group: val.data.hero_meme_group || defaultValue('hero_meme_group'),
-        home_post_card_style: val.data.home_post_card_style || defaultValue('home_post_card_style'),
-        seo_noindex: val.data.seo_noindex || defaultValue('seo_noindex'),
-        seo_keywords: val.data.seo_keywords || defaultValue('seo_keywords'),
-        seo_description: val.data.seo_description || defaultValue('seo_description'),
-        footer_copyright: val.data.footer_copyright ?? defaultValue('footer_copyright'),
-        footer_icp: val.data.footer_icp ?? defaultValue('footer_icp'),
-        footer_bottom_links: val.data.footer_bottom_links ?? defaultValue('footer_bottom_links'),
-        footer_actions: val.data.footer_actions ?? defaultValue('footer_actions'),
-        ai_api_key: '',
-        ai_base_url: val.data.ai_base_url || defaultValue('ai_base_url'),
-        ai_model: val.data.ai_model || defaultValue('ai_model'),
-        ai_embedding_api_key: '',
-        ai_embedding_base_url:
-          val.data.ai_embedding_base_url || defaultValue('ai_embedding_base_url'),
-        ai_embedding_model: val.data.ai_embedding_model || defaultValue('ai_embedding_model'),
-        ai_embedding_dimensions:
-          val.data.ai_embedding_dimensions || defaultValue('ai_embedding_dimensions'),
-        ai_rerank_enabled: val.data.ai_rerank_enabled || defaultValue('ai_rerank_enabled'),
-        ai_rerank_api_key: '',
-        ai_rerank_base_url: val.data.ai_rerank_base_url || defaultValue('ai_rerank_base_url'),
-        ai_rerank_model: val.data.ai_rerank_model || defaultValue('ai_rerank_model'),
-        ai_rerank_top_n: val.data.ai_rerank_top_n || defaultValue('ai_rerank_top_n')
+        site_title: val.data.site_title,
+        site_subtitle: val.data.site_subtitle,
+        site_brand: val.data.site_brand,
+        site_logo: val.data.site_logo,
+        site_favicon: val.data.site_favicon,
+        hero_meme_group: val.data.hero_meme_group,
+        home_post_card_style: val.data.home_post_card_style,
+        seo_noindex: val.data.seo_noindex,
+        seo_keywords: val.data.seo_keywords,
+        seo_description: val.data.seo_description,
+        footer_copyright: val.data.footer_copyright,
+        footer_icp: val.data.footer_icp,
+        footer_bottom_links: val.data.footer_bottom_links,
+        footer_actions: val.data.footer_actions
       }
       footerActionItems.value = parseFooterActionItems(form.value.footer_actions)
+      footerLinks.value = parseFooterBottomLinks(form.value.footer_bottom_links, { includeHidden: true })
+        .map(link => ({ ...link, id: ++nextFooterLinkId }))
+      savedFields.value = currentFields()
     }
   },
   { immediate: true }
 )
 
-const { isDirty, markSaved, snapshot } = useAdminUnsavedChanges(() =>
-  form.value ? { settings: form.value, actions: footerActionItems.value } : null
-)
+const { isDirty, markSaved } = useAdminUnsavedChanges(() => currentFields() ?? null)
 const toast = useToast()
 const settingIcons: Record<string, string> = {
   basic: 'i-lucide-sliders-horizontal',
+  home: 'i-lucide-house',
   seo: 'i-lucide-search',
   footer: 'i-lucide-panel-bottom',
-  footerActions: 'i-lucide-grid-2x2'
+  footerActions: 'i-lucide-grid-2x2',
+  footerMenu: 'i-lucide-list-tree'
 }
 const settingDescriptions: Record<string, string> = {
-  basic: '设置站点名称、标识与首页展示方式。',
-  seo: '完善搜索摘要，管理搜索引擎的索引权限。',
-  footer: '维护页脚版权、ICP备案号与辅助链接，留空的项目不展示。',
-  footerActions: '配置底部快捷入口的图标、图片和链接。'
+  basic: '管理站点名称、顶部品牌、Logo 与浏览器标签页图标。',
+  home: '管理首页文章卡片样式和轮播文章图标。',
+  seo: '编辑搜索摘要和站点收录规则。',
+  footer: '管理页脚最下方的版权、备案号和辅助链接。',
+  footerActions: '管理页脚品牌区的图标入口。',
+  footerMenu: '管理页脚中部的栏目及其链接。'
 }
-const currentSettingLabel = computed(
-  () => settingTabs.find((tab) => tab.value === activeTab.value)?.label || 'AI 设置'
-)
+const currentSettingLabel = computed(() => selectedTab.value.label)
+
+function currentFields(): SettingsForm | undefined {
+  if (!form.value) return
+  return {
+    ...form.value,
+    footer_bottom_links: footerLinks.value.map(({ label, to }) => `${label.trim()}|${to.trim()}`).join('\n'),
+    footer_actions: JSON.stringify(footerActionItems.value.map(({ label, to, icon, image, targetBlank }) => ({
+      label: label.trim(),
+      to: to.trim(),
+      icon: icon.trim() || 'i-simple-icons-linktree',
+      image: image.trim(),
+      targetBlank
+    })))
+  }
+}
 
 async function save() {
-  if (!form.value || saving.value) return
-  form.value.footer_actions = JSON.stringify(
-    footerActionItems.value
-      .map(({ label, to, icon, image, targetBlank }) => ({
-        label: label.trim(),
-        to: to.trim(),
-        icon: icon.trim() || 'i-simple-icons-linktree',
-        image: image.trim(),
-        targetBlank
-      }))
-      .filter((item) => item.label)
-  )
-  const submittedSnapshot = snapshot()
+  const current = currentFields()
+  if (!current || !savedFields.value || saving.value || uploading.value || uploadingFooterActionId.value !== null) return
+  const previous = savedFields.value
+  const changed = siteSettingKeys.filter(key => current[key] !== previous[key])
+  if (!changed.length) return
+  if (changed.includes('footer_bottom_links')) {
+    const invalid = footerLinks.value.findIndex(({ label, to }) => {
+      if (!label.trim() || !to.trim() || /[|\r\n]/.test(label + to) || !isPublicFooterLink(to.trim())) return true
+      try { return !['https:', 'http:'].includes(new URL(to.trim(), 'https://footer.invalid').protocol) } catch { return true }
+    })
+    if (invalid !== -1) {
+      void selectTab('footer')
+      toast.add({ title: `请检查第 ${invalid + 1} 条辅助链接`, description: '请填写名称和公开的站内路径或 HTTP(S) 地址，且不要使用竖线。', color: 'error' })
+      return
+    }
+  }
+  if (changed.includes('footer_actions') && footerActionItems.value.some(item => !item.label.trim())) {
+    void selectTab('footerActions')
+    toast.add({ title: '请填写图标入口的显示名称', color: 'error' })
+    return
+  }
+  if (changed.includes('seo_noindex') && current.seo_noindex === 'true' && !window.confirm('保存后会为全站公开页面添加禁止收录标记。确定保存？')) return
+  const submittedSnapshot = JSON.stringify(current)
   saving.value = true
   saved.value = false
   try {
-    const siteSettings = Object.fromEntries(siteSettingKeys.map((key) => [key, form.value![key]]))
+    const siteSettings = Object.fromEntries(changed.map(key => [key, current[key]]))
     await $fetch('/api/admin/settings', { method: 'PUT', body: siteSettings })
+    savedFields.value = current
     markSaved(submittedSnapshot)
     toast.add({ id: 'settings-save', title: '站点设置已保存', color: 'success' })
     saved.value = true
@@ -1114,20 +794,6 @@ async function save() {
   }
 }
 
-async function rebuildAiIndex() {
-  rebuildingIndex.value = true
-  try {
-    await $fetch('/api/admin/ai/index/rebuild', { method: 'POST' })
-    await refreshAiIndexStatus()
-  } finally {
-    rebuildingIndex.value = false
-  }
-}
-
-function formatIndexDate(value?: string | null) {
-  return value ? new Date(value).toLocaleString('zh-CN') : '暂无'
-}
-
 function toggleNoindex(event: Event) {
   if (!form.value) return
   const input = event.target as HTMLInputElement
@@ -1138,12 +804,6 @@ function toggleHomePostCardStyle(event: Event) {
   if (!form.value) return
   const input = event.target as HTMLInputElement
   form.value.home_post_card_style = input.checked ? 'archive' : 'grid'
-}
-
-function toggleRerank(event: Event) {
-  if (!form.value) return
-  const input = event.target as HTMLInputElement
-  form.value.ai_rerank_enabled = input.checked ? 'true' : 'false'
 }
 
 function parseFooterActionItems(value: string): FooterActionItem[] {
@@ -1335,126 +995,41 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   display: grid;
 }
 
-.ai-settings-grid {
+.footer-link-fields {
   display: grid;
-  gap: 0.85rem;
-  padding: 1rem;
+  gap: 8px;
 }
 
-.ai-settings-switcher {
-  display: flex;
-  width: fit-content;
-  max-width: 100%;
-  gap: 0.3rem;
-  overflow-x: auto;
-  border: 1px solid #e4e7ec;
-  border-radius: 0.8rem;
-  background: #f8fafc;
-  padding: 0.3rem;
-  scrollbar-width: thin;
-}
-
-.ai-settings-switch {
-  display: inline-flex;
-  min-height: 2.25rem;
+.footer-link-fields li {
+  display: grid;
+  grid-template-columns: minmax(95px, .8fr) minmax(110px, 1.4fr) auto auto;
+  gap: 8px;
   align-items: center;
-  gap: 0.45rem;
-  border: 0;
-  border-radius: 0.6rem;
-  background: transparent;
-  color: #64748b;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.84rem;
-  font-weight: 550;
-  padding: 0 0.75rem;
-  white-space: nowrap;
-  transition:
-    background 0.16s ease,
-    color 0.16s ease,
-    box-shadow 0.16s ease;
 }
 
-.ai-settings-switch:hover {
-  background: white;
-  color: #334155;
+.footer-link-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  max-width: 640px;
+  padding: 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
-.ai-settings-switch.is-active {
-  background: white;
-  color: #6554c0;
-  box-shadow: none;
+.footer-link-preview span {
+  color: var(--admin-muted);
 }
 
-.ai-settings-card {
-  overflow: hidden;
-  border: 1px solid #e4e7ec;
-  border-radius: 0.85rem;
-  background: #ffffff;
-}
-
-.ai-settings-card-head {
-  display: grid;
-  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  align-items: start;
-  border-bottom: 1px solid #eef2f7;
-  background: #f8fafc;
-  padding: 1rem;
-}
-
-.ai-settings-card-head h2 {
-  margin: 0;
-  color: #202633;
-  font-size: 1rem;
-  font-weight: 550;
-}
-
-.ai-settings-card-head p {
-  margin: 0.2rem 0 0;
-  color: #64748b;
-  font-size: 0.84rem;
-  line-height: 1.55;
-}
-
-.ai-settings-icon {
-  display: grid;
-  width: 2.4rem;
-  height: 2.4rem;
-  place-items: center;
-  border-radius: 0.75rem;
-}
-
-.ai-settings-icon.is-chat {
-  background: #efedf8;
-  color: #6554c0;
-}
-
-.ai-settings-icon.is-vector {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-.ai-settings-icon.is-index {
-  background: #fff7ed;
-  color: #ea580c;
-}
-
-.ai-settings-icon.is-rerank {
-  background: #f0f9ff;
-  color: #0284c7;
-}
-
-.ai-settings-fields {
-  display: grid;
-}
-
-.ai-settings-fields .settings-row:last-child {
-  border-bottom: 0;
-}
-
-.ai-index-action {
-  align-self: center;
+@media (max-width: 540px) {
+  .footer-link-fields li {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+  .footer-link-fields li > :first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 .settings-row {
@@ -1511,72 +1086,6 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   display: flex;
   width: min(100%, 760px);
   gap: 0.5rem;
-}
-
-.ai-index-status {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.75rem;
-  padding: 1rem;
-}
-
-.ai-index-status span {
-  display: grid;
-  gap: 0.2rem;
-  min-height: 4.2rem;
-  align-content: center;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  background: #f8fafc;
-  color: #475569;
-  font-size: 0.78rem;
-  font-weight: 550;
-  padding: 0.65rem 0.75rem;
-}
-
-.ai-index-status strong {
-  display: block;
-  overflow: hidden;
-  color: #202633;
-  font-size: 1rem;
-  font-weight: 550;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ai-index-models {
-  display: grid;
-  gap: 0.5rem;
-  border-top: 1px solid #eef2f7;
-  padding: 0 1rem 1rem;
-}
-
-.ai-index-model {
-  display: flex;
-  width: min(100%, 760px);
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border: 1px solid #e4e7ec;
-  border-radius: 0.65rem;
-  background: #fff;
-  color: #475569;
-  font-size: 0.82rem;
-  padding: 0.65rem 0.75rem;
-}
-
-.ai-index-model span {
-  overflow: hidden;
-  color: #202633;
-  font-weight: 550;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ai-index-model strong {
-  flex: 0 0 auto;
-  color: #64748b;
-  font-weight: 550;
 }
 
 .footer-action-editor {
@@ -1790,22 +1299,6 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
     grid-column: 1 / -1;
   }
 
-  .ai-settings-card-head {
-    grid-template-columns: 2.4rem minmax(0, 1fr);
-  }
-
-  .ai-settings-switcher {
-    width: 100%;
-  }
-
-  .ai-index-action {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-
-  .ai-index-status {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
 
@@ -1848,16 +1341,6 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   color: #697386;
   font-size: 11px;
   line-height: 1.8;
-}
-.settings-ai-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 18px 12px 10px;
-  margin-top: 10px;
-  border-top: 1px solid #e4e7ec;
-  color: #667085;
-  font-size: 11px;
 }
 .settings-brand-preview {
   display: flex;
@@ -1946,13 +1429,6 @@ async function uploadFile(event: Event, field: 'site_logo' | 'site_favicon') {
   }
   .settings-brand-preview small {
     display: none;
-  }
-  .settings-ai-link {
-    margin: 0;
-    padding: 10px;
-    border: 0;
-    white-space: nowrap;
-    flex: 0 0 auto;
   }
   .settings-upload {
     flex-wrap: wrap;

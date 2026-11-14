@@ -81,8 +81,8 @@
               <small v-if="uploadError">{{ uploadError }}</small>
             </div>
           </div>
-          <fieldset class="avatar-compression">
-            <legend>动图头像压缩</legend>
+          <details class="avatar-compression">
+            <summary>高级设置 · 动图头像压缩</summary>
             <p>保存设置后，重新上传原始 WebP 动图即可使用新参数。</p>
             <div class="field-grid">
               <label>
@@ -109,7 +109,7 @@
               </label>
             </div>
             <small v-if="compressionError" class="compression-error" role="alert">{{ compressionError }}</small>
-          </fieldset>
+          </details>
           <div class="field-grid">
             <label>
               <span>显示名称</span>
@@ -429,7 +429,8 @@ async function save() {
   min-width: 0;
   margin: 0 0 24px;
 }
-.avatar-compression legend {
+.avatar-compression summary {
+  cursor: pointer;
   font-size: 14px;
   font-weight: 600;
 }

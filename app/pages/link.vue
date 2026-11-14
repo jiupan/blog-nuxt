@@ -46,8 +46,8 @@
         </section>
         <FriendLinkLane
           v-for="(group, index) in groups"
-          :key="group.key"
-          :title="group.title"
+          :key="group.id"
+          :title="group.name"
           :description="group.description"
           :items="group.items"
           data-page-enter
@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import type { ApiResult } from '~~/types/api'
-import { bookmarkSections, bookmarkSection, bookmarkSectionLabel, isBookmarkSpotlight } from '~~/types/dto/bookmark'
+import { isBookmarkSpotlight } from '~~/types/dto/bookmark'
 import type { PublicBookmark, PublicBookmarksPayload } from '~~/types/dto/bookmark'
 
 const { data, error, status, refresh } = await useFetch<ApiResult<PublicBookmarksPayload>>('/api/bookmarks')
@@ -133,19 +133,11 @@ const title = computed(() => page.value?.settings.title || '发现值得收藏�
 const items = computed(() => page.value?.items ?? [])
 const isSpotlight = (item: PublicBookmark) => isBookmarkSpotlight(item, page.value?.settings.featuredId)
 const spotlight = computed(() => items.value.filter(isSpotlight))
-const directorySections = [
-  { key: 'RECOMMENDED', description: '持续更新的独立博客和有特色的网站。' },
-  { key: 'TOOL', description: '可以直接用的工具和服务。' },
-  { key: 'TECH', description: '技术文档、开源项目和学习资源。' },
-  { key: 'LIFE', description: '关于日常、兴趣和生活见闻的网站。' },
-  { key: 'ARTICLE', description: '读过后想留存的文章。' }
-] as const
 const groups = computed(() => {
   const regular = items.value.filter(item => !isSpotlight(item))
-  return directorySections.map(section => ({
+  return (page.value?.sections ?? []).map(section => ({
     ...section,
-    title: bookmarkSections[section.key],
-    items: regular.filter(item => bookmarkSection(item) === section.key)
+    items: regular.filter(item => item.sectionId === section.id)
   })).filter(group => group.items.length)
 })
 
@@ -196,7 +188,7 @@ const matches = computed(() => {
   if (!keyword) {
     return [...spotlight.value, ...items.value.filter(item => !isSpotlight(item))].slice(0, 12)
   }
-  return items.value.filter(item => [item.title, item.url, item.note, bookmarkSectionLabel(item)].some(value => value.toLowerCase().includes(keyword)))
+  return items.value.filter(item => [item.title, item.url, item.note, item.sectionName].some(value => value.toLowerCase().includes(keyword)))
 })
 const contactEmail = computed(() => page.value?.settings.applicationEmail)
 

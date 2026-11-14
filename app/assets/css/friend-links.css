@@ -192,7 +192,7 @@
   box-shadow: var(--friend-shadow);
   color: var(--friend-ink);
   text-decoration: none;
-  transition: background-color .3s ease-in-out, border-color .3s ease-in-out, box-shadow .3s ease-in-out;
+  transition: background-color .3s ease-in-out, border-color .3s ease-in-out, box-shadow .3s ease-in-out, color .3s ease-in-out;
 }
 
 .friend-page .friend-card:focus-visible { outline-offset: -3px; }

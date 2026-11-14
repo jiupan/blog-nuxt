@@ -35,10 +35,11 @@
       <section v-if="selectedMenu" class="menu-live-preview workspace-panel">
         <div class="menu-preview-label">
           <UIcon name="i-lucide-monitor" class="size-4" />
-          <span>导航预览</span>
-          <small>随编辑实时更新</small>
+          <span>{{ menuPlacement.label }}</span>
+          <small>{{ menuPlacement.hint }}</small>
+          <NuxtLink v-if="selectedMenu.location === 'FOOTER'" to="/admin/settings?tab=footerMenu" class="text-sm text-primary">返回页脚设置</NuxtLink>
         </div>
-        <nav aria-label="菜单预览">
+        <nav v-if="menuPlacement.live" aria-label="菜单预览">
           <div
             v-for="root in visiblePreviewItems"
             :key="root.item.id ?? root.item.title"
@@ -73,6 +74,7 @@
               @click="selectMenu(menu)"
             >
               {{ menu.name || locationLabel(normalizeMenuLocation(menu.location)) }}
+              <small v-if="!isLiveMenu(menu)" class="text-muted"> · 未生效</small>
             </button>
           </div>
 
@@ -464,8 +466,8 @@ const itemForm = reactive({
 const locationOptions: Array<{ label: string; value: MenuLocation }> = [
   { label: '主导航菜单', value: 'PRIMARY' },
   { label: '底部链接菜单', value: 'FOOTER' },
-  { label: '移动端菜单', value: 'MOBILE' },
-  { label: '社交媒体', value: 'CUSTOM' }
+  { label: '移动端备用菜单', value: 'MOBILE' },
+  { label: '自定义菜单', value: 'CUSTOM' }
 ]
 
 const itemTypeOptions: Array<{ label: string; value: MenuItemType }> = [
@@ -543,6 +545,26 @@ const activeItem = computed(
     null
 )
 const activeItemId = computed(() => activeItem.value?.id ?? null)
+const route = useRoute()
+const router = useRouter()
+const menuLocation = computed(() => normalizeMenuLocation(String(route.query.location || 'PRIMARY').toUpperCase()))
+function isLiveMenu(menu: MenuGroup) {
+  if (menu.location !== 'PRIMARY' && menu.location !== 'FOOTER') return false
+  return menus.value.find(item => item.location === menu.location && item.isActive)?.id === menu.id
+}
+const menuPlacement = computed(() => {
+  const menu = selectedMenu.value
+  if (!menu || !isLiveMenu(menu)) {
+    return {
+      live: false,
+      label: '当前菜单未生效',
+      hint: menu?.location === 'MOBILE' ? '手机端使用主导航菜单。' : '此菜单当前没有在前台展示。'
+    }
+  }
+  return menu.location === 'FOOTER'
+    ? { live: true, label: '页脚分栏预览', hint: '显示在页脚中部，保存后应用。' }
+    : { live: true, label: '主导航预览', hint: '站点顶部和手机菜单共用，保存后应用。' }
+})
 const { isDirty, markSaved } = useAdminUnsavedChanges(() => menus.value)
 const visiblePreviewItems = computed(() =>
   treeItems.value
@@ -582,7 +604,8 @@ function setMenus(value: MenuGroup[], preferredMenuId = selectedMenuId.value) {
   markSaved()
 
   const preferredMenu = menus.value.find((menu) => menu.id === preferredMenuId)
-  const menu = preferredMenu ?? menus.value.find((menu) => menu.location === 'PRIMARY') ?? menus.value[0]
+  const menu = preferredMenu ?? menus.value.find(menu => menu.location === menuLocation.value && isLiveMenu(menu))
+    ?? menus.value.find(menu => menu.location === menuLocation.value) ?? menus.value[0]
   selectedMenuId.value = menu?.id ?? null
   if (!preferredMenu?.items.some((item) => item.id === expandedItemId.value)) {
     expandedItemId.value = normalizeItems(menu?.items || []).find((item) => !item.parentId)?.id ?? null
@@ -601,7 +624,16 @@ function selectMenu(menu: MenuGroup) {
   if (selectedMenuId.value === menu.id) return
   selectedMenuId.value = menu.id
   expandedItemId.value = treeItems.value[0]?.item.id ?? null
+  const location = normalizeMenuLocation(menu.location)
+  void router.replace({ query: { ...route.query, location: location === 'PRIMARY' ? undefined : location.toLowerCase() } })
 }
+
+watch(menuLocation, (desired) => {
+  if (selectedMenu.value?.location === desired) return
+  const menu = menus.value.find(item => item.location === desired && isLiveMenu(item))
+    ?? menus.value.find(item => item.location === desired)
+  if (menu) selectMenu(menu)
+})
 
 function selectItem(item: MenuItem) {
   expandedItemId.value = item.id

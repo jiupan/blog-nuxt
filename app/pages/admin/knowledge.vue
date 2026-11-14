@@ -530,13 +530,25 @@
       >
         <section class="knowledge-panel knowledge-table-panel">
           <header>
+            <div>
+              <h2>索引状态</h2>
+              <p class="text-sm text-muted">更换向量模型后，在这里用「同步全部」重新索引启用的文章和知识文件。</p>
+            </div>
+            <UButton size="xs" color="neutral" variant="ghost" @click="setTab('config')">查看模型配置</UButton>
+          </header>
+          <div class="flex flex-wrap gap-x-5 gap-y-2 px-5 py-4 text-sm text-muted">
+            <span v-for="metric in statCards" :key="metric.label">{{ metric.label }} <strong class="text-highlighted">{{ number(metric.value) }}</strong></span>
+          </div>
+        </section>
+        <section class="knowledge-panel knowledge-table-panel">
+          <header>
             <h2>同步任务</h2>
             <UButton
               size="xs"
               color="neutral"
               variant="ghost"
               icon="i-lucide-refresh-cw"
-              @click="refreshJobs()"
+              @click="refreshIndexStatus"
             >
               刷新状态
             </UButton>
@@ -634,6 +646,7 @@
                 label="服务地址"
                 description="兼容 OpenAI Chat Completions 协议的 API 地址。"
                 icon="i-lucide-globe-2"
+                :runtime="settingsData?.data.aiRuntime.ai_base_url"
               >
                 <UInput
                   v-model="configForm.ai_base_url"
@@ -645,6 +658,7 @@
                 label="模型名称"
                 description="承担知识库问答和其他 AI 内容生成任务。"
                 icon="i-lucide-cpu"
+                :runtime="settingsData?.data.aiRuntime.ai_model"
               >
                 <UInput
                   v-model="configForm.ai_model"
@@ -672,6 +686,7 @@
                 label="Embedding 地址"
                 description="兼容 OpenAI Embeddings 协议的 API 地址。"
                 icon="i-lucide-globe-2"
+                :runtime="settingsData?.data.aiRuntime.ai_embedding_base_url"
               >
                 <UInput
                   v-model="configForm.ai_embedding_base_url"
@@ -683,6 +698,7 @@
                 label="Embedding 模型"
                 description="更换模型后，已有知识需要执行一次全量同步。"
                 icon="i-lucide-brain-circuit"
+                :runtime="settingsData?.data.aiRuntime.ai_embedding_model"
               >
                 <UInput
                   v-model="configForm.ai_embedding_model"
@@ -695,11 +711,12 @@
                 description="数据库向量列当前固定为 1536 维，不可在界面直接修改。"
                 icon="i-lucide-ruler"
               >
-                <UInput
-                  v-model="configForm.ai_embedding_dimensions"
-                  icon="i-lucide-binary"
-                  disabled
-                />
+                <span class="text-sm font-medium">{{ embeddingDimensions }} 维</span>
+                <p v-if="invalidDimensions" class="mt-2 text-sm text-error" role="alert">
+                  当前读取到 {{ invalidDimensions.value }} 维，向量索引无法同步。
+                  {{ invalidDimensions.source === 'environment' ? '请修正服务器环境变量并重启服务。' : '更新模型配置时会修正为 1536 维。' }}
+                </p>
+                <UButton v-if="invalidDimensions?.source === 'database'" class="mt-2" size="xs" color="neutral" variant="outline" :loading="savingConfig" @click="saveConfig">修正为 1536 维</UButton>
               </AdminKnowledgeConfigField>
             </div>
             <div
@@ -710,6 +727,7 @@
                 label="精排状态"
                 description="启用后会对混合检索候选结果进行二次排序。"
                 icon="i-lucide-toggle-right"
+                :runtime="settingsData?.data.aiRuntime.ai_rerank_enabled"
               >
                 <USelect
                   v-model="configForm.ai_rerank_enabled"
@@ -731,6 +749,7 @@
                 label="Rerank 地址"
                 description="支持 Cohere 兼容接口或 DashScope 完整端点。"
                 icon="i-lucide-globe-2"
+                :runtime="settingsData?.data.aiRuntime.ai_rerank_base_url"
               >
                 <UInput
                   v-model="configForm.ai_rerank_base_url"
@@ -741,6 +760,7 @@
                 label="Rerank 模型"
                 description="用于判断问题与候选知识片段的相关性。"
                 icon="i-lucide-list-filter"
+                :runtime="settingsData?.data.aiRuntime.ai_rerank_model"
               >
                 <UInput
                   v-model="configForm.ai_rerank_model"
@@ -751,6 +771,7 @@
                 label="输出数量"
                 description="建议设置为 5–10；越大覆盖越广，但延迟也越高。"
                 icon="i-lucide-list-ordered"
+                :runtime="settingsData?.data.aiRuntime.ai_rerank_top_n"
               >
                 <UInput
                   v-model="configForm.ai_rerank_top_n"
@@ -879,7 +900,7 @@
 <script setup lang="ts">
 import { useAdminUnsavedChanges } from '~/composables/useAdminUnsavedChanges'
 import type { ApiResult } from '~~/types/api'
-import { aiSecretKeys, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
+import { aiSecretKeys, embeddingDimensions, type AiRuntimeValues, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
 import type {
   KnowledgeDocumentItem,
   KnowledgeFileItem,
@@ -953,7 +974,6 @@ const configForm = reactive({
   ai_model: 'deepseek-v4-flash',
   ai_embedding_base_url: 'https://api.openai.com/v1',
   ai_embedding_model: 'text-embedding-3-small',
-  ai_embedding_dimensions: '1536',
   ai_rerank_enabled: 'false',
   ai_rerank_base_url: 'https://api.cohere.com/v2',
   ai_rerank_model: 'rerank-v3.5',
@@ -965,17 +985,26 @@ const configForm = reactive({
   rag_daily_user_limit: '20',
   rag_ip_hourly_limit: '60'
 })
-type KnowledgeSettingsPayload = typeof configForm & { aiSecretStatus: AiSecretStatuses }
+type KnowledgeSettingsPayload = typeof configForm & {
+  aiSecretStatus: AiSecretStatuses
+  aiRuntime: AiRuntimeValues
+}
+let savedConfig = { ...configForm }
 const {
   data: settingsData,
   error: configError,
   refresh: refreshConfig
 } = await useFetch<ApiResult<KnowledgeSettingsPayload>>('/api/admin/knowledge/config')
+const invalidDimensions = computed(() => {
+  const runtime = settingsData.value?.data.aiRuntime.ai_embedding_dimensions
+  return runtime && runtime.value !== embeddingDimensions ? runtime : undefined
+})
 
 function loadConfig(settings: KnowledgeSettingsPayload) {
   for (const key of Object.keys(configForm) as (keyof typeof configForm)[]) {
     configForm[key] = settings[key] ?? configForm[key]
   }
+  savedConfig = { ...configForm }
 }
 
 if (settingsData.value?.data) loadConfig(settingsData.value.data)
@@ -1098,6 +1127,9 @@ const statCards = computed(() => {
 })
 async function refreshAll() {
   await Promise.all([refreshOverview(), refreshDocuments(), refreshFiles(), refreshJobs(), refreshQueries()])
+}
+async function refreshIndexStatus() {
+  await Promise.all([refreshJobs(), refreshOverview()])
 }
 async function syncAll() {
   syncingAll.value = true
@@ -1243,6 +1275,9 @@ async function retryActive() {
 async function saveConfig() {
   if (savingConfig.value || configError.value) return
   const submittedSettings = { ...configForm }
+  const changedSettings = Object.fromEntries(
+    Object.entries(submittedSettings).filter(([key, value]) => savedConfig[key as keyof typeof configForm] !== value)
+  )
   const submittedSecrets = { ...secretDrafts }
   const secretChanges = aiSecretKeys.filter(key => submittedSecrets[key] === null || submittedSecrets[key]?.trim())
   savingConfig.value = true
@@ -1250,7 +1285,8 @@ async function saveConfig() {
     await $fetch('/api/admin/knowledge/config', {
       method: 'PUT',
       body: {
-        ...submittedSettings,
+        ...changedSettings,
+        ...(invalidDimensions.value?.source === 'database' ? { ai_embedding_dimensions: embeddingDimensions } : {}),
         ...Object.fromEntries(secretChanges.map(key => [key, submittedSecrets[key]]))
       }
     })
@@ -1259,8 +1295,10 @@ async function saveConfig() {
       if (status && secretChanges.includes(key)) status.stored = submittedSecrets[key] !== null
       if (secretDrafts[key] === submittedSecrets[key]) secretDrafts[key] = ''
     }
+    savedConfig = submittedSettings
     markConfigSaved(JSON.stringify({ settings: submittedSettings, secrets: emptySecretDrafts }))
     toast.add({ id: 'knowledge-config-save', title: 'AI 模型与检索配置已保存', color: 'success' })
+    await refreshConfig()
   } catch (error: unknown) {
     toast.add({
       id: 'knowledge-config-save',
