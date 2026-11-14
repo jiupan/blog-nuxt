@@ -13,7 +13,7 @@
             <Icon name="i-lucide-radio" aria-hidden="true" />
             随机访问
           </button>
-          <button type="button" class="friend-pill friend-action" aria-haspopup="dialog" :disabled="!interactive" @click="openDialog('recommend', $event)">
+          <button v-if="contactEmail" type="button" class="friend-pill friend-action" aria-haspopup="dialog" :disabled="!interactive" @click="openDialog('recommend', $event)">
             <Icon name="i-lucide-circle-chevron-right" aria-hidden="true" />
             推荐站点
           </button>
@@ -21,7 +21,7 @@
             <Icon name="i-lucide-circle-alert" aria-hidden="true" />
             链接巡查记录
           </a>
-          <button v-else type="button" class="friend-pill friend-action" aria-haspopup="dialog" :disabled="!interactive" @click="openDialog('report', $event)">
+          <button v-else-if="contactEmail" type="button" class="friend-pill friend-action" aria-haspopup="dialog" :disabled="!interactive" @click="openDialog('report', $event)">
             <Icon name="i-lucide-circle-alert" aria-hidden="true" />
             报告链接问题
           </button>
@@ -50,7 +50,6 @@
           :title="group.title"
           :description="group.description"
           :items="group.items"
-          :random-default="group.key !== 'RECOMMENDED'"
           data-page-enter
           :style="{ '--page-enter-order': Math.min(index + (spotlight.length ? 2 : 1), 3) }"
         />
@@ -125,26 +124,27 @@
 
 <script setup lang="ts">
 import type { ApiResult } from '~~/types/api'
-import { bookmarkCategories, bookmarkSection, bookmarkSectionLabel, friendLinkGroups } from '~~/types/dto/bookmark'
+import { bookmarkSections, bookmarkSection, bookmarkSectionLabel, isBookmarkSpotlight } from '~~/types/dto/bookmark'
 import type { PublicBookmark, PublicBookmarksPayload } from '~~/types/dto/bookmark'
 
 const { data, error, status, refresh } = await useFetch<ApiResult<PublicBookmarksPayload>>('/api/bookmarks')
 const page = computed(() => data.value?.data)
 const title = computed(() => page.value?.settings.title || '发现值得收藏的网站。')
 const items = computed(() => page.value?.items ?? [])
-const isSpotlight = (item: PublicBookmark) => item.isSpotlight || item.id === page.value?.settings.featuredId
+const isSpotlight = (item: PublicBookmark) => isBookmarkSpotlight(item, page.value?.settings.featuredId)
 const spotlight = computed(() => items.value.filter(isSpotlight))
 const directorySections = [
-  { key: 'RECOMMENDED', title: friendLinkGroups.RECOMMENDED, description: '持续更新的独立博客和有特色的网站。' },
-  { key: 'TOOL', title: bookmarkCategories.TOOL, description: '可以直接用的工具和服务。' },
-  { key: 'TECH', title: friendLinkGroups.TECH, description: '技术文档、开源项目和学习资源。' },
-  { key: 'LIFE', title: friendLinkGroups.LIFE, description: '关于日常、兴趣和生活见闻的网站。' },
-  { key: 'ARTICLE', title: bookmarkCategories.ARTICLE, description: '读过后想留存的文章。' }
+  { key: 'RECOMMENDED', description: '持续更新的独立博客和有特色的网站。' },
+  { key: 'TOOL', description: '可以直接用的工具和服务。' },
+  { key: 'TECH', description: '技术文档、开源项目和学习资源。' },
+  { key: 'LIFE', description: '关于日常、兴趣和生活见闻的网站。' },
+  { key: 'ARTICLE', description: '读过后想留存的文章。' }
 ] as const
 const groups = computed(() => {
   const regular = items.value.filter(item => !isSpotlight(item))
   return directorySections.map(section => ({
     ...section,
+    title: bookmarkSections[section.key],
     items: regular.filter(item => bookmarkSection(item) === section.key)
   })).filter(group => group.items.length)
 })

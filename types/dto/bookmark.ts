@@ -15,6 +15,14 @@ export const friendLinkGroups = {
 
 export type FriendLinkGroup = keyof typeof friendLinkGroups
 
+export const bookmarkSections = {
+  RECOMMENDED: friendLinkGroups.RECOMMENDED,
+  TOOL: bookmarkCategories.TOOL,
+  TECH: friendLinkGroups.TECH,
+  LIFE: friendLinkGroups.LIFE,
+  ARTICLE: bookmarkCategories.ARTICLE
+} as const
+
 export type BookmarkFields = {
   title: string
   url: string
@@ -37,6 +45,10 @@ export function bookmarkSectionLabel(item: Pick<BookmarkFields, 'category' | 'fr
 export type PublicBookmark = BookmarkFields & {
   id: number
   publishedAt: string | null
+}
+
+export function isBookmarkSpotlight(item: Pick<PublicBookmark, 'id' | 'isSpotlight'>, featuredId?: number | null) {
+  return Boolean(item.isSpotlight || item.id === featuredId)
 }
 
 export type AdminBookmark = PublicBookmark & {
@@ -66,5 +78,6 @@ export type AdminBookmarksPayload = {
 export type BookmarkAction =
   | { action: 'save'; id?: number; fields: BookmarkFields; status: 'DRAFT' | 'PUBLISHED' }
   | { action: 'hide'; id: number }
+  | { action: 'spotlight'; id: number; enabled: boolean }
   | { action: 'reorder'; ids: number[] }
-  | { action: 'settings'; settings: BookmarkPageSettings }
+  | { action: 'settings'; settings: Omit<BookmarkPageSettings, 'featuredId'> & { featuredId?: number | null } }

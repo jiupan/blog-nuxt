@@ -41,6 +41,7 @@ export const bookmarkActionSchema = z.discriminatedUnion('action', [
     })
   }),
   z.strictObject({ action: z.literal('hide'), revision, id }),
+  z.strictObject({ action: z.literal('spotlight'), revision, id, enabled: z.boolean() }),
   z.strictObject({ action: z.literal('reorder'), revision, ids: z.array(id) }),
   z.strictObject({
     action: z.literal('settings'),
@@ -49,7 +50,7 @@ export const bookmarkActionSchema = z.discriminatedUnion('action', [
       title: z.string().trim().min(1, '请填写页面标题').max(32, '页面标题最多 32 字'),
       intro: z.string().trim().max(120, '引言最多 120 字'),
       showRandom: z.boolean(),
-      featuredId: id.nullable(),
+      featuredId: id.nullable().optional(),
       applicationEmail: z.string().trim().max(254).pipe(z.union([z.literal(''), z.email()])).optional(),
       reportUrl: z.union([z.literal(''), urlSchema]).optional()
     })
@@ -114,7 +115,19 @@ export async function mutateBookmarks(input: z.infer<typeof bookmarkActionSchema
           if (!current) throw notFound('链接不存在')
           const publishedAt = current.publishedAt ?? (input.status === 'PUBLISHED' ? new Date() : null)
           await tx.bookmark.update({ where: { id: input.id }, data: { ...input.fields, status: input.status, publishedAt } })
+          if (input.fields.isSpotlight !== undefined) {
+            await tx.bookmarkPage.updateMany({ where: { id: pageId, featuredId: input.id }, data: { featuredId: null } })
+          }
         }
+      }
+
+      if (input.action === 'spotlight') {
+        const updated = await tx.bookmark.updateMany({
+          where: { id: input.id, status: 'PUBLISHED' },
+          data: { isSpotlight: input.enabled }
+        })
+        if (!updated.count) throw notFound('只能调整已发布链接的精选状态')
+        await tx.bookmarkPage.updateMany({ where: { id: pageId, featuredId: input.id }, data: { featuredId: null } })
       }
 
       if (input.action === 'hide') {
@@ -143,7 +156,7 @@ export async function mutateBookmarks(input: z.infer<typeof bookmarkActionSchema
 
       if (input.action === 'settings') {
         const featuredId = input.settings.featuredId
-        if (featuredId !== null && !await tx.bookmark.findFirst({ where: { id: featuredId, status: 'PUBLISHED' } })) {
+        if (featuredId != null && !await tx.bookmark.findFirst({ where: { id: featuredId, status: 'PUBLISHED' } })) {
           throw badRequest('请选择已发布的链接作为主推荐')
         }
         await tx.bookmarkPage.update({ where: { id: pageId }, data: input.settings })

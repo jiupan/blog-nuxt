@@ -39,17 +39,16 @@
 <script setup lang="ts">
 import type { PublicBookmark } from '~~/types/dto/bookmark'
 
-const { items, randomDefault = false } = defineProps<{
+const { items } = defineProps<{
   title: string
   description: string
   items: PublicBookmark[]
-  randomDefault?: boolean
 }>()
 
 const headingId = useId()
 const lane = useTemplateRef<HTMLUListElement>('lane')
 const interactive = ref(false)
-const randomOrder = ref(randomDefault)
+const randomOrder = ref(false)
 const shuffled = ref<PublicBookmark[]>()
 const orderedItems = computed(() => randomOrder.value && shuffled.value ? shuffled.value : items)
 const rows = computed(() => items.length >= 10 ? 5 : Math.ceil(items.length / 4))
@@ -97,7 +96,6 @@ watch(() => items, async () => {
 
 onMounted(() => {
   interactive.value = true
-  if (randomOrder.value) shuffleItems()
   if (!lane.value) return
   syncScroll()
   observer = new ResizeObserver(syncScroll)
