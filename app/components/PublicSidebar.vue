@@ -23,7 +23,7 @@
           <NuxtLink to="/archive" title="归档">
             <BookOpenIcon aria-hidden="true" />
           </NuxtLink>
-          <NuxtLink to="/link" title="书签" aria-label="书签">
+          <NuxtLink to="/link" title="网站导航" aria-label="网站导航">
             <CompassIcon aria-hidden="true" />
           </NuxtLink>
         </div>

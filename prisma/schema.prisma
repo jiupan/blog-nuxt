@@ -335,12 +335,22 @@ enum BookmarkStatus {
   HIDDEN
 }
 
+enum FriendLinkGroup {
+  RECOMMENDED
+  LIFE
+  TECH
+}
+
 model Bookmark {
   id          Int              @id @default(autoincrement())
   title       String
   url         String           @unique
   category    BookmarkCategory
   note        String
+  friendGroup FriendLinkGroup  @default(RECOMMENDED)
+  isSpotlight Boolean          @default(false)
+  avatar      String           @default("")
+  cover       String           @default("")
   status      BookmarkStatus   @default(DRAFT)
   sort        Int
   publishedAt DateTime?
@@ -350,13 +360,15 @@ model Bookmark {
 }
 
 model BookmarkPage {
-  id         Int       @id
-  revision   Int       @default(0)
-  title      String
-  intro      String
-  showRandom Boolean   @default(true)
-  featuredId Int?
-  featured   Bookmark? @relation(fields: [featuredId], references: [id], onDelete: SetNull)
+  id               Int       @id
+  revision         Int       @default(0)
+  title            String
+  intro            String
+  showRandom       Boolean   @default(true)
+  applicationEmail String    @default("")
+  reportUrl        String    @default("")
+  featuredId       Int?
+  featured         Bookmark? @relation(fields: [featuredId], references: [id], onDelete: SetNull)
 }
 
 model Menu {

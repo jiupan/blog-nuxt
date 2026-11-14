@@ -196,8 +196,8 @@ const tools: ToolItem[] = [
   },
   {
     id: 'links',
-    title: '书签',
-    description: '逛逛站外收录的文章、工具和小站。',
+    title: '网站导航',
+    description: '浏览收录的网站、在线工具和文章。',
     category: 'site',
     tone: 'rose',
     icon: LinkIcon,

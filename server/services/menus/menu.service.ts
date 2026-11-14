@@ -152,7 +152,7 @@ export function defaultPrimaryMenu() {
     isActive: true,
     items: [
       { id: -12, parentId: null, title: '归档', url: '/archive', type: 'ARCHIVE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 1, isVisible: true },
-      { id: -13, parentId: null, title: '书签', url: '/link', type: 'PAGE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 2, isVisible: true },
+      { id: -13, parentId: null, title: '网站导航', url: '/link', type: 'PAGE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 2, isVisible: true },
       { id: -14, parentId: null, title: '我的', url: '/about', type: 'PAGE' as const, targetId: null, targetSlug: null, targetBlank: false, badge: '', icon: '', sort: 3, isVisible: true }
     ]
   }

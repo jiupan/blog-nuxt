@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import sharp from 'sharp'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 
-const db = vi.hoisted(() => ({ post: { findMany: vi.fn() }, setting: { findMany: vi.fn() } }))
+const db = vi.hoisted(() => ({ post: { findMany: vi.fn() }, setting: { findMany: vi.fn() }, bookmark: { findMany: vi.fn() } }))
 vi.mock('../server/utils/prisma', () => ({ prisma: db }))
 const gallery = await import('../server/services/media/gallery.service')
 const { updateGalleryMetadata, readGalleryMetadata } = await import('../server/services/media/gallery-metadata')
@@ -15,6 +15,7 @@ beforeEach(async () => {
   vi.stubGlobal('useRuntimeConfig', () => ({ uploadDir: root }))
   db.post.findMany.mockResolvedValue([])
   db.setting.findMany.mockResolvedValue([])
+  db.bookmark.findMany.mockResolvedValue([])
 })
 afterEach(async () => {
   if (!resolve(root).startsWith(resolve(tmpdir()) + sep + 'blog-gallery-')) throw Error('Unexpected test directory')
@@ -79,6 +80,10 @@ it('moves memes and deletes populated groups without changing URLs or deleting i
 it('blocks deletion of referenced assets and internal metadata', async () => {
   await file('covers/used.webp')
   db.post.findMany.mockResolvedValue([{ id: 1, title: 'Draft', slug: 'draft', cover: '/uploads/covers/used.webp' }])
+  await expect(gallery.deleteGalleryImage('covers/used.webp')).rejects.toMatchObject({ statusCode: 409 })
+  await access(join(root, 'covers/used.webp'))
+  db.post.findMany.mockResolvedValue([])
+  db.bookmark.findMany.mockResolvedValue([{ id: 2, title: '友站' }])
   await expect(gallery.deleteGalleryImage('covers/used.webp')).rejects.toMatchObject({ statusCode: 409 })
   await access(join(root, 'covers/used.webp'))
   await updateGalleryMetadata(['covers/used.webp'], { randomEnabled: false })

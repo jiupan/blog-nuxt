@@ -420,9 +420,10 @@
             <p v-if="usageLoading">正在检查…</p>
             <p v-else-if="usageError">{{ usageError }}</p>
             <template v-else>
-              <p v-if="!usage.posts.length && !usage.settings.length">未发现文章或站点设置中的直接引用。</p>
+              <p v-if="!hasGalleryReferences(usage)">未发现站内引用。</p>
               <NuxtLink v-for="post in usage.posts" :key="post.id" :to="'/admin/posts/' + post.id">{{ post.title }} · {{ post.use }}</NuxtLink>
               <p v-for="key in usage.settings" :key="key">站点设置：{{ key }}</p>
+              <NuxtLink v-for="bookmark in usage.bookmarks" :key="`bookmark-${bookmark.id}`" to="/admin/bookmarks">网站导航：{{ bookmark.title }}</NuxtLink>
             </template>
             <small>首页动态装饰和复制到站外的地址不计入此列表。</small>
           </section>
@@ -433,7 +434,7 @@
               variant="ghost"
               icon="i-lucide-trash-2"
               :loading="deletingPath === previewImage.path"
-              :disabled="usageLoading || Boolean(usageError) || Boolean(usage.posts.length || usage.settings.length)"
+              :disabled="usageLoading || Boolean(usageError) || hasGalleryReferences(usage)"
               @click="deleteImage(previewImage)"
             >
               删除图片
@@ -524,11 +525,13 @@ const moveGroup = ref('ungrouped')
 const updatingImages = ref(false)
 const usageLoading = ref(false)
 const usageError = ref('')
-const usage = ref<{ posts: Array<{ id: number, title: string, use: string }>, settings: string[] }>({ posts: [], settings: [] })
+type GalleryUsage = { posts: Array<{ id: number, title: string, use: string }>, settings: string[], bookmarks: Array<{ id: number, title: string }> }
+const usage = ref<GalleryUsage>({ posts: [], settings: [], bookmarks: [] })
+const hasGalleryReferences = (references: GalleryUsage) => Boolean(references.posts.length || references.settings.length || references.bookmarks.length)
 async function loadUsage(path: string) {
   usageLoading.value = true
   usageError.value = ''
-  usage.value = { posts: [], settings: [] }
+  usage.value = { posts: [], settings: [], bookmarks: [] }
   try {
     const result = await $fetch<{ data: typeof usage.value }>('/api/admin/gallery/usage', { query: { path } })
     if (previewImage.value?.path === path) usage.value = result.data
@@ -917,7 +920,7 @@ async function deleteSelected() {
   const paths = [...selectedPaths.value]
   try {
     const references = await Promise.all(paths.map(path => $fetch<{ data: typeof usage.value }>('/api/admin/gallery/usage', { query: { path } })))
-    const protectedPaths = paths.filter((_, index) => references[index]!.data.posts.length || references[index]!.data.settings.length)
+    const protectedPaths = paths.filter((_, index) => hasGalleryReferences(references[index]!.data))
     const deletable = paths.filter(path => !protectedPaths.includes(path))
     if (!deletable.length) {
       toast.add({ title: '所选图片均有站内引用，请先替换引用', color: 'error' })

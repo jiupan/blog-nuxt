@@ -1,17 +1,37 @@
 export const bookmarkCategories = {
   ARTICLE: '文章',
-  TOOL: '工具',
-  SITE: '小站'
+  TOOL: '在线工具',
+  SITE: '网站'
 } as const
 
 export type BookmarkCategory = keyof typeof bookmarkCategories
 export type BookmarkStatus = 'DRAFT' | 'PUBLISHED' | 'HIDDEN'
+
+export const friendLinkGroups = {
+  RECOMMENDED: '博客与网站',
+  LIFE: '生活',
+  TECH: '技术'
+} as const
+
+export type FriendLinkGroup = keyof typeof friendLinkGroups
 
 export type BookmarkFields = {
   title: string
   url: string
   category: BookmarkCategory
   note: string
+  friendGroup?: FriendLinkGroup
+  isSpotlight?: boolean
+  avatar?: string
+  cover?: string
+}
+
+export function bookmarkSection(item: Pick<BookmarkFields, 'category' | 'friendGroup'>) {
+  return item.category === 'SITE' ? item.friendGroup ?? 'RECOMMENDED' : item.category
+}
+
+export function bookmarkSectionLabel(item: Pick<BookmarkFields, 'category' | 'friendGroup'>) {
+  return item.category === 'SITE' ? friendLinkGroups[item.friendGroup ?? 'RECOMMENDED'] : bookmarkCategories[item.category]
 }
 
 export type PublicBookmark = BookmarkFields & {
@@ -28,6 +48,8 @@ export type BookmarkPageSettings = {
   intro: string
   showRandom: boolean
   featuredId: number | null
+  applicationEmail?: string
+  reportUrl?: string
 }
 
 export type PublicBookmarksPayload = {

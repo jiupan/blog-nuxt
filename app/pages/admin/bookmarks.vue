@@ -2,25 +2,25 @@
   <div class="workspace-page bookmarks-admin">
     <AdminPageActions>
       <UButton size="sm" icon="i-lucide-plus" :disabled="!payload || busy || stale || !!order" @click="openEditor()">
-        新建书签
+        收录链接
       </UButton>
     </AdminPageActions>
 
     <section class="workspace-panel">
       <div class="workspace-panel-heading">
         <div>
-          <h2>站外散步</h2>
-          <p>管理前台「书签」页收录的内容。</p>
+          <h2>网站导航</h2>
+          <p>管理导航页收录的网站、在线工具和文章。</p>
         </div>
         <UButton to="/link" target="_blank" rel="noopener" color="neutral" variant="outline" trailing-icon="i-lucide-arrow-up-right" size="sm">
-          查看书签页
+          查看网站导航
         </UButton>
       </div>
 
-      <nav class="workspace-tabs" aria-label="书签管理">
+      <nav class="workspace-tabs" aria-label="网站导航管理">
         <button type="button" :class="{ 'is-active': tab === 'items' }" :aria-pressed="tab === 'items'" :disabled="busy" @click="tab = 'items'">
           <UIcon name="i-lucide-bookmark" class="size-4" />
-          书签列表
+          收录列表
         </button>
         <button type="button" :class="{ 'is-active': tab === 'settings' }" :aria-pressed="tab === 'settings'" :disabled="busy" @click="tab = 'settings'">
           <UIcon name="i-lucide-sliders-horizontal" class="size-4" />
@@ -30,19 +30,19 @@
 
       <div class="bookmark-admin-body" :aria-busy="busy || status === 'pending'">
         <div v-if="loadError || failure" class="bookmark-feedback" role="alert">
-          <p>{{ failure || '书签暂时没能加载。' }}</p>
+          <p>{{ failure || '收录列表暂时没能加载。' }}</p>
           <UButton v-if="loadError || stale" color="neutral" variant="outline" size="sm" :loading="status === 'pending'" @click="reload">
             重新加载
           </UButton>
         </div>
-        <p v-if="status === 'pending' && !payload" class="bookmark-meta" role="status">正在加载书签…</p>
+        <p v-if="status === 'pending' && !payload" class="bookmark-meta" role="status">正在加载收录列表…</p>
 
         <template v-if="payload">
           <div v-show="tab === 'items'">
             <form v-if="editor" class="bookmark-form bookmark-editor" @submit.prevent="saveEditor('PUBLISHED')">
               <div class="bookmark-toolbar">
-                <h3>{{ editor.id ? '编辑书签' : '新建书签' }}</h3>
-                <UButton color="neutral" variant="ghost" size="sm" :disabled="busy" @click="closeEditor">关闭</UButton>
+                <h3>{{ editor.id ? '编辑链接' : '收录链接' }}</h3>
+                <UButton color="neutral" variant="ghost" size="sm" :disabled="busy || !!uploading" @click="closeEditor">关闭</UButton>
               </div>
               <div class="bookmark-fields">
                 <UFormField label="标题" required>
@@ -57,6 +57,19 @@
                 <UFormField class="full-width" label="推荐语" description="发布前写一句为什么把它留下来，最多 180 字。">
                   <UTextarea v-model="editor.fields.note" :rows="3" maxlength="180" class="w-full" :disabled="busy" />
                 </UFormField>
+                <UFormField v-if="editor.fields.category === 'SITE'" label="网站分组">
+                  <USelect v-model="editor.fields.friendGroup" :items="groupOptions" class="w-full" :disabled="busy" />
+                </UFormField>
+                <UFormField label="精选收录">
+                  <USwitch v-model="editor.fields.isSpotlight" aria-label="显示在精选收录" :disabled="busy" />
+                </UFormField>
+                <UFormField v-for="image in imageFields" :key="image.key" :label="image.label">
+                  <div class="bookmark-actions">
+                    <UInput v-model="editor.fields[image.key]" placeholder="/uploads/…" maxlength="2048" class="w-full" :disabled="busy" />
+                    <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="busy || !!uploading" :loading="uploading === image.key" @click="openImageInput(image.key)">上传</UButton>
+                    <input :id="`bookmark-image-${image.key}`" type="file" accept="image/*" hidden :disabled="busy || !!uploading" @change="uploadImage($event, image.key)">
+                  </div>
+                </UFormField>
               </div>
               <div class="bookmark-toolbar">
                 <UButton v-if="editor.status === 'PUBLISHED'" color="warning" variant="soft" size="sm" :disabled="busy || stale" @click="hideEditor">
@@ -66,8 +79,8 @@
                   <UButton v-if="editor.status === 'DRAFT'" type="button" color="neutral" variant="outline" size="sm" :disabled="busy || stale" @click="saveDraft">
                     保存草稿
                   </UButton>
-                  <UButton type="submit" size="sm" :loading="busy" :disabled="stale">
-                    {{ editor.status === 'PUBLISHED' ? '保存修改' : '发布书签' }}
+                  <UButton type="submit" size="sm" :loading="busy" :disabled="stale || !!uploading">
+                    {{ editor.status === 'PUBLISHED' ? '保存修改' : '发布链接' }}
                   </UButton>
                 </div>
               </div>
@@ -75,7 +88,7 @@
 
             <div class="bookmark-toolbar bookmark-summary">
               <div class="bookmark-meta">
-                <p>{{ payload.items.length }} 条书签 · {{ published.length }} 条已发布</p>
+                <p>{{ payload.items.length }} 条收录 · {{ published.length }} 条已发布</p>
                 <p>主推荐 {{ featuredTitle || '未设置' }}</p>
               </div>
               <div v-if="order" class="bookmark-actions">
@@ -99,7 +112,7 @@
               <li v-for="(item, index) in items" :key="item.id" class="bookmark-admin-row">
                 <div class="bookmark-admin-copy">
                   <strong>{{ item.title }}</strong>
-                  <small>{{ bookmarkCategories[item.category] }} · {{ domain(item.url) }}</small>
+                  <small>{{ bookmarkSectionLabel(item) }} · {{ domain(item.url) }}</small>
                 </div>
                 <UBadge :color="item.status === 'PUBLISHED' ? 'primary' : 'neutral'" variant="soft" size="sm">
                   {{ statusLabels[item.status] }}
@@ -113,7 +126,7 @@
                 </UButton>
               </li>
             </ul>
-            <p v-else class="bookmark-empty">还没有书签。新建一条，把想分享的链接收进来。</p>
+            <p v-else class="bookmark-empty">还没有收录链接。</p>
           </div>
 
           <form v-show="tab === 'settings'" class="bookmark-form" @submit.prevent="saveSettings">
@@ -121,13 +134,19 @@
               <UFormField label="页面标题" required>
                 <UInput v-model="settings.title" required maxlength="32" class="w-full" :disabled="busy" />
               </UFormField>
-              <UFormField label="主推荐" help="可以选任意一条已发布的书签。">
+              <UFormField label="主推荐" help="可以选任意一条已发布的链接。">
                 <USelect v-model="featuredValue" :items="featureOptions" class="w-full" :disabled="busy" />
               </UFormField>
               <UFormField class="full-width" label="页面引言">
                 <UTextarea v-model="settings.intro" :rows="3" maxlength="120" class="w-full" :disabled="busy" />
               </UFormField>
-              <USwitch v-model="settings.showRandom" class="full-width" label="显示「随便逛一个」" :disabled="busy" />
+              <UFormField label="推荐与反馈邮箱" help="公开接收站点推荐和链接问题反馈。">
+                <UInput v-model="settings.applicationEmail" type="email" maxlength="254" class="w-full" :disabled="busy" />
+              </UFormField>
+              <UFormField label="链接巡查记录" help="填写后在导航页提供巡查记录入口。">
+                <UInput v-model="settings.reportUrl" type="url" maxlength="2048" placeholder="https://" class="w-full" :disabled="busy" />
+              </UFormField>
+              <USwitch v-model="settings.showRandom" class="full-width" label="显示「随机访问」" :disabled="busy" />
             </div>
             <UButton type="submit" size="sm" :loading="busy" :disabled="stale">保存设置</UButton>
           </form>
@@ -140,7 +159,7 @@
 
 <script setup lang="ts">
 import type { ApiResult } from '~~/types/api'
-import { bookmarkCategories } from '~~/types/dto/bookmark'
+import { bookmarkCategories, bookmarkSectionLabel, friendLinkGroups } from '~~/types/dto/bookmark'
 import type { AdminBookmark, AdminBookmarksPayload, BookmarkAction, BookmarkFields, BookmarkPageSettings } from '~~/types/dto/bookmark'
 import { getApiErrorMessage } from '~/utils/api-error'
 
@@ -155,9 +174,12 @@ const stale = ref(false)
 const failure = ref('')
 const feedback = ref('')
 const editor = ref<{ id?: number; status: AdminBookmark['status']; fields: BookmarkFields } | null>(null)
+const imageFields = [{ key: 'avatar', label: '图标' }, { key: 'cover', label: '精选封面' }] as const
+type ImageField = typeof imageFields[number]['key']
+const uploading = ref<ImageField>()
 const titleInput = useTemplateRef<{ inputRef: HTMLInputElement }>('titleInput')
 const order = ref<number[] | null>(null)
-const settings = reactive<BookmarkPageSettings>({ title: '', intro: '', showRandom: true, featuredId: null })
+const settings = reactive<BookmarkPageSettings>({ title: '', intro: '', showRandom: true, featuredId: null, applicationEmail: '', reportUrl: '' })
 const published = computed(() => payload.value?.items.filter(item => item.status === 'PUBLISHED') ?? [])
 const featuredTitle = computed(() => published.value.find(item => item.id === payload.value?.settings.featuredId)?.title)
 const items = computed(() => {
@@ -167,6 +189,7 @@ const items = computed(() => {
   return order.value.flatMap(id => byId.get(id) ?? [])
 })
 const categoryOptions = Object.entries(bookmarkCategories).map(([value, label]) => ({ value, label }))
+const groupOptions = Object.entries(friendLinkGroups).map(([value, label]) => ({ value, label }))
 const featureOptions = computed(() => [
   { value: 'none', label: '不展示主推荐' },
   ...published.value.map(item => ({ value: String(item.id), label: item.title }))
@@ -206,7 +229,7 @@ async function reload() {
   if (loadError.value || !payload.value) return
   stale.value = false
   failure.value = ''
-  feedback.value = '已重新加载书签'
+  feedback.value = '已重新加载收录列表'
   editor.value = null
   order.value = null
   Object.assign(settings, payload.value.settings)
@@ -220,9 +243,16 @@ async function openEditor(item?: AdminBookmark) {
   tab.value = 'items'
   failure.value = ''
   feedback.value = ''
-  const fields = item
-    ? { title: item.title, url: item.url, note: item.note, category: item.category }
-    : { title: '', url: '', note: '', category: 'ARTICLE' as const }
+  const fields: BookmarkFields = {
+    title: item?.title ?? '',
+    url: item?.url ?? '',
+    note: item?.note ?? '',
+    category: item?.category ?? 'SITE',
+    friendGroup: item?.friendGroup ?? 'RECOMMENDED',
+    isSpotlight: item?.isSpotlight ?? false,
+    avatar: item?.avatar ?? '',
+    cover: item?.cover ?? ''
+  }
   editor.value = { id: item?.id, status: item?.status ?? 'DRAFT', fields }
   await nextTick()
   titleInput.value?.inputRef?.focus()
@@ -233,22 +263,46 @@ function closeEditor() {
   if (!stale.value) failure.value = ''
 }
 
+function openImageInput(field: ImageField) {
+  document.getElementById(`bookmark-image-${field}`)?.click()
+}
+
+async function uploadImage(event: Event, field: ImageField) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  const current = editor.value
+  if (!file || !current || uploading.value) return
+  uploading.value = field
+  failure.value = ''
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    const result = await $fetch<{ data: { url: string } }>('/api/admin/upload', { method: 'POST', body })
+    if (editor.value === current) current.fields[field] = result.data.url
+  } catch (error) {
+    failure.value = getApiErrorMessage(error, { fallback: '图片上传失败，请重试' })
+  } finally {
+    uploading.value = undefined
+    input.value = ''
+  }
+}
+
 function saveDraft(event: MouseEvent) {
   const form = (event.currentTarget as HTMLButtonElement).form
   if (form?.reportValidity()) void saveEditor('DRAFT')
 }
 
 async function saveEditor(status: 'PUBLISHED' | 'DRAFT') {
-  if (!editor.value) return
+  if (!editor.value || uploading.value) return
   const { id, fields } = editor.value
-  if (await send({ action: 'save', id, fields, status }, status === 'DRAFT' ? '已保存草稿' : '书签已保存，前台已更新')) {
+  if (await send({ action: 'save', id, fields, status }, status === 'DRAFT' ? '已保存草稿' : '链接已保存，前台已更新')) {
     editor.value = null
   }
 }
 
 async function hideEditor() {
   const id = editor.value?.id
-  if (id && await send({ action: 'hide', id }, '书签已下架')) {
+  if (id && await send({ action: 'hide', id }, '链接已下架')) {
     editor.value = null
     if (settings.featuredId === id) settings.featuredId = null
   }
@@ -276,7 +330,7 @@ function cancelOrder() {
 }
 
 async function saveOrder() {
-  if (order.value && await send({ action: 'reorder', ids: order.value }, '已保存书签顺序')) order.value = null
+  if (order.value && await send({ action: 'reorder', ids: order.value }, '已保存显示顺序')) order.value = null
 }
 
 async function saveSettings() {

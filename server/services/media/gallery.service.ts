@@ -166,7 +166,7 @@ export async function deleteGalleryImage(requestedPath: string) {
   if (!(await listGalleryImages()).some(image => image.path === relativePath)) throw notFound('图片不存在或不可删除')
 
   const usage = await getGalleryImageUsage(relativePath)
-  if (usage.posts.length || usage.settings.length) throw conflict('图片仍被文章或站点设置引用，请先替换引用；随机封面可先停用')
+  if (usage.posts.length || usage.settings.length || usage.bookmarks.length) throw conflict('图片仍被文章、站点设置或网站导航引用，请先替换引用')
 
   await unlink(filepath).catch(() => {
     throw notFound('图片不存在或已删除')
@@ -219,11 +219,12 @@ function sortByUpdatedAt<T extends { updatedAt: string }>(items: T[]) {
 export async function getGalleryImageUsage(requestedPath: string) {
   const { relativePath } = resolveUploadPath(resolveUploadRoot(useRuntimeConfig().uploadDir), requestedPath)
   const url = toUploadUrl(relativePath)
-  const [posts, settings] = await Promise.all([
+  const [posts, settings, bookmarks] = await Promise.all([
     prisma.post.findMany({ where: { OR: [{ cover: { contains: url } }, { content: { contains: url } }] }, select: { id: true, title: true, slug: true, cover: true } }),
-    prisma.setting.findMany({ where: { value: { contains: url } }, select: { key: true } })
+    prisma.setting.findMany({ where: { value: { contains: url } }, select: { key: true } }),
+    prisma.bookmark.findMany({ where: { OR: [{ avatar: { contains: url } }, { cover: { contains: url } }] }, select: { id: true, title: true } })
   ])
-  return { posts: posts.map(post => ({ id: post.id, title: post.title, slug: post.slug, use: post.cover?.includes(url) ? '封面' : '正文' })), settings: settings.map(item => item.key) }
+  return { posts: posts.map(post => ({ id: post.id, title: post.title, slug: post.slug, use: post.cover?.includes(url) ? '封面' : '正文' })), settings: settings.map(item => item.key), bookmarks }
 }
 
 export async function updateGalleryImages(paths: string[], changes: { inRandomPool?: boolean, randomEnabled?: boolean, memeGroup?: string | null }) {

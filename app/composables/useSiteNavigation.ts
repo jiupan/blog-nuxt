@@ -213,7 +213,7 @@ export async function useSiteNavigation() {
     }
 
     if (/^\/link\/?$/.test(route.path)) {
-      return '书签'
+      return '网站导航'
     }
 
     if (route.path.startsWith('/about')) {
@@ -334,7 +334,7 @@ function parseFooterActions(value: string) {
   const fallback = [
     { label: '归档', to: '/archive', icon: 'i-lucide-archive', image: '', targetBlank: false },
     { label: '我的', to: '/about', icon: 'i-lucide-user-round', image: '', targetBlank: false },
-    { label: '书签', to: '/link', icon: 'i-lucide-link', image: '', targetBlank: false }
+    { label: '网站导航', to: '/link', icon: 'i-lucide-link', image: '', targetBlank: false }
   ]
 
   try {
@@ -349,7 +349,7 @@ function parseFooterActions(value: string) {
         targetBlank: item?.targetBlank === true
       }))
       .filter((item) => item.label)
-      .map(item => item.label === '友链' && /^\/link\/?$/.test(item.to) ? { ...item, label: '书签' } : item)
+      .map(item => ['友链', '书签'].includes(item.label) && /^\/link\/?$/.test(item.to) ? { ...item, label: '网站导航' } : item)
     return links
   } catch {
     return fallback
