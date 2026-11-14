@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import { isPublicFooterLink, mergeFooterArchiveLinks, parseFooterBottomLinks, publicArchivePath } from '~/utils/footer-links'
+import { mergeFooterArchiveLinks, parseFooterBottomLinks, publicArchivePath } from '~/utils/footer-links'
 import type { ApiResult } from '~~/types/api'
 import type { MenuGroup as ApiMenuGroup, MenuItem as ApiMenuItem } from '~~/types/dto/menu'
 import type { PublicPostListPayload } from '~~/types/dto/post'
@@ -114,13 +114,6 @@ export async function useSiteNavigation() {
   })
 
   useHead({
-    link: computed(() => {
-      const links: Array<Record<string, string>> = []
-      if (siteSettings.value.site_favicon) {
-        links.push({ rel: 'icon', href: siteSettings.value.site_favicon })
-      }
-      return links
-    }),
     meta: computed(() => {
       const meta: Array<Record<string, string>> = []
       if (siteSettings.value.seo_keywords) {
@@ -191,7 +184,7 @@ export async function useSiteNavigation() {
         const children = items.filter((item) => item.parentId === root.id)
         return {
           title: root.title,
-          links: mergeFooterArchiveLinks(footerLinksFor(root, children, categories.value, tags.value).filter(link => isPublicFooterLink(link.to)))
+          links: mergeFooterArchiveLinks(footerLinksFor(root, children, categories.value, tags.value))
         }
       })
       .filter((group) => group.links.length)
@@ -199,7 +192,7 @@ export async function useSiteNavigation() {
 
   const footerCopyrightParts = computed(() => parseFooterCopyright(siteSettings.value.footer_copyright))
   const footerBottomLinks = computed(() => mergeFooterArchiveLinks(parseFooterBottomLinks(siteSettings.value.footer_bottom_links)))
-  const footerActionLinks = computed(() => mergeFooterArchiveLinks(parseFooterActions(siteSettings.value.footer_actions).filter(link => isPublicFooterLink(link.to))))
+  const footerActionLinks = computed(() => mergeFooterArchiveLinks(parseFooterActions(siteSettings.value.footer_actions)))
   const footerActionLeft = computed(() => footerActionLinks.value.slice(0, Math.ceil(footerActionLinks.value.length / 2)))
   const footerActionRight = computed(() => footerActionLinks.value.slice(Math.ceil(footerActionLinks.value.length / 2)))
   const isArticleRoute = computed(() => route.name === 'slug')

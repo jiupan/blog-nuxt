@@ -218,16 +218,6 @@
           >
             {{ draftPending ? '正在加载草稿…' : '暂时没有未完成的草稿。' }}
           </div>
-          <NuxtLink
-            to="/admin/posts/create"
-            class="dashboard-new-draft"
-          >
-            <UIcon
-              name="i-lucide-plus"
-              class="size-4"
-            />
-            记录一个新想法
-          </NuxtLink>
         </section>
 
         <section
@@ -560,17 +550,6 @@ a.dashboard-metric:hover strong {
 }
 .dashboard-draft:hover strong {
   color: var(--admin-accent);
-}
-.dashboard-new-draft {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 45px;
-  border-top: 1px solid var(--admin-line);
-  color: var(--admin-accent);
-  font-size: 11px;
-  background: #fcfbfe;
 }
 .dashboard-quiet-state {
   padding: 0 24px 22px;

@@ -2,21 +2,15 @@
   <div class="knowledge-page">
     <AdminPageActions>
       <template v-if="activeTab === 'config'">
-        <span
-          class="admin-save-state"
-          :class="{ 'is-dirty': configDirty }"
-        >
-          {{ configDirty ? '有未保存修改' : '已保存' }}
-        </span>
-        <UButton
-          size="sm"
-          icon="i-lucide-check"
-          :loading="savingConfig"
-          :disabled="!configDirty || Boolean(configError)"
-          @click="saveConfig"
-        >
-          保存配置
-        </UButton>
+        <AdminSaveActions
+          label="保存配置"
+          :ready="!!settingsData && !configError"
+          :dirty="configDirty"
+          :saving="savingConfig"
+          :scope="changedConfigTabs.length > 1 ? `${changedConfigTabs.length} 个分区有未保存修改` : undefined"
+          @save="saveConfig()"
+          @undo="resetConfig"
+        />
       </template>
       <UButton
         v-else-if="activeTab === 'files'"
@@ -534,7 +528,6 @@
               <h2>索引状态</h2>
               <p class="text-sm text-muted">更换向量模型后，在这里用「同步全部」重新索引启用的文章和知识文件。</p>
             </div>
-            <UButton size="xs" color="neutral" variant="ghost" @click="setTab('config')">查看模型配置</UButton>
           </header>
           <div class="flex flex-wrap gap-x-5 gap-y-2 px-5 py-4 text-sm text-muted">
             <span v-for="metric in statCards" :key="metric.label">{{ metric.label }} <strong class="text-highlighted">{{ number(metric.value) }}</strong></span>
@@ -618,6 +611,7 @@
                 class="size-4"
               />
               <span>{{ item.label }}</span>
+              <span v-if="changedConfigTabs.includes(item)" class="admin-settings-section-badge" role="img" aria-label="有未保存修改" title="有未保存修改" />
             </button>
           </nav>
           <section class="knowledge-panel config-panel">
@@ -625,6 +619,8 @@
               <div>
                 <h2>{{ currentConfigTab.label }}</h2>
                 <p>{{ currentConfigTab.description }}</p>
+                <p v-if="changedConfigTabs.some(tab => tab.value !== activeConfigTab)" class="admin-settings-save-scope" role="status">本次保存包含{{ changedConfigTabs.map(tab => tab.label).join('、') }}的修改。</p>
+                <p v-if="configSaveError" class="workspace-error" role="alert">{{ configSaveError }}</p>
               </div>
             </header>
             <div
@@ -716,7 +712,7 @@
                   当前读取到 {{ invalidDimensions.value }} 维，向量索引无法同步。
                   {{ invalidDimensions.source === 'environment' ? '请修正服务器环境变量并重启服务。' : '更新模型配置时会修正为 1536 维。' }}
                 </p>
-                <UButton v-if="invalidDimensions?.source === 'database'" class="mt-2" size="xs" color="neutral" variant="outline" :loading="savingConfig" @click="saveConfig">修正为 1536 维</UButton>
+                <UButton v-if="invalidDimensions?.source === 'database'" class="mt-2" size="xs" color="neutral" variant="outline" :loading="savingConfig" @click="saveConfig(true)">修正为 1536 维</UButton>
               </AdminKnowledgeConfigField>
             </div>
             <div
@@ -989,7 +985,7 @@ type KnowledgeSettingsPayload = typeof configForm & {
   aiSecretStatus: AiSecretStatuses
   aiRuntime: AiRuntimeValues
 }
-let savedConfig = { ...configForm }
+const savedConfig = shallowRef({ ...configForm })
 const {
   data: settingsData,
   error: configError,
@@ -1004,7 +1000,7 @@ function loadConfig(settings: KnowledgeSettingsPayload) {
   for (const key of Object.keys(configForm) as (keyof typeof configForm)[]) {
     configForm[key] = settings[key] ?? configForm[key]
   }
-  savedConfig = { ...configForm }
+  savedConfig.value = { ...configForm }
 }
 
 if (settingsData.value?.data) loadConfig(settingsData.value.data)
@@ -1070,6 +1066,7 @@ const generateAnswer = ref(true)
 const testingRetrieval = ref(false)
 const retrievalResult = ref<RetrievalResult | null>(null)
 const savingConfig = ref(false)
+const configSaveError = ref('')
 const statusOptions = [
   { label: '全部状态', value: '__all__' },
   ...['PENDING', 'SYNCING', 'SYNCED', 'STALE', 'FAILED', 'DISABLED'].map((value) => ({
@@ -1086,27 +1083,36 @@ const configTabs = [
     label: '对话模型',
     value: 'chat',
     icon: 'i-lucide-message-square-text',
+    keys: ['ai_base_url', 'ai_model', 'ai_api_key'],
     description: '用于知识库问答以及摘要、SEO、写作助手等生成能力。'
   },
   {
     label: 'Embedding',
     value: 'embedding',
     icon: 'i-lucide-brain-circuit',
+    keys: ['ai_embedding_base_url', 'ai_embedding_model', 'ai_embedding_api_key'],
     description: '将博客文章和上传文件转换为语义检索向量。'
   },
   {
     label: 'Rerank',
     value: 'rerank',
     icon: 'i-lucide-list-filter',
+    keys: ['ai_rerank_enabled', 'ai_rerank_base_url', 'ai_rerank_model', 'ai_rerank_top_n', 'ai_rerank_api_key'],
     description: '对混合检索候选结果二次排序，减少问答上下文噪声。'
   },
   {
     label: 'RAG 策略',
     value: 'rag',
     icon: 'i-lucide-sliders-horizontal',
+    keys: ['rag_top_k', 'rag_context_limit', 'rag_system_prompt', 'rag_no_answer_prompt', 'rag_daily_user_limit', 'rag_ip_hourly_limit'],
     description: '控制召回、上下文、问答提示词和访问限额。'
   }
-] as const
+] as const satisfies readonly { label: string; value: string; icon: string; description: string; keys: readonly (keyof typeof configForm | AiSecretKey)[] }[]
+const changedConfigTabs = computed(() => configTabs.filter(tab => tab.keys.some(key =>
+  key in secretDrafts
+    ? secretDrafts[key as AiSecretKey] !== emptySecretDrafts[key as AiSecretKey]
+    : configForm[key as keyof typeof configForm] !== savedConfig.value[key as keyof typeof configForm]
+)))
 const activeConfigTab = ref<(typeof configTabs)[number]['value']>('chat')
 const currentConfigTab = computed(
   () => configTabs.find((item) => item.value === activeConfigTab.value) || configTabs[0]
@@ -1272,40 +1278,47 @@ async function retryActive() {
     }
   } else await refreshAll()
 }
-async function saveConfig() {
-  if (savingConfig.value || configError.value) return
+function resetConfig() {
+  if (savingConfig.value) return
+  Object.assign(configForm, savedConfig.value)
+  Object.assign(secretDrafts, emptySecretDrafts)
+  configSaveError.value = ''
+}
+
+async function saveConfig(repairDimensions = false) {
+  if (savingConfig.value || configError.value || !settingsData.value) return
+  const repair = invalidDimensions.value?.source === 'database'
+  if (repairDimensions ? !repair : !configDirty.value) return
   const submittedSettings = { ...configForm }
   const changedSettings = Object.fromEntries(
-    Object.entries(submittedSettings).filter(([key, value]) => savedConfig[key as keyof typeof configForm] !== value)
+    Object.entries(submittedSettings).filter(([key, value]) => savedConfig.value[key as keyof typeof configForm] !== value)
   )
   const submittedSecrets = { ...secretDrafts }
   const secretChanges = aiSecretKeys.filter(key => submittedSecrets[key] === null || submittedSecrets[key]?.trim())
   savingConfig.value = true
+  configSaveError.value = ''
   try {
     await $fetch('/api/admin/knowledge/config', {
       method: 'PUT',
       body: {
-        ...changedSettings,
-        ...(invalidDimensions.value?.source === 'database' ? { ai_embedding_dimensions: embeddingDimensions } : {}),
-        ...Object.fromEntries(secretChanges.map(key => [key, submittedSecrets[key]]))
+        ...(repairDimensions ? {} : changedSettings),
+        ...(repair ? { ai_embedding_dimensions: embeddingDimensions } : {}),
+        ...(repairDimensions ? {} : Object.fromEntries(secretChanges.map(key => [key, submittedSecrets[key]])))
       }
     })
-    for (const key of aiSecretKeys) {
-      const status = settingsData.value?.data.aiSecretStatus?.[key]
-      if (status && secretChanges.includes(key)) status.stored = submittedSecrets[key] !== null
-      if (secretDrafts[key] === submittedSecrets[key]) secretDrafts[key] = ''
+    if (!repairDimensions) {
+      for (const key of aiSecretKeys) {
+        const status = settingsData.value?.data.aiSecretStatus?.[key]
+        if (status && secretChanges.includes(key)) status.stored = submittedSecrets[key] !== null
+        if (secretDrafts[key] === submittedSecrets[key]) secretDrafts[key] = ''
+      }
+      savedConfig.value = submittedSettings
+      markConfigSaved(JSON.stringify({ settings: submittedSettings, secrets: emptySecretDrafts }))
     }
-    savedConfig = submittedSettings
-    markConfigSaved(JSON.stringify({ settings: submittedSettings, secrets: emptySecretDrafts }))
-    toast.add({ id: 'knowledge-config-save', title: 'AI 模型与检索配置已保存', color: 'success' })
+    toast.add({ id: 'knowledge-config-save', title: repairDimensions ? '向量维度已修正' : 'AI 模型与检索配置已保存', color: 'success' })
     await refreshConfig()
   } catch (error: unknown) {
-    toast.add({
-      id: 'knowledge-config-save',
-      title: '保存配置失败',
-      description: getApiErrorMessage(error),
-      color: 'error'
-    })
+    configSaveError.value = getApiErrorMessage(error, { fallback: '保存配置失败，请重试。' })
   } finally {
     savingConfig.value = false
   }

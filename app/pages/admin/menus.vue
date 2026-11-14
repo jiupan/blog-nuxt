@@ -1,22 +1,6 @@
 <template>
   <div class="menu-admin-page">
     <AdminPageActions>
-      <span class="admin-save-state" :class="{ 'is-dirty': isDirty }">
-        {{ isDirty ? '有未保存修改' : '已保存' }}
-      </span>
-      <UButton
-        v-if="isDirty"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        :disabled="saving"
-        @click="resetMenus"
-      >
-        撤销修改
-      </UButton>
-      <UButton v-if="isDirty" icon="i-lucide-check" size="sm" :loading="saving" @click="saveMenus">
-        保存菜单
-      </UButton>
       <UButton
         icon="i-lucide-plus"
         size="sm"
@@ -24,20 +8,29 @@
         aria-label="添加菜单项"
         @click="addRootMenuItem"
       >
-        <span v-if="!isDirty">添加菜单项</span>
+        <span class="hidden md:inline">添加菜单项</span>
       </UButton>
+      <AdminSaveActions
+        label="保存菜单"
+        :ready="!menuLoadError"
+        :dirty="isDirty"
+        :saving="saving"
+        @save="saveMenus"
+        @undo="resetMenus"
+      />
     </AdminPageActions>
     <div v-if="menuLoadError" class="workspace-error" role="alert">
       <span>菜单加载失败，请重新加载后编辑。</span>
       <UButton color="neutral" variant="outline" @click="reloadMenus()"> 重新加载 </UButton>
     </div>
     <fieldset v-else :disabled="saving" class="menu-edit-body">
+      <p v-if="saveError" class="workspace-error" role="alert">{{ saveError }}</p>
       <section v-if="selectedMenu" class="menu-live-preview workspace-panel">
         <div class="menu-preview-label">
           <UIcon name="i-lucide-monitor" class="size-4" />
           <span>{{ menuPlacement.label }}</span>
           <small>{{ menuPlacement.hint }}</small>
-          <NuxtLink v-if="selectedMenu.location === 'FOOTER'" to="/admin/settings?tab=footerMenu" class="text-sm text-primary">返回页脚设置</NuxtLink>
+          <NuxtLink v-if="selectedMenu.location === 'FOOTER'" to="/admin/settings?tab=footer" class="text-sm text-primary">返回页脚设置</NuxtLink>
         </div>
         <nav v-if="menuPlacement.live" aria-label="菜单预览">
           <div
@@ -277,16 +270,6 @@
                 >
                   删除此项
                 </button>
-                <button
-                  type="button"
-                  class="save-button"
-                  :class="{ 'is-saving': saving }"
-                  :disabled="saving || !isDirty"
-                  @click="saveMenus"
-                >
-                  <UIcon name="i-lucide-save" class="size-4" />
-                  {{ saving ? '保存中...' : '保存更改' }}
-                </button>
               </div>
             </div>
           </template>
@@ -451,6 +434,7 @@ const MenuTreeItem = defineComponent({
 
 const toast = useToast()
 const saving = ref(false)
+const saveError = ref('')
 const menus = ref<MenuGroup[]>([])
 const snapshot = ref('')
 const selectedMenuId = ref<number | null>(null)
@@ -618,6 +602,7 @@ function setMenus(value: MenuGroup[], preferredMenuId = selectedMenuId.value) {
 function resetMenus() {
   if (!snapshot.value) return
   setMenus(JSON.parse(snapshot.value))
+  saveError.value = ''
 }
 
 function selectMenu(menu: MenuGroup) {
@@ -930,9 +915,10 @@ function findSavedItem(item: MenuItem, menu: MenuGroup, savedMenu: MenuGroup): M
 }
 
 async function saveMenus() {
-  if (saving.value || menuLoadError.value) return
+  if (!isDirty.value || saving.value || menuLoadError.value) return
   const selectedMenuIndex = menus.value.findIndex((menu) => menu.id === selectedMenuId.value)
   saving.value = true
+  saveError.value = ''
   try {
     const saved = await $fetch<ApiResult<MenuGroup[]>>('/api/admin/menus', {
       method: 'PUT',
@@ -974,12 +960,7 @@ async function saveMenus() {
     setMenus(saved.data, savedMenu?.id)
     toast.add({ id: 'menus-save', title: '菜单已保存', color: 'success' })
   } catch (error: unknown) {
-    toast.add({
-      id: 'menus-save',
-      title: '保存失败',
-      description: getApiErrorMessage(error, { fallback: '请检查菜单名称和链接是否完整。' }),
-      color: 'error'
-    })
+    saveError.value = getApiErrorMessage(error, { fallback: '保存菜单失败，请检查菜单名称和链接是否完整。' })
   } finally {
     saving.value = false
   }
@@ -1668,39 +1649,6 @@ button.node-fold[aria-expanded='true'] {
   margin-top: 1.125rem;
 }
 
-.save-button {
-  display: inline-flex;
-  width: 100%;
-  height: 2.75rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: 0;
-  border-radius: 0.45rem;
-  background: #202633;
-  color: #fff;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease;
-}
-
-.save-button:hover:not(:disabled) {
-  background: #020617;
-  transform: none;
-}
-
-.save-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.save-button.is-saving {
-  cursor: wait;
-}
-
 .danger-text-button {
   flex: 0 0 auto;
   border: 0;
@@ -1930,10 +1878,6 @@ button.node-fold[aria-expanded='true'] {
 .property-head-icon {
   background: #f1eef8;
   color: #8977ab;
-}
-.menu-property-card .save-button {
-  background: #6554c0;
-  box-shadow: none;
 }
 @media (max-width: 1100px) {
   .menu-admin-layout {

@@ -19,7 +19,10 @@ export function useSiteSeo() {
   useHead(() => ({
     htmlAttrs: { lang: 'zh-CN' },
     meta: [{ name: 'baidu-site-verification', content: 'codeva-BCPQzdpJg5' }],
-    link: privatePage.value ? [] : [{ rel: 'canonical', href: canonical.value }],
+    link: [
+      ...(settings.value.site_favicon ? [{ rel: 'icon', href: settings.value.site_favicon }] : []),
+      ...(privatePage.value ? [] : [{ rel: 'canonical', href: canonical.value }])
+    ],
     script:
       route.path === '/'
         ? [

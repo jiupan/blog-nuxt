@@ -1,14 +1,4 @@
-export function isPublicFooterLink(to: string) {
-  if (!to) return true
-  try {
-    const { pathname } = new URL(to, 'https://footer.invalid')
-    return !/^\/admin(?:\/|$)/i.test(pathname)
-  } catch {
-    return false
-  }
-}
-
-export function parseFooterBottomLinks(value: string, { includeHidden = false } = {}) {
+export function parseFooterBottomLinks(value: string) {
   return value
     .split('\n')
     .map(line => line.trim())
@@ -17,7 +7,7 @@ export function parseFooterBottomLinks(value: string, { includeHidden = false } 
       const [label, to] = line.split('|').map(part => part?.trim())
       return { label: label || '', to: to || '/' }
     })
-    .filter(link => link.label && (includeHidden || isPublicFooterLink(link.to)))
+    .filter(link => link.label)
 }
 
 export function mergeFooterArchiveLinks<T extends { to: string }>(links: T[]) {

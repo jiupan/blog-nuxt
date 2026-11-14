@@ -101,22 +101,55 @@ html:has(.admin-shell) body {
 .admin-side-nav {
   display: grid;
   align-content: start;
-  gap: 22px;
+  gap: 10px;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 3px 0 22px;
+  padding: 4px 10px 16px 0;
 }
-.admin-nav-group {
+.admin-sidebar > .admin-side-nav {
+  margin-inline-end: -16px;
+}
+.admin-nav-group,
+.admin-nav-links {
   display: grid;
   gap: 4px;
 }
-.admin-nav-group-label {
-  margin: 0 0 5px;
-  padding-left: 12px;
-  color: #697386;
-  font-size: 11px;
-  font-weight: 500;
+.admin-nav-disclosure {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  font-weight: 580;
+  text-align: start;
+  cursor: pointer;
+}
+.admin-nav-disclosure > span:first-child {
+  margin-inline-end: auto;
+}
+.admin-nav-disclosure:hover {
+  background: var(--ui-bg-muted);
+  color: var(--admin-ink);
+}
+.admin-nav-disclosure.is-current {
+  color: var(--admin-accent);
+}
+.admin-nav-chevron {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  transition: transform .18s ease;
+}
+.admin-nav-disclosure[aria-expanded="true"] .admin-nav-chevron {
+  transform: rotate(90deg);
+}
+.admin-side-nav :is(.admin-nav-disclosure, .admin-nav-link):focus-visible {
+  outline-offset: -2px;
 }
 .admin-nav-link {
   position: relative;
@@ -132,6 +165,9 @@ html:has(.admin-shell) body {
   transition:
     background 0.15s,
     color 0.15s;
+}
+.admin-nav-disclosure + .admin-nav-links .admin-nav-link {
+  padding-inline-start: 18px;
 }
 .admin-nav-link:hover {
   background: #f5f6f8;
@@ -572,7 +608,7 @@ html:has(.admin-shell) body {
     padding: 18px 16px;
   }
   .admin-mobile-drawer .admin-side-nav {
-    gap: 20px;
+    padding-inline-end: 0;
   }
   .admin-mobile-drawer .admin-sidebar-site {
     margin-top: 14px;
@@ -612,6 +648,36 @@ html:has(.admin-shell) body {
 }
 .admin-save-state.is-dirty::before {
   background: #bb9555;
+}
+.admin-save-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-save-actions > button {
+  flex: none;
+}
+.admin-save-submit { min-width: 80px; justify-content: center; }
+.admin-settings-save-state:has(> span:empty) { visibility: hidden; }
+.admin-save-undo-slot {
+  min-width: 82px;
+}
+.admin-save-state.is-saving::before {
+  background: var(--admin-accent);
+}
+.admin-settings-section-badge {
+  margin-inline-start: auto;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: #bb9555;
+}
+.admin-settings-save-scope {
+  margin: 8px 0 0;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 .workspace-filterbar {
   display: flex;
@@ -739,7 +805,7 @@ html:has(.admin-shell) body {
   display: grid;
   gap: 5px;
 }
-.workspace-settings-nav > button {
+.workspace-settings-nav > :is(button, a) {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -756,6 +822,10 @@ html:has(.admin-shell) body {
   color: var(--admin-accent);
   font-weight: 550;
 }
+.workspace-settings-nav > a:hover {
+  background: var(--ui-bg-muted);
+  color: var(--admin-accent);
+}
 @media (max-width: 767px) {
   .admin-page-toolbar {
     gap: 6px;
@@ -763,6 +833,13 @@ html:has(.admin-shell) body {
   .admin-save-state {
     display: none;
   }
+  .admin-settings-save-state.is-dirty,
+  .admin-settings-save-state.is-saving {
+    display: inline-flex;
+  }
+  .admin-save-actions { gap: 4px; }
+  .admin-save-undo-slot { min-width: 28px; }
+  .admin-save-undo-label { display: none; }
   .admin-topbar-actions:has(.admin-page-toolbar) > .admin-top-link {
     display: none;
   }
@@ -798,13 +875,25 @@ html:has(.admin-shell) body {
     overflow-x: auto;
     padding-bottom: 4px;
   }
-  .workspace-settings-nav > button {
+  .workspace-settings-nav > :is(button, a) {
     flex: 0 0 auto;
     white-space: nowrap;
   }
   .admin-topbar-title {
     white-space: nowrap;
     font-size: 16px;
+  }
+}
+@media (max-width: 430px) {
+  .admin-settings-save-state.is-dirty,
+  .admin-settings-save-state.is-saving { display: inline-flex; }
+  .admin-settings-save-state > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 

@@ -40,6 +40,7 @@ export const bookmarkActionSchema = z.discriminatedUnion('action', [
     })
   }),
   z.strictObject({ action: z.literal('hide'), revision, id }),
+  z.strictObject({ action: z.literal('delete'), revision, id }),
   z.strictObject({ action: z.literal('spotlight'), revision, id, enabled: z.boolean() }),
   z.strictObject({ action: z.literal('reorder'), revision, ids: z.array(id) }),
   z.strictObject({
@@ -157,6 +158,11 @@ export async function mutateBookmarks(input: z.infer<typeof bookmarkActionSchema
           data: { status: 'HIDDEN' }
         })
         if (!updated.count) throw notFound('这条链接当前未发布')
+      }
+
+      if (input.action === 'delete') {
+        const deleted = await tx.bookmark.deleteMany({ where: { id: input.id } })
+        if (!deleted.count) throw notFound('链接不存在')
       }
 
       if (input.action === 'hide' || (input.action === 'save' && input.status === 'DRAFT' && input.id !== undefined)) {

@@ -1,18 +1,15 @@
 <template>
   <div class="admin-page sidebar-admin-page">
     <AdminPageActions>
-      <span v-if="form" class="admin-save-state" :class="{ 'is-dirty': isDirty }">
-        {{ isDirty ? '有未保存修改' : saved ? '已保存并应用' : '已保存' }}
-      </span>
-      <UButton
-        icon="i-lucide-check"
-        size="sm"
-        :loading="saving"
-        :disabled="!form || !!compressionError || (!isDirty && !saving)"
-        @click="save"
-      >
-        保存设置
-      </UButton>
+      <AdminSaveActions
+        :ready="!!form && !loadError"
+        :dirty="isDirty"
+        :saving="saving"
+        :disabled="!!compressionError || uploading"
+        :undo-disabled="uploading"
+        @save="save"
+        @undo="resetDraft"
+      />
     </AdminPageActions>
     <div v-if="loadError" class="workspace-error" role="alert">
       <span>侧栏设置加载失败。</span>
@@ -21,6 +18,7 @@
     <div v-else-if="!form" class="workspace-loading" role="status" aria-label="正在加载侧栏设置">
       <span v-for="i in 3" :key="i" />
     </div>
+    <p v-if="saveError" class="workspace-error" role="alert">{{ saveError }}</p>
     <div v-if="form" class="sidebar-editor-layout">
       <div class="sidebar-editor-main">
         <section class="admin-panel sidebar-config-card">
@@ -282,7 +280,7 @@ const avatarInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 const uploadError = ref('')
 const saving = ref(false)
-const saved = ref(false)
+let savedForm: SidebarForm | undefined
 const saveError = ref('')
 const toast = useToast()
 
@@ -300,6 +298,7 @@ watch(
       signature: value.data.sidebar_author_signature || '',
       modules: parseModules(value.data.sidebar_modules)
     }
+    savedForm = JSON.parse(JSON.stringify(form.value))
   },
   { immediate: true }
 )
@@ -381,10 +380,9 @@ function isVideoUrl(value: string) {
 }
 
 async function save() {
-  if (!form.value || saving.value || compressionError.value) return
+  if (!form.value || !isDirty.value || saving.value || uploading.value || compressionError.value) return
   const submittedSnapshot = snapshot()
   saving.value = true
-  saved.value = false
   saveError.value = ''
   try {
     await $fetch('/api/admin/settings', {
@@ -401,16 +399,20 @@ async function save() {
       }
     })
     markSaved(submittedSnapshot)
-    saved.value = true
-    setTimeout(() => {
-      saved.value = false
-    }, 2200)
+    savedForm = JSON.parse(submittedSnapshot)
+    toast.add({ title: '侧栏设置已保存', color: 'success' })
   } catch (error: unknown) {
     saveError.value = getApiErrorMessage(error, { fallback: '保存失败，请稍后重试。' })
-    toast.add({ title: '侧栏设置保存失败', description: saveError.value, color: 'error' })
   } finally {
     saving.value = false
   }
+}
+
+function resetDraft() {
+  if (!savedForm || saving.value || uploading.value) return
+  form.value = structuredClone(savedForm)
+  saveError.value = ''
+  uploadError.value = ''
 }
 </script>
 

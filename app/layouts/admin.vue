@@ -169,7 +169,7 @@ const pageNames: Record<string, string> = {
   settings: '站点设置'
 }
 const pageName = computed(() => {
-  if (route.path === '/admin/settings' && ['footer', 'footerActions', 'footerMenu'].includes(String(route.query.tab))) return '页脚'
+  if (route.path === '/admin/settings' && ['footer', 'footerActions'].includes(String(route.query.tab))) return '页脚'
   if (route.path === '/admin/menus' && route.query.location === 'footer') return '页脚菜单'
   return pageNames[route.path.split('/')[2] || ''] || '工作台'
 })

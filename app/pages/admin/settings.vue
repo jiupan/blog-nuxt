@@ -1,18 +1,16 @@
 <template>
   <div class="admin-page">
     <AdminPageActions>
-      <span v-if="form" class="admin-save-state" :class="{ 'is-dirty': isDirty }">
-        {{ isDirty ? '有未保存修改' : saved ? '已保存并应用' : '已保存' }}
-      </span>
-      <UButton
-        icon="i-lucide-check"
-        size="sm"
-        :loading="saving"
-        :disabled="!form || !isDirty || saving || !!uploading || uploadingFooterActionId !== null"
-        @click="save"
-      >
-        保存设置
-      </UButton>
+      <AdminSaveActions
+        :ready="!!form && !loadError"
+        :dirty="isDirty"
+        :saving="saving"
+        :disabled="uploadingControls"
+        :undo-disabled="uploadingControls"
+        :scope="changedTabs.length > 1 ? `${changedTabs.length} 个分区有未保存修改` : undefined"
+        @save="save"
+        @undo="resetDraft"
+      />
     </AdminPageActions>
     <div v-if="loadError" class="workspace-error" role="alert">
       <span>站点设置加载失败，请重试。</span>
@@ -30,12 +28,20 @@
         >
           <UIcon :name="settingIcons[tab.value]" class="size-4" />
           {{ tab.label }}
+          <span v-if="changedTabs.includes(tab)" class="admin-settings-section-badge" role="img" aria-label="有未保存修改" title="有未保存修改" />
         </button>
+        <NuxtLink v-if="selectedTab.area === 'footer'" to="/admin/menus?location=footer">
+          <UIcon name="i-lucide-list-tree" class="size-4" />
+          分栏链接
+          <UIcon name="i-lucide-arrow-up-right" class="size-3" aria-hidden="true" />
+        </NuxtLink>
       </nav>
       <section class="admin-panel settings-admin-panel">
         <header class="settings-section-head">
           <h2>{{ currentSettingLabel }}</h2>
           <p>{{ settingDescriptions[activeTab] }}</p>
+          <p v-if="changedTabs.some(tab => tab.value !== activeTab)" class="admin-settings-save-scope" role="status">本次保存包含{{ changedTabs.map(tab => tab.label).join('、') }}的修改。</p>
+          <p v-if="saveError" class="workspace-error" role="alert">{{ saveError }}</p>
         </header>
         <div v-if="activeTab === 'basic'" class="settings-form">
           <div class="settings-brand-preview">
@@ -313,11 +319,6 @@
           </div>
         </div>
 
-        <div v-else-if="activeTab === 'footerMenu'" class="settings-row">
-          <p class="text-sm text-slate-500">管理页脚中部的链接分栏。菜单编辑器支持预览、排序和添加子链接。</p>
-          <div><UButton to="/admin/menus?location=footer" color="neutral" variant="outline" trailing-icon="i-lucide-arrow-right">编辑页脚分栏菜单</UButton></div>
-        </div>
-
         <div v-else class="settings-form">
           <div class="settings-row">
             <div class="settings-row-head">
@@ -509,12 +510,17 @@ import { moveArrayItem } from '~/utils/reorder'
 import { useAdminUnsavedChanges } from '~/composables/useAdminUnsavedChanges'
 import type { ApiResult } from '~~/types/api'
 import { getApiErrorMessage } from '~/utils/api-error'
-import { isPublicFooterLink, parseFooterBottomLinks } from '~/utils/footer-links'
+import { parseFooterBottomLinks } from '~/utils/footer-links'
 import type { AdminSettingsPayload } from '~~/types/dto/settings'
 
 definePageMeta({
   layout: 'admin',
-  middleware: 'admin-auth'
+  middleware: [
+    'admin-auth',
+    to => {
+      if (to.query.tab === 'footerMenu') return navigateTo('/admin/menus?location=footer', { replace: true })
+    }
+  ]
 })
 
 type SettingsForm = {
@@ -544,30 +550,14 @@ type FooterActionItem = {
 }
 
 const settingTabs = [
-  { label: '站点信息', value: 'basic', area: 'site' },
-  { label: '首页展示', value: 'home', area: 'site' },
-  { label: '搜索与收录', value: 'seo', area: 'site' },
-  { label: '版权与备案', value: 'footer', area: 'footer' },
-  { label: '图标入口', value: 'footerActions', area: 'footer' },
-  { label: '分栏链接', value: 'footerMenu', area: 'footer' }
-] as const
+  { label: '站点信息', value: 'basic', area: 'site', keys: ['site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon'] },
+  { label: '首页展示', value: 'home', area: 'site', keys: ['hero_meme_group', 'home_post_card_style'] },
+  { label: '搜索与收录', value: 'seo', area: 'site', keys: ['seo_noindex', 'seo_keywords', 'seo_description'] },
+  { label: '版权与备案', value: 'footer', area: 'footer', keys: ['footer_copyright', 'footer_icp', 'footer_bottom_links'] },
+  { label: '图标入口', value: 'footerActions', area: 'footer', keys: ['footer_actions'] }
+] as const satisfies readonly { label: string; value: string; area: string; keys: readonly (keyof SettingsForm)[] }[]
 
-const siteSettingKeys = [
-  'site_title',
-  'site_subtitle',
-  'site_brand',
-  'site_logo',
-  'site_favicon',
-  'hero_meme_group',
-  'home_post_card_style',
-  'seo_noindex',
-  'seo_keywords',
-  'seo_description',
-  'footer_copyright',
-  'footer_icp',
-  'footer_bottom_links',
-  'footer_actions'
-] as const satisfies readonly (keyof SettingsForm)[]
+const siteSettingKeys: (keyof SettingsForm)[] = settingTabs.flatMap(tab => [...tab.keys] as (keyof SettingsForm)[])
 
 const defaultFooterActions =
   '[{"label":"归档","to":"/archive","icon":"i-lucide-archive"},{"label":"我的","to":"/about","icon":"i-lucide-user-round"},{"label":"书签","to":"/link","icon":"i-lucide-link"}]'
@@ -645,7 +635,7 @@ const expandedFooterIconItems = ref(new Set<number>())
 const uploadingFooterActionId = ref<number | null>(null)
 const footerImageUploadErrorId = ref<number | null>(null)
 const saving = ref(false)
-const saved = ref(false)
+const saveError = ref('')
 const uploading = ref<string | null>(null)
 const logoUploaded = ref(false)
 const faviconUploaded = ref(false)
@@ -702,9 +692,7 @@ watch(
         footer_bottom_links: val.data.footer_bottom_links,
         footer_actions: val.data.footer_actions
       }
-      footerActionItems.value = parseFooterActionItems(form.value.footer_actions)
-      footerLinks.value = parseFooterBottomLinks(form.value.footer_bottom_links, { includeHidden: true })
-        .map(link => ({ ...link, id: ++nextFooterLinkId }))
+      loadFooterFields(form.value)
       savedFields.value = currentFields()
     }
   },
@@ -712,22 +700,26 @@ watch(
 )
 
 const { isDirty, markSaved } = useAdminUnsavedChanges(() => currentFields() ?? null)
+const changedTabs = computed(() => {
+  const current = currentFields()
+  const previous = savedFields.value
+  return current && previous ? settingTabs.filter(tab => tab.keys.some(key => current[key] !== previous[key])) : []
+})
+const uploadingControls = computed(() => !!uploading.value || uploadingFooterActionId.value !== null)
 const toast = useToast()
 const settingIcons: Record<string, string> = {
   basic: 'i-lucide-sliders-horizontal',
   home: 'i-lucide-house',
   seo: 'i-lucide-search',
   footer: 'i-lucide-panel-bottom',
-  footerActions: 'i-lucide-grid-2x2',
-  footerMenu: 'i-lucide-list-tree'
+  footerActions: 'i-lucide-grid-2x2'
 }
 const settingDescriptions: Record<string, string> = {
   basic: '管理站点名称、顶部品牌、Logo 与浏览器标签页图标。',
   home: '管理首页文章卡片样式和轮播文章图标。',
   seo: '编辑搜索摘要和站点收录规则。',
   footer: '管理页脚最下方的版权、备案号和辅助链接。',
-  footerActions: '管理页脚品牌区的图标入口。',
-  footerMenu: '管理页脚中部的栏目及其链接。'
+  footerActions: '管理页脚品牌区的图标入口。'
 }
 const currentSettingLabel = computed(() => selectedTab.value.label)
 
@@ -746,49 +738,53 @@ function currentFields(): SettingsForm | undefined {
   }
 }
 
+function loadFooterFields(fields: SettingsForm) {
+  footerActionItems.value = parseFooterActionItems(fields.footer_actions)
+  footerLinks.value = parseFooterBottomLinks(fields.footer_bottom_links).map(link => ({ ...link, id: ++nextFooterLinkId }))
+  expandedFooterIconItems.value.clear()
+}
+
+function resetDraft() {
+  if (!savedFields.value || saving.value || uploadingControls.value) return
+  form.value = { ...savedFields.value }
+  loadFooterFields(form.value)
+  saveError.value = ''
+}
+
 async function save() {
   const current = currentFields()
   if (!current || !savedFields.value || saving.value || uploading.value || uploadingFooterActionId.value !== null) return
   const previous = savedFields.value
   const changed = siteSettingKeys.filter(key => current[key] !== previous[key])
   if (!changed.length) return
+  saveError.value = ''
   if (changed.includes('footer_bottom_links')) {
     const invalid = footerLinks.value.findIndex(({ label, to }) => {
-      if (!label.trim() || !to.trim() || /[|\r\n]/.test(label + to) || !isPublicFooterLink(to.trim())) return true
+      if (!label.trim() || !to.trim() || /[|\r\n]/.test(label + to)) return true
       try { return !['https:', 'http:'].includes(new URL(to.trim(), 'https://footer.invalid').protocol) } catch { return true }
     })
     if (invalid !== -1) {
       void selectTab('footer')
-      toast.add({ title: `请检查第 ${invalid + 1} 条辅助链接`, description: '请填写名称和公开的站内路径或 HTTP(S) 地址，且不要使用竖线。', color: 'error' })
+      saveError.value = `请检查第 ${invalid + 1} 条辅助链接。填写名称和站内路径或 HTTP(S) 地址，且不要使用竖线。`
       return
     }
   }
   if (changed.includes('footer_actions') && footerActionItems.value.some(item => !item.label.trim())) {
     void selectTab('footerActions')
-    toast.add({ title: '请填写图标入口的显示名称', color: 'error' })
+    saveError.value = '请填写图标入口的显示名称。'
     return
   }
   if (changed.includes('seo_noindex') && current.seo_noindex === 'true' && !window.confirm('保存后会为全站公开页面添加禁止收录标记。确定保存？')) return
   const submittedSnapshot = JSON.stringify(current)
   saving.value = true
-  saved.value = false
   try {
     const siteSettings = Object.fromEntries(changed.map(key => [key, current[key]]))
     await $fetch('/api/admin/settings', { method: 'PUT', body: siteSettings })
     savedFields.value = current
     markSaved(submittedSnapshot)
     toast.add({ id: 'settings-save', title: '站点设置已保存', color: 'success' })
-    saved.value = true
-    setTimeout(() => {
-      saved.value = false
-    }, 2000)
   } catch (error: unknown) {
-    toast.add({
-      id: 'settings-save',
-      title: '保存设置失败',
-      description: getApiErrorMessage(error),
-      color: 'error'
-    })
+    saveError.value = getApiErrorMessage(error, { fallback: '保存设置失败，请重试。' })
   } finally {
     saving.value = false
   }

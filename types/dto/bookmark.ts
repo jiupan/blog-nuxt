@@ -50,6 +50,7 @@ export type AdminBookmarksPayload = Omit<PublicBookmarksPayload, 'items'> & {
 export type BookmarkAction =
   | { action: 'save'; id?: number; fields: BookmarkFields; status: 'DRAFT' | 'PUBLISHED' }
   | { action: 'hide'; id: number }
+  | { action: 'delete'; id: number }
   | { action: 'spotlight'; id: number; enabled: boolean }
   | { action: 'reorder'; ids: number[] }
   | { action: 'saveSection'; id?: number; fields: BookmarkSectionFields }
