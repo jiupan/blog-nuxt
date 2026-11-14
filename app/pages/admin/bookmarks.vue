@@ -121,7 +121,7 @@
               <UFormField label="页面标题" required>
                 <UInput v-model="settings.title" required maxlength="32" class="w-full" :disabled="busy" />
               </UFormField>
-              <UFormField label="主推荐" description="可以选任意一条已发布的书签。">
+              <UFormField label="主推荐" help="可以选任意一条已发布的书签。">
                 <USelect v-model="featuredValue" :items="featureOptions" class="w-full" :disabled="busy" />
               </UFormField>
               <UFormField class="full-width" label="页面引言">

@@ -8,7 +8,7 @@
         icon="i-lucide-check"
         size="sm"
         :loading="saving"
-        :disabled="!form || (!isDirty && !saving)"
+        :disabled="!form || !!compressionError || (!isDirty && !saving)"
         @click="save"
       >
         保存设置
@@ -81,6 +81,35 @@
               <small v-if="uploadError">{{ uploadError }}</small>
             </div>
           </div>
+          <fieldset class="avatar-compression">
+            <legend>动图头像压缩</legend>
+            <p>保存设置后，重新上传原始 WebP 动图即可使用新参数。</p>
+            <div class="field-grid">
+              <label>
+                <span>最长边（{{ animatedAvatarCompression.maxEdge.min }}–{{ animatedAvatarCompression.maxEdge.max }} px）</span>
+                <UInput
+                  :model-value="form.avatarMaxEdge"
+                  type="number"
+                  :min="animatedAvatarCompression.maxEdge.min"
+                  :max="animatedAvatarCompression.maxEdge.max"
+                  :step="1"
+                  @update:model-value="form.avatarMaxEdge = String($event ?? '')"
+                />
+              </label>
+              <label>
+                <span>压缩质量（{{ animatedAvatarCompression.quality.min }}–{{ animatedAvatarCompression.quality.max }}）</span>
+                <UInput
+                  :model-value="form.avatarQuality"
+                  type="number"
+                  :min="animatedAvatarCompression.quality.min"
+                  :max="animatedAvatarCompression.quality.max"
+                  :step="1"
+                  @update:model-value="form.avatarQuality = String($event ?? '')"
+                />
+              </label>
+            </div>
+            <small v-if="compressionError" class="compression-error" role="alert">{{ compressionError }}</small>
+          </fieldset>
           <div class="field-grid">
             <label>
               <span>显示名称</span>
@@ -204,7 +233,7 @@
 <script setup lang="ts">
 import { useAdminUnsavedChanges } from '~/composables/useAdminUnsavedChanges'
 import type { ApiResult } from '~~/types/api'
-import type { AdminSettingsPayload } from '~~/types/dto/settings'
+import { animatedAvatarCompression, type AdminSettingsPayload } from '~~/types/dto/settings'
 import { getApiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({ layout: 'admin', middleware: 'admin-auth' })
@@ -216,6 +245,8 @@ type SidebarForm = {
   subtitle: string
   description: string
   avatar: string
+  avatarMaxEdge: string
+  avatarQuality: string
   signature: string
   modules: SidebarModule[]
 }
@@ -264,6 +295,8 @@ watch(
       subtitle: value.data.sidebar_author_subtitle || '独立写作者',
       description: value.data.sidebar_author_description || value.data.sidebar_description || '',
       avatar: value.data.sidebar_author_avatar || '',
+      avatarMaxEdge: value.data.sidebar_avatar_webp_max_edge ?? String(animatedAvatarCompression.maxEdge.default),
+      avatarQuality: value.data.sidebar_avatar_webp_quality ?? String(animatedAvatarCompression.quality.default),
       signature: value.data.sidebar_author_signature || '',
       modules: parseModules(value.data.sidebar_modules)
     }
@@ -277,6 +310,22 @@ const siteName = computed(() => data.value?.data.site_title || 'Jiupan Blog')
 const authorName = computed(() => form.value?.name.trim() || siteName.value)
 const authorInitial = computed(() => authorName.value.slice(0, 1).toUpperCase())
 const avatarIsVideo = computed(() => isVideoUrl(form.value?.avatar || ''))
+const compressionError = computed(() => {
+  if (!form.value) return ''
+  const { maxEdge, quality } = animatedAvatarCompression
+  if (!isIntegerInRange(form.value.avatarMaxEdge, maxEdge.min, maxEdge.max)) {
+    return `最长边请输入 ${maxEdge.min}–${maxEdge.max} 之间的整数。`
+  }
+  if (!isIntegerInRange(form.value.avatarQuality, quality.min, quality.max)) {
+    return `压缩质量请输入 ${quality.min}–${quality.max} 之间的整数。`
+  }
+  return ''
+})
+
+function isIntegerInRange(value: string, min: number, max: number) {
+  const number = Number(value)
+  return Number.isInteger(number) && number >= min && number <= max
+}
 
 function parseModules(raw: string): SidebarModule[] {
   try {
@@ -332,7 +381,7 @@ function isVideoUrl(value: string) {
 }
 
 async function save() {
-  if (!form.value || saving.value) return
+  if (!form.value || saving.value || compressionError.value) return
   const submittedSnapshot = snapshot()
   saving.value = true
   saved.value = false
@@ -345,6 +394,8 @@ async function save() {
         sidebar_author_subtitle: form.value.subtitle.trim(),
         sidebar_author_description: form.value.description.trim(),
         sidebar_author_avatar: form.value.avatar,
+        sidebar_avatar_webp_max_edge: form.value.avatarMaxEdge,
+        sidebar_avatar_webp_quality: form.value.avatarQuality,
         sidebar_author_signature: form.value.signature.trim(),
         sidebar_modules: JSON.stringify(form.value.modules)
       }
@@ -373,6 +424,24 @@ async function save() {
 .sidebar-editor-main {
   display: grid;
   gap: 20px;
+}
+.avatar-compression {
+  min-width: 0;
+  margin: 0 0 24px;
+}
+.avatar-compression legend {
+  font-size: 14px;
+  font-weight: 600;
+}
+.avatar-compression p {
+  margin: 4px 0 12px;
+  color: var(--theme-text-muted);
+  font-size: 12px;
+}
+.compression-error {
+  display: block;
+  margin-top: 8px;
+  color: var(--theme-danger);
 }
 .sidebar-config-card {
   padding: 28px;

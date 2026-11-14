@@ -7,6 +7,8 @@ export type SiteSettingsKey =
   | 'sidebar_author_subtitle'
   | 'sidebar_author_description'
   | 'sidebar_author_avatar'
+  | 'sidebar_avatar_webp_max_edge'
+  | 'sidebar_avatar_webp_quality'
   | 'sidebar_author_signature'
   | 'sidebar_modules'
   | 'site_logo'
@@ -57,6 +59,11 @@ export type PublicSiteSettingsKey =
   | 'footer_actions'
 
 export type SiteSettingsPayload = Record<PublicSiteSettingsKey, string>
+
+export const animatedAvatarCompression = {
+  maxEdge: { min: 128, max: 512, default: 320 },
+  quality: { min: 1, max: 100, default: 70 }
+} as const
 
 export const aiSecretKeys = ['ai_api_key', 'ai_embedding_api_key', 'ai_rerank_api_key'] as const
 export type AiSecretKey = typeof aiSecretKeys[number]

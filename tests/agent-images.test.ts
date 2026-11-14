@@ -15,8 +15,9 @@ import {
 import sharp from 'sharp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { auth } = vi.hoisted(() => ({ auth: vi.fn() }))
+const { auth, setting } = vi.hoisted(() => ({ auth: vi.fn(), setting: { findMany: vi.fn(), upsert: vi.fn() } }))
 vi.mock('../server/services/agent/agent-key.service', () => ({ requireAgentToken: auth }))
+vi.mock('../server/utils/prisma', () => ({ prisma: { setting } }))
 vi.stubGlobal('defineEventHandler', defineEventHandler)
 vi.stubGlobal('getRouterParams', getRouterParams)
 vi.stubGlobal('setHeader', setHeader)
@@ -30,6 +31,7 @@ vi.stubGlobal('useRuntimeConfig', () => ({
   public: { siteUrl: 'https://blog.example' }
 }))
 const { uploadImage } = await import('../server/services/media/upload.service')
+const { saveSettings } = await import('../server/services/settings/settings.service')
 const { agentPostSchema } = await import('../server/services/agent/agent.schema')
 const { renderMarkdown } = await import('../server/utils/markdown')
 const route = (await import('../server/api/agent/images.post')).default
@@ -62,6 +64,12 @@ const formFor = (data = png, name = 'diagram.png', type = 'image/png') => {
 beforeEach(() => {
   vi.clearAllMocks()
   auth.mockResolvedValue({ keyId: 1 })
+  const storedSettings = new Map<string, string>()
+  setting.findMany.mockImplementation(async ({ where }) => where.key.in.flatMap((key: string) => {
+    const value = storedSettings.get(key)
+    return value === undefined ? [] : [{ key, value }]
+  }))
+  setting.upsert.mockImplementation(async ({ where, update }) => storedSettings.set(where.key, update.value))
 })
 
 describe('Agent local image uploads', () => {
@@ -133,7 +141,7 @@ describe('Agent local image uploads', () => {
       expect((await request(formFor(), `?purpose=${purpose}`)).status).toBe(400)
     }
   )
-  it('accepts a larger animation as an avatar while keeping the regular WebP limit', async () => {
+  it('applies saved compression to larger animated avatars while keeping the regular WebP limit', async () => {
     const edge = 4600
     const framePixels = edge * edge
     const input = await sharp(Buffer.concat([Buffer.alloc(framePixels, 40), Buffer.alloc(framePixels, 200)]), {
@@ -149,7 +157,15 @@ describe('Agent local image uploads', () => {
     const image = await handler(new Request(`https://blog.example${avatar.url}`))
     expect(image.status).toBe(200)
     expect(await sharp(Buffer.from(await image.arrayBuffer()), { animated: true }).metadata()).toMatchObject({
-      format: 'webp', width: 512, pageHeight: 512, pages: 2, delay: [120, 230], loop: 0
+      format: 'webp', width: 320, pageHeight: 320, pages: 2, delay: [120, 230], loop: 0
+    })
+
+    await saveSettings({ sidebar_avatar_webp_max_edge: '256', sidebar_avatar_webp_quality: '55' })
+    const updatedAvatar = await uploadImage(input, 'avatar')
+    const updatedImage = await handler(new Request(`https://blog.example${updatedAvatar.url}`))
+    expect(updatedImage.status).toBe(200)
+    expect(await sharp(Buffer.from(await updatedImage.arrayBuffer()), { animated: true }).metadata()).toMatchObject({
+      format: 'webp', width: 256, pageHeight: 256, pages: 2, delay: [120, 230], loop: 0
     })
   })
   it('requires one file, rejects extra fields and checks authentication first', async () => {

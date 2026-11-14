@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { animatedAvatarCompression } from '~~/types/dto/settings'
 
 export const settingsDefaults = {
   site_title: 'Jiupan Blog',
@@ -9,6 +10,8 @@ export const settingsDefaults = {
   sidebar_author_subtitle: '独立写作者',
   sidebar_author_description: '',
   sidebar_author_avatar: '',
+  sidebar_avatar_webp_max_edge: String(animatedAvatarCompression.maxEdge.default),
+  sidebar_avatar_webp_quality: String(animatedAvatarCompression.quality.default),
   sidebar_author_signature: '',
   sidebar_modules: '[{"key":"author","visible":true},{"key":"featured","visible":true},{"key":"categories","visible":true},{"key":"tags","visible":true}]',
   site_logo: '',
@@ -73,6 +76,9 @@ export const publicSettingKeys = [
 
 const optionalUrl = z.string().url().or(z.literal('')).optional()
 const optionalSecret = z.string().trim().nullable().optional()
+const optionalIntegerSetting = ({ min, max }: { min: number; max: number }) => z.string()
+  .refine(value => /^\d+$/.test(value) && Number(value) >= min && Number(value) <= max, `请输入 ${min}–${max} 之间的整数`)
+  .optional()
 
 export const settingsInputSchema = z.object({
   site_title: z.string().optional(),
@@ -83,6 +89,8 @@ export const settingsInputSchema = z.object({
   sidebar_author_subtitle: z.string().optional(),
   sidebar_author_description: z.string().optional(),
   sidebar_author_avatar: z.string().optional(),
+  sidebar_avatar_webp_max_edge: optionalIntegerSetting(animatedAvatarCompression.maxEdge),
+  sidebar_avatar_webp_quality: optionalIntegerSetting(animatedAvatarCompression.quality),
   sidebar_author_signature: z.string().optional(),
   sidebar_modules: z.string().optional(),
   site_logo: z.string().optional(),

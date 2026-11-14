@@ -4,8 +4,9 @@
       <span class="author-glow" aria-hidden="true" />
       <div class="author-content">
         <div class="author-avatar">
-          <div class="author-avatar-frame">
-            <span v-if="!avatarReady" class="author-avatar-fallback" :aria-label="`${authorName} 的头像占位`">{{ initial }}</span>
+          <div class="author-avatar-frame" :class="{ 'has-avatar': authorAvatar && !avatarFailed }">
+            <span v-if="!authorAvatar || avatarFailed" class="author-avatar-fallback" :aria-label="`${authorName} 的头像占位`">{{ initial }}</span>
+            <span v-else-if="!avatarReady" class="author-avatar-placeholder" aria-hidden="true" />
             <video v-if="authorAvatarIsVideo && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :class="{ 'is-ready': avatarReady }" autoplay muted loop playsinline preload="auto" :aria-label="`${authorName} 的头像视频`" @loadeddata="avatarReady = true" @error="onAvatarError" />
             <img v-else-if="authorAvatar && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :alt="authorName" :class="{ 'is-ready': avatarReady }" @load="avatarReady = true" @error="onAvatarError">
           </div>
@@ -313,6 +314,19 @@ function hideBrokenImage(event: Event) {
   border-radius: inherit;
 }
 .author-avatar-fallback { font-size: 38px; line-height: 1; color: var(--theme-text-muted); }
+.author-avatar-frame.has-avatar {
+  background: var(--theme-surface-muted);
+}
+.author-avatar-placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--theme-surface-raised);
+  animation: author-avatar-pulse 1.45s ease-in-out infinite alternate;
+}
+@keyframes author-avatar-pulse {
+  from { opacity: .25; }
+  to { opacity: .85; }
+}
 .author-avatar-frame img,
 .author-avatar-frame video {
   position: absolute;
@@ -321,8 +335,14 @@ function hideBrokenImage(event: Event) {
   height: 100%;
   object-fit: cover;
   opacity: 0;
+  transition: opacity .4s ease;
 }
 .author-avatar-frame .is-ready { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .author-avatar-placeholder { animation: none; opacity: .55; }
+  .author-avatar-frame img,
+  .author-avatar-frame video { transition: none; }
+}
 
 .author-avatar i {
   position: absolute;

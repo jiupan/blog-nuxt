@@ -6,12 +6,12 @@ import { updateGalleryMetadata } from './gallery-metadata'
 import { badRequest } from '../../utils/api-error'
 import { resolveUploadRoot, toUploadUrl } from './path-safety'
 import { normalizeSlug } from '../../utils/slug'
+import { getAnimatedAvatarCompression } from '../settings/settings.service'
 
 const maxUploadSize = 50 * 1024 * 1024
 const maxAvatarVideoSize = 5 * 1024 * 1024
 const maxInputPixels = 40_000_000
 const maxAnimatedAvatarPixels = 80_000_000
-const maxAnimatedAvatarEdge = 512
 const allowedFormats = new Set(['jpeg', 'png', 'webp'])
 const memeFormats = new Set(['jpeg', 'png', 'webp', 'gif'])
 const unsafeSvgPattern = /<\s*(?:script|foreignobject|iframe|object|embed|link|style)\b|(?:\s|<)on[a-z]+\s*=|javascript:/i
@@ -130,8 +130,9 @@ async function optimizeImage(input: Buffer, purpose: UploadPurpose) {
   }
 
   // Sharp applies the pixel limit to the stacked image when all frames are loaded.
+  const avatarCompression = animatedAvatar ? await getAnimatedAvatarCompression() : undefined
   const transformer = sharp(input, { limitInputPixels: pixelLimit, animated })
-  const squareLimit = animatedAvatar ? maxAnimatedAvatarEdge : purpose === 'favicon' ? 512 : undefined
+  const squareLimit = avatarCompression?.maxEdge ?? (purpose === 'favicon' ? 512 : undefined)
 
   try {
     if (!animated) {
@@ -159,7 +160,7 @@ async function optimizeImage(input: Buffer, purpose: UploadPurpose) {
 
     return {
       data: await transformer
-        .webp({ quality: purpose === 'meme' ? 86 : 80, effort: 4 })
+        .webp({ quality: avatarCompression?.quality ?? (purpose === 'meme' ? 86 : 80), effort: 4 })
         .toBuffer(),
       extension: '.webp'
     }

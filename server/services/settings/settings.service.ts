@@ -63,6 +63,16 @@ export async function getAdminSettings() {
   return describeAdminSettings(await getSettingsMap())
 }
 
+export async function getAnimatedAvatarCompression() {
+  const settings = await getSettingsMap(['sidebar_avatar_webp_max_edge', 'sidebar_avatar_webp_quality'])
+  const edge = settingsInputSchema.shape.sidebar_avatar_webp_max_edge.safeParse(settings.sidebar_avatar_webp_max_edge)
+  const quality = settingsInputSchema.shape.sidebar_avatar_webp_quality.safeParse(settings.sidebar_avatar_webp_quality)
+  return {
+    maxEdge: Number(edge.success ? edge.data : settingsDefaults.sidebar_avatar_webp_max_edge),
+    quality: Number(quality.success ? quality.data : settingsDefaults.sidebar_avatar_webp_quality)
+  }
+}
+
 const knowledgeSettingKeys = [
   'ai_api_key', 'ai_base_url', 'ai_model',
   'ai_embedding_api_key', 'ai_embedding_base_url', 'ai_embedding_model', 'ai_embedding_dimensions',

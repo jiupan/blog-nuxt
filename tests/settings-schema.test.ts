@@ -26,6 +26,15 @@ describe('settings defaults', () => {
 })
 
 describe('settingsInputSchema', () => {
+  it('accepts bounded integer strings for private animated avatar compression settings', () => {
+    const settings = { sidebar_avatar_webp_max_edge: '320', sidebar_avatar_webp_quality: '70' }
+    expect(settingsInputSchema.parse(settings)).toEqual(settings)
+    expect(publicSettingKeys).not.toContain('sidebar_avatar_webp_max_edge')
+    expect(publicSettingKeys).not.toContain('sidebar_avatar_webp_quality')
+    expect(settingsInputSchema.safeParse({ ...settings, sidebar_avatar_webp_max_edge: '513' }).success).toBe(false)
+    expect(settingsInputSchema.safeParse({ ...settings, sidebar_avatar_webp_quality: '70.5' }).success).toBe(false)
+  })
+
   it('accepts ICP settings and preserves explicit clearing of footer information', () => {
     expect(settingsInputSchema.parse({ footer_icp: ' 备案号示例 ' })).toEqual({ footer_icp: '备案号示例' })
     expect(publicSettingKeys).toContain('footer_icp')

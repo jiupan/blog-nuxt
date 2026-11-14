@@ -171,9 +171,14 @@ html {
 }
 
 @media (hover: hover) and (pointer: fine) and (forced-colors: none) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--theme-scrollbar) var(--theme-page);
+  }
+
   html::-webkit-scrollbar {
     width: 12px;
-    height: 12px;
+    height: 6px;
   }
 
   html::-webkit-scrollbar-track,
@@ -182,7 +187,6 @@ html {
   }
 
   html::-webkit-scrollbar-thumb {
-    min-height: 32px;
     border: 2px solid var(--theme-page);
     border-radius: 8px;
     background: var(--theme-scrollbar);
@@ -197,13 +201,6 @@ html {
     display: none;
     width: 0;
     height: 0;
-  }
-
-  @supports not selector(::-webkit-scrollbar) {
-    html {
-      scrollbar-width: thin;
-      scrollbar-color: var(--theme-scrollbar) var(--theme-page);
-    }
   }
 }
 
