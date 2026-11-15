@@ -13,17 +13,6 @@ export function countCommentCodePoints(value: string) {
   return Array.from(value || '').length
 }
 
-/**
- * 头像首字。
- *
- * 取第一个码点而不是第一个 UTF-16 单元，emoji 才不会被截成半个代理对。
- */
-export function commentInitial(name: string) {
-  const trimmed = (name || '').trim()
-  if (!trimmed) return '·'
-  return [...trimmed][0]!.toUpperCase()
-}
-
 /** 评论时间。绝对时间比相对时间更省事，也不用处理跨时区。 */
 export function formatCommentTime(value: string) {
   const date = new Date(value)

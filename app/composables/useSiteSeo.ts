@@ -13,7 +13,7 @@ export function useSiteSeo() {
   const name = computed(() => settings.value.site_title || config.public.siteName)
   const canonical = computed(() => canonicalSiteUrl(route.path, route.query, siteUrl))
   const privatePage = computed(() =>
-    /^\/(admin|login|register|resume-print)(\/|$)/.test(route.path)
+    /^\/(admin|account|login|register|resume-print)(\/|$)/.test(route.path)
   )
   const description = computed(() => settings.value.seo_description || defaultSeoDescription)
   useHead(() => ({

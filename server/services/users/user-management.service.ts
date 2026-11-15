@@ -1,8 +1,11 @@
 import argon2 from 'argon2'
+import { randomBytes } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
-import { conflict, notFound } from '../../utils/api-error'
+import { badRequest, conflict, notFound } from '../../utils/api-error'
 import type { CreateAdminUserInput } from './user.schema'
+import { revokeUserSessions } from '../security/account-session.service'
+import { withSerializableRetry } from '../../utils/serializable'
 import {
   createUserAuditLog,
   USER_AUDIT_ACTIONS,
@@ -16,6 +19,8 @@ const managedUserSelect = {
   id: true,
   username: true,
   email: true,
+  pendingEmail: true,
+  emailVerifiedAt: true,
   role: true,
   status: true,
   lastLoginAt: true,
@@ -29,21 +34,6 @@ type ManagementInput = {
   context: UserAuditContext
 }
 
-async function withSerializableRetry<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      return await prisma.$transaction(work, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
-      })
-    } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2034' || attempt === 2) {
-        throw error
-      }
-    }
-  }
-  throw new Error('Serializable transaction retry exhausted')
-}
-
 function isUniqueError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
 }
@@ -54,12 +44,14 @@ export async function createAdminUser(input: {
   context: UserAuditContext
 }) {
   const email = input.data.email.toLowerCase()
-  const passwordHash = await argon2.hash(input.data.password, { type: argon2.argon2id })
+  const password = input.data.invite ? randomBytes(32).toString('base64url') : input.data.password
+  if (!password) throw badRequest('请设置初始密码')
+  const passwordHash = await argon2.hash(password, { type: argon2.argon2id })
 
   try {
     return await prisma.$transaction(async (tx) => {
       const duplicate = await tx.user.findFirst({
-        where: { OR: [{ username: input.data.username }, { email }] },
+        where: { OR: [{ username: input.data.username }, { email, emailVerifiedAt: { not: null } }] },
         select: { username: true, email: true }
       })
 
@@ -69,7 +61,7 @@ export async function createAdminUser(input: {
       const user = await tx.user.create({
         data: {
           username: input.data.username,
-          email,
+          pendingEmail: email,
           passwordHash,
           role: input.data.role,
           status: input.data.status
@@ -81,7 +73,7 @@ export async function createAdminUser(input: {
         operatorId: input.operatorId,
         targetUserId: user.id,
         action: USER_AUDIT_ACTIONS.created,
-        after: { username: user.username, email: user.email, role: user.role, status: user.status },
+        after: { username: user.username, pendingEmail: email, role: user.role, status: user.status },
         context: input.context
       })
 
@@ -113,6 +105,8 @@ export async function updateManagedUserRole(input: ManagementInput & { role: Use
       data: { role: input.role },
       select: managedUserSelect
     })
+    await revokeUserSessions(target.id, tx)
+    await tx.accountEmailToken.deleteMany({ where: { userId: target.id } })
 
     await createUserAuditLog(tx, {
       operatorId: input.operatorId,
@@ -146,6 +140,8 @@ export async function updateManagedUserStatus(input: ManagementInput & { status:
       data: { status: input.status },
       select: managedUserSelect
     })
+    await revokeUserSessions(target.id, tx)
+    await tx.accountEmailToken.deleteMany({ where: { userId: target.id } })
 
     await createUserAuditLog(tx, {
       operatorId: input.operatorId,
@@ -163,14 +159,16 @@ export async function resetManagedUserPassword(input: ManagementInput & { passwo
   const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id })
 
   return prisma.$transaction(async (tx) => {
-    const target = await tx.user.findUnique({ where: { id: input.userId }, select: { id: true } })
+    const target = await tx.user.findUnique({ where: { id: input.userId }, select: { id: true, emailVerifiedAt: true } })
     if (!target) throw notFound('用户不存在')
 
     const user = await tx.user.update({
       where: { id: target.id },
-      data: { passwordHash },
+      data: { passwordHash, ...(target.emailVerifiedAt ? { pendingEmail: null } : {}) },
       select: managedUserSelect
     })
+    await revokeUserSessions(target.id, tx)
+    await tx.accountEmailToken.deleteMany({ where: { userId: target.id } })
 
     await createUserAuditLog(tx, {
       operatorId: input.operatorId,

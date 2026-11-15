@@ -2,11 +2,15 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../utils/prisma'
 import { notFound } from '../../utils/api-error'
 import type { AdminUserListQuery } from './user.schema'
+import { publicProfile, publicProfileSelect } from './public-profile'
 
 const publicUserSelect = {
   id: true,
   username: true,
+  ...publicProfileSelect,
   email: true,
+  pendingEmail: true,
+  emailVerifiedAt: true,
   role: true,
   status: true,
   lastLoginAt: true,
@@ -20,7 +24,9 @@ export async function listAdminUsers(query: AdminUserListQuery) {
       ? {
           OR: [
             { username: { contains: query.search, mode: Prisma.QueryMode.insensitive } },
-            { email: { contains: query.search, mode: Prisma.QueryMode.insensitive } }
+            { displayName: { contains: query.search, mode: Prisma.QueryMode.insensitive } },
+            { email: { contains: query.search, mode: Prisma.QueryMode.insensitive } },
+            { pendingEmail: { contains: query.search, mode: Prisma.QueryMode.insensitive } }
           ]
         }
       : {}),
@@ -48,8 +54,9 @@ export async function listAdminUsers(query: AdminUserListQuery) {
   ])
 
   return {
-    items: items.map(({ _count, updatedAt: _updatedAt, ...user }) => ({
+    items: items.map(({ _count, updatedAt: _updatedAt, avatar, ...user }) => ({
       ...user,
+      ...publicProfile({ ...user, avatar }),
       aiUsageCount: _count.aiUsageLogs
     })),
     total,
@@ -79,7 +86,7 @@ export async function getAdminUserDetail(userId: number) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: publicUserSelect })
   if (!user) throw notFound('用户不存在')
 
-  const [aiUsageGroups, ragQueries, articleChats, recentAiUsage, recentAuditLogs] = await Promise.all([
+  const [aiUsageGroups, ragQueries, articleChats, recentAiUsage, audit] = await Promise.all([
     prisma.aiUsageLog.groupBy({ by: ['status'], where: { userId }, _count: { _all: true } }),
     prisma.ragQueryLog.count({ where: { userId } }),
     prisma.articleChatConversation.count({ where: { userId } }),
@@ -89,35 +96,42 @@ export async function getAdminUserDetail(userId: number) {
       orderBy: { createdAt: 'desc' },
       take: 10
     }),
-    prisma.adminAuditLog.findMany({
-      where: { targetUserId: userId },
-      select: {
-        id: true,
-        action: true,
-        before: true,
-        after: true,
-        createdAt: true,
-        operator: { select: { id: true, username: true } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10
-    })
+    getAdminUserAudit(userId)
   ])
 
   const aiCounts = Object.fromEntries(aiUsageGroups.map(item => [item.status, item._count._all]))
   const aiUsageTotal = aiUsageGroups.reduce((sum, item) => sum + item._count._all, 0)
+  const { avatar, ...details } = user
 
   return {
-    ...user,
+    ...details,
+    ...publicProfile({ ...details, avatar }),
     stats: {
       aiUsageTotal,
       aiUsageSuccess: aiCounts.SUCCESS || 0,
       aiUsageFailed: aiCounts.FAILED || 0,
       aiUsageBlocked: aiCounts.BLOCKED || 0,
+      aiUsagePending: aiCounts.PENDING || 0,
       ragQueries,
       articleChats
     },
     recentAiUsage,
-    recentAuditLogs
+    recentAuditLogs: audit.items,
+    nextAuditCursor: audit.nextCursor
   }
+}
+
+export async function getAdminUserAudit(userId: number, cursor?: number) {
+  const limit = 10
+  const rows = await prisma.adminAuditLog.findMany({
+    where: { targetUserId: userId, ...(cursor === undefined ? {} : { id: { lt: cursor } }) },
+    select: {
+      id: true, action: true, before: true, after: true, createdAt: true,
+      operator: { select: { id: true, username: true } }
+    },
+    orderBy: { id: 'desc' },
+    take: limit + 1
+  })
+  const items = rows.slice(0, limit)
+  return { items, nextCursor: rows.length > limit ? (items.at(-1)?.id ?? null) : null }
 }

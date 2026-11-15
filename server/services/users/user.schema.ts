@@ -29,9 +29,13 @@ export const userPasswordSchema = z.string()
 export const createAdminUserSchema = z.object({
   username: usernameSchema,
   email: userEmailSchema,
-  password: userPasswordSchema,
+  password: userPasswordSchema.optional(),
+  invite: z.boolean().optional(),
   role: userRoleSchema.default('USER'),
   status: userStatusSchema.default('ACTIVE')
+}).superRefine((data, context) => {
+  if (!data.invite && !data.password) context.addIssue({ code: 'custom', path: ['password'], message: '请设置初始密码' })
+  if (data.invite && data.status !== 'ACTIVE') context.addIssue({ code: 'custom', path: ['status'], message: '请先启用账号再发送邀请' })
 })
 
 export const updateUserRoleSchema = z.object({ role: userRoleSchema })

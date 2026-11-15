@@ -12,6 +12,7 @@
         <div class="document-details">
           <input v-model="resume.title" aria-label="简历名称">
           <small class="draft-state" role="status">{{ draftLabel }}</small>
+          <button v-if="draftStored" class="clear-local-draft" type="button" @click="confirmClearDraft = true">清除本机草稿</button>
         </div>
       </div>
 
@@ -59,6 +60,13 @@
         </button>
       </div>
     </header>
+
+    <UModal v-model:open="confirmClearDraft" title="清除本机草稿？" description="已保存到简历库的文件会保留。当前编辑内容将在离开此页时丢弃，继续修改会重新自动保存。">
+      <template #footer>
+        <UButton color="neutral" variant="outline" @click="confirmClearDraft = false">取消</UButton>
+        <UButton color="error" @click="clearLocalDraft">清除草稿</UButton>
+      </template>
+    </UModal>
 
     <div v-if="statusMessage" class="status-toast" :class="{ error: statusError }" :role="statusError ? 'alert' : 'status'">
       <span>{{ statusMessage }}</span>
@@ -406,6 +414,8 @@ const pageCount = ref(1)
 const savedSnapshot = ref(JSON.stringify(resume))
 const dirty = computed(() => JSON.stringify(resume) !== savedSnapshot.value)
 const draftStored = ref(false)
+const confirmClearDraft = ref(false)
+let skipDraftSave = false
 const draftReady = ref(false)
 const draftKey = computed(() => `resume-draft-v1:${user.value?.id ?? 'guest'}`)
 const draftLabel = computed(() => dirty.value
@@ -427,6 +437,7 @@ let viewportObserver: ResizeObserver | undefined
 function persistDraft() {
   clearTimeout(draftTimer)
   if (!draftReady.value) return false
+  if (skipDraftSave) return true
   try {
     localStorage.setItem(draftKey.value, JSON.stringify({ document: resume, id: currentResumeId.value, savedSnapshot: savedSnapshot.value }))
     draftStored.value = true
@@ -435,6 +446,20 @@ function persistDraft() {
     draftStored.value = false
     showStatus('本机草稿保存失败，请保存到简历库或导出 JSON 备份', true)
     return false
+  }
+}
+
+function clearLocalDraft() {
+  try {
+    localStorage.removeItem(draftKey.value)
+    sessionStorage.removeItem('resume-transfer-guest')
+    clearTimeout(draftTimer)
+    skipDraftSave = true
+    draftStored.value = false
+    confirmClearDraft.value = false
+    showStatus('本机草稿已清除')
+  } catch {
+    showStatus('无法清除本机草稿，请重试', true)
   }
 }
 
@@ -484,6 +509,7 @@ onBeforeRouteLeave(async () => {
 
 watch(resume, () => {
   if (!draftReady.value) return
+  skipDraftSave = false
   draftStored.value = false
   clearTimeout(draftTimer)
   draftTimer = setTimeout(persistDraft, 300)
@@ -1159,6 +1185,7 @@ onMounted(() => {
         draftStored.value = true
         if (transferGuest) {
           localStorage.setItem(draftKey.value, JSON.stringify({ ...draft, id: null }))
+          localStorage.removeItem('resume-draft-v1:guest')
           sessionStorage.removeItem('resume-transfer-guest')
         }
         showStatus('已恢复上次编辑的本机草稿')
@@ -1450,6 +1477,15 @@ useSeoMeta({
   .preview-caption { gap: 6px; padding-inline: 12px; }
 }
 .draft-state { overflow: hidden; color: #64748b; font-size: 11px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.clear-local-draft {
+  padding: 1px 0;
+  color: #475569;
+  font-size: 11px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.clear-local-draft:hover, .clear-local-draft:focus-visible { color: #2165ad; }
 .status-toast { position: fixed; z-index: 100; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; width: max-content; max-width: calc(100vw - 32px); padding: 14px 18px; border: 1px solid #b9decd; border-radius: 10px; background: #f0fdf4; color: #166534; box-shadow: 0 8px 28px #172b4d26; font-size: 14px; }
 .status-toast.error { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
 .status-toast button { flex: 0 0 28px; width: 28px; height: 28px; cursor: pointer; }

@@ -61,7 +61,18 @@ export function useLab() {
   const summarySelectRef = ref<HTMLElement | null>(null)
   let modalTimer: ReturnType<typeof setTimeout> | undefined
 
-  const { data: sessionData } = useFetch<{ data: { user: { role?: string, username?: string } | null } }>('/api/auth/me')
+  const { data: sessionData, status: sessionStatus, refresh: refreshSession } = useSiteAccount()
+  const route = useRoute()
+  const router = useRouter()
+  const toast = useToast()
+  const { data: quotaData, refresh: refreshQuota, clear: clearQuota } = useFetch<{ data: import('~~/types/dto/user').AccountUsage }>('/api/auth/usage', {
+    key: 'lab-quota', server: false, immediate: false
+  })
+  watch(() => sessionData.value?.data.user?.id, (id) => {
+    if (id) void refreshQuota()
+    else clearQuota()
+  }, { immediate: true })
+  const labQuota = computed(() => quotaData.value?.data.lab)
   const { data: summaryPostData } = useFetch<{ data: { items: SummaryPost[] } }>('/api/posts', {
     query: { page: 1, pageSize: 50 }
   })
@@ -210,28 +221,70 @@ export function useLab() {
     summarySelectOpen.value = false
   }
 
-  function handlePrimaryAction() {
-    if (selectedFeature.value?.id === 'ask-blog') {
-      askBlogQuestion()
-    } else if (selectedFeature.value?.id === 'article-summary') {
-      generateSummary()
-    } else if (selectedFeature.value?.id === 'semantic-search') {
-      runSemanticSearch()
-    } else if (selectedFeature.value?.id === 'article-recommend') {
-      generateRecommendation()
-    } else if (selectedFeature.value?.id === 'writing-assistant') {
-      generateWritingAnalysis()
-    } else if (selectedFeature.value?.id === 'seo-checker') {
-      generateSeoCheck()
-    } else if (selectedFeature.value?.id === 'dead-link-checker') {
-      checkExternalLinks()
-    } else if (selectedFeature.value?.id === 'draft-organizer') {
-      organizeDrafts()
-    } else if (selectedFeature.value?.id === 'site-insights') {
-      generateSiteInsights()
-    } else if (selectedFeature.value?.id === 'monthly-review') {
-      generateMonthlyReview()
+  async function loginForFeature() {
+    const id = selectedFeature.value?.id
+    if (!id) return
+    try {
+      sessionStorage.setItem('lab-login-draft', JSON.stringify({
+        id, expires: Date.now() + 20 * 60_000, question: askQuestion.value,
+        semantic: semanticQuery.value, postId: summaryPostId.value, month: monthlyReviewMonth.value
+      }))
+    } catch {
+      toast.add({ title: '此浏览器无法保存当前输入', color: 'warning' })
     }
+    await navigateTo({ path: '/login', query: { redirect: '/lab?continue=1' } })
+  }
+
+  onMounted(() => {
+    if (route.query.continue !== '1') return
+    try {
+      const raw = sessionStorage.getItem('lab-login-draft')
+      sessionStorage.removeItem('lab-login-draft')
+      if (raw) {
+        const draft = JSON.parse(raw)
+        const feature = features.find(item => item.id === draft.id)
+        if (feature && Number(draft.expires) > Date.now()) {
+          openFeature(feature)
+          if (typeof draft.question === 'string') askQuestion.value = draft.question.slice(0, 300)
+          if (typeof draft.semantic === 'string') semanticQuery.value = draft.semantic.slice(0, 300)
+          if (typeof draft.postId === 'string' && /^\d+$/.test(draft.postId)) summaryPostId.value = draft.postId
+          if (typeof draft.month === 'string' && /^\d{4}-\d{2}$/.test(draft.month)) monthlyReviewMonth.value = draft.month
+        }
+      }
+    } catch {
+      return
+    } finally {
+      const query = { ...route.query }
+      delete query.continue
+      void router.replace({ query })
+    }
+  })
+
+  async function handlePrimaryAction() {
+    if (sessionStatus.value === 'pending' || sessionStatus.value === 'idle') await refreshSession()
+    if (!sessionData.value?.data.user) return loginForFeature()
+    if (selectedFeature.value?.id === 'ask-blog') {
+      await askBlogQuestion()
+    } else if (selectedFeature.value?.id === 'article-summary') {
+      await generateSummary()
+    } else if (selectedFeature.value?.id === 'semantic-search') {
+      await runSemanticSearch()
+    } else if (selectedFeature.value?.id === 'article-recommend') {
+      await generateRecommendation()
+    } else if (selectedFeature.value?.id === 'writing-assistant') {
+      await generateWritingAnalysis()
+    } else if (selectedFeature.value?.id === 'seo-checker') {
+      await generateSeoCheck()
+    } else if (selectedFeature.value?.id === 'dead-link-checker') {
+      await checkExternalLinks()
+    } else if (selectedFeature.value?.id === 'draft-organizer') {
+      await organizeDrafts()
+    } else if (selectedFeature.value?.id === 'site-insights') {
+      await generateSiteInsights()
+    } else if (selectedFeature.value?.id === 'monthly-review') {
+      await generateMonthlyReview()
+    }
+    void refreshQuota()
   }
 
   async function askBlogQuestion() {
@@ -571,6 +624,8 @@ export function useLab() {
     summarySelectOpen,
     summarySelectRef,
     sessionData,
+    labQuota,
+    loginForFeature,
     summaryPosts,
     isAdmin,
     selectedSummaryPost,

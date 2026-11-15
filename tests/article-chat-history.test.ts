@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 
 const db = vi.hoisted(() => ({
   post: { findFirst: vi.fn() },
+  accountSession: { findUnique: vi.fn() },
   articleChatConversation: { count: vi.fn(), findMany: vi.fn() }
 }))
 vi.mock('../server/utils/prisma', () => ({ prisma: db }))
@@ -12,10 +13,17 @@ const { listArticleConversations, articleConversationListSchema } = await import
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.stubGlobal('getUserSession', vi.fn().mockResolvedValue({ user: { id: 7 } }))
+  vi.stubGlobal('getUserSession', vi.fn().mockResolvedValue({ user: { id: 7 }, secure: { accountSessionId: 'valid-session' } }))
+  db.accountSession.findUnique.mockResolvedValue({ user: { id: 7, status: 'ACTIVE' }, expiresAt: new Date(Date.now() + 60_000) })
   db.post.findFirst.mockResolvedValue({ id: 1 })
   db.articleChatConversation.count.mockResolvedValue(25)
   db.articleChatConversation.findMany.mockResolvedValue([])
+})
+
+it('rejects revoked sessions before loading private conversation history', async () => {
+  db.accountSession.findUnique.mockResolvedValue(null)
+  await expect(listArticleConversations({} as never, 'post', articleConversationListSchema.parse({}))).rejects.toMatchObject({ statusCode: 401 })
+  expect(db.articleChatConversation.findMany).not.toHaveBeenCalled()
 })
 it('searches the owned conversation set on the server before pagination', async () => {
   const result = await listArticleConversations({} as never, 'post', articleConversationListSchema.parse({ search: '旧会话', page: 2 }))

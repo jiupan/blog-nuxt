@@ -49,6 +49,16 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/admin/**': { ssr: false },
+    '/api/auth/profile': {
+      cors: false,
+      security: {
+        xssValidator: false,
+        requestSizeLimiter: {
+          maxRequestSizeInBytes: 3 * 1024 * 1024 + 8192,
+          maxUploadFileRequestInBytes: 3 * 1024 * 1024 + 8192
+        }
+      }
+    },
     '/api/admin/**': { cors: false },
     '/api/agent/**': {
       cors: false,
@@ -146,6 +156,8 @@ export default defineNuxtConfig({
     }
   },
   runtimeConfig: {
+    accountMailApiKey: '',
+    accountMailFrom: '',
     session: {
       password: process.env.NUXT_SESSION_PASSWORD || '',
       name: '__Host-nuxt-session',

@@ -9,6 +9,7 @@ import type {
   PublicCommentThread
 } from '../../../types/dto/comment'
 import { buildPublishedPostWhere } from '../posts/post-visibility'
+import { publicProfile, publicProfileSelect } from '../users/public-profile'
 import { decodeCommentCursor, encodeCommentCursor } from './comment-cursor'
 import type { CommentViewer } from './comment-identity.service'
 import { renderCommentBody } from './comment-render.service'
@@ -28,9 +29,15 @@ type ReplyRow = {
   guestTokenHash: string | null
   authorName: string
   createdAt: Date
-  author: { role: string } | null
-  replyTo: { id: number, authorName: string, status: CommentStatus, postId: number } | null
+  author: Prisma.UserGetPayload<{ select: typeof commentAuthorSelect }> | null
+  replyTo: Prisma.CommentGetPayload<{ select: typeof replyTargetSelect }> | null
 }
+
+const commentAuthorSelect = { role: true, username: true, ...publicProfileSelect } satisfies Prisma.UserSelect
+const replyTargetSelect = {
+  id: true, authorName: true, status: true, postId: true,
+  author: { select: { username: true, displayName: true } }
+} satisfies Prisma.CommentSelect
 
 type ThreadRow = ReplyRow & {
   replies: ReplyRow[]
@@ -72,15 +79,15 @@ export async function listPublicCommentThreads(
         : [{ createdAt: 'desc' }, { id: 'desc' }],
       take: query.limit + 1,
       include: {
-        author: { select: { role: true } },
-        replyTo: { select: { id: true, authorName: true, status: true, postId: true } },
+        author: { select: commentAuthorSelect },
+        replyTo: { select: replyTargetSelect },
         replies: {
           where: { status: 'VISIBLE' },
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           take: REPLY_PREVIEW_COUNT,
           include: {
-            author: { select: { role: true } },
-            replyTo: { select: { id: true, authorName: true, status: true, postId: true } }
+            author: { select: commentAuthorSelect },
+            replyTo: { select: replyTargetSelect }
           }
         },
         _count: { select: { replies: { where: { status: 'VISIBLE' } } } }
@@ -132,8 +139,8 @@ export async function listPublicCommentReplies(
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     take: query.limit + 1,
     include: {
-      author: { select: { role: true } },
-      replyTo: { select: { id: true, authorName: true, status: true, postId: true } }
+      author: { select: commentAuthorSelect },
+      replyTo: { select: replyTargetSelect }
     }
   })
 
@@ -220,9 +227,10 @@ function toThreadDto(row: ThreadRow, viewer: CommentViewer): PublicCommentThread
   return {
     id: row.id,
     bodyHtml: isDeleted ? '' : renderCommentBody(row.body, row.bodyFormat),
-    authorName: isDeleted ? DELETED_AUTHOR_NAME : row.authorName,
+    authorName: isDeleted ? DELETED_AUTHOR_NAME : currentAuthorName(row),
+    avatarUrl: isDeleted ? null : publicProfile(row.author).avatarUrl,
     authorKind: row.authorKind,
-    isOfficial: isOfficialAuthor(row.author),
+    isOfficial: !isDeleted && isOfficialAuthor(row.author),
     createdAt: row.createdAt.toISOString(),
     replyCount,
     canDelete: canDeleteComment(row, viewer),
@@ -239,20 +247,25 @@ function toReplyDto(row: ReplyRow, viewer: CommentViewer, postId: number): Publi
   // 被回复的目标隐藏或删除时降级成「回复的评论不可见」，不返回作者与正文。
   // 跨文章的引用同样降级 —— 导入数据里的异常父子关系不能顺着公开接口带出去。
   const replyTo = target && target.status === 'VISIBLE' && target.postId === postId
-    ? { id: target.id, authorName: target.authorName }
+    ? { id: target.id, authorName: currentAuthorName(target) }
     : null
 
   return {
     id: row.id,
     bodyHtml: isDeleted ? '' : renderCommentBody(row.body, row.bodyFormat),
-    authorName: isDeleted ? DELETED_AUTHOR_NAME : row.authorName,
+    authorName: isDeleted ? DELETED_AUTHOR_NAME : currentAuthorName(row),
+    avatarUrl: isDeleted ? null : publicProfile(row.author).avatarUrl,
     authorKind: row.authorKind,
-    isOfficial: isOfficialAuthor(row.author),
+    isOfficial: !isDeleted && isOfficialAuthor(row.author),
     createdAt: row.createdAt.toISOString(),
     replyTo,
     canDelete: canDeleteComment(row, viewer),
     isDeleted
   }
+}
+
+function currentAuthorName(comment: { authorName: string, author: { displayName: string | null, username: string } | null }) {
+  return comment.author?.displayName || comment.author?.username || comment.authorName
 }
 
 /** 只有绑定博客账号且当前角色是管理员的评论显示官方标识。旧评论永远不是官方。 */

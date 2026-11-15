@@ -1,10 +1,27 @@
 export type UserRolePayload = 'ADMIN' | 'USER'
 export type UserStatusPayload = 'ACTIVE' | 'DISABLED'
+export type UserPublicProfile = { displayName: string | null, avatarUrl: string | null }
 
-export type AdminUserListItem = {
+export type SiteAccount = UserPublicProfile & {
   id: number
   username: string
   email: string | null
+  pendingEmail: string | null
+  emailVerifiedAt: string | null
+  role: UserRolePayload
+}
+
+export type AccountSnapshot = { user: SiteAccount | null, emailAvailable: boolean }
+
+export type AiQuota = { limit: number | null, used: number, remaining: number | null, resetsAt: string }
+export type AccountUsage = { lab: AiQuota, article: AiQuota }
+
+export type AdminUserListItem = UserPublicProfile & {
+  id: number
+  username: string
+  email: string | null
+  pendingEmail: string | null
+  emailVerifiedAt: string | Date | null
   role: UserRolePayload
   status: UserStatusPayload
   lastLoginAt: string | Date | null
@@ -28,6 +45,7 @@ export type AdminUserDetail = Omit<AdminUserListItem, 'aiUsageCount'> & {
     aiUsageSuccess: number
     aiUsageFailed: number
     aiUsageBlocked: number
+    aiUsagePending: number
     ragQueries: number
     articleChats: number
   }
@@ -37,12 +55,15 @@ export type AdminUserDetail = Omit<AdminUserListItem, 'aiUsageCount'> & {
     status: string
     createdAt: string | Date
   }>
-  recentAuditLogs: Array<{
-    id: number
-    action: string
-    before: unknown
-    after: unknown
-    createdAt: string | Date
-    operator: { id: number, username: string } | null
-  }>
+  recentAuditLogs: AdminUserAuditItem[]
+  nextAuditCursor: number | null
+}
+
+export type AdminUserAuditItem = {
+  id: number
+  action: string
+  before: unknown
+  after: unknown
+  createdAt: string | Date
+  operator: { id: number, username: string } | null
 }

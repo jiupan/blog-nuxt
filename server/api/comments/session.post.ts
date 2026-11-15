@@ -1,5 +1,6 @@
 import { ok } from '~~/server/utils/response'
 import { assertSameOrigin } from '~~/server/utils/origin'
+import { publicProfile } from '~~/server/services/users/public-profile'
 import {
   ensureGuestCredential,
   resolveSessionAccount
@@ -22,6 +23,6 @@ export default defineEventHandler(async (event) => {
       hasCredential: true,
       displayName: credential.nickname
     },
-    account: account ? { id: account.id, username: account.username } : null
+    account: account ? { id: account.id, username: account.username, ...publicProfile(account) } : null
   })
 })

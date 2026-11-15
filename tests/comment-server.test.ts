@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { GUEST_COOKIE_NAME } from '../server/services/comments/comment-identity.service'
 import { createComment, deleteOwnComment } from '../server/services/comments/comment-write.service'
 import { moderateComment } from '../server/services/comments/comment-moderation.service'
+import { listPublicCommentThreads } from '../server/services/comments/comment-query.service'
 import { createCommentSchema } from '../server/services/comments/comment.schema'
 
 const { db, tx } = vi.hoisted(() => {
@@ -13,15 +14,16 @@ const { db, tx } = vi.hoisted(() => {
     $queryRaw: vi.fn()
   }
   const db = {
-    user: { findUnique: vi.fn() },
-    comment: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    accountSession: { findUnique: vi.fn() },
+    comment: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn(), count: vi.fn(), update: vi.fn() },
     $transaction: vi.fn()
   }
   return { db, tx }
 })
 vi.mock('../server/utils/prisma', () => ({ prisma: db }))
 
-const account = { id: 7, username: 'Reader', status: 'ACTIVE', role: 'USER' }
+const account = { id: 7, username: 'Reader', displayName: '读者', avatar: null, status: 'ACTIVE', role: 'USER' }
+const authenticated = (user: typeof account) => ({ user, expiresAt: new Date(Date.now() + 60_000) })
 const requestId = '550e8400-e29b-41d4-a716-446655440000'
 const guestCookie = GUEST_COOKIE_NAME + '=v1.' + 'A'.repeat(43) + '.VmlzaXRvcg'
 const input = createCommentSchema.parse({ body: 'Example comment', requestId, identityMode: 'ACCOUNT' })
@@ -42,9 +44,8 @@ function request(headers: Record<string, string> = {}) {
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubGlobal('useRuntimeConfig', () => ({ public: { siteUrl: 'https://blog.example' }, session: { password: 'test-comment-secret' } }))
-  vi.stubGlobal('getUserSession', vi.fn().mockResolvedValue({ user: { id: account.id, username: 'Stale name' } }))
-  vi.stubGlobal('requireUserSession', vi.fn().mockResolvedValue({ user: { id: account.id, role: 'ADMIN' } }))
-  db.user.findUnique.mockResolvedValue(account)
+  vi.stubGlobal('getUserSession', vi.fn().mockResolvedValue({ user: { id: account.id, username: 'Stale name', role: 'ADMIN' }, secure: { accountSessionId: 'test-session' } }))
+  db.accountSession.findUnique.mockResolvedValue(authenticated(account))
   db.comment.findUnique.mockResolvedValue(null)
   tx.post.findFirst.mockResolvedValue({ id: 1 })
   tx.comment.findUnique.mockResolvedValue(null)
@@ -59,14 +60,28 @@ it('uses the current account identity and replays identical submissions without 
   const { event } = request()
   const created = await createComment(event, 1, input)
   expect(created).toMatchObject({
-    comment: { authorUserId: account.id, authorName: account.username, authorKind: 'ACCOUNT', status: 'VISIBLE' },
+    comment: { authorUserId: account.id, authorName: account.displayName, authorKind: 'ACCOUNT', status: 'VISIBLE' },
     replayed: false
   })
   db.comment.findUnique.mockResolvedValue(created.comment)
+  db.accountSession.findUnique.mockResolvedValue(authenticated({ ...account, displayName: '换了昵称' }))
   await expect(createComment(event, 1, input)).resolves.toEqual({ comment: created.comment, replayed: true })
   await expect(createComment(event, 1, { ...input, body: 'Changed content' })).rejects.toMatchObject({ statusCode: 409 })
   expect(db.$transaction).toHaveBeenCalledTimes(1)
   expect(tx.comment.create).toHaveBeenCalledTimes(1)
+})
+
+it('renders live account profiles for visible comments and keeps deleted authors private', async () => {
+  const author = { ...account, role: 'ADMIN', avatar: { id: 'test-avatar' } }
+  const row = {
+    id: 3, postId: 1, body: 'Hello', bodyFormat: 'MARKDOWN', status: 'VISIBLE',
+    authorKind: 'ACCOUNT', authorUserId: author.id, authorName: 'Old name', author,
+    createdAt: new Date(), replyTo: null, replies: [], _count: { replies: 0 }
+  }
+  db.comment.findMany.mockResolvedValue([row, { ...row, id: 4, status: 'DELETED' }])
+  const { items } = await listPublicCommentThreads(1, { sort: 'newest', limit: 10 }, { userId: null, guestTokenHash: null })
+  expect(items[0]).toMatchObject({ authorName: account.displayName, avatarUrl: '/api/avatars/test-avatar', isOfficial: true })
+  expect(items[1]).toMatchObject({ authorName: '已删除', avatarUrl: null, isOfficial: false })
 })
 
 it('holds guest submissions for moderation and keeps charging the signed-in account quota', async () => {
@@ -82,7 +97,7 @@ it('holds guest submissions for moderation and keeps charging the signed-in acco
 it('rejects cross-origin requests and disabled accounts before the write transaction', async () => {
   await expect(createComment(request({ origin: 'https://other.example' }).event, 1, input))
     .rejects.toMatchObject({ data: { code: 'ORIGIN_NOT_ALLOWED' } })
-  db.user.findUnique.mockResolvedValue({ ...account, status: 'DISABLED' })
+  db.accountSession.findUnique.mockResolvedValue(authenticated({ ...account, status: 'DISABLED' }))
   await expect(createComment(request({ cookie: guestCookie }).event, 1, {
     ...input, identityMode: 'GUEST'
   })).rejects.toMatchObject({ data: { code: 'COMMENT_DISABLED' } })
@@ -110,7 +125,7 @@ it('keeps other authors’ comments private and requires the current database ad
 
 it('approves pending comments once and records the moderation audit', async () => {
   const { event } = request()
-  db.user.findUnique.mockResolvedValue({ ...account, role: 'ADMIN' })
+  db.accountSession.findUnique.mockResolvedValue(authenticated({ ...account, role: 'ADMIN' }))
   tx.comment.findUnique
     .mockResolvedValueOnce({ id: 2, postId: 1, threadRootId: null })
     .mockResolvedValueOnce({ id: 2, postId: 1, status: 'PENDING' })

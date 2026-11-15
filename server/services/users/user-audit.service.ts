@@ -6,7 +6,9 @@ export const USER_AUDIT_ACTIONS = {
   created: 'USER_CREATED',
   roleChanged: 'USER_ROLE_CHANGED',
   statusChanged: 'USER_STATUS_CHANGED',
-  passwordReset: 'USER_PASSWORD_RESET'
+  passwordReset: 'USER_PASSWORD_RESET',
+  resetSent: 'USER_RESET_SENT',
+  inviteSent: 'USER_INVITE_SENT'
 } as const
 
 export type UserAuditContext = {

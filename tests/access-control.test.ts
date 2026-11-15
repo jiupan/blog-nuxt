@@ -3,15 +3,20 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { requireUserSessionMock, prismaMock } = vi.hoisted(() => ({
-  requireUserSessionMock: vi.fn(),
-  prismaMock: { user: { findUnique: vi.fn() } }
+const { getUserSessionMock, prismaMock } = vi.hoisted(() => ({
+  getUserSessionMock: vi.fn(),
+  prismaMock: { accountSession: { findUnique: vi.fn() } }
 }))
 
-vi.stubGlobal('requireUserSession', requireUserSessionMock)
+vi.stubGlobal('getUserSession', getUserSessionMock)
 vi.mock('../server/utils/prisma', () => ({ prisma: prismaMock }))
 
 const { requireAdmin, requireUser } = await import('../server/services/security/access-control.service')
+const secure = { accountSessionId: 'test-session' }
+
+function activeSession<T>(user: T) {
+  return { user, expiresAt: new Date(Date.now() + 60_000) }
+}
 
 function expectApiError(error: unknown, statusCode: number, code: string, statusMessage: string) {
   expect(error).toMatchObject({
@@ -30,7 +35,7 @@ describe('requireUser', () => {
   })
 
   it('rejects missing users', async () => {
-    requireUserSessionMock.mockResolvedValue({ user: null })
+    getUserSessionMock.mockResolvedValue({ user: null })
 
     try {
       await requireUser({} as never)
@@ -41,7 +46,7 @@ describe('requireUser', () => {
   })
 
   it('rejects sessions without a user id', async () => {
-    requireUserSessionMock.mockResolvedValue({ user: { role: 'ADMIN' } })
+    getUserSessionMock.mockResolvedValue({ user: { role: 'ADMIN' }, secure })
 
     try {
       await requireUser({} as never)
@@ -54,20 +59,30 @@ describe('requireUser', () => {
   it('returns authenticated session users', async () => {
     const sessionUser = { id: 1, username: 'old-name', role: 'USER' }
     const databaseUser = { id: 1, username: 'admin', email: null, role: 'ADMIN', status: 'ACTIVE' }
-    requireUserSessionMock.mockResolvedValue({ user: sessionUser })
-    prismaMock.user.findUnique.mockResolvedValue(databaseUser)
+    getUserSessionMock.mockResolvedValue({ user: sessionUser, secure })
+    prismaMock.accountSession.findUnique.mockResolvedValue(activeSession(databaseUser))
 
     await expect(requireUser({} as never)).resolves.toBe(databaseUser)
   })
 
   it('rejects users disabled after their session was created', async () => {
-    requireUserSessionMock.mockResolvedValue({ user: { id: 3, role: 'USER' } })
-    prismaMock.user.findUnique.mockResolvedValue({ id: 3, username: 'disabled', email: null, role: 'USER', status: 'DISABLED' })
+    getUserSessionMock.mockResolvedValue({ user: { id: 3, role: 'USER' }, secure })
+    prismaMock.accountSession.findUnique.mockResolvedValue(activeSession({ id: 3, username: 'disabled', email: null, role: 'USER', status: 'DISABLED' }))
 
     await expect(requireUser({} as never)).rejects.toMatchObject({
       statusCode: 403,
       message: '账号已被禁用'
     })
+  })
+
+  it('rejects legacy, revoked and expired cookies', async () => {
+    const user = { id: 1, role: 'ADMIN', status: 'ACTIVE' }
+    getUserSessionMock.mockResolvedValueOnce({ user }).mockResolvedValue({ user, secure })
+    prismaMock.accountSession.findUnique.mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ user, expiresAt: new Date(0) })
+    await expect(requireUser({} as never)).rejects.toMatchObject({ statusCode: 401 })
+    await expect(requireUser({} as never)).rejects.toMatchObject({ statusCode: 401 })
+    await expect(requireUser({} as never)).rejects.toMatchObject({ statusCode: 401 })
   })
 })
 
@@ -77,8 +92,8 @@ describe('requireAdmin', () => {
   })
 
   it('rejects authenticated non-admin users', async () => {
-    requireUserSessionMock.mockResolvedValue({ user: { id: 2, username: 'user', role: 'ADMIN' } })
-    prismaMock.user.findUnique.mockResolvedValue({ id: 2, username: 'user', email: null, role: 'USER', status: 'ACTIVE' })
+    getUserSessionMock.mockResolvedValue({ user: { id: 2, username: 'user', role: 'ADMIN' }, secure })
+    prismaMock.accountSession.findUnique.mockResolvedValue(activeSession({ id: 2, username: 'user', email: null, role: 'USER', status: 'ACTIVE' }))
 
     try {
       await requireAdmin({} as never)
@@ -90,8 +105,8 @@ describe('requireAdmin', () => {
 
   it('returns admin users', async () => {
     const user = { id: 1, username: 'admin', email: null, role: 'ADMIN', status: 'ACTIVE' }
-    requireUserSessionMock.mockResolvedValue({ user: { id: 1, username: 'admin', role: 'ADMIN' } })
-    prismaMock.user.findUnique.mockResolvedValue(user)
+    getUserSessionMock.mockResolvedValue({ user: { id: 1, username: 'admin', role: 'ADMIN' }, secure })
+    prismaMock.accountSession.findUnique.mockResolvedValue(activeSession(user))
 
     await expect(requireAdmin({} as never)).resolves.toBe(user)
   })

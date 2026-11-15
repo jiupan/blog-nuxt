@@ -3,6 +3,7 @@ import { prisma } from '../../utils/prisma'
 import type { AdminCommentListItem } from '../../../types/dto/comment'
 import { renderCommentBody } from './comment-render.service'
 import type { AdminCommentListQuery } from './comment.schema'
+import { publicProfile, publicProfileSelect } from '../users/public-profile'
 
 export type AdminCommentListResult = {
   items: AdminCommentListItem[]
@@ -30,6 +31,7 @@ export async function listAdminComments(query: AdminCommentListQuery): Promise<A
       take: query.pageSize,
       include: {
         post: { select: { title: true, slug: true } },
+        author: { select: { username: true, ...publicProfileSelect } },
         _count: { select: { replies: { where: { status: 'VISIBLE' } } } }
       }
     }),
@@ -42,7 +44,8 @@ export async function listAdminComments(query: AdminCommentListQuery): Promise<A
       postId: item.postId,
       postTitle: item.post.title,
       postSlug: item.post.slug,
-      authorName: item.authorName,
+      authorName: item.author?.displayName || item.author?.username || item.authorName,
+      avatarUrl: publicProfile(item.author).avatarUrl,
       authorKind: item.authorKind,
       authorUserId: item.authorUserId,
       threadRootId: item.threadRootId,
@@ -67,7 +70,8 @@ function buildAdminCommentWhere(query: AdminCommentListQuery): Prisma.CommentWhe
   if (query.status) where.status = query.status
 
   if (query.keyword) {
-    where.authorName = { contains: query.keyword, mode: 'insensitive' }
+    const match = { contains: query.keyword, mode: 'insensitive' } as const
+    where.OR = [{ authorName: match }, { author: { displayName: match } }, { author: { username: match } }]
   }
 
   if (query.createdFrom || query.createdTo) {

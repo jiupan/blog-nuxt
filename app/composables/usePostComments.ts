@@ -7,6 +7,7 @@ import type {
   PublicCommentThread,
   SubmitCommentPayload
 } from '~~/types/dto/comment'
+import type { AccountSnapshot } from '~~/types/dto/user'
 import { getApiErrorCode, getApiErrorMessage, getApiErrorStatus } from '../utils/api-error'
 import { COMMENT_BODY_MAX_LENGTH, countCommentCodePoints } from '../utils/comment'
 
@@ -84,7 +85,7 @@ export type PostCommentsContext = {
   loading: Ref<boolean>
   loadingMore: Ref<boolean>
   loadError: Ref<boolean>
-  account: Ref<{ id: number, username: string } | null>
+  account: Ref<CommentSessionPayload['account']>
   guestName: Ref<string>
   identityChoice: Ref<CommentIdentityChoice>
   replyTarget: Ref<CommentReplyTarget | null>
@@ -151,7 +152,7 @@ export function createPostCommentsContext(options: {
   const loading = ref(false)
   const loadingMore = ref(false)
   const loadError = ref(false)
-  const account = ref<{ id: number, username: string } | null>(null)
+  const account = ref<CommentSessionPayload['account']>(null)
   const guestName = ref('')
   const identityChoice = ref<CommentIdentityChoice>('guest-anonymous')
   const replyTarget = ref<CommentReplyTarget | null>(null)
@@ -162,7 +163,7 @@ export function createPostCommentsContext(options: {
 
   async function loadAccount() {
     try {
-      const response = await $fetch<{ data: { user: { id: number, username: string } | null } }>('/api/auth/me')
+      const response = await $fetch<{ data: AccountSnapshot }>('/api/auth/me')
       account.value = response.data.user
     } catch {
       account.value = null

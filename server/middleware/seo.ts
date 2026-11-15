@@ -2,7 +2,7 @@ import { normalizeSlug } from '../utils/slug'
 
 export default defineEventHandler((event) => {
   const { pathname: path, search } = getRequestURL(event)
-  if (/^\/(admin|login|register|resume-print|api)(\/|$)/.test(path)) {
+  if (/^\/(admin|account|login|register|resume-print|api)(\/|$)/.test(path)) {
     setResponseHeader(event, 'X-Robots-Tag', 'noindex, nofollow')
   }
 

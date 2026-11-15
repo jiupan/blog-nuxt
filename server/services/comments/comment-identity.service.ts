@@ -2,8 +2,7 @@ import { createHash, randomBytes, randomInt } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { getCookie, setCookie } from 'h3'
 import { commentDisabled, unauthorized, validationError } from '../../utils/api-error'
-import { prisma } from '../../utils/prisma'
-import type { SessionUser } from '../security/access-control.service'
+import { readAccountSession, type AccountCookie } from '../security/account-session.service'
 
 /**
  * 访客凭证 Cookie。
@@ -57,6 +56,8 @@ export type CommentIdentity = {
   guestTokenHash: string | null
   /** 写入 Comment.authorName 的展示名快照。 */
   displayName: string
+  /** 账号评论重试时使用稳定的用户名。 */
+  accountUsername?: string
   /**
    * 限流配额归属的账户 id。
    * 已登录用户选择访客身份时，authorUserId 仍为 null，但账户限额照样扣减，
@@ -83,19 +84,23 @@ export type SessionAccount = {
   id: number
   username: string
   status: string
+  displayName: string | null
+  avatar: { id: string } | null
 }
 
 /**
  * 解析提交者的身份。
  *
- * 账号身份要求有会话且账户在库里仍是 ACTIVE，展示会话对应的用户名 —— 客户端传的名字一律不认。
+ * 账号身份要求有有效会话，从账户资料读取昵称。
  * 访客身份允许登录用户选择：此时不关联账户，但仍然按访客走审核队列。
  */
 export async function resolveCommentIdentity(
   event: H3Event,
   input: { identityMode: CommentAuthorKind, displayName?: string }
 ): Promise<CommentIdentity> {
-  const account = await loadSessionAccount(event)
+  const session = await getUserSession(event) as AccountCookie
+  const account = await readAccountSession(event, session)
+  if (session.user?.id && !account) throw unauthorized('登录已过期，请重新登录')
 
   if (input.identityMode === 'ACCOUNT') {
     if (!account) throw unauthorized('请先登录后再评论')
@@ -105,7 +110,8 @@ export async function resolveCommentIdentity(
       kind: 'ACCOUNT',
       authorUserId: account.id,
       guestTokenHash: null,
-      displayName: account.username,
+      displayName: account.displayName || account.username,
+      accountUsername: account.username,
       quotaUserId: account.id
     }
   }
@@ -138,11 +144,10 @@ export function getGuestTokenHash(event: H3Event): string | null {
  * 公开列表用它算 canDelete，没有访客 Cookie 的访客不会因此拿到一个 Cookie。
  */
 export async function resolveCommentViewer(event: H3Event): Promise<CommentViewer> {
-  const session = await getUserSession(event)
-  const sessionUser = session.user as SessionUser | undefined
+  const user = await readAccountSession(event)
 
   return {
-    userId: sessionUser?.id ?? null,
+    userId: user?.status === 'ACTIVE' ? user.id : null,
     guestTokenHash: getGuestTokenHash(event)
   }
 }
@@ -174,12 +179,12 @@ export function ensureGuestCredential(event: H3Event): GuestCredential {
 }
 
 /** 昵称合法性校验。保留名与纯符号名都拒绝。 */
-export function assertUsableDisplayName(value: string): string {
+export function assertUsableDisplayName(value: string, allowReserved = false): string {
   const normalized = normalizeDisplayName(value)
   if (normalized.length === 0) {
     throw validationError('昵称不可用，请更换一个')
   }
-  if (RESERVED_DISPLAY_NAMES.has(reservedKey(normalized))) {
+  if (!allowReserved && RESERVED_DISPLAY_NAMES.has(reservedKey(normalized))) {
     throw validationError('昵称不可用，请更换一个')
   }
   return normalized
@@ -206,17 +211,7 @@ function generateAnonymousNickname(): string {
 }
 
 async function loadSessionAccount(event: H3Event): Promise<SessionAccount | null> {
-  const session = await getUserSession(event)
-  const sessionUser = session.user as SessionUser | undefined
-  if (!sessionUser?.id) return null
-
-  const user = await prisma.user.findUnique({
-    where: { id: sessionUser.id },
-    select: { id: true, username: true, status: true }
-  })
-  if (!user) return null
-
-  return user
+  return readAccountSession(event)
 }
 
 function parseGuestCookie(raw: string | undefined): { token: string, nickname: string | null } | null {

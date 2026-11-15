@@ -52,9 +52,9 @@
         <UInput
           v-model="searchInput"
           icon="i-lucide-search"
-          placeholder="搜索用户名或邮箱"
+          placeholder="搜索昵称、用户名或邮箱"
           class="users-search"
-          aria-label="搜索用户名或邮箱"
+          aria-label="搜索昵称、用户名或邮箱"
         />
         <USelect
           v-model="role"
@@ -91,8 +91,10 @@
         role="alert"
       >
         <UIcon name="i-lucide-wifi-off" />
-        <h3>用户加载失败</h3>
+        <h3>{{ error.statusCode === 401 ? '后台登录已过期' : error.statusCode === 403 ? '当前账号没有管理权限' : '用户加载失败' }}</h3>
+        <UButton v-if="error.statusCode === 401 || error.statusCode === 403" :to="{ path: '/admin/login', query: { redirect: route.fullPath } }">重新登录</UButton>
         <UButton
+          v-else
           color="neutral"
           variant="outline"
           @click="refresh()"
@@ -137,7 +139,7 @@
                 <th>用户</th>
                 <th>角色</th>
                 <th>状态</th>
-                <th>AI 使用</th>
+                <th>累计 AI 请求</th>
                 <th>最近登录</th>
                 <th>注册时间</th>
                 <th class="user-actions-heading">操作</th>
@@ -154,10 +156,11 @@
                     type="button"
                     @click="openDetail(user)"
                   >
-                    <span class="user-avatar">{{ user.username.slice(0, 1).toUpperCase() }}</span>
+                    <AccountAvatar :src="user.avatarUrl" :seed="user.displayName || user.username" :size="34" />
                     <span>
-                      <strong>{{ user.username }}</strong>
-                      <small>{{ user.email || '未设置邮箱' }}</small>
+                      <strong>{{ user.displayName || user.username }}</strong>
+                      <small v-if="user.displayName && user.displayName !== user.username">@{{ user.username }}</small>
+                      <small>{{ user.email || user.pendingEmail || '未设置邮箱' }}</small>
                     </span>
                   </button>
                 </td>
@@ -221,10 +224,11 @@
               type="button"
               @click="openDetail(user)"
             >
-              <span class="user-avatar">{{ user.username.slice(0, 1).toUpperCase() }}</span>
+              <AccountAvatar :src="user.avatarUrl" :seed="user.displayName || user.username" :size="34" />
               <span>
-                <strong>{{ user.username }}</strong>
-                <small>{{ user.email || '未设置邮箱' }}</small>
+                <strong>{{ user.displayName || user.username }}</strong>
+                <small v-if="user.displayName && user.displayName !== user.username">@{{ user.username }}</small>
+                <small>{{ user.email || user.pendingEmail || '未设置邮箱' }}</small>
               </span>
             </button>
             <div class="user-card-badges">
@@ -243,7 +247,7 @@
             </div>
             <dl>
               <div>
-                <dt>AI 使用</dt>
+                <dt>累计 AI 请求</dt>
                 <dd>{{ formatNumber(user.aiUsageCount) }}</dd>
               </div>
               <div>
@@ -341,7 +345,13 @@
               placeholder="user@example.com"
             />
           </UFormField>
+          <UCheckbox
+            v-if="emailAvailable && createForm.status === 'ACTIVE'"
+            v-model="createForm.invite"
+            label="发送邮件，由用户设置密码"
+          />
           <UFormField
+            v-if="!createForm.invite || createForm.status !== 'ACTIVE'"
             label="初始密码"
             required
           >
@@ -399,14 +409,20 @@
     <UModal
       v-model:open="passwordOpen"
       title="重置密码"
-      :description="passwordTarget ? `为 ${passwordTarget.username} 设置新密码。` : ''"
+      :description="passwordTarget ? `为 ${passwordTarget.username} 重置密码。密码更新后，所有设备都需要重新登录。` : ''"
     >
       <template #body>
         <form
           class="user-form"
           @submit.prevent="resetPassword"
         >
+          <UCheckbox
+            v-if="canEmailReset"
+            v-model="emailReset"
+            label="发送重置邮件，由用户设置新密码"
+          />
           <UFormField
+            v-if="!emailReset"
             label="新密码"
             required
           >
@@ -419,6 +435,7 @@
             />
           </UFormField>
           <UFormField
+            v-if="!emailReset"
             label="确认新密码"
             required
           >
@@ -449,10 +466,21 @@
               icon="i-lucide-key-round"
               :loading="saving"
             >
-              确认重置
+              {{ emailReset ? '发送重置邮件' : '确认重置' }}
             </UButton>
           </div>
         </form>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="managementOpen"
+      :title="managementAction?.title || '确认变更'"
+      :description="managementAction ? `${managementAction.user.username}（ID ${managementAction.user.id}）：${managementAction.before} → ${managementAction.after}。现有登录会话将结束。` : ''"
+    >
+      <template #footer>
+        <UButton color="neutral" variant="outline" @click="managementOpen = false">取消</UButton>
+        <UButton :color="managementAction?.danger ? 'error' : 'primary'" :loading="actionUserId !== null" @click="confirmManagementAction">确认变更</UButton>
       </template>
     </UModal>
 
@@ -473,15 +501,20 @@
           />
           加载详情
         </div>
+        <UAlert v-else-if="detailError" color="error" variant="soft" :title="detailError">
+          <template #actions><UButton size="sm" @click="retryDetail">重试</UButton></template>
+        </UAlert>
         <div
           v-else-if="detail"
           class="user-detail"
         >
           <section class="detail-profile">
-            <span class="user-avatar is-large">{{ detail.username.slice(0, 1).toUpperCase() }}</span>
+            <AccountAvatar :src="detail.avatarUrl" :seed="detail.displayName || detail.username" :size="50" />
             <div>
-              <h2>{{ detail.username }}</h2>
-              <p>{{ detail.email || '未设置邮箱' }}</p>
+              <h2>{{ detail.displayName || detail.username }}</h2>
+              <p v-if="detail.displayName && detail.displayName !== detail.username">@{{ detail.username }}</p>
+              <p>{{ detail.email || '未设置邮箱' }} <UBadge v-if="detail.email" :color="detail.emailVerifiedAt ? 'success' : 'warning'" variant="soft">{{ detail.emailVerifiedAt ? '已验证' : '待验证' }}</UBadge></p>
+              <p v-if="detail.pendingEmail">等待验证 {{ detail.pendingEmail }}</p>
               <span
                 class="user-badge"
                 :class="detail.role === 'ADMIN' ? 'is-admin' : 'is-user'"
@@ -534,8 +567,12 @@
                 <strong>{{ detail.stats.ragQueries }}</strong>
               </div>
               <div>
-                <small>文章对话</small>
+                <small>文章会话数</small>
                 <strong>{{ detail.stats.articleChats }}</strong>
+              </div>
+              <div v-if="detail.stats.aiUsagePending">
+                <small>待结算</small>
+                <strong>{{ detail.stats.aiUsagePending }}</strong>
               </div>
             </div>
           </section>
@@ -550,7 +587,7 @@
                 :key="item.id"
               >
                 <span>
-                  <strong>{{ item.feature }}</strong>
+                  <strong>{{ item.feature === 'article-chat' ? '文章问答' : item.feature }}</strong>
                   <small>{{ aiStatusLabel(item.status) }}</small>
                 </span>
                 <time>{{ formatDateTime(item.createdAt) }}</time>
@@ -564,7 +601,7 @@
             </p>
           </section>
           <section>
-            <h3>最近管理操作</h3>
+            <h3>管理记录</h3>
             <div
               v-if="detail.recentAuditLogs.length"
               class="detail-logs"
@@ -576,6 +613,7 @@
                 <span>
                   <strong>{{ auditLabel(log.action) }}</strong>
                   <small>{{ log.operator?.username || '已删除的管理员' }}</small>
+                  <small v-if="auditChange(log)">{{ auditChange(log) }}</small>
                 </span>
                 <time>{{ formatDateTime(log.createdAt) }}</time>
               </div>
@@ -586,6 +624,7 @@
             >
               暂无管理操作记录
             </p>
+            <UButton v-if="detail.nextAuditCursor" size="sm" color="neutral" variant="outline" :loading="auditLoading" @click="loadMoreAudit">加载更早记录</UButton>
           </section>
         </div>
       </template>
@@ -604,6 +643,7 @@ import type {
   UserStatusPayload
 } from '~~/types/api'
 import { getApiErrorMessage } from '~/utils/api-error'
+import type { AccountSnapshot, AdminUserAuditItem } from '~~/types/dto/user'
 
 definePageMeta({ layout: 'admin', middleware: 'admin-auth' })
 
@@ -679,7 +719,8 @@ const { data, pending, refresh, error } = await useFetch<{ data: PaginationPaylo
 const { data: overviewData, refresh: refreshOverview } = await useFetch<{ data: AdminUserOverview }>(
   '/api/admin/users/overview'
 )
-const { data: sessionData } = await useFetch<{ data: { user: { id: number } | null } }>('/api/auth/me')
+const { data: sessionData } = await useFetch<{ data: AccountSnapshot }>('/api/auth/me')
+const emailAvailable = computed(() => sessionData.value?.data.emailAvailable === true)
 const users = computed(() => data.value?.data.items || [])
 const total = computed(() => data.value?.data.total || 0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
@@ -720,25 +761,49 @@ const detailOpen = ref(false)
 const saving = ref(false)
 const actionUserId = ref<number | null>(null)
 const formError = ref('')
+type ManagementAction = {
+  user: AdminUserListItem
+  field: 'role' | 'status'
+  value: UserRolePayload | UserStatusPayload
+  title: string
+  before: string
+  after: string
+  danger?: boolean
+}
+const managementOpen = ref(false)
+const managementAction = ref<ManagementAction>()
 const createForm = reactive<{
   username: string
   email: string
   password: string
   role: UserRolePayload
   status: UserStatusPayload
-}>({ username: '', email: '', password: '', role: 'USER', status: 'ACTIVE' })
+  invite: boolean
+}>({ username: '', email: '', password: '', role: 'USER', status: 'ACTIVE', invite: false })
 const passwordTarget = ref<AdminUserListItem | null>(null)
 const passwordForm = reactive({ password: '', confirmPassword: '' })
+const canEmailReset = computed(() => emailAvailable.value && !!passwordTarget.value?.emailVerifiedAt && passwordTarget.value.status === 'ACTIVE')
+const emailReset = ref(false)
 const detail = ref<AdminUserDetail | null>(null)
 const detailLoading = ref(false)
+const detailError = ref('')
+const auditLoading = ref(false)
+let detailId: number | undefined
+let detailRequest: AbortController | undefined
+
+watch(detailOpen, (open) => {
+  if (!open) detailRequest?.abort()
+})
+onBeforeUnmount(() => detailRequest?.abort())
 
 function openCreate() {
-  Object.assign(createForm, { username: '', email: '', password: '', role: 'USER', status: 'ACTIVE' })
+  Object.assign(createForm, { username: '', email: '', password: '', role: 'USER', status: 'ACTIVE', invite: emailAvailable.value })
   formError.value = ''
   createOpen.value = true
 }
 function openPassword(user: AdminUserListItem) {
   passwordTarget.value = user
+  emailReset.value = canEmailReset.value
   passwordForm.password = ''
   passwordForm.confirmPassword = ''
   formError.value = ''
@@ -762,6 +827,9 @@ function userActions(user: AdminUserListItem): DropdownMenuItem[][] {
   const busy = actionUserId.value !== null
   return [
     [{ label: '重置密码', icon: 'i-lucide-key-round', disabled: busy, onSelect: () => openPassword(user) }],
+    ...(emailAvailable.value && user.status === 'ACTIVE' && !user.lastLoginAt && !user.emailVerifiedAt && user.pendingEmail
+      ? [[{ label: '重发邀请', icon: 'i-lucide-mail', disabled: busy, onSelect: () => sendInvitation(user) }]]
+      : []),
     [
       {
         label: user.role === 'ADMIN' ? '降为普通用户' : '设为管理员',
@@ -789,9 +857,16 @@ async function createUser() {
   saving.value = true
   formError.value = ''
   try {
-    await $fetch('/api/admin/users', { method: 'POST', body: createForm })
+    const invite = createForm.invite && createForm.status === 'ACTIVE'
+    const result = await $fetch<{ data: { invitationSent: boolean } }>('/api/admin/users', {
+      method: 'POST',
+      body: { ...createForm, invite, password: invite ? undefined : createForm.password }
+    })
     createOpen.value = false
-    toast.add({ title: '用户已创建', color: 'success' })
+    toast.add({
+      title: invite ? (result.data.invitationSent ? '用户已创建，邀请已发送' : '用户已创建，邮件发送失败，可从列表重发邀请') : '用户已创建',
+      color: invite && !result.data.invitationSent ? 'warning' : 'success'
+    })
     await refreshAll()
   } catch (error) {
     formError.value = getApiErrorMessage(error, { fallback: '创建用户失败' })
@@ -802,19 +877,21 @@ async function createUser() {
 
 async function resetPassword() {
   if (!passwordTarget.value) return
-  if (passwordForm.password !== passwordForm.confirmPassword) {
+  if (!emailReset.value && passwordForm.password !== passwordForm.confirmPassword) {
     formError.value = '两次输入的密码不一致'
     return
   }
   saving.value = true
   formError.value = ''
   try {
-    await $fetch(`/api/admin/users/${passwordTarget.value.id}/password`, {
-      method: 'PUT',
-      body: passwordForm
-    })
+    const { id } = passwordTarget.value
+    if (emailReset.value) await $fetch(`/api/admin/users/${id}/email`, { method: 'POST', body: { purpose: 'RESET' } })
+    else await $fetch(`/api/admin/users/${id}/password`, { method: 'PUT', body: passwordForm })
     passwordOpen.value = false
-    toast.add({ title: '密码已重置', color: 'success' })
+    toast.add({ title: emailReset.value ? '重置邮件已发送' : '密码已重置，旧会话已结束', color: 'success' })
+    if (id === currentUserId.value && !emailReset.value) {
+      await navigateTo({ path: '/admin/login', query: { redirect: route.fullPath } })
+    }
   } catch (error) {
     formError.value = getApiErrorMessage(error, { fallback: '重置密码失败' })
   } finally {
@@ -822,30 +899,41 @@ async function resetPassword() {
   }
 }
 
-async function toggleRole(user: AdminUserListItem) {
+function toggleRole(user: AdminUserListItem) {
   const nextRole: UserRolePayload = user.role === 'ADMIN' ? 'USER' : 'ADMIN'
-  if (!confirm(`确认将“${user.username}”${nextRole === 'ADMIN' ? '设为管理员' : '降为普通用户'}吗？`)) return
-  await runUserAction(`/api/admin/users/${user.id}/role`, { role: nextRole }, '用户角色已更新')
+  managementAction.value = { user, field: 'role', value: nextRole, title: '变更用户角色？', before: roleLabel(user.role), after: roleLabel(nextRole), danger: true }
+  managementOpen.value = true
 }
 
-async function toggleStatus(user: AdminUserListItem) {
+function toggleStatus(user: AdminUserListItem) {
   const nextStatus: UserStatusPayload = user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'
-  if (!confirm(`确认${nextStatus === 'ACTIVE' ? '启用' : '禁用'}“${user.username}”吗？`)) return
-  await runUserAction(
-    `/api/admin/users/${user.id}/status`,
-    { status: nextStatus },
-    `用户已${nextStatus === 'ACTIVE' ? '启用' : '禁用'}`
-  )
+  managementAction.value = { user, field: 'status', value: nextStatus, title: '变更账号状态？', before: statusLabel(user.status), after: statusLabel(nextStatus), danger: nextStatus === 'DISABLED' }
+  managementOpen.value = true
 }
 
-async function runUserAction(url: string, body: object, success: string) {
-  if (actionUserId.value !== null) return
-  actionUserId.value = Number(url.split('/')[4])
+async function confirmManagementAction() {
+  const action = managementAction.value
+  if (!action || actionUserId.value !== null) return
+  actionUserId.value = action.user.id
   try {
-    await $fetch(url, { method: 'PUT', body })
-    toast.add({ title: success, color: 'success' })
+    await $fetch(`/api/admin/users/${action.user.id}/${action.field}`, { method: 'PUT', body: { [action.field]: action.value } })
+    managementOpen.value = false
+    toast.add({ title: '账号已更新', color: 'success' })
     await refreshAll()
-    if (detailOpen.value && detail.value) await loadDetail(detail.value.id)
+    if (detailOpen.value && detailId === action.user.id) await loadDetail(action.user.id)
+  } catch (error) {
+    toast.add({ title: getApiErrorMessage(error, { fallback: '操作失败' }), color: 'error' })
+  } finally {
+    actionUserId.value = null
+  }
+}
+
+async function sendInvitation(user: AdminUserListItem) {
+  if (actionUserId.value !== null) return
+  actionUserId.value = user.id
+  try {
+    await $fetch(`/api/admin/users/${user.id}/email`, { method: 'POST', body: { purpose: 'INVITE' } })
+    toast.add({ title: '邀请已发送', color: 'success' })
   } catch (error) {
     toast.add({ title: getApiErrorMessage(error, { fallback: '操作失败' }), color: 'error' })
   } finally {
@@ -858,17 +946,53 @@ async function openDetail(user: AdminUserListItem) {
   await loadDetail(user.id)
 }
 async function loadDetail(id: number) {
+  detailRequest?.abort()
+  const request = new AbortController()
+  detailRequest = request
+  detailId = id
+  detailError.value = ''
+  auditLoading.value = false
   detailLoading.value = true
   detail.value = null
   try {
-    const result = await $fetch<{ data: AdminUserDetail }>(`/api/admin/users/${id}`)
-    detail.value = result.data
+    const result = await $fetch<{ data: AdminUserDetail }>(`/api/admin/users/${id}`, { signal: request.signal })
+    if (!request.signal.aborted) detail.value = result.data
   } catch (error) {
-    toast.add({ title: getApiErrorMessage(error, { fallback: '加载用户详情失败' }), color: 'error' })
-    detailOpen.value = false
+    if (!request.signal.aborted) detailError.value = getApiErrorMessage(error, { fallback: '加载用户详情失败' })
   } finally {
-    detailLoading.value = false
+    if (detailRequest === request) detailLoading.value = false
   }
+}
+function retryDetail() {
+  if (detailId !== undefined) void loadDetail(detailId)
+}
+
+async function loadMoreAudit() {
+  const user = detail.value
+  const request = detailRequest
+  if (!user?.nextAuditCursor || !request || auditLoading.value) return
+  auditLoading.value = true
+  try {
+    const { data } = await $fetch<{ data: { items: AdminUserAuditItem[], nextCursor: number | null } }>(`/api/admin/users/${user.id}/audit`, {
+      query: { cursor: user.nextAuditCursor }, signal: request.signal
+    })
+    if (!request.signal.aborted && detail.value?.id === user.id) {
+      detail.value.recentAuditLogs.push(...data.items)
+      detail.value.nextAuditCursor = data.nextCursor
+    }
+  } catch (error) {
+    if (!request.signal.aborted) toast.add({ title: getApiErrorMessage(error, { fallback: '加载管理记录失败' }), color: 'error' })
+  } finally {
+    if (detailRequest === request) auditLoading.value = false
+  }
+}
+
+function auditChange(log: AdminUserAuditItem) {
+  const before = log.before as { role?: string, status?: string } | null
+  const after = log.after as { role?: string, status?: string } | null
+  if (before?.role && after?.role) return `${roleLabel(before.role)} → ${roleLabel(after.role)}`
+  if (before?.status && after?.status) return `${statusLabel(before.status)} → ${statusLabel(after.status)}`
+  return ''
 }
 async function refreshAll() {
   await Promise.all([refresh(), refreshOverview()])
@@ -886,13 +1010,15 @@ function auditLabel(value: string) {
         USER_CREATED: '创建用户',
         USER_ROLE_CHANGED: '修改角色',
         USER_STATUS_CHANGED: '修改状态',
-        USER_PASSWORD_RESET: '重置密码'
+        USER_PASSWORD_RESET: '重置密码',
+        USER_RESET_SENT: '发送重置邮件',
+        USER_INVITE_SENT: '发送账号邀请'
       } as Record<string, string>
     )[value] || value
   )
 }
 function aiStatusLabel(value: string) {
-  return ({ SUCCESS: '成功', FAILED: '失败', BLOCKED: '被拦截' } as Record<string, string>)[value] || value
+  return ({ SUCCESS: '成功', FAILED: '失败', BLOCKED: '被拦截', PENDING: '待结算' } as Record<string, string>)[value] || value
 }
 function formatDate(value?: string | Date | null) {
   return value ? new Date(value).toLocaleDateString('zh-CN') : '从未登录'
@@ -1047,18 +1173,6 @@ function formatNumber(value: number) {
   text-align: left;
   cursor: pointer;
 }
-.user-avatar {
-  display: grid;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid #e7e1f0;
-  border-radius: 50%;
-  background: #f2eff8;
-  color: #8b7daf;
-  font-size: 13px;
-}
 .user-identity strong {
   display: block;
   color: var(--admin-ink);
@@ -1151,11 +1265,6 @@ function formatNumber(value: number) {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 16px;
-}
-.user-avatar.is-large {
-  width: 48px;
-  height: 48px;
-  font-size: 20px;
 }
 .detail-profile h2 {
   font-size: 18px;

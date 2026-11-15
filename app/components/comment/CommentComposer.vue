@@ -11,17 +11,19 @@
           :aria-pressed="identityChoice === option.value"
           @click="chooseIdentity(option.value)"
         >
-          <Icon :name="option.icon" aria-hidden="true" />
+          <AccountAvatar v-if="option.value === 'account'" :src="context.account.value?.avatarUrl" :seed="option.label" :size="19" />
+          <Icon v-else :name="option.icon" aria-hidden="true" />
           <span>{{ option.label }}</span>
         </button>
       </div>
 
-      <div class="comment-guest-row" :class="{ 'is-inactive': identityChoice !== 'guest-named' }" :aria-hidden="identityChoice !== 'guest-named'">
+      <NuxtLink v-if="variant === 'root' && identityChoice === 'account'" :to="{ path: '/account', hash: '#profile' }" class="comment-profile-link">编辑资料</NuxtLink>
+
+      <div v-else-if="identityChoice === 'guest-named'" class="comment-guest-row">
         <label class="comment-guest-label" :for="guestInputId">昵称</label>
         <input
           :id="guestInputId"
           v-model="guestName"
-          :disabled="identityChoice !== 'guest-named'"
           class="comment-guest-input"
           type="text"
           :maxlength="COMMENT_NAME_MAX_LENGTH"
@@ -190,7 +192,7 @@ const identityOptions = computed(() => {
   if (context.account.value) {
     options.push({
       value: 'account',
-      label: context.account.value.username,
+      label: context.account.value.displayName || context.account.value.username,
       icon: 'i-lucide-circle-user-round'
     })
   }
@@ -370,9 +372,14 @@ async function send() {
   gap: 10px 16px;
 }
 
-.comment-guest-row.is-inactive {
-  visibility: hidden;
-  pointer-events: none;
+.comment-profile-link {
+  justify-self: end;
+  color: var(--theme-text-muted);
+  font-size: 13px;
+}
+.comment-profile-link:hover { color: var(--theme-accent); }
+@container (max-width: 640px) {
+  .comment-profile-link { justify-self: start; }
 }
 
 @container (max-width: 640px) {

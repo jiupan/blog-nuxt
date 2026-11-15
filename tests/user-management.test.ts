@@ -9,7 +9,9 @@ const { prismaMock, txMock, hashMock } = vi.hoisted(() => {
       update: vi.fn(),
       count: vi.fn()
     },
-    adminAuditLog: { create: vi.fn() }
+    adminAuditLog: { create: vi.fn() },
+    accountSession: { deleteMany: vi.fn() },
+    accountEmailToken: { deleteMany: vi.fn() }
   }
   return {
     txMock: tx,
@@ -62,7 +64,7 @@ describe('user management service', () => {
 
     expect(hashMock).toHaveBeenCalledWith('very-secure-password', expect.any(Object))
     expect(txMock.user.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ email: 'member@example.com', passwordHash: 'argon-hash' })
+      data: expect.objectContaining({ pendingEmail: 'member@example.com', passwordHash: 'argon-hash' })
     }))
     const auditInput = txMock.adminAuditLog.create.mock.calls[0]![0]
     expect(JSON.stringify(auditInput)).not.toContain('very-secure-password')
@@ -101,6 +103,7 @@ describe('user management service', () => {
     txMock.user.update.mockResolvedValue({ ...target, role: 'ADMIN' })
 
     await updateManagedUserRole({ operatorId: 1, userId: 2, role: 'ADMIN', context })
+    expect(txMock.accountSession.deleteMany).toHaveBeenCalledWith({ where: { userId: 2 } })
 
     expect(txMock.adminAuditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -116,6 +119,8 @@ describe('user management service', () => {
     txMock.user.update.mockResolvedValue(target)
 
     await resetManagedUserPassword({ operatorId: 1, userId: 2, password: 'another-secure-password', context })
+    expect(txMock.accountSession.deleteMany).toHaveBeenCalledWith({ where: { userId: 2 } })
+    expect(txMock.accountEmailToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 2 } })
 
     const auditInput = txMock.adminAuditLog.create.mock.calls[0]![0]
     expect(auditInput.data.after).toEqual({ passwordReset: true })

@@ -3,6 +3,7 @@
     <Transition name="mobile-panel" @after-leave="finishClose">
       <div v-if="open" ref="overlay" class="mobile-sidebar-overlay" @click.self="close">
         <aside class="mobile-sidebar-panel" aria-label="侧边信息">
+          <SiteAccountMenu mobile @navigate="close" />
           <section class="mobile-stats-card">
             <NuxtLink to="/archive" @click="close">
               <span>文章</span>
@@ -32,7 +33,7 @@
               >
                 <Icon v-if="item.icon" :name="item.icon" class="mobile-row-icon" aria-hidden="true" />
                 <component v-else :is="footerActionIcon(item.fallbackIcon)" class="mobile-row-icon" aria-hidden="true" />
-                <span>{{ item.title }}</span>
+                <span>{{ item.to === '/about' && item.title === '我的' ? '关于作者' : item.title }}</span>
               </NuxtLink>
             </div>
           </div>
@@ -53,6 +54,7 @@
 
 <script setup lang="ts">
 import type { Component } from 'vue'
+import SiteAccountMenu from './SiteAccountMenu.vue'
 import type { MobileMenuItem, TaxonomyItem } from '~/composables/useSiteNavigation'
 
 const props = defineProps<{

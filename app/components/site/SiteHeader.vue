@@ -31,7 +31,7 @@
             :rel="item.targetBlank ? 'noopener noreferrer' : undefined"
             @click="holdMenuClick(item.id)"
           >
-            {{ item.title }}
+            {{ menuPath(item.url) === '/about' && item.title === '我的' ? '关于作者' : item.title }}
             <Icon v-if="item.children.length" name="i-lucide-chevron-down" aria-hidden="true" />
           </NuxtLink>
           <div v-if="item.children.length" class="nav-dropdown">
@@ -63,6 +63,7 @@
           <NuxtLink to="/archive" class="tool-button" aria-label="归档" data-tooltip="归档">
             <ArchiveIcon aria-hidden="true" />
           </NuxtLink>
+          <SiteAccountMenu />
           <button type="button" class="tool-button search-trigger" aria-label="站内搜索" data-tooltip="站内搜索（Ctrl / ⌘ K）" aria-haspopup="dialog" aria-controls="site-search-dialog" :aria-expanded="searchOpen" aria-keyshortcuts="Control+K Meta+K" @click="openSearch">
             <SearchIcon aria-hidden="true" />
           </button>
@@ -90,7 +91,9 @@
     </div>
   </header>
 
-  <SiteSearch v-model:open="searchOpen" />
+  <ClientOnly>
+    <SiteSearch v-model:open="searchOpen" />
+  </ClientOnly>
 </template>
 
 <script setup lang="ts">
@@ -103,6 +106,7 @@ import {
   Wrench as WrenchIcon
 } from '@lucide/vue'
 import SiteSearch from './SiteSearch.vue'
+import SiteAccountMenu from './SiteAccountMenu.vue'
 import type { MenuTreeItem } from '~/composables/useSiteNavigation'
 
 const props = defineProps<{

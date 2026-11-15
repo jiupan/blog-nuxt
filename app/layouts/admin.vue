@@ -32,17 +32,17 @@
         打开博客
         <span>查看前台</span>
       </NuxtLink>
-      <div class="admin-sidebar-account">
-        <span class="admin-avatar">{{ username.slice(0, 1).toUpperCase() || 'J' }}</span>
+      <NuxtLink :to="{ path: '/account', hash: '#profile' }" class="admin-sidebar-account">
+        <AccountAvatar :src="account?.avatarUrl" :seed="accountName" :size="32" />
         <div>
-          <strong>{{ username || '管理员' }}</strong>
-          <small>管理员工作空间</small>
+          <strong>{{ accountName }}</strong>
+          <small>个人资料</small>
         </div>
         <UIcon
-          name="i-lucide-shield-check"
+          name="i-lucide-chevron-right"
           class="size-4"
         />
-      </div>
+      </NuxtLink>
     </aside>
 
     <div
@@ -94,7 +94,7 @@
                 class="admin-account-trigger"
                 aria-label="账户菜单"
               >
-                <span class="admin-avatar">{{ username.slice(0, 1).toUpperCase() || 'J' }}</span>
+                <AccountAvatar :src="account?.avatarUrl" :seed="accountName" :size="30" />
                 <UIcon
                   name="i-lucide-chevron-down"
                   class="size-3.5"
@@ -153,8 +153,9 @@ const mobileNavOpen = ref(false)
 const pageActionsTarget = ref<HTMLElement | null>(null)
 provide('admin-page-actions', pageActionsTarget)
 const focused = useState('admin-editor-focused', () => false)
-const { data: sessionData } = await useFetch<{ data: { user: { username?: string } | null } }>('/api/auth/me')
-const username = computed(() => sessionData.value?.data.user?.username || '')
+const { data: sessionData } = useSiteAccount()
+const account = computed(() => sessionData.value?.data.user)
+const accountName = computed(() => account.value?.displayName || account.value?.username || '管理员')
 const pageNames: Record<string, string> = {
   posts: '文章',
   categories: '文章分类',
@@ -174,9 +175,10 @@ const pageName = computed(() => {
   if (route.path === '/admin/menus' && route.query.location === 'footer') return '页脚菜单'
   return pageNames[route.path.split('/')[2] || ''] || '工作台'
 })
-const accountItems = [
-  [{ label: username.value || '管理员', type: 'label' as const }],
+const accountItems = computed(() => [
+  [{ label: accountName.value, type: 'label' as const }],
   [
+    { label: '个人资料', icon: 'i-lucide-user-round', to: { path: '/account', hash: '#profile' } },
     { label: '站点设置', icon: 'i-lucide-settings', to: '/admin/settings' },
     {
       label: '退出登录',
@@ -186,7 +188,7 @@ const accountItems = [
       }
     }
   ]
-]
+])
 
 watch(
   () => route.path,
@@ -196,6 +198,7 @@ watch(
 )
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
+  await refreshNuxtData('site-account')
   await navigateTo('/admin/login')
 }
 </script>

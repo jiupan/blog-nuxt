@@ -5,6 +5,8 @@ import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
 import { forbidden, rateLimited, unauthorized, parseRequest } from '~~/server/utils/api-error'
 import { loginRateLimitPolicy } from '~~/server/services/security/security-policy'
+import { publicAccount, startAccountSession } from '~~/server/services/security/account-session.service'
+import { publicProfileSelect } from '~~/server/services/users/public-profile'
 import {
   clearFixedWindow,
   consumeFixedWindow,
@@ -21,7 +23,8 @@ const dummyPasswordHash = '$argon2id$v=19$m=65536,t=3,p=4$QBhFLWZM9nlNuXKz6VjVDg
 
 const loginSchema = z.object({
   username: z.string().trim().min(1),
-  password: z.string().min(1)
+  password: z.string().min(1),
+  admin: z.boolean().optional()
 })
 
 function rejectLoginAttempt(state: FixedWindowState): never {
@@ -41,6 +44,7 @@ export default defineEventHandler(async (event) => {
   consumeFixedWindow(loginAttempts, attemptKey, loginRateLimitPolicy.windowMs, loginRateLimitPolicy.limit, rejectLoginAttempt)
 
   const user = await prisma.user.findFirst({
+    include: { avatar: publicProfileSelect.avatar },
     where: {
       OR: [
         { username: body.username },
@@ -57,27 +61,11 @@ export default defineEventHandler(async (event) => {
   if (user.status !== 'ACTIVE') {
     throw forbidden('账号已被禁用')
   }
+  if (body.admin && user.role !== 'ADMIN') throw forbidden('该账号没有后台访问权限')
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() }
-  })
-
-  await setUserSession(event, {
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role
-    }
-  })
+  await startAccountSession(event, user)
 
   clearFixedWindow(loginAttempts, attemptKey)
 
-  return ok({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role
-  })
+  return ok(publicAccount(user))
 })

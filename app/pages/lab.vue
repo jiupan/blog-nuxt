@@ -3,7 +3,7 @@
     <div class="lab-grid-bg" aria-hidden="true"></div>
 
     <main class="lab-shell">
-      <LabHero :user="sessionData?.data.user" />
+      <LabHero :user="sessionData?.data.user" :quota="labQuota" />
       <FeatureGrid :features="features" @open-feature="openFeature" />
     </main>
 
@@ -28,6 +28,9 @@
 
             <div class="modal-body">
               <p>{{ selectedFeature.description }}</p>
+              <UAlert v-if="!sessionData?.data.user" variant="soft" title="登录后继续使用">
+                <template #actions><UButton size="sm" @click="loginForFeature">保留当前输入并登录</UButton></template>
+              </UAlert>
 
               <AskBlogPanel
                 v-if="selectedFeature.id === 'ask-blog'"
@@ -36,7 +39,7 @@
                 :error="askError"
                 :result="askResult"
                 :question-length="askQuestionLength"
-                @ask="askBlogQuestion"
+                @ask="handlePrimaryAction"
               />
 
               <ArticleSummaryPanel
@@ -175,10 +178,10 @@
               <button
                 type="button"
                 class="primary-button"
-                :disabled="isPrimaryActionDisabled"
+                :disabled="!!sessionData?.data.user && isPrimaryActionDisabled"
                 @click="handlePrimaryAction"
               >
-                {{ primaryActionLabel }}
+                {{ sessionData?.data.user ? primaryActionLabel : '登录后继续' }}
                 <ChevronRightIcon aria-hidden="true" />
               </button>
             </footer>
@@ -251,6 +254,8 @@ const {
   summarySelectOpen,
   summarySelectRef,
   sessionData,
+  labQuota,
+  loginForFeature,
   summaryPosts,
   isAdmin,
   selectedSummaryPost,
@@ -262,7 +267,6 @@ const {
   closeFeature,
   selectSummaryPost,
   handlePrimaryAction,
-  askBlogQuestion,
   relationTypeLabel,
   formatMonthDate,
   trendBarHeight,

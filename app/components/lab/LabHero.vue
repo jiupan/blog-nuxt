@@ -31,9 +31,16 @@
 
     <div class="lab-auth-actions">
       <template v-if="user">
-        <span>
-          <UserRoundIcon aria-hidden="true" />
-          {{ user.username || '已登录用户' }}
+        <NuxtLink to="/account">
+          <AccountAvatar :src="user.avatarUrl" :seed="user.displayName || user.username" :size="21" />
+          {{ user.displayName || user.username }}
+        </NuxtLink>
+        <span v-if="quota">
+          <template v-if="quota.remaining === null">无每日上限</template>
+          <template v-else>
+            今日剩余 {{ quota.remaining }} 次 ·
+            <NuxtTime :datetime="quota.resetsAt" locale="zh-CN" month="numeric" day="numeric" hour="2-digit" minute="2-digit" hour-cycle="h23" /> 重置
+          </template>
         </span>
       </template>
       <template v-else>
@@ -45,14 +52,11 @@
 </template>
 
 <script setup lang="ts">
-import {
-  Sparkles as SparklesIcon,
-  UserRound as UserRoundIcon
-} from '@lucide/vue'
+import { Sparkles as SparklesIcon } from '@lucide/vue'
+import type { AiQuota, SiteAccount } from '~~/types/dto/user'
 
 defineProps<{
-  user?: {
-    username?: string
-  } | null
+  user?: SiteAccount | null
+  quota?: AiQuota
 }>()
 </script>

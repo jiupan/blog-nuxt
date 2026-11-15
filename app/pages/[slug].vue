@@ -106,10 +106,18 @@
                     </div>
                   </div>
                   <div v-if="summaryDialogError" class="summary-dialog-error" role="status">
-                    <Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><button v-if="summaryRetryAction" type="button" :disabled="summaryDialogLoading || summaryConversationBusy" @click="runSummaryRetry">{{ summaryRetryLabel }}</button>
+                    <Icon name="i-lucide-circle-alert" /><span>{{ summaryDialogError }}</span><NuxtLink v-if="summaryNeedsLogin" :to="{ path: '/login', query: { redirect: route.fullPath } }">重新登录</NuxtLink><button v-else-if="summaryRetryAction" type="button" :disabled="summaryDialogLoading || summaryConversationBusy" @click="runSummaryRetry">{{ summaryRetryLabel }}</button>
                   </div>
                 </div>
-                <footer class="summary-dialog-footer"><form class="summary-dialog-composer" @submit.prevent="sendSummaryDialogMessage"><textarea ref="summaryDialogInput" v-model="summaryDialogDraft" rows="1" maxlength="300" placeholder="继续针对这篇文章提问…" aria-label="继续提问" @keydown="handleSummaryComposerKeydown" /><button v-if="!summaryDialogLoading" type="submit" :disabled="summaryDialogDraft.trim().length < 2 || summaryConversationBusy || !summaryConversationRestored" aria-label="发送消息"><Icon name="i-lucide-send" /></button><button v-else type="button" class="is-stop" aria-label="停止生成" @click="stopSummaryDialogRequest"><Icon name="i-lucide-square" /></button></form><p>{{ summaryDialogDraft.length }}/300 · Enter 发送，Shift+Enter 换行 · 回答仅基于当前文章</p></footer>
+                <footer class="summary-dialog-footer">
+                  <form class="summary-dialog-composer" @submit.prevent="sendSummaryDialogMessage">
+                    <textarea ref="summaryDialogInput" v-model="summaryDialogDraft" rows="1" maxlength="300" placeholder="继续针对这篇文章提问…" aria-label="继续提问" @keydown="handleSummaryComposerKeydown" />
+                    <button v-if="!summaryDialogLoading" type="submit" :disabled="summaryDialogDraft.trim().length < 2 || summaryConversationBusy || !summaryConversationRestored" aria-label="发送消息"><Icon name="i-lucide-send" /></button>
+                    <button v-else type="button" class="is-stop" aria-label="停止生成" @click="stopSummaryDialogRequest"><Icon name="i-lucide-square" /></button>
+                  </form>
+                  <p>{{ summaryDialogDraft.length }}/300 · Enter 发送，Shift+Enter 换行 · 回答仅基于当前文章</p>
+                  <p v-if="summaryQuota">今日剩余 {{ summaryQuota.remaining }} 次 · <NuxtTime :datetime="summaryQuota.resetsAt" locale="zh-CN" month="numeric" day="numeric" hour="2-digit" minute="2-digit" hour-cycle="h23" /> 重置</p>
+                </footer>
               </section>
             </div>
           </Transition>
@@ -237,6 +245,8 @@ let tocScrollTarget: { id: string, until: number } | undefined
 const summaryQuestion = ref('')
 const summaryDialogDraft = ref('')
 const summaryDialogOpen = ref(false)
+const summaryQuota = ref<import('~~/types/dto/user').AiQuota>()
+const summaryNeedsLogin = ref(false)
 type ArticleChatMessage = { id: number | string, role: 'USER' | 'ASSISTANT', content: string, status: string, citations?: ArticleChatCitation[], error?: string | null }
 type ArticleConversationItem = { id: number, status: 'ACTIVE' | 'ARCHIVED', title: string, messageCount: number, lastMessageAt: string, createdAt: string }
 const summaryMessages = ref<ArticleChatMessage[]>([])
@@ -343,8 +353,6 @@ const heroGradients = [
 ]
 const heroGradient = computed(() => heroGradients[post.value.id % heroGradients.length])
 
-layoutScrollTitle.value = post.value.title
-
 onBeforeUnmount(() => {
   unlockSummaryModal?.()
   clearTimeout(summaryHistoryTimer)
@@ -358,6 +366,7 @@ onBeforeUnmount(() => {
 })
 
 onMounted(() => {
+  layoutScrollTitle.value = post.value.title
   void restoreSummaryConversation()
   updatePostSidebarStickyTop()
   setupTocTracking()
@@ -672,12 +681,15 @@ async function restoreSummaryConversation() {
   if (summaryRestorePromise) return summaryRestorePromise
   summaryRestorePromise = (async () => {
     try {
-      const response = await $fetch<{ data: { conversation: { id: number } | null, messages: ArticleChatMessage[] } }>(`/api/posts/${post.value.slug}/chat`)
+      const response = await $fetch<{ data: { conversation: { id: number } | null, messages: ArticleChatMessage[], quota: import('~~/types/dto/user').AiQuota } }>(`/api/posts/${post.value.slug}/chat`)
       summaryConversationId.value = response.data.conversation?.id || null
       summaryMessages.value = response.data.messages
+      summaryQuota.value = response.data.quota
+      summaryNeedsLogin.value = false
       summaryConversationRestored = true
       summaryDialogError.value = ''
     } catch (error: unknown) {
+      summaryNeedsLogin.value = (error as { statusCode?: number }).statusCode === 401
       setSummaryError(error, restoreSummaryConversation, '重新加载会话')
     } finally {
       summaryRestorePromise = null
@@ -764,6 +776,8 @@ async function submitSummaryQuestion(question: string, retryUserId?: number) {
     summaryStreamingId.value = null
     summaryDialogLoading.value = false
     summaryDialogController = null
+    void $fetch<{ data: import('~~/types/dto/user').AiQuota }>(`/api/posts/${post.value.slug}/chat/quota`)
+      .then(({ data }) => { summaryQuota.value = data }, () => {})
     if (follow) await scrollSummaryMessages(false)
   }
 }

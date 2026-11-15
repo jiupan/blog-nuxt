@@ -1,10 +1,19 @@
-﻿export default defineNuxtRouteMiddleware(async (to) => {
+import type { AccountSnapshot } from '~~/types/dto/user'
+
+export default defineNuxtRouteMiddleware(async (to, from) => {
   if (!to.path.startsWith('/admin') || to.path === '/admin/login') {
     return
   }
 
-  const session = await $fetch<{ data: { user: { role?: string } | null } }>('/api/auth/me').catch(() => null)
-  if (!session?.data.user || session.data.user.role !== 'ADMIN') {
-    return navigateTo('/admin/login')
+  if (from.path === to.path && from.fullPath !== to.fullPath) return
+
+  const session = await useRequestFetch()<{ data: AccountSnapshot }>('/api/auth/me').catch(() => {
+    throw createError({ statusCode: 503, statusMessage: '无法确认后台登录状态，请重试' })
+  })
+  if (session.data.user?.role !== 'ADMIN') {
+    return navigateTo({
+      path: '/admin/login',
+      query: { redirect: to.fullPath, ...(session.data.user ? { reason: 'forbidden' } : {}) }
+    })
   }
 })

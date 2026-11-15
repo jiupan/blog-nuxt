@@ -1,19 +1,8 @@
 import { ok } from '~~/server/utils/response'
-import { prisma } from '~~/server/utils/prisma'
-import type { SessionUser } from '~~/server/utils/auth'
+import { publicAccount, readAccountSession } from '~~/server/services/security/account-session.service'
+import { accountMailAvailable } from '~~/server/services/users/account-email.service'
 
 export default defineEventHandler(async (event) => {
-  const session = await getUserSession(event)
-  const sessionUser = session.user as SessionUser | undefined
-
-  if (!sessionUser?.id) {
-    return ok({ user: null })
-  }
-
-  const user = await prisma.user.findFirst({
-    where: { id: sessionUser.id, status: 'ACTIVE' },
-    select: { id: true, username: true, email: true, role: true }
-  })
-
-  return ok({ user })
+  const user = await readAccountSession(event)
+  return ok({ user: user?.status === 'ACTIVE' ? publicAccount(user) : null, emailAvailable: accountMailAvailable(event) })
 })

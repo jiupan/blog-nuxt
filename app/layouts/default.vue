@@ -20,16 +20,18 @@
       <slot />
     </main>
 
-    <MobileSidebar
-      :open="navigation.mobilePanelOpen.value"
-      :total-posts="navigation.totalPosts.value"
-      :tags="navigation.tags.value"
-      :categories="navigation.categories.value"
-      :mobile-menu-items="navigation.mobileMenuItems.value"
-      :cloud-tags="navigation.cloudTags.value"
-      :footer-action-icon="navigation.footerActionIcon"
-      @close="navigation.closeMobilePanel"
-    />
+    <ClientOnly>
+      <MobileSidebar
+        :open="navigation.mobilePanelOpen.value"
+        :total-posts="navigation.totalPosts.value"
+        :tags="navigation.tags.value"
+        :categories="navigation.categories.value"
+        :mobile-menu-items="navigation.mobileMenuItems.value"
+        :cloud-tags="navigation.cloudTags.value"
+        :footer-action-icon="navigation.footerActionIcon"
+        @close="navigation.closeMobilePanel"
+      />
+    </ClientOnly>
 
     <SiteFooter
       :compact="useCompactFooter"

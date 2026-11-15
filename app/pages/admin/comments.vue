@@ -99,7 +99,7 @@
               <tr v-for="comment in comments" :key="comment.id">
                 <td>
                   <button type="button" class="comment-identity" @click="openDetail(comment)">
-                    <span class="comment-avatar">{{ comment.authorName.slice(0, 1).toUpperCase() }}</span>
+                    <CommentAvatar :name="comment.authorName" :kind="comment.authorKind" :src="comment.avatarUrl" :size="32" />
                     <span class="comment-identity-copy">
                       <strong>{{ comment.authorName }}</strong>
                       <small>{{ comment.body || '（正文已清空）' }}</small>
@@ -581,19 +581,6 @@ function formatDateTime(value?: string | Date | null) {
   min-width: 0;
   text-align: left;
   cursor: pointer;
-}
-
-.comment-avatar {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--admin-accent-soft);
-  color: var(--admin-accent);
-  font-size: 13px;
-  font-weight: 600;
 }
 
 .comment-identity-copy {

@@ -9,6 +9,10 @@ declare module '#auth-utils' {
   interface UserSession {
     user?: User
   }
+
+  interface SecureSessionData {
+    accountSessionId?: string
+  }
 }
 
 export {}

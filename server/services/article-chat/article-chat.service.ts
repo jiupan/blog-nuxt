@@ -3,14 +3,15 @@ import { createHash, randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
 import { getCookie, setCookie } from 'h3'
 import { z } from 'zod'
-import { notFound, rateLimited } from '../../utils/api-error'
+import { forbidden, notFound, rateLimited, unauthorized } from '../../utils/api-error'
 import { prisma } from '../../utils/prisma'
 import { answerBlogFromResults, streamBlogAnswerFromResults } from '../rag/ask.service'
 import { unwrapArticleAnswer } from '../ai/article-answer-format'
 import { searchPostChunks } from '../rag/retrieval.service'
 import { consumeFixedWindow, createFixedWindowStore, getClientIp } from '../security/rate-limit.service'
 import { getKnowledgeRuntimeSettings } from '../settings/settings.service'
-import type { SessionUser } from '../security/access-control.service'
+import { readAccountSession, type AccountCookie } from '../security/account-session.service'
+import { articleChatFeature, getAiQuota, withUsageLedger } from '../ai/usage-ledger.service'
 import type { articleChatInputSchema } from './article-chat.schema'
 
 const anonymousCookie = process.env.NODE_ENV === 'production' ? '__Host-article-chat' : 'article-chat'
@@ -23,11 +24,18 @@ export const articleConversationListSchema = z.object({
 })
 
 export async function getCurrentArticleConversation(event: H3Event, slug: string) {
-  const post = await requirePublishedPost(slug)
-  const identity = await resolveIdentity(event)
-  const conversation = await findCurrentConversation(post.id, identity)
-  if (!conversation) return { conversation: null, messages: [] }
-  return { conversation: { id: conversation.id, postId: conversation.postId }, messages: conversation.messages.map(toMessageDto) }
+  const [post, identity, settings] = await Promise.all([requirePublishedPost(slug), resolveIdentity(event), getKnowledgeRuntimeSettings()])
+  const [conversation, quota] = await Promise.all([
+    findCurrentConversation(post.id, identity),
+    getAiQuota(ledgerIdentity(identity), true, settings.dailyUserLimit)
+  ])
+  if (!conversation) return { conversation: null, messages: [], quota }
+  return { conversation: { id: conversation.id, postId: conversation.postId }, messages: conversation.messages.map(toMessageDto), quota }
+}
+
+export async function getArticleChatQuota(event: H3Event) {
+  const [identity, settings] = await Promise.all([resolveIdentity(event), getKnowledgeRuntimeSettings()])
+  return getAiQuota(ledgerIdentity(identity), true, settings.dailyUserLimit)
 }
 
 export async function listArticleConversations(event: H3Event, slug: string, input: z.infer<typeof articleConversationListSchema>) {
@@ -87,34 +95,36 @@ export async function deleteArticleConversation(event: H3Event, slug: string, co
 export async function sendArticleChatMessage(event: H3Event, slug: string, input: z.infer<typeof articleChatInputSchema>) {
   const startedAt = performance.now()
   const [post, identity, settings] = await Promise.all([requirePublishedPost(slug), resolveIdentity(event), getKnowledgeRuntimeSettings()])
-  await assertUsageAllowed(event, identity, settings.dailyUserLimit, settings.ipHourlyLimit)
-  const conversation = input.conversationId
-    ? await requireOwnedConversation(input.conversationId, post.id, identity)
-    : await getOrCreateConversation(post.id, identity)
-  const history = await prisma.articleChatMessage.findMany({
-    where: { conversationId: conversation.id, status: 'COMPLETED', ...(input.retryMessageId ? { id: { lt: input.retryMessageId } } : {}) }, orderBy: { createdAt: 'desc' }, take: 6
-  }).then(items => items.reverse())
-  const userMessage = await prepareArticleChatTurn(conversation.id, input)
-  const retrievalQuery = buildRetrievalQuery(history, input.message)
-  try {
-    const results = await searchPostChunks({ query: retrievalQuery, postId: post.id, limit: settings.topK })
-    const contextualQuestion = buildContextualQuestion(history, input.message)
-    const answer = await answerBlogFromResults(contextualQuestion, results, settings)
-    const assistantMessage = await prisma.articleChatMessage.create({
-      data: { conversationId: conversation.id, role: 'ASSISTANT', content: answer.answer, citations: answer.citations, durationMs: Math.round(performance.now() - startedAt) }
-    })
-    await prisma.articleChatConversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } })
-    return {
-      conversation: { id: conversation.id, postId: post.id },
-      userMessage: toMessageDto(userMessage),
-      assistantMessage: toMessageDto(assistantMessage)
+  assertArticleRateLimit(event, settings.ipHourlyLimit)
+  return withUsageLedger(event, ledgerIdentity(identity), articleChatFeature, settings.dailyUserLimit, async () => {
+    const conversation = input.conversationId
+      ? await requireOwnedConversation(input.conversationId, post.id, identity)
+      : await getOrCreateConversation(post.id, identity)
+    const history = await prisma.articleChatMessage.findMany({
+      where: { conversationId: conversation.id, status: 'COMPLETED', ...(input.retryMessageId ? { id: { lt: input.retryMessageId } } : {}) }, orderBy: { createdAt: 'desc' }, take: 6
+    }).then(items => items.reverse())
+    const userMessage = await prepareArticleChatTurn(conversation.id, input)
+    const retrievalQuery = buildRetrievalQuery(history, input.message)
+    try {
+      const results = await searchPostChunks({ query: retrievalQuery, postId: post.id, limit: settings.topK })
+      const contextualQuestion = buildContextualQuestion(history, input.message)
+      const answer = await answerBlogFromResults(contextualQuestion, results, settings)
+      const assistantMessage = await prisma.articleChatMessage.create({
+        data: { conversationId: conversation.id, role: 'ASSISTANT', content: answer.answer, citations: answer.citations, durationMs: Math.round(performance.now() - startedAt) }
+      })
+      await prisma.articleChatConversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } })
+      return {
+        conversation: { id: conversation.id, postId: post.id },
+        userMessage: toMessageDto(userMessage),
+        assistantMessage: toMessageDto(assistantMessage)
+      }
+    } catch (error) {
+      await prisma.articleChatMessage.create({
+        data: { conversationId: conversation.id, role: 'ASSISTANT', content: '回答生成失败', status: 'FAILED', error: error instanceof Error ? error.message.slice(0, 2000) : '未知错误', durationMs: Math.round(performance.now() - startedAt) }
+      }).catch(() => null)
+      throw error
     }
-  } catch (error) {
-    await prisma.articleChatMessage.create({
-      data: { conversationId: conversation.id, role: 'ASSISTANT', content: '回答生成失败', status: 'FAILED', error: error instanceof Error ? error.message.slice(0, 2000) : '未知错误', durationMs: Math.round(performance.now() - startedAt) }
-    }).catch(() => null)
-    throw error
-  }
+  })
 }
 
 export async function streamArticleChatMessage(
@@ -129,26 +139,28 @@ export async function streamArticleChatMessage(
 ) {
   const startedAt = performance.now()
   const [post, identity, settings] = await Promise.all([requirePublishedPost(slug), resolveIdentity(event), getKnowledgeRuntimeSettings()])
-  await assertUsageAllowed(event, identity, settings.dailyUserLimit, settings.ipHourlyLimit)
-  const conversation = input.conversationId
-    ? await requireOwnedConversation(input.conversationId, post.id, identity)
-    : await getOrCreateConversation(post.id, identity)
-  const history = await prisma.articleChatMessage.findMany({
-    where: { conversationId: conversation.id, status: 'COMPLETED', ...(input.retryMessageId ? { id: { lt: input.retryMessageId } } : {}) }, orderBy: { createdAt: 'desc' }, take: 6
-  }).then(items => items.reverse())
-  const userMessage = await prepareArticleChatTurn(conversation.id, input)
-  await options.onMeta({ conversation: { id: conversation.id, postId: post.id }, userMessage: toMessageDto(userMessage) })
+  assertArticleRateLimit(event, settings.ipHourlyLimit)
+  return withUsageLedger(event, ledgerIdentity(identity), articleChatFeature, settings.dailyUserLimit, async () => {
+    const conversation = input.conversationId
+      ? await requireOwnedConversation(input.conversationId, post.id, identity)
+      : await getOrCreateConversation(post.id, identity)
+    const history = await prisma.articleChatMessage.findMany({
+      where: { conversationId: conversation.id, status: 'COMPLETED', ...(input.retryMessageId ? { id: { lt: input.retryMessageId } } : {}) }, orderBy: { createdAt: 'desc' }, take: 6
+    }).then(items => items.reverse())
+    const userMessage = await prepareArticleChatTurn(conversation.id, input)
+    await options.onMeta({ conversation: { id: conversation.id, postId: post.id }, userMessage: toMessageDto(userMessage) })
 
-  const results = await searchPostChunks({ query: buildRetrievalQuery(history, input.message), postId: post.id, limit: settings.topK })
-  const answer = await streamBlogAnswerFromResults(buildContextualQuestion(history, input.message), results, settings, {
-    signal: options.signal,
-    onDelta: options.onDelta
+    const results = await searchPostChunks({ query: buildRetrievalQuery(history, input.message), postId: post.id, limit: settings.topK })
+    const answer = await streamBlogAnswerFromResults(buildContextualQuestion(history, input.message), results, settings, {
+      signal: options.signal,
+      onDelta: options.onDelta
+    })
+    const assistantMessage = await prisma.articleChatMessage.create({
+      data: { conversationId: conversation.id, role: 'ASSISTANT', content: answer.answer, citations: answer.citations, durationMs: Math.round(performance.now() - startedAt) }
+    })
+    await prisma.articleChatConversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } })
+    return { conversation: { id: conversation.id, postId: post.id }, assistantMessage: toMessageDto(assistantMessage) }
   })
-  const assistantMessage = await prisma.articleChatMessage.create({
-    data: { conversationId: conversation.id, role: 'ASSISTANT', content: answer.answer, citations: answer.citations, durationMs: Math.round(performance.now() - startedAt) }
-  })
-  await prisma.articleChatConversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date() } })
-  return { conversation: { id: conversation.id, postId: post.id }, assistantMessage: toMessageDto(assistantMessage) }
 }
 
 export async function archiveArticleConversation(event: H3Event, slug: string, conversationId: number) {
@@ -157,12 +169,20 @@ export async function archiveArticleConversation(event: H3Event, slug: string, c
   await prisma.articleChatConversation.update({ where: { id: conversation.id }, data: { status: 'ARCHIVED' } })
 }
 
-type ChatIdentity = { userId?: number, anonymousKeyHash?: string }
+type ChatIdentity = { userId: number, anonymousKeyHash?: never } | { userId?: never, anonymousKeyHash: string }
+
+function ledgerIdentity(identity: ChatIdentity) {
+  return identity.userId === undefined ? { guestKey: identity.anonymousKeyHash } : { userId: identity.userId }
+}
 
 async function resolveIdentity(event: H3Event): Promise<ChatIdentity> {
-  const session = await getUserSession(event)
-  const user = session.user as SessionUser | undefined
-  if (user?.id) return { userId: user.id }
+  const session = await getUserSession(event) as AccountCookie
+  if (session.user?.id) {
+    const user = await readAccountSession(event, session)
+    if (!user) throw unauthorized()
+    if (user.status !== 'ACTIVE') throw forbidden('账号已被禁用')
+    return { userId: user.id }
+  }
   let token = getCookie(event, anonymousCookie)
   if (!token || !/^[0-9a-f-]{36}$/.test(token)) {
     token = randomUUID()
@@ -171,16 +191,9 @@ async function resolveIdentity(event: H3Event): Promise<ChatIdentity> {
   return { anonymousKeyHash: createHash('sha256').update(token).digest('hex') }
 }
 
-async function assertUsageAllowed(event: H3Event, identity: ChatIdentity, dailyLimit: number, ipHourlyLimit: number) {
+function assertArticleRateLimit(event: H3Event, ipHourlyLimit: number) {
   const ip = getClientIp(event)
   consumeFixedWindow(ipWindows, `article-chat:${ip}`, 60 * 60 * 1000, ipHourlyLimit, () => { throw rateLimited('当前网络提问过于频繁，请稍后再试') })
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const count = await prisma.articleChatMessage.count({
-    where: {
-      role: 'USER', createdAt: { gte: today }, conversation: identity.userId ? { userId: identity.userId } : { anonymousKeyHash: identity.anonymousKeyHash }
-    }
-  })
-  if (count >= dailyLimit) throw rateLimited(`今日问答额度已用完，每天最多 ${dailyLimit} 次`)
 }
 
 async function requirePublishedPost(slug: string) {

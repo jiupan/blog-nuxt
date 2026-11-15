@@ -59,7 +59,7 @@ export async function createComment(
     identityMode: identity.kind,
     authorUserId: identity.authorUserId,
     guestTokenHash: identity.guestTokenHash,
-    displayName: identity.displayName
+    displayName: identity.accountUsername ?? identity.displayName
   })
 
   const unique = { postId_requestId: { postId, requestId: input.requestId } }

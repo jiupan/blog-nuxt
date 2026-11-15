@@ -19,9 +19,9 @@
       </div>
 
       <div class="auth-panel">
-        <NuxtLink :to="redirectTarget" class="auth-back">
+        <NuxtLink :to="hasRedirect ? redirectTarget : '/'" class="auth-back">
           <UIcon name="i-lucide-arrow-left" />
-          {{ hasRedirect ? '返回原页面' : '返回 Lab' }}
+          {{ hasRedirect ? '返回原页面' : '返回博客' }}
         </NuxtLink>
 
         <div class="auth-heading">
@@ -38,6 +38,7 @@
               autocomplete="username"
               type="text"
               placeholder="用户名或邮箱"
+              required
             >
           </label>
 
@@ -49,6 +50,7 @@
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="current-password"
                 placeholder="请输入密码"
+                required
               >
               <button
                 type="button"
@@ -77,6 +79,8 @@
         <p class="auth-switch">
           还没有账号？
           <NuxtLink :to="registerLink">注册</NuxtLink>
+          <span aria-hidden="true"> · </span>
+          <NuxtLink to="/account/forgot">忘记密码</NuxtLink>
         </p>
       </div>
     </section>
@@ -122,6 +126,7 @@ async function login() {
       method: 'POST',
       body: form
     })
+    await refreshNuxtData('site-account')
     await navigateTo(redirectTarget.value, { replace: true })
   } catch (error: any) {
     errorMessage.value = getApiErrorMessage(error, { fallback: '登录失败' })

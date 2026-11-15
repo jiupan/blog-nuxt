@@ -1,3 +1,5 @@
+import type { UserPublicProfile } from './user'
+
 export type CommentAuthorKindPayload = 'ACCOUNT' | 'GUEST' | 'LEGACY'
 
 export type CommentStatusPayload = 'PENDING' | 'VISIBLE' | 'HIDDEN' | 'DELETED'
@@ -16,6 +18,7 @@ export type PublicCommentReply = {
   /** 服务端渲染好的 HTML，已经过白名单过滤。 */
   bodyHtml: string
   authorName: string
+  avatarUrl: string | null
   authorKind: CommentAuthorKindPayload
   /** 文章作者本人的回复。 */
   isOfficial: boolean
@@ -31,6 +34,7 @@ export type PublicCommentThread = {
   id: number
   bodyHtml: string
   authorName: string
+  avatarUrl: string | null
   authorKind: CommentAuthorKindPayload
   isOfficial: boolean
   createdAt: string
@@ -77,10 +81,10 @@ export type CommentSessionPayload = {
     hasCredential: boolean
     displayName: string | null
   }
-  account: {
+  account: (UserPublicProfile & {
     id: number
     username: string
-  } | null
+  }) | null
 }
 
 export type AdminCommentListItem = {
@@ -89,6 +93,7 @@ export type AdminCommentListItem = {
   postTitle: string
   postSlug: string
   authorName: string
+  avatarUrl: string | null
   authorKind: CommentAuthorKindPayload
   authorUserId: number | null
   /** 所属讨论。回复才有值。 */

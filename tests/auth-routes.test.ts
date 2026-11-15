@@ -2,18 +2,21 @@ import type { H3Event } from 'h3'
 import { afterAll, beforeEach, expect, it, vi } from 'vitest'
 import { consumeFixedWindow, createFixedWindowStore, getClientIp } from '../server/services/security/rate-limit.service'
 
-const { user, argon, setSession, readRequest, runtimeConfig } = vi.hoisted(() => ({
-  user: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+const { user, accountSession, transaction, argon, setSession, readRequest, runtimeConfig } = vi.hoisted(() => ({
+  user: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+  accountSession: { create: vi.fn(), deleteMany: vi.fn() },
+  transaction: vi.fn(),
   argon: { verify: vi.fn(), hash: vi.fn(), argon2id: 2 },
   setSession: vi.fn(),
   readRequest: vi.fn(),
   runtimeConfig: vi.fn()
 }))
-vi.mock('../server/utils/prisma', () => ({ prisma: { user } }))
+vi.mock('../server/utils/prisma', () => ({ prisma: { user, accountSession, $transaction: transaction } }))
 vi.mock('argon2', () => ({ default: argon }))
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('readBody', readRequest)
-vi.stubGlobal('setUserSession', setSession)
+vi.stubGlobal('getUserSession', async () => ({}))
+vi.stubGlobal('replaceUserSession', setSession)
 vi.stubGlobal('useRuntimeConfig', runtimeConfig)
 const { default: login } = await import('../server/api/auth/login.post')
 const { default: register } = await import('../server/api/auth/register.post')
@@ -26,9 +29,12 @@ function request(remoteAddress: string, headers: Record<string, string> = {}): H
 
 beforeEach(() => {
   vi.resetAllMocks()
-  runtimeConfig.mockReturnValue({ commentTrustedProxies: '' })
+  runtimeConfig.mockReturnValue({ commentTrustedProxies: '', session: {}, public: { siteUrl: 'https://example.com' } })
   readRequest.mockResolvedValue({ username: account.username, email: account.email.toUpperCase(), password: 'test-passphrase' })
   user.findFirst.mockResolvedValue(null)
+  user.updateMany.mockResolvedValue({ count: 1 })
+  accountSession.create.mockResolvedValue({ id: 'issued-session' })
+  transaction.mockImplementation(work => work({ user, accountSession }))
 })
 afterAll(() => vi.unstubAllGlobals())
 
@@ -74,7 +80,10 @@ it('rejects disabled accounts and starts a session only after verifying an activ
   expect(setSession).not.toHaveBeenCalled()
   await expect(login(event)).resolves.toMatchObject({ data: { id: account.id, role: 'USER' } })
   expect(argon.verify).toHaveBeenCalledWith(account.passwordHash, 'test-passphrase')
-  expect(setSession).toHaveBeenCalledWith(event, { user: { id: 1, username: 'Reader', email: account.email, role: 'USER' } })
+  expect(setSession).toHaveBeenCalledWith(event, {
+    user: { id: 1, username: 'Reader', email: account.email, role: 'USER' },
+    secure: { accountSessionId: 'issued-session' }
+  })
   argon.verify.mockResolvedValue(false)
   for (let i = 0; i < 5; i++) await expect(login(event)).rejects.toMatchObject({ statusCode: 401 })
 })
@@ -97,10 +106,18 @@ it('validates registration, creates only a normal user and enforces the IP budge
   argon.hash.mockResolvedValue('new-hash')
   user.create.mockResolvedValue(account)
   await expect(register(event)).resolves.toMatchObject({ data: { id: account.id, role: 'USER' } })
-  expect(user.create).toHaveBeenCalledWith({ data: expect.objectContaining({ email: account.email, role: 'USER', passwordHash: 'new-hash' }) })
+  expect(user.create).toHaveBeenCalledWith({ data: expect.objectContaining({ pendingEmail: account.email, role: 'USER', passwordHash: 'new-hash' }) })
   expect(setSession).toHaveBeenCalledOnce()
   user.findFirst.mockResolvedValue(account)
   for (let i = 0; i < 4; i++) await expect(register(event)).rejects.toMatchObject({ statusCode: 409 })
   await expect(register(event)).rejects.toMatchObject({ statusCode: 429 })
   expect(user.create).toHaveBeenCalledOnce()
+})
+
+it('denies non-admin credentials before replacing an existing session', async () => {
+  readRequest.mockResolvedValue({ username: account.username, password: 'test-passphrase', admin: true })
+  user.findFirst.mockResolvedValue(account)
+  argon.verify.mockResolvedValue(true)
+  await expect(login(request('203.0.113.14'))).rejects.toMatchObject({ statusCode: 403 })
+  expect(setSession).not.toHaveBeenCalled()
 })

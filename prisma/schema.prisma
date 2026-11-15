@@ -11,7 +11,10 @@ datasource db {
 model User {
   id                       Int                       @id @default(autoincrement())
   username                 String                    @unique
+  displayName              String?
   email                    String?                   @unique
+  pendingEmail             String?
+  emailVerifiedAt          DateTime?
   passwordHash             String
   role                     Role                      @default(USER)
   status                   UserStatus                @default(ACTIVE)
@@ -24,8 +27,40 @@ model User {
   resumes                  Resume[]
   agentApiKeys             AgentApiKey[]
   comments                 Comment[]
+  accountSessions          AccountSession[]
+  accountEmailTokens       AccountEmailToken[]
+  avatar                   UserAvatar?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
+}
+
+model UserAvatar {
+  id     String @id @db.Uuid
+  userId Int    @unique
+  image  Bytes
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AccountSession {
+  id        String   @id @default(uuid())
+  userId    Int
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AccountEmailToken {
+  tokenHash String   @id
+  userId    Int
+  purpose   String
+  email     String
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, purpose])
+  @@index([expiresAt])
 }
 
 model Resume {
@@ -410,15 +445,17 @@ model MenuItem {
 
 model AiUsageLog {
   id        Int           @id @default(autoincrement())
-  userId    Int
+  userId    Int?
+  guestKey  String?
   feature   String
   status    AiUsageStatus
   ip        String?
   userAgent String?
   createdAt DateTime      @default(now())
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([guestKey, createdAt])
   @@index([feature, createdAt])
   @@index([ip, createdAt])
 }
@@ -586,6 +623,7 @@ enum UserStatus {
 }
 
 enum AiUsageStatus {
+  PENDING
   SUCCESS
   FAILED
   BLOCKED

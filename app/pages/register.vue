@@ -19,9 +19,9 @@
       </div>
 
       <div class="auth-panel">
-        <NuxtLink :to="redirectTarget" class="auth-back">
+        <NuxtLink :to="hasRedirect ? redirectTarget : '/'" class="auth-back">
           <UIcon name="i-lucide-arrow-left" />
-          {{ hasRedirect ? '返回原页面' : '返回 Lab' }}
+          {{ hasRedirect ? '返回原页面' : '返回博客' }}
         </NuxtLink>
 
         <div class="auth-heading">
@@ -37,7 +37,10 @@
               v-model="form.username"
               autocomplete="username"
               type="text"
-              placeholder="3-32 位字母数字"
+              placeholder="字母、数字、下划线或短横线"
+              minlength="3"
+              maxlength="32"
+              required
             >
           </label>
 
@@ -48,6 +51,7 @@
               autocomplete="email"
               type="email"
               placeholder="name@domain.com"
+              required
             >
           </label>
 
@@ -59,6 +63,9 @@
                 :type="showPassword ? 'text' : 'password'"
                 autocomplete="new-password"
                 placeholder="至少 12 位"
+                minlength="12"
+                maxlength="128"
+                required
               >
               <button
                 type="button"
@@ -123,15 +130,21 @@ const form = reactive({
 const pending = ref(false)
 const errorMessage = ref('')
 const showPassword = ref(false)
+const toast = useToast()
 
 async function register() {
   pending.value = true
   errorMessage.value = ''
 
   try {
-    await $fetch('/api/auth/register', {
+    const { data } = await $fetch<{ data: { emailAvailable: boolean, verificationSent: boolean } }>('/api/auth/register', {
       method: 'POST',
       body: form
+    })
+    await refreshNuxtData('site-account')
+    toast.add({
+      title: '账号已创建',
+      description: data.verificationSent ? '请到邮箱完成验证。' : '可以在账户设置中查看邮箱验证状态。'
     })
     await navigateTo(redirectTarget.value, { replace: true })
   } catch (error: any) {

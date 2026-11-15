@@ -1,9 +1,13 @@
 import argon2 from 'argon2'
 import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 import { prisma } from '~~/server/utils/prisma'
 import { ok } from '~~/server/utils/response'
 import { conflict, rateLimited, parseRequest } from '~~/server/utils/api-error'
 import { authPolicy, registerRateLimitPolicy } from '~~/server/services/security/security-policy'
+import { publicAccount, startAccountSession } from '~~/server/services/security/account-session.service'
+import { accountMailAvailable, sendAccountEmail } from '~~/server/services/users/account-email.service'
+import { usernameSchema, userEmailSchema, userPasswordSchema } from '~~/server/services/users/user.schema'
 import {
   consumeFixedWindow,
   createFixedWindowStore,
@@ -13,15 +17,9 @@ import {
 const registerAttempts = createFixedWindowStore()
 
 const registerSchema = z.object({
-  username: z.string()
-    .trim()
-    .min(3, '用户名至少需要 3 个字符')
-    .max(32, '用户名不能超过 32 个字符')
-    .regex(/^[a-zA-Z0-9_-]+$/, '用户名只能包含字母、数字、下划线和短横线'),
-  email: z.string().trim().email('邮箱格式不正确').max(254),
-  password: z.string()
-    .min(12, '密码至少需要 12 位')
-    .max(128, '密码不能超过 128 位')
+  username: usernameSchema,
+  email: userEmailSchema,
+  password: userPasswordSchema
 })
 
 export default defineEventHandler(async (event) => {
@@ -32,17 +30,12 @@ export default defineEventHandler(async (event) => {
   })
 
   const exists = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { username: body.username },
-        { email }
-      ]
-    },
+    where: { username: body.username },
     select: { id: true }
   })
 
   if (exists) {
-    throw conflict('用户名或邮箱已被注册')
+    throw conflict('用户名已被注册')
   }
 
   const passwordHash = await argon2.hash(body.password, {
@@ -52,27 +45,18 @@ export default defineEventHandler(async (event) => {
   const user = await prisma.user.create({
     data: {
       username: body.username,
-      email,
+      pendingEmail: email,
       passwordHash,
       role: authPolicy.userRole,
-      status: 'ACTIVE',
-      lastLoginAt: new Date()
+      status: 'ACTIVE'
     }
+  }).catch((error: unknown) => {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw conflict('用户名已被注册')
+    throw error
   })
 
-  await setUserSession(event, {
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role
-    }
-  })
-
-  return ok({
-    id: user.id,
-    username: user.username,
-    email: user.email,
-    role: user.role
-  }, '注册成功')
+  await startAccountSession(event, user)
+  const emailAvailable = accountMailAvailable(event)
+  const verificationSent = emailAvailable && await sendAccountEmail(event, user.id, email, 'VERIFY').then(() => true, () => false)
+  return ok({ ...publicAccount(user), emailAvailable, verificationSent }, '注册成功')
 })

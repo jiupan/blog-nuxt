@@ -23,7 +23,7 @@ const receipt: SubmitCommentPayload = {
   id: 10, status: 'PENDING', pendingReview: true, authorName: 'Guest', authorKind: 'GUEST', createdAt: '2026-11-05'
 }
 function thread(id = 1): PublicCommentThread {
-  return { id, authorName: 'A', authorKind: 'ACCOUNT', isOfficial: false, createdAt: '2026-11-05',
+  return { id, authorName: 'A', avatarUrl: null, authorKind: 'ACCOUNT', isOfficial: false, createdAt: '2026-11-05',
     bodyHtml: '<p>root</p>', replyCount: 0, replies: [], repliesCursor: null, canDelete: false, isDeleted: false }
 }
 const session = { data: { guest: { hasCredential: true, displayName: 'Guest' }, account: null } }
@@ -40,7 +40,7 @@ function mount(component: typeof CommentComposer | typeof CommentThread, props: 
   document.body.append(el)
   const app = createApp(component, props)
   const stub = defineComponent({ render: () => h('span') })
-  for (const name of ['Icon', 'CommentAvatar', 'CommentBody']) app.component(name, stub)
+  for (const name of ['Icon', 'AccountAvatar', 'CommentAvatar', 'CommentBody', 'NuxtLink']) app.component(name, stub)
   app.component('CommentComposer', CommentComposer)
   app.mount(el)
   unmounts.push(() => { app.unmount(); el.remove() })

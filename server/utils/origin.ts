@@ -1,4 +1,4 @@
-import { getHeader, type H3Event } from 'h3'
+import { getHeader, getRequestURL, type H3Event } from 'h3'
 import { originNotAllowed } from './api-error'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -8,7 +8,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
  *
  * 仓库没有启用 nuxt-security 的 CSRF 保护（其默认值为 csrf: false），而且不能全局开启：
  * /api/agent/** 是无 Origin 头的服务端 Bearer 调用，全局开启会直接打断文章发布与图片上传。
- * 因此这里是跨站写入的唯一防线，必须由评论写入路径显式调用。
+ * 评论及账户相关写入路径使用这项校验。
  *
  * 判断顺序：
  * 1. Sec-Fetch-Site: cross-site —— 浏览器明确标记为跨站，直接拒绝。
@@ -57,7 +57,9 @@ export function getAllowedOrigins(event: H3Event): string[] {
     .filter((value) => value.length > 0)
   const siteUrl = normalizeOrigin(String(config.public.siteUrl || ''))
 
-  return [...new Set([siteUrl, ...configured].filter((value) => value.length > 0))]
+  const local = import.meta.dev ? getRequestURL(event) : null
+  const localOrigin = local && ['localhost', '127.0.0.1', '[::1]'].includes(local.hostname) ? local.origin : ''
+  return [...new Set([siteUrl, localOrigin, ...configured].filter((value) => value.length > 0))]
 }
 
 /** 归一化成 scheme://host[:port] 形式。无法解析时返回空串。 */

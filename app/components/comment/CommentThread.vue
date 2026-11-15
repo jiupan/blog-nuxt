@@ -1,7 +1,7 @@
 <template>
   <article :id="`comment-${thread.id}`" class="comment-thread">
     <div class="comment-row is-thread">
-      <CommentAvatar :name="thread.authorName" :kind="thread.authorKind" :official="thread.isOfficial" />
+      <CommentAvatar :name="thread.authorName" :kind="thread.authorKind" :src="thread.avatarUrl" :deleted="thread.isDeleted" />
       <div class="comment-main">
         <div class="comment-meta">
           <span class="comment-author">{{ thread.authorName }}</span>
@@ -38,7 +38,7 @@
 
     <div v-if="visibleReplies.length" class="comment-replies">
       <div v-for="reply in visibleReplies" :key="reply.id" class="comment-row is-reply">
-        <CommentAvatar :name="reply.authorName" :kind="reply.authorKind" :official="reply.isOfficial" />
+        <CommentAvatar :name="reply.authorName" :kind="reply.authorKind" :src="reply.avatarUrl" :deleted="reply.isDeleted" />
         <div class="comment-main">
           <div class="comment-meta">
             <span class="comment-author">{{ reply.authorName }}</span>

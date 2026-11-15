@@ -227,18 +227,8 @@ html:has(.admin-shell) body {
 .admin-sidebar-account > .iconify {
   color: #879383;
 }
-.admin-avatar {
-  display: grid;
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid #e4dff1;
-  border-radius: 50%;
-  background: #f0edf7;
+.admin-sidebar-account:hover strong {
   color: var(--admin-accent);
-  font-size: 12px;
-  font-weight: 600;
 }
 .admin-main-shell {
   display: flex;

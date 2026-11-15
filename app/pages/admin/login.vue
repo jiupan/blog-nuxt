@@ -27,7 +27,7 @@
           v-model="form.username"
           autocomplete="username"
           type="text"
-          placeholder="请输入账号"
+          placeholder="用户名或邮箱"
           required
         >
         <label for="admin-password">密码</label>
@@ -93,6 +93,7 @@
 <script setup lang="ts">
 import '@fontsource-variable/noto-sans-sc'
 import { getApiErrorMessage } from '~/utils/api-error'
+import { resolveAdminRedirect } from '~/utils/auth-redirect'
 
 definePageMeta({
   layout: 'standalone'
@@ -100,19 +101,21 @@ definePageMeta({
 
 const config = useRuntimeConfig()
 const siteName = config.public.siteName
+const route = useRoute()
+const redirectTarget = computed(() => resolveAdminRedirect(route.query.redirect))
 const { data: sessionData } = await useFetch<{ data: { user: { role?: string } | null } }>('/api/auth/me')
 
 if (sessionData.value?.data.user?.role === 'ADMIN') {
-  await navigateTo('/admin', { replace: true })
+  await navigateTo(redirectTarget.value, { replace: true })
 }
 
 const form = reactive({
-  username: 'admin',
+  username: '',
   password: ''
 })
 
 const pending = ref(false)
-const errorMessage = ref('')
+const errorMessage = ref(route.query.reason === 'forbidden' ? '当前账号没有后台权限，请使用管理员账号登录' : '')
 const showPassword = ref(false)
 
 async function login() {
@@ -122,20 +125,11 @@ async function login() {
   try {
     await $fetch('/api/auth/login', {
       method: 'POST',
-      body: form
+      body: { ...form, admin: true }
     })
 
-    const session = await $fetch<{ data: { user: { role?: string } | null } }>('/api/auth/me', {
-      headers: {
-        'cache-control': 'no-cache'
-      }
-    })
-    if (session.data.user?.role !== 'ADMIN') {
-      await $fetch('/api/auth/logout', { method: 'POST' })
-      errorMessage.value = '该账号没有后台访问权限'
-      return
-    }
-    await navigateTo('/admin', { replace: true })
+    await refreshNuxtData('site-account')
+    await navigateTo(redirectTarget.value, { replace: true })
   } catch (error: unknown) {
     errorMessage.value = getApiErrorMessage(error, { fallback: '登录失败' })
   } finally {
