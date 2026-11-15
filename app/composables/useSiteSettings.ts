@@ -1,5 +1,6 @@
 import type { ApiResult } from '~~/types/api'
 import type { SiteSettingsPayload } from '~~/types/dto/settings'
+import { defaultHeaderShortcuts } from '~~/shared/header-shortcuts'
 
 export type SiteSettings = {
   site_title: string
@@ -16,6 +17,7 @@ export type SiteSettings = {
   site_favicon: string
   hero_meme_group: string
   home_post_card_style: string
+  header_shortcuts: string
   seo_noindex: string
   seo_keywords: string
   seo_description: string
@@ -40,6 +42,7 @@ const defaults: SiteSettings = {
   site_favicon: '',
   hero_meme_group: '',
   home_post_card_style: 'grid',
+  header_shortcuts: defaultHeaderShortcuts,
   seo_noindex: 'false',
   seo_keywords: '',
   seo_description: '',
@@ -53,7 +56,7 @@ export function useSiteSettings() {
   const settings = useState<SiteSettings>('site-settings', () => ({ ...defaults }))
   const loaded = useState<boolean>('site-settings-loaded', () => false)
 
-  const { data, error } = useFetch<ApiResult<SiteSettingsPayload>>('/api/settings')
+  const { data, error } = useFetch<ApiResult<SiteSettingsPayload>>('/api/settings', { key: 'public-site-settings' })
 
   watch([data, error], ([val, err]) => {
     if (val?.data) {
@@ -72,6 +75,7 @@ export function useSiteSettings() {
         site_favicon: val.data.site_favicon || defaults.site_favicon,
         hero_meme_group: val.data.hero_meme_group || defaults.hero_meme_group,
         home_post_card_style: val.data.home_post_card_style || defaults.home_post_card_style,
+        header_shortcuts: val.data.header_shortcuts ?? defaults.header_shortcuts,
         seo_noindex: val.data.seo_noindex || defaults.seo_noindex,
         seo_keywords: val.data.seo_keywords || defaults.seo_keywords,
         seo_description: val.data.seo_description || defaults.seo_description,

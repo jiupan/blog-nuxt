@@ -13,9 +13,9 @@
     </template>
   </div>
   <UDropdownMenu v-else :items="items" :content="{ align: 'end' }">
-    <button type="button" class="tool-button desktop-account-trigger" aria-label="账户" data-tooltip="账户">
-      <AccountAvatar v-if="user" :src="user.avatarUrl" :seed="user.displayName || user.username" :size="25" />
-      <UIcon v-else name="i-lucide-circle-user-round" aria-hidden="true" />
+    <button type="button" class="tool-button desktop-account-trigger" :aria-label="label" :data-tooltip="label">
+      <AccountAvatar v-if="followAvatar && user" :src="user.avatarUrl" :seed="user.displayName || user.username" :size="25" :fallback-icon="icon" />
+      <UIcon v-else :name="icon" aria-hidden="true" />
     </button>
   </UDropdownMenu>
 </template>
@@ -24,7 +24,11 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { getApiErrorMessage } from '~/utils/api-error'
 
-defineProps<{ mobile?: boolean }>()
+withDefaults(defineProps<{ mobile?: boolean; label?: string; icon?: string; followAvatar?: boolean }>(), {
+  label: '账户',
+  icon: 'i-lucide-circle-user-round',
+  followAvatar: true
+})
 const emit = defineEmits<{ navigate: [] }>()
 const route = useRoute()
 const { data, refresh } = useSiteAccount()

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { animatedAvatarCompression, embeddingDimensions } from '~~/types/dto/settings'
+import { defaultHeaderShortcuts, validateHeaderShortcuts } from '~~/shared/header-shortcuts'
 
 export const settingsDefaults = {
   site_title: 'Jiupan Blog',
@@ -18,6 +19,7 @@ export const settingsDefaults = {
   site_favicon: '',
   hero_meme_group: '',
   home_post_card_style: 'grid',
+  header_shortcuts: defaultHeaderShortcuts,
   seo_noindex: 'false',
   seo_keywords: '',
   seo_description: '',
@@ -65,6 +67,7 @@ export const publicSettingKeys = [
   'site_favicon',
   'hero_meme_group',
   'home_post_card_style',
+  'header_shortcuts',
   'seo_noindex',
   'seo_keywords',
   'seo_description',
@@ -97,6 +100,7 @@ export const settingsInputSchema = z.object({
   site_favicon: z.string().optional(),
   hero_meme_group: z.string().max(64).optional(),
   home_post_card_style: z.enum(['grid', 'archive']).optional(),
+  header_shortcuts: z.string().max(4096).refine(value => !!validateHeaderShortcuts(value), '顶部快捷入口设置不合法').optional(),
   seo_noindex: z.enum(['true', 'false']).optional(),
   seo_keywords: z.string().optional(),
   seo_description: z.string().optional(),

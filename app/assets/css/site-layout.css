@@ -313,6 +313,10 @@
   display: none;
 }
 
+@media (min-width: 761px) {
+  .tool-nav.has-no-shortcuts { display: none; }
+}
+
 .tool-nav a:hover,
 .tool-nav a:focus-visible,
 .tool-nav .tool-button:hover,
@@ -362,6 +366,22 @@
 .mobile-menu-button:focus-visible::after {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.tool-nav > :is(a, .tool-button)::after {
+  right: 0;
+  left: auto;
+  width: max-content;
+  min-width: 0;
+  max-width: min(16rem, calc(100vw - 32px));
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  white-space: normal;
+  transform: translateY(-6px);
+}
+
+.tool-nav > :is(a, .tool-button):is(:hover, :focus-visible)::after {
+  transform: translateY(0);
 }
 
 .tool-nav svg,
@@ -938,7 +958,7 @@ html:has(.site-search-modal[open]) {
     color: var(--theme-text);
   }
 
-  .tool-nav .tools-page-button {
+  .tool-nav .desktop-shortcut {
     display: none;
   }
 

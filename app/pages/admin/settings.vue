@@ -319,6 +319,13 @@
           </div>
         </div>
 
+        <AdminHeaderShortcutsEditor
+          v-else-if="activeTab === 'headerShortcuts'"
+          v-model="headerShortcutItems"
+          :brand="form.site_brand"
+          :disabled="saving"
+        />
+
         <div v-else class="settings-form">
           <div class="settings-row">
             <div class="settings-row-head">
@@ -512,6 +519,7 @@ import type { ApiResult } from '~~/types/api'
 import { getApiErrorMessage } from '~/utils/api-error'
 import { parseFooterBottomLinks } from '~/utils/footer-links'
 import type { AdminSettingsPayload } from '~~/types/dto/settings'
+import { defaultHeaderShortcuts, readHeaderShortcuts, validateHeaderShortcuts } from '~~/shared/header-shortcuts'
 
 definePageMeta({
   layout: 'admin',
@@ -531,6 +539,7 @@ type SettingsForm = {
   site_favicon: string
   hero_meme_group: string
   home_post_card_style: string
+  header_shortcuts: string
   seo_noindex: string
   seo_keywords: string
   seo_description: string
@@ -552,6 +561,7 @@ type FooterActionItem = {
 const settingTabs = [
   { label: '站点信息', value: 'basic', area: 'site', keys: ['site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon'] },
   { label: '首页展示', value: 'home', area: 'site', keys: ['hero_meme_group', 'home_post_card_style'] },
+  { label: '顶部快捷入口', value: 'headerShortcuts', area: 'site', keys: ['header_shortcuts'] },
   { label: '搜索与收录', value: 'seo', area: 'site', keys: ['seo_noindex', 'seo_keywords', 'seo_description'] },
   { label: '版权与备案', value: 'footer', area: 'footer', keys: ['footer_copyright', 'footer_icp', 'footer_bottom_links'] },
   { label: '图标入口', value: 'footerActions', area: 'footer', keys: ['footer_actions'] }
@@ -630,6 +640,7 @@ const form = ref<SettingsForm | null>(null)
 const footerLinks = ref<Array<{ id: number; label: string; to: string }>>([])
 let nextFooterLinkId = 0
 const savedFields = ref<SettingsForm>()
+const headerShortcutItems = ref(readHeaderShortcuts())
 const footerActionItems = ref<FooterActionItem[]>([])
 const expandedFooterIconItems = ref(new Set<number>())
 const uploadingFooterActionId = ref<number | null>(null)
@@ -684,6 +695,7 @@ watch(
         site_favicon: val.data.site_favicon,
         hero_meme_group: val.data.hero_meme_group,
         home_post_card_style: val.data.home_post_card_style,
+        header_shortcuts: val.data.header_shortcuts ?? defaultHeaderShortcuts,
         seo_noindex: val.data.seo_noindex,
         seo_keywords: val.data.seo_keywords,
         seo_description: val.data.seo_description,
@@ -692,7 +704,7 @@ watch(
         footer_bottom_links: val.data.footer_bottom_links,
         footer_actions: val.data.footer_actions
       }
-      loadFooterFields(form.value)
+      loadEditableFields(form.value)
       savedFields.value = currentFields()
     }
   },
@@ -710,6 +722,7 @@ const toast = useToast()
 const settingIcons: Record<string, string> = {
   basic: 'i-lucide-sliders-horizontal',
   home: 'i-lucide-house',
+  headerShortcuts: 'i-lucide-panel-top',
   seo: 'i-lucide-search',
   footer: 'i-lucide-panel-bottom',
   footerActions: 'i-lucide-grid-2x2'
@@ -717,6 +730,7 @@ const settingIcons: Record<string, string> = {
 const settingDescriptions: Record<string, string> = {
   basic: '管理站点名称、顶部品牌、Logo 与浏览器标签页图标。',
   home: '管理首页文章卡片样式和轮播文章图标。',
+  headerShortcuts: '设置顶栏图标的显示、顺序和悬浮提示。',
   seo: '编辑搜索摘要和站点收录规则。',
   footer: '管理页脚最下方的版权、备案号和辅助链接。',
   footerActions: '管理页脚品牌区的图标入口。'
@@ -727,6 +741,7 @@ function currentFields(): SettingsForm | undefined {
   if (!form.value) return
   return {
     ...form.value,
+    header_shortcuts: JSON.stringify(headerShortcutItems.value),
     footer_bottom_links: footerLinks.value.map(({ label, to }) => `${label.trim()}|${to.trim()}`).join('\n'),
     footer_actions: JSON.stringify(footerActionItems.value.map(({ label, to, icon, image, targetBlank }) => ({
       label: label.trim(),
@@ -738,7 +753,8 @@ function currentFields(): SettingsForm | undefined {
   }
 }
 
-function loadFooterFields(fields: SettingsForm) {
+function loadEditableFields(fields: SettingsForm) {
+  headerShortcutItems.value = readHeaderShortcuts(fields.header_shortcuts)
   footerActionItems.value = parseFooterActionItems(fields.footer_actions)
   footerLinks.value = parseFooterBottomLinks(fields.footer_bottom_links).map(link => ({ ...link, id: ++nextFooterLinkId }))
   expandedFooterIconItems.value.clear()
@@ -747,7 +763,7 @@ function loadFooterFields(fields: SettingsForm) {
 function resetDraft() {
   if (!savedFields.value || saving.value || uploadingControls.value) return
   form.value = { ...savedFields.value }
-  loadFooterFields(form.value)
+  loadEditableFields(form.value)
   saveError.value = ''
 }
 
@@ -758,6 +774,11 @@ async function save() {
   const changed = siteSettingKeys.filter(key => current[key] !== previous[key])
   if (!changed.length) return
   saveError.value = ''
+  if (changed.includes('header_shortcuts') && !validateHeaderShortcuts(current.header_shortcuts)) {
+    void selectTab('headerShortcuts')
+    saveError.value = '请为每个入口填写提示文字，主题切换需要填写日间和夜间两种提示。'
+    return
+  }
   if (changed.includes('footer_bottom_links')) {
     const invalid = footerLinks.value.findIndex(({ label, to }) => {
       if (!label.trim() || !to.trim() || /[|\r\n]/.test(label + to)) return true
@@ -780,6 +801,7 @@ async function save() {
   try {
     const siteSettings = Object.fromEntries(changed.map(key => [key, current[key]]))
     await $fetch('/api/admin/settings', { method: 'PUT', body: siteSettings })
+    if (changed.includes('header_shortcuts')) void refreshNuxtData('public-site-settings')
     savedFields.value = current
     markSaved(submittedSnapshot)
     toast.add({ id: 'settings-save', title: '站点设置已保存', color: 'success' })

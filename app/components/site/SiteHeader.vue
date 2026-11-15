@@ -56,27 +56,45 @@
       </nav>
 
       <div class="header-actions">
-        <nav class="tool-nav" aria-label="快捷入口">
-          <NuxtLink to="/tools" class="tool-button tools-page-button" aria-label="工具" data-tooltip="工具">
-            <WrenchIcon aria-hidden="true" />
-          </NuxtLink>
-          <NuxtLink to="/archive" class="tool-button" aria-label="归档" data-tooltip="归档">
-            <ArchiveIcon aria-hidden="true" />
-          </NuxtLink>
-          <SiteAccountMenu />
-          <button type="button" class="tool-button search-trigger" aria-label="站内搜索" data-tooltip="站内搜索（Ctrl / ⌘ K）" aria-haspopup="dialog" aria-controls="site-search-dialog" :aria-expanded="searchOpen" aria-keyshortcuts="Control+K Meta+K" @click="openSearch">
-            <SearchIcon aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            class="tool-button desktop-theme-toggle"
-            :aria-label="themeToggleLabel"
-            :data-tooltip="themeToggleLabel"
-            @click="toggleColorMode"
-          >
-            <SunIcon class="theme-icon theme-icon-sun" aria-hidden="true" />
-            <MoonIcon class="theme-icon theme-icon-moon" aria-hidden="true" />
-          </button>
+        <nav class="tool-nav" :class="{ 'has-no-shortcuts': shortcuts.length === 0 }" aria-label="快捷入口">
+          <template v-for="item in shortcuts" :key="item.id">
+            <NuxtLink
+              v-if="item.id === 'tools' || item.id === 'archive'"
+              :to="item.id === 'tools' ? '/tools' : '/archive'"
+              class="tool-button"
+              :class="{ 'desktop-shortcut': !isMobileHeaderShortcut(item.id) }"
+              :aria-label="item.label"
+              :data-tooltip="item.label"
+            >
+              <Icon :name="item.icon" aria-hidden="true" />
+            </NuxtLink>
+            <SiteAccountMenu v-else-if="item.id === 'account'" :label="item.label" :icon="item.icon" :follow-avatar="item.followAvatar" />
+            <button
+              v-else-if="item.id === 'search'"
+              type="button"
+              class="tool-button search-trigger"
+              :aria-label="item.label"
+              :data-tooltip="`${item.label}（Ctrl / ⌘ K）`"
+              aria-haspopup="dialog"
+              aria-controls="site-search-dialog"
+              :aria-expanded="searchOpen"
+              aria-keyshortcuts="Control+K Meta+K"
+              @click="openSearch"
+            >
+              <Icon :name="item.icon" aria-hidden="true" />
+            </button>
+            <button
+              v-else
+              type="button"
+              class="tool-button desktop-theme-toggle"
+              :aria-label="isDarkMode ? item.darkLabel : item.label"
+              :data-tooltip="isDarkMode ? item.darkLabel : item.label"
+              @click="toggleColorMode"
+            >
+              <Icon :name="item.darkIcon" class="theme-icon theme-icon-sun" aria-hidden="true" />
+              <Icon :name="item.icon" class="theme-icon theme-icon-moon" aria-hidden="true" />
+            </button>
+          </template>
           <button
             type="button"
             class="mobile-menu-button"
@@ -97,14 +115,8 @@
 </template>
 
 <script setup lang="ts">
-import {
-  Archive as ArchiveIcon,
-  Menu as MenuIcon,
-  Moon as MoonIcon,
-  Search as SearchIcon,
-  Sun as SunIcon,
-  Wrench as WrenchIcon
-} from '@lucide/vue'
+import { Menu as MenuIcon } from '@lucide/vue'
+import { isMobileHeaderShortcut, readHeaderShortcuts } from '~~/shared/header-shortcuts'
 import SiteSearch from './SiteSearch.vue'
 import SiteAccountMenu from './SiteAccountMenu.vue'
 import type { MenuTreeItem } from '~/composables/useSiteNavigation'
@@ -129,6 +141,7 @@ defineEmits<{
 }>()
 
 const searchOpen = ref(false)
+const shortcuts = computed(() => readHeaderShortcuts(props.siteSettings.header_shortcuts).filter(item => item.enabled))
 const route = useRoute()
 const renderedPath = useState<string | null>('rendered-route-path', () => null)
 const mainNav = useTemplateRef<HTMLElement>('mainNav')
@@ -149,7 +162,6 @@ const activeMenuId = computed(() => {
 const heldMenuItemId = useState<number | null>('site-header-held-menu-item', () => null)
 const colorMode = useColorMode()
 const isDarkMode = computed(() => colorMode.value === 'dark')
-const themeToggleLabel = computed(() => isDarkMode.value ? '切换到白天模式' : '切换到夜间模式')
 let menuHoldTimer: ReturnType<typeof setTimeout> | undefined
 let navResizeObserver: ResizeObserver | undefined
 

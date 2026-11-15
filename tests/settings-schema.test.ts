@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readHeaderShortcuts } from '../shared/header-shortcuts'
 import {
   publicSettingKeys,
   settingKeys,
@@ -15,6 +16,7 @@ describe('settings defaults', () => {
     expect(publicSettingKeys).toContain('site_title')
     expect(publicSettingKeys).toContain('footer_actions')
     expect(publicSettingKeys).toContain('home_post_card_style')
+    expect(publicSettingKeys).toContain('header_shortcuts')
     expect(publicSettingKeys.some((key) => key.startsWith('ai_'))).toBe(false)
   })
 
@@ -26,6 +28,25 @@ describe('settings defaults', () => {
 })
 
 describe('settingsInputSchema', () => {
+  it('persists ordered header shortcuts even when every item is hidden', () => {
+    const shortcuts = readHeaderShortcuts().reverse().map(item => ({ ...item, enabled: false }))
+    const header_shortcuts = JSON.stringify(shortcuts)
+    expect(settingsInputSchema.parse({ header_shortcuts })).toEqual({ header_shortcuts })
+    expect(readHeaderShortcuts(header_shortcuts)).toEqual(shortcuts)
+    expect(readHeaderShortcuts().map(item => item.id)).toEqual(['tools', 'archive', 'account', 'search', 'theme'])
+  })
+
+  it('rejects duplicate actions and unknown icons while falling back for malformed stored data', () => {
+    const shortcuts = readHeaderShortcuts()
+    const first = shortcuts[0]!
+    const duplicate = JSON.stringify([first, ...shortcuts.slice(0, 4)])
+    const invalidIcon = JSON.stringify([{ ...first, icon: 'unknown' }, ...shortcuts.slice(1)])
+    for (const header_shortcuts of [duplicate, invalidIcon, '[]', 'broken json']) {
+      expect(settingsInputSchema.safeParse({ header_shortcuts }).success).toBe(false)
+      expect(readHeaderShortcuts(header_shortcuts)).toEqual(shortcuts)
+    }
+  })
+
   it('accepts bounded integer strings for private animated avatar compression settings', () => {
     const settings = { sidebar_avatar_webp_max_edge: '320', sidebar_avatar_webp_quality: '70' }
     expect(settingsInputSchema.parse(settings)).toEqual(settings)
