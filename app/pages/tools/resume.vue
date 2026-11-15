@@ -372,7 +372,7 @@ import { projectStack } from '~/utils/resume-section-layout'
 import { createDefaultResume, createEmptySectionItem, createResumeId, normalizeResume } from '~/utils/resume-defaults'
 import { createPortableResume, parsePortableResume, PORTABLE_RESUME_MAX_BYTES } from '~/utils/resume-portable'
 
-definePageMeta({ layout: false })
+definePageMeta({ layout: 'standalone' })
 
 const { data: sessionData } = await useFetch('/api/auth/me')
 const user = computed(() => sessionData.value?.data.user || null)

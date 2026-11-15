@@ -1,25 +1,33 @@
 import type { RouterConfig } from 'nuxt/schema'
 import { START_LOCATION } from 'vue-router'
+import { navigateScroll, scrollToRouteAnchor, updateRouteHistory } from './utils/route-navigation'
 
 export default <RouterConfig>{
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) return savedPosition
-
-    if (to.hash) {
-      return {
-        el: to.hash,
-        behavior: from === START_LOCATION ? 'instant' : 'smooth'
-      }
-    }
-
     // On a hard refresh the browser restores its previous scroll position
     // before Nuxt finishes hydrating. Nuxt's default START_LOCATION behavior
     // then scrolls to the top a second time; returning false preserves the
     // native restored position instead.
-    if (from === START_LOCATION) return false
+    if (from === START_LOCATION) {
+      if (savedPosition) return { ...savedPosition, behavior: 'instant' }
+      return to.hash ? scrollToRouteAnchor(to.hash, 'instant') : false
+    }
 
-    if (to.path.replace(/\/$/, '') === from.path.replace(/\/$/, '')) return false
+    const router = useRouter()
+    updateRouteHistory(router, to)
+    if (to.path.replace(/\/$/, '') === from.path.replace(/\/$/, '')) {
+      if (savedPosition) {
+        navigateScroll(router, to, savedPosition)
+        return false
+      }
+      if (to.hash) {
+        const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+        return scrollToRouteAnchor(to.hash, reduced ? 'instant' : 'smooth')
+      }
+      return false
+    }
 
-    return { left: 0, top: 0 }
+    navigateScroll(router, to, savedPosition)
+    return false
   }
 }

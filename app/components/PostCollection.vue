@@ -3,7 +3,7 @@
     <section class="collection-shell">
       <div class="collection-layout">
         <main class="collection-main">
-          <header class="collection-heading" data-page-enter style="--page-enter-order: 0">
+          <header class="collection-heading">
             <div class="collection-kicker">
               <UIcon :name="kind === 'category' ? currentTaxonomy?.icon || 'i-lucide-folder' : 'i-lucide-tag'" class="size-4" />
               <span>{{ kindLabel }}</span>
@@ -20,24 +20,22 @@
             class="collection-list"
             role="status"
             aria-label="正在加载文章"
-            data-page-enter
-            style="--page-enter-order: 1"
           >
             <PostCardSkeleton variant="archive" :count="pageSize" />
           </div>
 
-          <div v-else-if="listError" class="collection-empty is-error" role="alert" data-page-enter style="--page-enter-order: 1">
+          <div v-else-if="listError" class="collection-empty is-error" role="alert">
             <span><UIcon name="i-lucide-cloud-alert" class="size-7" /></span>
             <strong>文章加载失败</strong>
             <p>网络似乎开了个小差，请稍后重试。</p>
             <button type="button" @click="refreshPosts()">重新加载</button>
           </div>
 
-          <div v-else-if="posts.length" class="collection-list" :aria-busy="listPending" data-page-enter style="--page-enter-order: 1">
+          <div v-else-if="posts.length" class="collection-list" :aria-busy="listPending">
             <ArchivePostCard v-for="post in posts" :key="post.id" :post="post" />
           </div>
 
-          <div v-else class="collection-empty" data-page-enter style="--page-enter-order: 1">
+          <div v-else class="collection-empty">
             <span><UIcon :name="kind === 'category' ? 'i-lucide-folder-open' : 'i-lucide-tags'" class="size-7" /></span>
             <strong>暂无相关文章</strong>
             <p>可以浏览其他{{ kind === 'category' ? '分类' : '标签' }}，或者返回全部文章。</p>
@@ -49,8 +47,6 @@
 
         <PublicSidebar
           class="collection-sidebar"
-          data-page-enter
-          style="--page-enter-order: 1"
           :site-name="siteName"
           :description="siteSettings.sidebar_description"
           :categories="categories"

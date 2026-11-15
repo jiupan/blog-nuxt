@@ -95,7 +95,7 @@ import '@fontsource-variable/noto-sans-sc'
 import { getApiErrorMessage } from '~/utils/api-error'
 
 definePageMeta({
-  layout: false
+  layout: 'standalone'
 })
 
 const config = useRuntimeConfig()

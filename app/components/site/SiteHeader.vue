@@ -16,16 +16,17 @@
         <span class="scroll-title-text">{{ scrollTitle }}</span>
       </button>
 
-      <nav class="main-nav" aria-label="主导航">
+      <nav ref="mainNav" class="main-nav" aria-label="主导航">
         <div
           v-for="item in primaryMenuItems"
           :key="item.id"
           class="nav-item"
-          :class="{ 'has-children': item.children.length, 'is-click-held': heldMenuItemId === item.id }"
+          :class="{ 'has-children': item.children.length, 'is-click-held': heldMenuItemId === item.id, 'is-current': activeMenuId === item.id }"
           @pointerleave="releaseMenuClick(item.id)"
         >
           <NuxtLink
             :to="item.url || '/'"
+            :aria-current="activeMenuId === item.id ? (menuPath(item.url) === currentPath ? 'page' : 'location') : undefined"
             :target="item.targetBlank ? '_blank' : undefined"
             :rel="item.targetBlank ? 'noopener noreferrer' : undefined"
             @click="holdMenuClick(item.id)"
@@ -46,6 +47,12 @@
             </NuxtLink>
           </div>
         </div>
+        <span
+          v-show="markerPosition !== null"
+          class="main-nav-marker"
+          :style="{ transform: `translateX(${markerPosition ?? 0}px)` }"
+          aria-hidden="true"
+        />
       </nav>
 
       <div class="header-actions">
@@ -53,9 +60,9 @@
           <NuxtLink to="/tools" class="tool-button tools-page-button" aria-label="工具" data-tooltip="工具">
             <WrenchIcon aria-hidden="true" />
           </NuxtLink>
-          <button type="button" class="tool-button" aria-label="归档" data-tooltip="归档" @click="navigateTo('/archive')">
+          <NuxtLink to="/archive" class="tool-button" aria-label="归档" data-tooltip="归档">
             <ArchiveIcon aria-hidden="true" />
-          </button>
+          </NuxtLink>
           <button type="button" class="tool-button search-trigger" aria-label="站内搜索" data-tooltip="站内搜索（Ctrl / ⌘ K）" aria-haspopup="dialog" aria-controls="site-search-dialog" :aria-expanded="searchOpen" aria-keyshortcuts="Control+K Meta+K" @click="openSearch">
             <SearchIcon aria-hidden="true" />
           </button>
@@ -98,7 +105,7 @@ import {
 import SiteSearch from './SiteSearch.vue'
 import type { MenuTreeItem } from '~/composables/useSiteNavigation'
 
-defineProps<{
+const props = defineProps<{
   isScrolled: boolean
   isArticleRoute: boolean
   siteSettings: Record<string, string>
@@ -118,11 +125,48 @@ defineEmits<{
 }>()
 
 const searchOpen = ref(false)
+const route = useRoute()
+const renderedPath = useState<string | null>('rendered-route-path', () => null)
+const mainNav = useTemplateRef<HTMLElement>('mainNav')
+const markerPosition = ref<number | null>(null)
+const currentPath = computed(() => menuPath(renderedPath.value ?? route.path))
+const activeMenuId = computed(() => {
+  const matches = (item: MenuTreeItem | MenuTreeItem['children'][number], path: string) =>
+    !item.targetBlank && menuPath(item.url) === path
+  const items = props.primaryMenuItems
+  const path = currentPath.value
+  if (!path) return
+  return (
+    items.find(item => matches(item, path)) ??
+    items.find(item => item.children.some(child => matches(child, path))) ??
+    (path.endsWith('.html') ? items.find(item => matches(item, '/archive')) : undefined)
+  )?.id
+})
 const heldMenuItemId = useState<number | null>('site-header-held-menu-item', () => null)
 const colorMode = useColorMode()
 const isDarkMode = computed(() => colorMode.value === 'dark')
 const themeToggleLabel = computed(() => isDarkMode.value ? '切换到白天模式' : '切换到夜间模式')
 let menuHoldTimer: ReturnType<typeof setTimeout> | undefined
+let navResizeObserver: ResizeObserver | undefined
+
+function menuPath(url?: string | null) {
+  if (!url?.startsWith('/') || url.startsWith('//')) return
+  return url.split(/[?#]/, 1)[0]?.replace(/\/$/, '') || '/'
+}
+
+function positionMarker() {
+  const active = mainNav.value?.querySelector<HTMLElement>('.nav-item.is-current')
+  markerPosition.value = active?.offsetWidth ? active.offsetLeft + active.offsetWidth / 2 - 11 : null
+}
+
+watch([activeMenuId, () => props.primaryMenuItems], positionMarker, { flush: 'post' })
+
+onMounted(() => {
+  if (!mainNav.value) return
+  navResizeObserver = new ResizeObserver(positionMarker)
+  navResizeObserver.observe(mainNav.value)
+  positionMarker()
+})
 
 function holdMenuClick(itemId: number) {
   heldMenuItemId.value = itemId
@@ -174,6 +218,7 @@ function toggleColorMode(event: MouseEvent) {
 }
 
 onBeforeUnmount(() => {
+  navResizeObserver?.disconnect()
   if (menuHoldTimer) clearTimeout(menuHoldTimer)
   heldMenuItemId.value = null
 })

@@ -1,6 +1,6 @@
 <template>
   <div class="taxonomy-page" :class="{ 'is-tags': kind === 'tags' }">
-    <header class="taxonomy-heading" data-page-enter style="--page-enter-order: 0">
+    <header class="taxonomy-heading">
       <h1>{{ data ? `查看不同领域的 ${items.length} 个${label}。` : `文章${label}` }}</h1>
       <nav class="taxonomy-stats" aria-label="内容索引">
         <NuxtLink
@@ -29,7 +29,7 @@
       <h2>还没有{{ label }}</h2>
       <NuxtLink to="/archive">浏览全部文章</NuxtLink>
     </div>
-    <div v-else class="taxonomy-grid" data-page-enter style="--page-enter-order: 1">
+    <div v-else class="taxonomy-grid">
       <section v-for="item in items" :key="item.id" class="taxonomy-card" :aria-labelledby="`taxonomy-${item.id}`">
         <NuxtLink :to="itemPath(item.slug)" class="taxonomy-card-label" :aria-label="`浏览${label}「${item.name}」下的 ${item._count?.posts || 0} 篇文章`">
           <UIcon v-if="kind === 'categories'" :name="resolveCategoryIcon(item.icon)" aria-hidden="true" />

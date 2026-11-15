@@ -40,7 +40,7 @@
   position: relative;
   display: flex;
   width: var(--site-content-width);
-  height: 70px;
+  height: calc(var(--site-header-height) - 1px);
   align-items: center;
   justify-content: space-between;
   margin: 0 auto;
@@ -138,6 +138,32 @@
 .nav-item > a svg {
   width: 14px;
   height: 14px;
+}
+
+.nav-item.is-current > a:not(:hover, :focus-visible) {
+  color: var(--theme-accent);
+}
+
+.nav-item > a:active,
+.tool-nav .tool-button:active {
+  transform: scale(.97);
+}
+
+.main-nav-marker {
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--theme-accent);
+  pointer-events: none;
+  transition: transform 180ms cubic-bezier(.2, .75, .25, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-nav-marker { transition: none; }
+  .nav-item > a:active, .tool-nav .tool-button:active { transform: none; }
 }
 
 .nav-dropdown {
@@ -874,10 +900,6 @@ html:has(.site-search-modal[open]) {
 }
 
 @media (max-width: 760px) {
-  .header-inner {
-    height: 58px;
-  }
-
   .brand {
     min-height: 38px;
     padding: 0;
@@ -1000,6 +1022,11 @@ html:has(.site-search-modal[open]) {
     background: transparent;
   }
 
+  html:has(.mobile-sidebar-overlay) {
+    overflow-y: hidden;
+    overscroll-behavior: none;
+  }
+
   .mobile-sidebar-panel {
     position: fixed;
     top: 20px;
@@ -1039,6 +1066,17 @@ html:has(.site-search-modal[open]) {
   .mobile-panel-leave-to .mobile-sidebar-panel {
     opacity: 0;
     transform: translate(10px, -8px) scale(.92);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-panel-enter-active,
+    .mobile-panel-leave-active,
+    :is(.mobile-panel-enter-active, .mobile-panel-leave-active) .mobile-sidebar-panel {
+      transition: none;
+    }
+    :is(.mobile-panel-enter-from, .mobile-panel-leave-to) .mobile-sidebar-panel {
+      transform: none;
+    }
   }
 
   .mobile-stats-card {

@@ -2,14 +2,15 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-06-28',
   srcDir: 'app',
   devtools: { enabled: process.env.NODE_ENV !== 'production' },
+  experimental: { emitRouteChunkError: 'manual' },
   app: {
     pageTransition: {
       name: 'route-page',
-      mode: 'out-in',
-      duration: {
-        enter: 680,
-        leave: 0
-      }
+      mode: 'out-in'
+    },
+    layoutTransition: {
+      name: 'route-layout',
+      mode: 'out-in'
     }
   },
   css: ['~/assets/css/main.css', '~/assets/css/site-layout.css', 'md-editor-v3/lib/style.css'],

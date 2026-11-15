@@ -9,7 +9,7 @@
 import type { ApiResult } from '~~/types/api'
 import type { ResumeDocument } from '~/types/resume'
 
-definePageMeta({ layout: false })
+definePageMeta({ layout: false, pageTransition: false })
 
 const route = useRoute()
 const token = String(route.params.token || '')

@@ -1,7 +1,7 @@
 <template>
   <div class="home-page">
     <section class="home-shell pt-2">
-      <div v-if="mobileHeroPosts.length" class="mobile-hero-carousel" aria-label="精选文章" data-page-enter style="--page-enter-order: 0">
+      <div v-if="mobileHeroPosts.length" class="mobile-hero-carousel" aria-label="精选文章">
         <NuxtLink
           v-for="(item, index) in mobileHeroPosts"
           :key="`mobile-hero-${item.id}`"
@@ -21,7 +21,7 @@
         </NuxtLink>
       </div>
 
-      <div class="hero-board" :class="{ 'has-no-posts': !latest }" data-page-enter style="--page-enter-order: 0">
+      <div class="hero-board" :class="{ 'has-no-posts': !latest }">
         <NuxtLink :to="currentHeroPost ? postPath(currentHeroPost.slug) : '/archive'" class="hero-main">
           <Transition name="hero-fade">
             <img
@@ -63,7 +63,7 @@
         </div>
       </div>
 
-      <nav v-if="topicTabs.length" class="topic-tabs" aria-label="文章分类" data-page-enter style="--page-enter-order: 1">
+      <nav v-if="topicTabs.length" class="topic-tabs" aria-label="文章分类">
         <button
           v-for="tab in topicTabs"
           :key="tab.label"
@@ -92,7 +92,7 @@
       </div>
 
       <div class="content-layout">
-        <main data-page-enter style="--page-enter-order: 2" :aria-busy="listPending">
+        <main :aria-busy="listPending">
           <template v-if="showListSkeleton">
             <div v-if="useArchiveCardStyle" class="home-archive-list home-archive-desktop" role="status" aria-label="正在加载文章">
               <PostCardSkeleton variant="archive" :count="pageSize" />
@@ -192,8 +192,6 @@
 
         <PublicSidebar
           class="sidebar"
-          data-page-enter
-          style="--page-enter-order: 3"
           :site-name="siteName"
           :description="siteSettings.sidebar_description"
           :categories="categories"

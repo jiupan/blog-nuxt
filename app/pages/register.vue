@@ -99,7 +99,7 @@ import { getApiErrorMessage } from '~/utils/api-error'
 import { resolveAuthRedirect } from '~/utils/auth-redirect'
 
 definePageMeta({
-  layout: false
+  layout: 'standalone'
 })
 
 const route = useRoute()

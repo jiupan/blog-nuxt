@@ -46,8 +46,8 @@
     </aside>
 
     <div
-      ref="mainShell"
       class="admin-main-shell"
+      data-route-scroll-container
     >
       <header class="admin-topbar">
         <div class="admin-topbar-inner">
@@ -63,7 +63,7 @@
             <h1 class="admin-topbar-title">{{ pageName }}</h1>
           </div>
           <div class="admin-topbar-actions">
-            <div id="admin-page-actions">
+            <div id="admin-page-actions" ref="pageActionsTarget">
               <UButton
                 v-if="isDashboard"
                 icon="i-lucide-plus"
@@ -150,7 +150,8 @@ const siteName = computed(() => siteSettings.value.site_title || config.public.s
 const route = useRoute()
 const isDashboard = computed(() => route.path === '/admin')
 const mobileNavOpen = ref(false)
-const mainShell = ref<HTMLElement | null>(null)
+const pageActionsTarget = ref<HTMLElement | null>(null)
+provide('admin-page-actions', pageActionsTarget)
 const focused = useState('admin-editor-focused', () => false)
 const { data: sessionData } = await useFetch<{ data: { user: { username?: string } | null } }>('/api/auth/me')
 const username = computed(() => sessionData.value?.data.user?.username || '')
@@ -191,7 +192,6 @@ watch(
   () => route.path,
   () => {
     mobileNavOpen.value = false
-    if (mainShell.value) mainShell.value.scrollTop = 0
   }
 )
 async function logout() {

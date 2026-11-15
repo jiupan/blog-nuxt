@@ -1,7 +1,7 @@
 <template>
   <div class="friend-page">
-    <div class="friend-content" :class="{ 'page-sections-enter': entering }">
-      <header class="friend-hero" data-page-enter style="--page-enter-order: 0">
+    <div class="friend-content">
+      <header class="friend-hero">
         <h1>{{ title }}</h1>
         <p v-if="page?.settings.intro" class="friend-intro">{{ page.settings.intro }}</p>
         <div class="friend-toolbar">
@@ -28,13 +28,13 @@
         </div>
       </header>
 
-      <div v-if="error" class="friend-status" role="status" data-page-enter style="--page-enter-order: 1">
+      <div v-if="error" class="friend-status" role="status">
         <p>网站导航暂时没能加载。</p>
         <button type="button" class="friend-pill friend-small" :disabled="status === 'pending'" @click="refresh()">重新加载</button>
       </div>
-      <p v-else-if="!page" class="friend-status" role="status" data-page-enter style="--page-enter-order: 1">正在加载网站导航…</p>
+      <p v-else-if="!page" class="friend-status" role="status">正在加载网站导航…</p>
       <template v-else>
-        <section v-if="spotlight.length" class="friend-section friend-spotlight" aria-labelledby="spotlight-title" data-page-enter style="--page-enter-order: 1">
+        <section v-if="spotlight.length" class="friend-section friend-spotlight" aria-labelledby="spotlight-title">
           <div class="friend-section-heading">
             <div>
               <h2 id="spotlight-title">精选收录 <span class="friend-count">{{ spotlight.length }}</span></h2>
@@ -45,15 +45,13 @@
           </ul>
         </section>
         <FriendLinkLane
-          v-for="(group, index) in groups"
+          v-for="group in groups"
           :key="group.id"
           :title="group.name"
           :description="group.description"
           :items="group.items"
-          data-page-enter
-          :style="{ '--page-enter-order': Math.min(index + (spotlight.length ? 2 : 1), 3) }"
         />
-        <div v-if="!items.length" class="friend-status" data-page-enter style="--page-enter-order: 1">
+        <div v-if="!items.length" class="friend-status">
           <p>这里还没有收录链接。欢迎推荐你常去的网站。</p>
         </div>
       </template>
@@ -143,10 +141,8 @@ const groups = computed(() => {
 
 const picked = ref<PublicBookmark>()
 const interactive = ref(false)
-const entering = ref(false)
 let lastPickedId: number | undefined
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
-let enterTimer: ReturnType<typeof setTimeout> | undefined
 
 function hideNotice() {
   clearTimeout(noticeTimer)
@@ -165,13 +161,10 @@ function pickLink() {
 
 onMounted(() => {
   interactive.value = true
-  entering.value = true
-  enterTimer = setTimeout(() => { entering.value = false }, 680)
 })
 
 onBeforeUnmount(() => {
   clearTimeout(noticeTimer)
-  clearTimeout(enterTimer)
 })
 
 const dialogTitles = { search: '搜索网站', recommend: '推荐站点', report: '报告链接问题' }

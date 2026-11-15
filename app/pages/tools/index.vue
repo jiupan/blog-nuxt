@@ -4,7 +4,7 @@
     <div class="tools-scanline" aria-hidden="true" />
 
     <main class="tools-shell">
-      <header class="tools-hero" data-page-enter style="--page-enter-order: 0">
+      <header class="tools-hero">
         <div class="tools-kicker">
           <span class="tools-kicker-mark">T</span>
           <span>TOOLS / 工具集合</span>
@@ -30,7 +30,7 @@
         </div>
       </header>
 
-      <section class="tools-content" aria-labelledby="tools-list-title" data-page-enter style="--page-enter-order: 1">
+      <section class="tools-content" aria-labelledby="tools-list-title">
         <h2 id="tools-list-title" class="sr-only">工具列表</h2>
 
         <div class="tools-filter" aria-label="工具分类">
@@ -48,10 +48,10 @@
 
         <div v-if="filteredTools.length" class="tools-grid">
           <component
-            :is="tool.href ? 'a' : 'button'"
+            :is="tool.href ? NuxtLink : 'button'"
             v-for="tool in filteredTools"
             :key="tool.id"
-            :href="tool.href"
+            :to="tool.href"
             :type="tool.href ? undefined : 'button'"
             class="tool-card"
             :class="`tone-${tool.tone}`"
@@ -122,6 +122,7 @@
 
 <script setup lang="ts">
 import type { Component } from 'vue'
+import { NuxtLink } from '#components'
 import {
   Archive as ArchiveIcon,
   ArrowRight as ArrowRightIcon,
