@@ -27,7 +27,7 @@ export async function readAccountSession(event: H3Event, session?: AccountCookie
   return record.user
 }
 
-export async function startAccountSession(event: H3Event, user: Pick<User, 'id' | 'username' | 'email' | 'role' | 'passwordHash'>) {
+export async function startAccountSession(event: H3Event, user: Pick<User, 'id' | 'username' | 'role' | 'passwordHash'>) {
   const previous = await getUserSession(event) as AccountCookie
   const maxAge = useRuntimeConfig(event).session.maxAge ?? 60 * 60 * 24 * 7
   const record = await prisma.$transaction(async tx => {
@@ -41,7 +41,7 @@ export async function startAccountSession(event: H3Event, user: Pick<User, 'id' 
     return tx.accountSession.create({ data: { userId: user.id, expiresAt: new Date(Date.now() + maxAge * 1000) } })
   })
   await replaceUserSession(event, {
-    user: { id: user.id, username: user.username, email: user.email, role: user.role },
+    user: { id: user.id, username: user.username, role: user.role },
     secure: { accountSessionId: record.id }
   })
 }

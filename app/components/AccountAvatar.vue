@@ -1,7 +1,7 @@
 <template>
   <span class="account-avatar" :style="{ '--avatar-hue': hue, '--avatar-size': `${size}px` }" aria-hidden="true">
     <img v-if="src && failedSource !== src" :src="src" alt="" :width="size" :height="size" decoding="async" @error="failedSource = src">
-    <Icon v-else :name="fallbackIcon" />
+    <Icon v-else :name="fallbackIcon" class="account-avatar-icon" />
   </span>
 </template>
 
@@ -37,5 +37,8 @@ const hue = computed(() => {
   vertical-align: middle;
 }
 .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.account-avatar .iconify { width: 53%; height: 53%; }
+.account-avatar .account-avatar-icon {
+  width: var(--avatar-icon-size, 53%);
+  height: var(--avatar-icon-size, 53%);
+}
 </style>

@@ -3,7 +3,7 @@
     <section class="archive-shell">
       <div class="archive-layout">
         <main class="archive-main">
-          <section class="archive-filters" aria-labelledby="archive-heading">
+          <section class="archive-filters" aria-labelledby="archive-heading" data-page-enter="0">
             <header class="archive-filter-heading">
               <h1 id="archive-heading">文章归档</h1>
               <span v-if="!listError" class="archive-result-count" role="status">
@@ -40,7 +40,7 @@
             </button>
           </section>
 
-          <div class="archive-results" :aria-busy="listPending">
+          <div class="archive-results" :aria-busy="listPending" data-page-enter="1">
             <div class="archive-results-content" :class="{ 'is-covered': showListSkeleton, 'is-settled': !listPending }" :inert="listPending">
               <div v-if="listError" class="archive-empty is-error" role="alert">
                 <strong>文章加载失败</strong>
@@ -64,6 +64,7 @@
 
         <PublicSidebar
           class="archive-sidebar"
+          data-page-enter="1"
           :site-name="siteName"
           :description="siteSettings.sidebar_description"
           :categories="categories"

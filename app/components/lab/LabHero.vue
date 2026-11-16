@@ -56,7 +56,7 @@ import { Sparkles as SparklesIcon } from '@lucide/vue'
 import type { AiQuota, SiteAccount } from '~~/types/dto/user'
 
 defineProps<{
-  user?: SiteAccount | null
+  user?: Pick<SiteAccount, 'username' | 'displayName' | 'avatarUrl'> | null
   quota?: AiQuota
 }>()
 </script>

@@ -12,10 +12,10 @@
       <UButton :to="registerTo" color="neutral" variant="ghost" size="sm" @click="emit('navigate')">注册</UButton>
     </template>
   </div>
-  <UDropdownMenu v-else :items="items" :content="{ align: 'end' }">
+  <UDropdownMenu v-else :items="items" :content="{ align: 'end' }" :modal="false">
     <button type="button" class="tool-button desktop-account-trigger" :aria-label="label" :data-tooltip="label">
       <AccountAvatar v-if="followAvatar && user" :src="user.avatarUrl" :seed="user.displayName || user.username" :size="25" :fallback-icon="icon" />
-      <UIcon v-else :name="icon" aria-hidden="true" />
+      <UIcon v-else :name="icon" class="desktop-account-icon" aria-hidden="true" />
     </button>
   </UDropdownMenu>
 </template>
@@ -75,5 +75,10 @@ async function signOut() {
 .mobile-account-link { display: flex; min-width: 0; flex: 1; align-items: center; gap: 9px; font-weight: 700; }
 .mobile-account-link > span { overflow-wrap: anywhere; }
 .mobile-account-link small { display: block; color: var(--theme-text-muted); font-size: 11px; font-weight: 500; }
+.desktop-account-trigger { --avatar-icon-size: 20px; }
+.desktop-account-trigger .desktop-account-icon {
+  width: var(--avatar-icon-size);
+  height: var(--avatar-icon-size);
+}
 @media (max-width: 760px) { .desktop-account-trigger { display: none; } }
 </style>

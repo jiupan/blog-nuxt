@@ -1233,7 +1233,7 @@ useSeoMeta({
 <style scoped>
 .resume-workspace {
   display: flex;
-  width: var(--site-content-width);
+  width: 100%;
   height: 100dvh;
   min-height: 0;
   flex-direction: column;
@@ -1449,7 +1449,7 @@ useSeoMeta({
   .card-actions > button:not(.danger, .collapse-button) { width: 28px; padding: 0; overflow: hidden; font-size: 0; justify-content: center; }
 }
 @media (max-width: 800px) {
-  .resume-workspace { height: auto; min-height: 100dvh; }
+  .resume-workspace { width: var(--site-content-width); height: auto; min-height: 100dvh; }
   .workspace-bar { position: relative; grid-template-columns: 1fr auto; padding: 9px 12px; }
   .library-control { grid-row: 2; grid-column: 1 / -1; justify-content: center; }
   .library-control select { width: 230px; }

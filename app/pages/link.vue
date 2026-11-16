@@ -1,7 +1,7 @@
 <template>
   <div class="friend-page">
     <div class="friend-content">
-      <header class="friend-hero">
+      <header class="friend-hero" data-page-enter="0">
         <h1>{{ title }}</h1>
         <p v-if="page?.settings.intro" class="friend-intro">{{ page.settings.intro }}</p>
         <div class="friend-toolbar">
@@ -28,13 +28,13 @@
         </div>
       </header>
 
-      <div v-if="error" class="friend-status" role="status">
+      <div v-if="error" class="friend-status" role="status" data-page-enter="1">
         <p>网站导航暂时没能加载。</p>
         <button type="button" class="friend-pill friend-small" :disabled="status === 'pending'" @click="refresh()">重新加载</button>
       </div>
-      <p v-else-if="!page" class="friend-status" role="status">正在加载网站导航…</p>
+      <p v-else-if="!page" class="friend-status" role="status" data-page-enter="1">正在加载网站导航…</p>
       <template v-else>
-        <section v-if="spotlight.length" class="friend-section friend-spotlight" aria-labelledby="spotlight-title">
+        <section v-if="spotlight.length" class="friend-section friend-spotlight" aria-labelledby="spotlight-title" data-page-enter="1">
           <div class="friend-section-heading">
             <div>
               <h2 id="spotlight-title">精选收录 <span class="friend-count">{{ spotlight.length }}</span></h2>
@@ -45,13 +45,14 @@
           </ul>
         </section>
         <FriendLinkLane
-          v-for="group in groups"
+          v-for="(group, index) in groups"
           :key="group.id"
           :title="group.name"
           :description="group.description"
           :items="group.items"
+          :data-page-enter="Math.min(index + (spotlight.length ? 2 : 1), 3)"
         />
-        <div v-if="!items.length" class="friend-status">
+        <div v-if="!items.length" class="friend-status" data-page-enter="1">
           <p>这里还没有收录链接。欢迎推荐你常去的网站。</p>
         </div>
       </template>

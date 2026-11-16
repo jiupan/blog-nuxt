@@ -50,6 +50,24 @@ export function scrollToRouteAnchor(hash: string, behavior: ScrollBehavior) {
   return { el, top: margin || (header ? header.offsetHeight + 12 : 0), behavior }
 }
 
+function animateRouteSections(element: HTMLElement) {
+  const sections = element.querySelectorAll<HTMLElement>('[data-page-enter]')
+  if (!sections.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const compact = window.matchMedia('(max-width: 640px)').matches
+
+  for (const section of sections) {
+    section.animate?.([
+      { opacity: .7, translate: compact ? '0 8px' : '0 12px' },
+      { opacity: 1, translate: 'none' }
+    ], {
+      duration: compact ? 240 : 300,
+      delay: Number(section.dataset.pageEnter ?? 0) * (compact ? 35 : 45),
+      easing: 'cubic-bezier(.2, .78, .2, 1)',
+      fill: 'backwards'
+    })
+  }
+}
+
 function applyScroll(router: Router, element: HTMLElement, request: RouteScroll) {
   if (router.currentRoute.value !== request.to) return
 
@@ -76,6 +94,10 @@ function applyScroll(router: Router, element: HTMLElement, request: RouteScroll)
     if (target.tabIndex < 0 && !target.hasAttribute('tabindex')) target.tabIndex = -1
     target.dataset.routeFocus = ''
     target.focus({ preventScroll: true })
+  }
+
+  if (!request.savedPosition && !request.to.hash && request.to.meta.pageTransition !== false) {
+    animateRouteSections(element)
   }
 }
 

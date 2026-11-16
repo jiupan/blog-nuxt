@@ -184,8 +184,15 @@ function restoreDefaults() {
   white-space: nowrap;
 }
 .shortcut-mock-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
-.shortcut-mock-icon { display: grid; width: clamp(24px, 5.5vw, 33px); height: 32px; place-items: center; border-radius: 50%; }
-.shortcut-mock-icon > .iconify { width: 19px; height: 19px; }
+.shortcut-mock-icon {
+  --avatar-icon-size: 20px;
+  display: grid;
+  width: clamp(24px, 5.5vw, 33px);
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+}
+.shortcut-mock-icon > .iconify { width: var(--avatar-icon-size); height: var(--avatar-icon-size); }
 .shortcut-mock-empty, .shortcut-device-note { font-size: 12px; color: var(--admin-muted); }
 .is-night .shortcut-mock-empty { color: #aeb8c9; }
 .shortcut-list-heading { margin-bottom: 8px; }

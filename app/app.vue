@@ -23,6 +23,15 @@ import { commitRouteContent, rememberLeavingPage } from '~/utils/route-navigatio
 
 useSiteSeo()
 
+if (import.meta.server) {
+  const vary = useResponseHeader('Vary')
+  const fields = String(vary.value ?? '').split(',').map(field => field.trim()).filter(Boolean)
+  if (!fields.some(field => field === '*' || field.toLowerCase() === 'cookie')) {
+    vary.value = [...fields, 'Cookie'].join(', ')
+  }
+  if (useUserSession().loggedIn.value) useResponseHeader('Cache-Control').value = 'private, no-store'
+}
+
 const router = useRouter()
 const nuxtApp = useNuxtApp()
 const renderedPath = useState<string | null>('rendered-route-path', () => null)

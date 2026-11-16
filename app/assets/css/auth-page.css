@@ -6,12 +6,12 @@
   background-image: radial-gradient(#e5e2dc 1px, transparent 1px);
   background-size: 24px 24px;
   color: var(--theme-text);
-  padding-block: 24px;
+  padding: 24px;
 }
 
 .auth-card {
   display: grid;
-  width: var(--site-content-width);
+  width: min(100%, 900px);
   min-height: 580px;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   overflow: hidden;
@@ -306,7 +306,7 @@
 
 @media (max-width: 760px) {
   .auth-page {
-    padding-block: 16px;
+    padding: 16px;
   }
 
   .auth-card {

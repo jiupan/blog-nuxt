@@ -1,6 +1,6 @@
 <template>
   <div class="taxonomy-page" :class="{ 'is-tags': kind === 'tags' }">
-    <header class="taxonomy-heading">
+    <header class="taxonomy-heading" data-page-enter="0">
       <h1>{{ data ? `查看不同领域的 ${items.length} 个${label}。` : `文章${label}` }}</h1>
       <nav class="taxonomy-stats" aria-label="内容索引">
         <NuxtLink
@@ -18,18 +18,18 @@
       </nav>
     </header>
 
-    <div v-if="error" class="taxonomy-empty" role="alert">
+    <div v-if="error" class="taxonomy-empty" role="alert" data-page-enter="1">
       <UIcon name="i-lucide-cloud-alert" aria-hidden="true" />
       <h2>{{ label }}加载失败</h2>
       <p>请稍后重试。</p>
       <button type="button" :disabled="pending" @click="retry">{{ pending ? '正在加载…' : '重新加载' }}</button>
     </div>
-    <div v-else-if="!items.length" class="taxonomy-empty">
+    <div v-else-if="!items.length" class="taxonomy-empty" data-page-enter="1">
       <UIcon :name="kind === 'categories' ? 'i-lucide-folder-open' : 'i-lucide-tags'" aria-hidden="true" />
       <h2>还没有{{ label }}</h2>
       <NuxtLink to="/archive">浏览全部文章</NuxtLink>
     </div>
-    <div v-else class="taxonomy-grid">
+    <div v-else class="taxonomy-grid" data-page-enter="1">
       <section v-for="item in items" :key="item.id" class="taxonomy-card" :aria-labelledby="`taxonomy-${item.id}`">
         <NuxtLink :to="itemPath(item.slug)" class="taxonomy-card-label" :aria-label="`浏览${label}「${item.name}」下的 ${item._count?.posts || 0} 篇文章`">
           <UIcon v-if="kind === 'categories'" :name="resolveCategoryIcon(item.icon)" aria-hidden="true" />

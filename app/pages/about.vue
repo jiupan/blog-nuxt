@@ -200,6 +200,7 @@ useSeoMeta({
     radial-gradient(circle at 83% 78%, rgb(129 140 248 / 13%), transparent 32%),
     linear-gradient(145deg, #f8fafc, #f2f5fb 48%, #f8fafc);
   padding-block: clamp(20px, 3.5vw, 34px);
+  padding-inline: 12px;
   isolation: isolate;
 }
 
@@ -243,7 +244,7 @@ useSeoMeta({
 
 .about-card {
   display: flex;
-  width: var(--site-content-width);
+  width: min(100%, 530px);
   align-items: center;
   flex-direction: column;
   border: 1px solid rgb(255 255 255 / 88%);
@@ -553,6 +554,7 @@ useSeoMeta({
 @media (max-width: 640px) {
   .about-stage {
     padding-block: 20px 24px;
+    padding-inline: 20px;
   }
 
   .about-card {
@@ -591,6 +593,10 @@ useSeoMeta({
 }
 
 @media (max-width: 380px) {
+  .about-stage {
+    padding-inline: 16px;
+  }
+
   .about-actions {
     align-items: stretch;
     flex-direction: column;

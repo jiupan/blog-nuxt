@@ -3,8 +3,8 @@
     <div class="lab-grid-bg" aria-hidden="true"></div>
 
     <main class="lab-shell">
-      <LabHero :user="sessionData?.data.user" :quota="labQuota" />
-      <FeatureGrid :features="features" @open-feature="openFeature" />
+      <LabHero :user="sessionData?.data.user" :quota="labQuota" data-page-enter="0" />
+      <FeatureGrid :features="features" data-page-enter="1" @open-feature="openFeature" />
     </main>
 
     <Teleport to="body">

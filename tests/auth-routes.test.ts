@@ -81,7 +81,7 @@ it('rejects disabled accounts and starts a session only after verifying an activ
   await expect(login(event)).resolves.toMatchObject({ data: { id: account.id, role: 'USER' } })
   expect(argon.verify).toHaveBeenCalledWith(account.passwordHash, 'test-passphrase')
   expect(setSession).toHaveBeenCalledWith(event, {
-    user: { id: 1, username: 'Reader', email: account.email, role: 'USER' },
+    user: { id: 1, username: 'Reader', role: 'USER' },
     secure: { accountSessionId: 'issued-session' }
   })
   argon.verify.mockResolvedValue(false)

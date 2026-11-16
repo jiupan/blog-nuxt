@@ -21,6 +21,43 @@ afterEach(() => {
 })
 
 describe('route scroll handoff', () => {
+  it('starts section animations after the destination mounts and scroll resets', async () => {
+    const router = setupRouter()
+    const scroll = vi.spyOn(window, 'scrollTo')
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
+    const content = pageContent()
+    const animate = vi.fn(() => {
+      expect(scroll).toHaveBeenCalledWith({ left: 0, top: 0, behavior: 'instant' })
+    })
+    const section = content.appendChild(document.createElement('section'))
+    section.dataset.pageEnter = '2'
+    Object.assign(section, { animate })
+
+    await router.push('/archive')
+    navigateScroll(router, router.currentRoute.value, null)
+    expect(animate).not.toHaveBeenCalled()
+    commitRouteContent(router, '/archive', content)
+    expect(animate).toHaveBeenCalledExactlyOnceWith(
+      [{ opacity: .7, translate: '0 12px' }, { opacity: 1, translate: 'none' }],
+      expect.objectContaining({ duration: 300, delay: 90 })
+    )
+  })
+
+  it.each(['position', 'hash', 'reduced motion'])('skips section animation for %s', async (reason) => {
+    const router = setupRouter()
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: reason === 'reduced motion' } as MediaQueryList)
+    const content = pageContent()
+    const animate = vi.fn()
+    const section = content.appendChild(document.createElement('section'))
+    section.dataset.pageEnter = '0'
+    Object.assign(section, { animate })
+
+    await router.push(reason === 'hash' ? '/archive#topic' : '/archive')
+    commitRouteContent(router, '/archive', content)
+    navigateScroll(router, router.currentRoute.value, reason === 'position' ? { left: 0, top: 480 } : null)
+    expect(animate).not.toHaveBeenCalled()
+  })
+
   it('keeps the old scroll position until the destination mounts', async () => {
     const router = setupRouter()
     const scroll = vi.spyOn(window, 'scrollTo')

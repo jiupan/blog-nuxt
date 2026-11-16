@@ -69,6 +69,7 @@ export function useLab() {
     key: 'lab-quota', server: false, immediate: false
   })
   watch(() => sessionData.value?.data.user?.id, (id) => {
+    if (import.meta.server) return
     if (id) void refreshQuota()
     else clearQuota()
   }, { immediate: true })

@@ -1,6 +1,6 @@
 <template>
   <div class="post-page">
-    <section class="post-hero" :style="{ background: `radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%), ${heroGradient}` }">
+    <section class="post-hero" :style="{ background: `radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%), ${heroGradient}` }" data-page-enter="0">
       <div class="post-hero-inner">
         <div class="post-hero-grid">
           <div class="post-hero-copy">
@@ -43,7 +43,7 @@
 
     <section class="post-shell">
       <main class="post-main">
-        <section v-if="post.summary" class="summary-card">
+        <section v-if="post.summary" class="summary-card" data-page-enter="1">
           <div class="summary-heading">
             <div class="summary-title" tabindex="0" aria-describedby="summary-tooltip">
               <Icon name="i-lucide-bot" class="summary-title-icon" />
@@ -123,17 +123,18 @@
           </Transition>
         </Teleport>
 
-        <div class="content-card">
+        <div class="content-card" data-page-enter="2">
           <div ref="articleContentEl" class="prose-blog" v-html="post.rendered.html" />
           <ArticleImagePreview :container="articleContentEl" :html="post.rendered.html" />
         </div>
 
-        <CommentSection :post-id="post.id" :post-slug="post.slug" />
+        <CommentSection :post-id="post.id" :post-slug="post.slug" data-page-enter="3" />
 
       </main>
 
       <PublicSidebar
         class="post-sidebar"
+        data-page-enter="1"
         :style="{ '--post-sidebar-sticky-top': postSidebarStickyTop }"
         :site-name="siteName"
         :description="siteSettings.sidebar_description"
