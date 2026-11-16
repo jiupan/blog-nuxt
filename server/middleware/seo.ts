@@ -6,6 +6,10 @@ export default defineEventHandler((event) => {
     setResponseHeader(event, 'X-Robots-Tag', 'noindex, nofollow')
   }
 
+  if (/^\/archive\/+$/u.test(path)) {
+    return sendRedirect(event, `/archive${search}`, 301)
+  }
+
   const legacy = path.match(/^\/(categories|tags)\/([^/]*%25[^/]*)\/?$/)
   if (!legacy) return
 

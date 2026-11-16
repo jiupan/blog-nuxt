@@ -25,7 +25,7 @@ export default defineEventHandler(async () => {
       .map((item) => ({ loc: `/tags/${encodeURIComponent(item.slug)}`, _encoded: true })),
     ...posts.map((post) => ({
       loc: `/${post.slug}.html`,
-      lastmod: post.updatedAt
+      ...(post.contentUpdatedAt ? { lastmod: post.contentUpdatedAt } : {})
     }))
   ]
 })

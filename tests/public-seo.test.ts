@@ -12,6 +12,9 @@ describe('public SEO URLs', () => {
     expect(canonicalSiteUrl('/archive#heading', { page: '1', keyword: 'Nuxt' }, base)).toBe(
       base + '/archive?keyword=Nuxt'
     )
+    expect(canonicalSiteUrl('/archive/', { page: '2', utm_source: 'share' }, base)).toBe(
+      base + '/archive?page=2'
+    )
   })
   it.each(['0', '-2', '1.5', 'abc', 'Infinity', '999999999999999999999'])(
     'normalizes invalid page %s before querying posts',

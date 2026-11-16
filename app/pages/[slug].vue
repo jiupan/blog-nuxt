@@ -484,28 +484,33 @@ watch(() => post.value.rendered.html, () => {
   }))
 })
 
+const articleDescription = computed(() =>
+  post.value.seoDescription?.trim() || post.value.summary?.trim() || post.value.rendered.excerpt || post.value.title
+)
+const articleModifiedTime = computed(() => post.value.contentUpdatedAt || undefined)
+
 useSeoMeta({
   title: () => post.value.seoTitle || post.value.title,
-  description: () => post.value.seoDescription || post.value.summary || '',
+  description: articleDescription,
   ogTitle: () => post.value.seoTitle || post.value.title,
-  ogDescription: () => post.value.seoDescription || post.value.summary || '',
+  ogDescription: articleDescription,
   ogType: 'article',
   ogImage: () => absoluteSiteUrl(post.value.cover || '/images/home-hero-ai.png', config.public.siteUrl),
   articlePublishedTime: () => post.value.publishedAt || undefined,
-  articleModifiedTime: () => post.value.updatedAt,
+  articleModifiedTime,
   twitterTitle: () => post.value.seoTitle || post.value.title,
-  twitterDescription: () => post.value.seoDescription || post.value.summary || '',
+  twitterDescription: articleDescription,
   twitterImage: () => absoluteSiteUrl(post.value.cover || '/images/home-hero-ai.png', config.public.siteUrl)
 })
 
 useHead(() => ({ script: [{ key: 'article-schema', type: 'application/ld+json', innerHTML: serializeJsonLd({
   '@context': 'https://schema.org', '@type': 'BlogPosting',
   headline: post.value.seoTitle || post.value.title,
-  description: post.value.seoDescription || post.value.summary || '',
+  description: articleDescription.value,
   url: absoluteSiteUrl(postPath(post.value.slug), config.public.siteUrl),
   mainEntityOfPage: absoluteSiteUrl(postPath(post.value.slug), config.public.siteUrl),
   image: [absoluteSiteUrl(post.value.cover || '/images/home-hero-ai.png', config.public.siteUrl)],
-  datePublished: post.value.publishedAt || undefined, dateModified: post.value.updatedAt,
+  datePublished: post.value.publishedAt || undefined, dateModified: articleModifiedTime.value,
   author: { '@type': 'Person', name: siteSettings.value.sidebar_author_name || siteName.value, url: absoluteSiteUrl('/about', config.public.siteUrl) },
   publisher: { '@type': 'Organization', name: siteName.value },
   inLanguage: 'zh-CN'

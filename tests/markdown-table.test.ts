@@ -12,6 +12,22 @@ it('renders body H1 headings as H2 and preserves anchors and the table of conten
   ])
 })
 
+it('extracts readable article prose without headings, code blocks, or Markdown syntax', async () => {
+  const { excerpt } = await renderMarkdown([
+    '# 标题', '', '```text', 'Example code', '```', '',
+    '![封面](/cover.webp)', '',
+    '用 [Nuxt](https://nuxt.com) 构建博客 &amp; 用 `npm` 安装依赖。',
+    '检查 **服务端渲染**。'
+  ].join('\n'))
+
+  expect(excerpt).toBe('用 Nuxt 构建博客 & 用 npm 安装依赖。 检查 服务端渲染。')
+})
+
+it('truncates excerpts without splitting a Unicode character', async () => {
+  const { excerpt } = await renderMarkdown(`${'文'.repeat(158)}🚀后续`)
+  expect(excerpt).toBe(`${'文'.repeat(158)}🚀…`)
+})
+
 describe('article table rendering', () => {
   it('keeps a semantic table with its complete data inside a focusable scroll region', async () => {
     const { html } = await renderMarkdown('| 模式 | 数量 |\n| :--- | ---: |\n| off | 1 |\n| auto | 2 |')

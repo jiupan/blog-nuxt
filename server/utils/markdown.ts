@@ -7,6 +7,7 @@ import { codeToHtml } from 'shiki'
 
 export type RenderedMarkdown = {
   html: string
+  excerpt: string
   toc: Array<{
     id: string
     text: string
@@ -20,8 +21,10 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
   const slugger = new Slugger()
   const toc: RenderedMarkdown['toc'] = []
   const md = createMarkdownRenderer(slugger, toc)
+  const env = {}
+  const tokens = md.parse(content, env)
 
-  let html = md.render(content)
+  let html = md.renderer.render(tokens, md.options, env)
   html = await highlightCodeBlocks(html)
   html = sanitizeHtml(html, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat([
@@ -75,10 +78,29 @@ export async function renderMarkdown(content: string): Promise<RenderedMarkdown>
 
   return {
     html,
+    excerpt: createMarkdownExcerpt(tokens),
     toc,
     wordCount,
     readingTime: Math.max(1, Math.ceil(wordCount / 500))
   }
+}
+
+function createMarkdownExcerpt(tokens: Token[]) {
+  const limit = 160
+  let excerpt = ''
+  for (const [index, token] of tokens.entries()) {
+    if (token.type !== 'paragraph_open') continue
+    const paragraph = (tokens[index + 1]?.children || []).map((child) => {
+      if (child.type === 'text' || child.type === 'code_inline') return child.content
+      return child.type === 'softbreak' || child.type === 'hardbreak' ? ' ' : ''
+    }).join('').replace(/\s+/g, ' ').trim()
+    if (!paragraph) continue
+
+    excerpt = excerpt ? `${excerpt} ${paragraph}` : paragraph
+    if (Array.from(excerpt).length > limit) break
+  }
+  const characters = Array.from(excerpt)
+  return characters.length > limit ? `${characters.slice(0, limit - 1).join('').trimEnd()}…` : excerpt
 }
 
 function createMarkdownRenderer(slugger: Slugger, toc: RenderedMarkdown['toc']) {

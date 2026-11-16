@@ -125,6 +125,7 @@ model Post {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   publishedAt              DateTime?
+  contentUpdatedAt         DateTime?
   agentPublication         AgentPublication?
 
   @@index([slug])

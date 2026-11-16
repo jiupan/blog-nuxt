@@ -19,6 +19,7 @@ export function canonicalSiteUrl(
   siteUrl: string
 ): string {
   const url = new URL(path, siteUrl)
+  if (/^\/archive\/+$/u.test(url.pathname)) url.pathname = '/archive'
   url.search = ''
   url.hash = ''
   const listing =

@@ -12,7 +12,10 @@ vi.mock('../server/services/taxonomy/taxonomy.service', () => ({
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 const { default: sitemapHandler } = await import('../server/api/__sitemap__/urls.get')
 it('publishes only public content and populated taxonomy URLs', async () => {
-  posts.mockResolvedValue([{ slug: 'article-one', updatedAt: '2026-11-02T01:00:00Z' }])
+  posts.mockResolvedValue([
+    { slug: 'article-one', contentUpdatedAt: '2026-11-02T01:00:00Z' },
+    { slug: 'older-article', contentUpdatedAt: null, updatedAt: '2026-11-16T03:02:00Z' }
+  ])
   categories.mockResolvedValue([
     { slug: 'AI 工程', _count: { posts: 2 } },
     { slug: 'empty', _count: { posts: 0 } }
@@ -22,6 +25,7 @@ it('publishes only public content and populated taxonomy URLs', async () => {
     sitemapHandler as unknown as () => Promise<{ loc: string; lastmod?: string }[]>
   )()
   expect(urls).toContainEqual({ loc: '/article-one.html', lastmod: '2026-11-02T01:00:00Z' })
+  expect(urls).toContainEqual({ loc: '/older-article.html' })
   expect(urls.map(item => item.loc)).toContain('/archive')
   expect(urls.map(item => item.loc)).toContain('/categories')
   expect(urls.map(item => item.loc)).toContain('/tags')

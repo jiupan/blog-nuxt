@@ -158,10 +158,10 @@ export async function getPublicPostDetail(rawSlug: string) {
     throw notFound('文章不存在')
   }
 
-  await prisma.post.update({
-    where: { id: post.id },
-    data: { viewCount: { increment: 1 } }
-  })
+  // Update the counter atomically without changing Prisma's updatedAt.
+  await prisma.$executeRaw`
+    UPDATE "Post" SET "viewCount" = "viewCount" + 1 WHERE "id" = ${post.id}
+  `
 
   const [previous, next, rendered, relations] = await Promise.all([
     findAdjacentPublicPost(post, 'previous', now),
@@ -197,7 +197,7 @@ export async function listSitemapPosts() {
     where: buildPublishedPostWhere(),
     select: {
       slug: true,
-      updatedAt: true
+      contentUpdatedAt: true
     }
   })
 }

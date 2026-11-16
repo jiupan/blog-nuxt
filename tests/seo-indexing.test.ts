@@ -39,3 +39,12 @@ it.each(['/categories', '/tags'])('redirects legacy sitemap URLs under %s', (pre
   ;(middleware as unknown as (event: unknown) => void)(event)
   expect(redirect).toHaveBeenCalledWith(event, `${prefix}/${slug}?page=2`, 301)
 })
+
+it.each([
+  ['/archive/', '/archive'],
+  ['/archive//?page=2&keyword=%E4%B8%AD', '/archive?page=2&keyword=%E4%B8%AD']
+])('redirects %s to the canonical archive without losing filters', (path, target) => {
+  const event = { path }
+  ;(middleware as unknown as (event: unknown) => void)(event)
+  expect(redirect).toHaveBeenCalledWith(event, target, 301)
+})
