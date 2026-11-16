@@ -225,8 +225,8 @@
   margin-top: 24px;
 }
 
-.lab-auth-actions a,
-.lab-auth-actions span {
+.lab-auth-actions > a,
+.lab-auth-actions > span {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -243,16 +243,11 @@
   transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease, transform .2s ease;
 }
 
-.lab-auth-actions a:hover {
+.lab-auth-actions > a:hover {
   border-color: var(--theme-info);
   background: color-mix(in srgb, var(--theme-info-soft) 96%, transparent);
   box-shadow: 0 14px 32px color-mix(in srgb, var(--theme-info) 16%, transparent);
   transform: translateY(-1px);
-}
-
-.lab-auth-actions svg {
-  width: 16px;
-  height: 16px;
 }
 
 .feature-grid {
