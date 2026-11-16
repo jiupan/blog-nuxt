@@ -21,6 +21,8 @@ export type SiteSettingsKey =
   | 'seo_description'
   | 'footer_copyright'
   | 'footer_icp'
+  | 'footer_reading_enabled'
+  | 'footer_featured_post_id'
   | 'footer_bottom_links'
   | 'footer_actions'
   | 'ai_api_key'

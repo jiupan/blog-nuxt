@@ -62,13 +62,16 @@
           </div>
         </div>
       </div>
-      <nav v-if="footerGroups.length" class="footer-links" aria-label="页脚导航">
-        <section v-for="group in footerGroups" :key="group.title" class="footer-link-group" :class="{ 'is-tags': group.links.every(link => link.to.startsWith('/tags/')) }">
-          <h3>{{ group.title }}</h3>
-          <ul class="footer-link-list">
-            <li v-for="link in group.links" :key="`${link.label}-${link.to}`"><NuxtLink :to="link.to">{{ link.label }}</NuxtLink></li>
-          </ul>
-        </section>
+      <nav class="footer-links" aria-label="页脚导航">
+        <div v-if="footerGroups.length" class="footer-link-groups">
+          <section v-for="group in footerGroups" :key="group.title" class="footer-link-group" :class="{ 'is-tags': group.links.every(link => link.to.startsWith('/tags/')) }">
+            <h3>{{ group.title }}</h3>
+            <ul class="footer-link-list">
+              <li v-for="link in group.links" :key="`${link.label}-${link.to}`"><NuxtLink :to="link.to">{{ link.label }}</NuxtLink></li>
+            </ul>
+          </section>
+        </div>
+        <FooterReading />
       </nav>
     </div>
 
@@ -96,6 +99,7 @@
 <script setup lang="ts">
 import type { FooterActionLink, FooterCopyrightPart, FooterGroup, FooterLink } from '~/composables/useSiteNavigation'
 import FooterMascot from './FooterMascot.vue'
+import FooterReading from './FooterReading.vue'
 
 const props = defineProps<{
   compact?: boolean

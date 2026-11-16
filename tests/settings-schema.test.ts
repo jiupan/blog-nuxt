@@ -83,6 +83,17 @@ describe('settingsInputSchema', () => {
     })
   })
 
+  it('validates the footer reading switch and its optional featured post ID', () => {
+    expect(settingsDefaults.footer_reading_enabled).toBe('true')
+    expect(settingsInputSchema.parse({ footer_reading_enabled: 'false', footer_featured_post_id: '' }))
+      .toEqual({ footer_reading_enabled: 'false', footer_featured_post_id: '' })
+    expect(settingsInputSchema.parse({ footer_featured_post_id: '123' })).toEqual({ footer_featured_post_id: '123' })
+    for (const footer_featured_post_id of ['0', '-1', '1.5', '2147483648', 'draft']) {
+      expect(settingsInputSchema.safeParse({ footer_featured_post_id }).success).toBe(false)
+    }
+    expect(settingsInputSchema.safeParse({ footer_reading_enabled: 'yes' }).success).toBe(false)
+  })
+
   it('allows empty optional URL settings so admins can clear provider config', () => {
     expect(settingsInputSchema.parse({
       ai_base_url: '',

@@ -1,5 +1,6 @@
 import { prisma } from '../../utils/prisma'
 import { validationError } from '../../utils/api-error'
+import { buildPublishedPostWhere } from '../posts/post-visibility'
 import { aiRuntimeSettingKeys, aiSecretKeys, type AiRuntimeValues, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
 import {
   publicSettingKeys,
@@ -132,6 +133,14 @@ export async function saveSettings(input: unknown) {
         message: issue.message
       }))
     })
+  }
+
+  if (parsed.data.footer_featured_post_id) {
+    const post = await prisma.post.findFirst({
+      where: buildPublishedPostWhere({ id: Number(parsed.data.footer_featured_post_id) }),
+      select: { id: true }
+    })
+    if (!post) throw validationError('请重新选择一篇已公开的文章')
   }
 
   const current = await getSettingsMap()

@@ -101,7 +101,7 @@ watch(currentGroup, (group) => {
 function isActive(path: string) {
   if (route.path === '/admin/menus' && route.query.location === 'footer') return path === '/admin/settings?tab=footer'
   if (route.path === '/admin/settings') {
-    const isFooter = ['footer', 'footerActions'].includes(String(route.query.tab))
+    const isFooter = ['footer', 'footerActions', 'footerReading'].includes(String(route.query.tab))
     if (path === '/admin/settings?tab=footer') return isFooter
     if (path === '/admin/settings') return !isFooter
   }

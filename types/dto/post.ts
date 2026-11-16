@@ -28,6 +28,13 @@ export type PostSummary = {
 
 export type PublicPostListPayload = PaginationPayload<PostSummary>
 
+export type FooterReadingPost = Pick<PostSummary, 'id' | 'slug' | 'title'>
+
+export type FooterReadingPayload = {
+  featured: FooterReadingPost | null
+  recent: FooterReadingPost[]
+}
+
 export type PublicArchivePayload = PaginationPayload<PostSummary> & {
   years: number[]
 }

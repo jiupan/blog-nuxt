@@ -264,6 +264,22 @@
           </div>
         </div>
 
+        <div v-else-if="activeTab === 'footerReading'" class="settings-form">
+          <div class="settings-row">
+            <USwitch
+              :model-value="form.footer_reading_enabled === 'true'"
+              label="显示「继续阅读」"
+              :disabled="saving"
+              @update:model-value="form.footer_reading_enabled = $event ? 'true' : 'false'"
+            />
+          </div>
+          <div class="settings-row">
+            <p class="settings-label">精选文章</p>
+            <AdminFooterFeaturedPost v-model="form.footer_featured_post_id" :disabled="saving" class="settings-control" />
+            <p class="text-xs text-slate-400">可留空。最近更新和随机阅读会从已公开的文章中自动挑选。</p>
+          </div>
+        </div>
+
         <div v-else-if="activeTab === 'footer'" class="settings-form">
           <div class="settings-row">
             <label class="settings-label">版权信息</label>
@@ -547,6 +563,8 @@ type SettingsForm = {
   footer_icp: string
   footer_bottom_links: string
   footer_actions: string
+  footer_reading_enabled: string
+  footer_featured_post_id: string
 }
 
 type FooterActionItem = {
@@ -564,7 +582,8 @@ const settingTabs = [
   { label: '顶部快捷入口', value: 'headerShortcuts', area: 'site', keys: ['header_shortcuts'] },
   { label: '搜索与收录', value: 'seo', area: 'site', keys: ['seo_noindex', 'seo_keywords', 'seo_description'] },
   { label: '版权与备案', value: 'footer', area: 'footer', keys: ['footer_copyright', 'footer_icp', 'footer_bottom_links'] },
-  { label: '图标入口', value: 'footerActions', area: 'footer', keys: ['footer_actions'] }
+  { label: '图标入口', value: 'footerActions', area: 'footer', keys: ['footer_actions'] },
+  { label: '继续阅读', value: 'footerReading', area: 'footer', keys: ['footer_reading_enabled', 'footer_featured_post_id'] }
 ] as const satisfies readonly { label: string; value: string; area: string; keys: readonly (keyof SettingsForm)[] }[]
 
 const siteSettingKeys: (keyof SettingsForm)[] = settingTabs.flatMap(tab => [...tab.keys] as (keyof SettingsForm)[])
@@ -702,7 +721,9 @@ watch(
         footer_copyright: val.data.footer_copyright,
         footer_icp: val.data.footer_icp,
         footer_bottom_links: val.data.footer_bottom_links,
-        footer_actions: val.data.footer_actions
+        footer_actions: val.data.footer_actions,
+        footer_reading_enabled: val.data.footer_reading_enabled,
+        footer_featured_post_id: val.data.footer_featured_post_id
       }
       loadEditableFields(form.value)
       savedFields.value = currentFields()
@@ -725,7 +746,8 @@ const settingIcons: Record<string, string> = {
   headerShortcuts: 'i-lucide-panel-top',
   seo: 'i-lucide-search',
   footer: 'i-lucide-panel-bottom',
-  footerActions: 'i-lucide-grid-2x2'
+  footerActions: 'i-lucide-grid-2x2',
+  footerReading: 'i-lucide-book-open'
 }
 const settingDescriptions: Record<string, string> = {
   basic: '管理站点名称、顶部品牌、Logo 与浏览器标签页图标。',
@@ -733,7 +755,8 @@ const settingDescriptions: Record<string, string> = {
   headerShortcuts: '设置顶栏图标的显示、顺序和悬浮提示。',
   seo: '编辑搜索摘要和站点收录规则。',
   footer: '管理页脚最下方的版权、备案号和辅助链接。',
-  footerActions: '管理页脚品牌区的图标入口。'
+  footerActions: '管理页脚品牌区的图标入口。',
+  footerReading: '设置页脚的文章推荐。'
 }
 const currentSettingLabel = computed(() => selectedTab.value.label)
 
@@ -802,6 +825,7 @@ async function save() {
     const siteSettings = Object.fromEntries(changed.map(key => [key, current[key]]))
     await $fetch('/api/admin/settings', { method: 'PUT', body: siteSettings })
     if (changed.includes('header_shortcuts')) void refreshNuxtData('public-site-settings')
+    if (changed.includes('footer_reading_enabled') || changed.includes('footer_featured_post_id')) void refreshNuxtData('footer-reading')
     savedFields.value = current
     markSaved(submittedSnapshot)
     toast.add({ id: 'settings-save', title: '站点设置已保存', color: 'success' })
