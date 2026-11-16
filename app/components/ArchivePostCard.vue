@@ -114,7 +114,7 @@ watch(() => props.post.cover, () => {
 .archive-item:focus-within {
   border-color: color-mix(in srgb, var(--theme-accent) 34%, var(--theme-border));
   box-shadow: 0 10px 26px rgb(var(--theme-shadow) / 10%);
-  transform: translateY(-2px) scale(1.002);
+  transform: translateY(-2px);
 }
 
 .archive-thumb {
