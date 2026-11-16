@@ -34,6 +34,7 @@ if (import.meta.server) {
 
 const router = useRouter()
 const nuxtApp = useNuxtApp()
+const { showPage } = useSiteHeaderPage()
 const renderedPath = useState<string | null>('rendered-route-path', () => null)
 const failedRoute = shallowRef<{ path: string; chunk: boolean }>()
 const isLoading = ref(false)
@@ -69,8 +70,12 @@ function mountPage(route: RouteLocationNormalizedLoaded, vnode: VNode) {
   if (router.currentRoute.value.path !== route.path) return
   interruptedRoute = undefined
   releaseOldContent()
+  const firstPage = renderedPath.value === null
   renderedPath.value = route.path
-  if (vnode.el instanceof HTMLElement) commitRouteContent(router, route.path, vnode.el)
+  if (vnode.el instanceof HTMLElement) {
+    if (firstPage) showPage(route, vnode.el)
+    commitRouteContent(router, route.path, vnode.el)
+  }
   if (pendingRoute?.path === route.path) finishProgress()
 }
 

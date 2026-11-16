@@ -95,8 +95,7 @@ const footerActionIconMap: Record<string, Component> = {
 export async function useSiteNavigation() {
   const config = useRuntimeConfig()
   const route = useRoute()
-  const isScrolled = ref(false)
-  const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
+  const { page: headerPage, syncScroll: syncHeaderState } = useSiteHeaderPage()
   const mobilePanelOpen = useState<boolean>('mobilePanelOpen', () => false)
   const siteSettings = useSiteSettings()
   const siteSettingsLoaded = useSiteSettingsLoaded()
@@ -195,21 +194,23 @@ export async function useSiteNavigation() {
   const footerActionLinks = computed(() => mergeFooterArchiveLinks(parseFooterActions(siteSettings.value.footer_actions)))
   const footerActionLeft = computed(() => footerActionLinks.value.slice(0, Math.ceil(footerActionLinks.value.length / 2)))
   const footerActionRight = computed(() => footerActionLinks.value.slice(Math.ceil(footerActionLinks.value.length / 2)))
-  const isArticleRoute = computed(() => route.name === 'slug')
+  const headerPath = computed(() => headerPage.value.path)
+  const isArticleRoute = computed(() => headerPage.value.isArticle)
+  const isScrolled = computed(() => headerPage.value.isScrolled && (!isArticleRoute.value || !!headerPage.value.articleTitle))
   const scrollTitle = computed(() => {
-    if (route.name === 'slug') {
-      return layoutScrollTitle.value || '文章'
+    if (isArticleRoute.value) {
+      return headerPage.value.articleTitle
     }
 
-    if (/^\/archive\/?$/.test(route.path)) {
+    if (/^\/archive\/?$/.test(headerPath.value)) {
       return '文章归档'
     }
 
-    if (/^\/link\/?$/.test(route.path)) {
+    if (/^\/link\/?$/.test(headerPath.value)) {
       return '网站导航'
     }
 
-    if (route.path.startsWith('/about')) {
+    if (headerPath.value.startsWith('/about')) {
       return '我的'
     }
 
@@ -241,10 +242,6 @@ export async function useSiteNavigation() {
     }
   }
 
-  function syncHeaderState() {
-    isScrolled.value = window.scrollY > 24
-  }
-
   return {
     siteSettings,
     siteSettingsLoaded,
@@ -264,6 +261,7 @@ export async function useSiteNavigation() {
     footerActionRight,
     footerActionIcon,
     mobilePanelOpen,
+    headerPath,
     isScrolled,
     isArticleRoute,
     scrollTitle,

@@ -1,5 +1,5 @@
 <template>
-  <div class="post-page">
+  <div class="post-page" :data-article-title="post.title">
     <section class="post-hero" :style="{ background: `radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%), ${heroGradient}` }" data-page-enter="0">
       <div class="post-hero-inner">
         <div class="post-hero-grid">
@@ -237,7 +237,6 @@ if (decodeURI(route.path) !== decodeURI(canonicalPostPath)) {
 }
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
-const layoutScrollTitle = useState<string>('layoutScrollTitle', () => '')
 const postSidebarStickyTop = ref('84px')
 const activeTocId = ref('')
 const readingProgress = ref(0)
@@ -358,7 +357,6 @@ onBeforeUnmount(() => {
   unlockSummaryModal?.()
   clearTimeout(summaryHistoryTimer)
   summaryDialogController?.abort()
-  layoutScrollTitle.value = ''
   window.removeEventListener('scroll', scheduleTocUpdate)
   window.removeEventListener('resize', handleViewportResize)
   window.removeEventListener('keydown', handleSummaryDialogEscape)
@@ -367,7 +365,6 @@ onBeforeUnmount(() => {
 })
 
 onMounted(() => {
-  layoutScrollTitle.value = post.value.title
   void restoreSummaryConversation()
   updatePostSidebarStickyTop()
   setupTocTracking()

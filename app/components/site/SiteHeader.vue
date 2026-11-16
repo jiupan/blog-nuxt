@@ -12,11 +12,11 @@
         <span>{{ brandText }}</span>
       </NuxtLink>
 
-      <button class="scroll-title" aria-label="回到顶部" @click="$emit('scrollTop')">
-        <span class="scroll-title-text">{{ scrollTitle }}</span>
+      <button class="scroll-title" aria-label="回到顶部" :inert="!isScrolled" @click="$emit('scrollTop')">
+        <span class="scroll-title-text">{{ displayedScrollTitle }}</span>
       </button>
 
-      <nav ref="mainNav" class="main-nav" aria-label="主导航">
+      <nav ref="mainNav" class="main-nav" aria-label="主导航" :inert="isScrolled">
         <div
           v-for="item in primaryMenuItems"
           :key="item.id"
@@ -124,6 +124,7 @@ import type { MenuTreeItem } from '~/composables/useSiteNavigation'
 const props = defineProps<{
   isScrolled: boolean
   isArticleRoute: boolean
+  activePath: string
   siteSettings: Record<string, string>
   siteSettingsLoaded: boolean
   brandText: string
@@ -142,11 +143,14 @@ defineEmits<{
 
 const searchOpen = ref(false)
 const shortcuts = computed(() => readHeaderShortcuts(props.siteSettings.header_shortcuts).filter(item => item.enabled))
-const route = useRoute()
-const renderedPath = useState<string | null>('rendered-route-path', () => null)
 const mainNav = useTemplateRef<HTMLElement>('mainNav')
 const markerPosition = ref<number | null>(null)
-const currentPath = computed(() => menuPath(renderedPath.value ?? route.path))
+const currentPath = computed(() => menuPath(props.activePath))
+const displayedScrollTitle = ref('')
+watchEffect(() => {
+  // Keep the outgoing text until the title chip has faded away.
+  if (props.isScrolled) displayedScrollTitle.value = props.scrollTitle
+})
 const activeMenuId = computed(() => {
   const matches = (item: MenuTreeItem | MenuTreeItem['children'][number], path: string) =>
     !item.targetBlank && menuPath(item.url) === path

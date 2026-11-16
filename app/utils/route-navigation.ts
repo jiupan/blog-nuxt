@@ -7,6 +7,7 @@ type RouteScroll = {
   to: RouteLocationNormalizedLoaded
   savedPosition: Position | null
   keyboard: boolean
+  onReady?: (element: HTMLElement) => void
 }
 
 // The browser's scroll request and Nuxt's page mount can arrive in either order.
@@ -96,14 +97,21 @@ function applyScroll(router: Router, element: HTMLElement, request: RouteScroll)
     target.focus({ preventScroll: true })
   }
 
+  request.onReady?.(element)
+
   if (!request.savedPosition && !request.to.hash && request.to.meta.pageTransition !== false) {
     animateRouteSections(element)
   }
 }
 
-export function navigateScroll(router: Router, to: RouteLocationNormalizedLoaded, savedPosition: RouteScroll['savedPosition']) {
+export function navigateScroll(
+  router: Router,
+  to: RouteLocationNormalizedLoaded,
+  savedPosition: RouteScroll['savedPosition'],
+  onReady?: RouteScroll['onReady']
+) {
   if (router.currentRoute.value !== to) return
-  const request = { to, savedPosition, keyboard: keyboardRoutes.has(to) || !!document.activeElement?.matches(':focus-visible') }
+  const request = { to, savedPosition, keyboard: keyboardRoutes.has(to) || !!document.activeElement?.matches(':focus-visible'), onReady }
   const page = pages.get(router)
   if (page?.path === to.path && page.element.isConnected) {
     requests.delete(router)

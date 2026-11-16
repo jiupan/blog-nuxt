@@ -61,29 +61,42 @@ describe('route scroll handoff', () => {
   it('keeps the old scroll position until the destination mounts', async () => {
     const router = setupRouter()
     const scroll = vi.spyOn(window, 'scrollTo')
+    const content = pageContent()
+    const onReady = vi.fn(() => {
+      expect(scroll).toHaveBeenCalledWith({ left: 0, top: 0, behavior: 'instant' })
+    })
     await router.push('/')
     commitRouteContent(router, '/', pageContent())
 
     await router.push('/archive')
-    navigateScroll(router, router.currentRoute.value, null)
+    navigateScroll(router, router.currentRoute.value, null, onReady)
     expect(scroll).not.toHaveBeenCalled()
+    expect(onReady).not.toHaveBeenCalled()
 
-    commitRouteContent(router, '/archive', pageContent())
+    commitRouteContent(router, '/archive', content)
     expect(scroll).toHaveBeenCalledExactlyOnceWith({ left: 0, top: 0, behavior: 'instant' })
+    expect(onReady).toHaveBeenCalledExactlyOnceWith(content)
   })
 
   it('ignores a superseded page and restores the latest history position', async () => {
     const router = setupRouter()
     const scroll = vi.spyOn(window, 'scrollTo')
+    const stale = vi.fn()
+    const content = pageContent()
+    const onReady = vi.fn(() => {
+      expect(scroll).toHaveBeenCalledWith({ left: 0, top: 480, behavior: 'instant' })
+    })
     await router.push('/archive')
-    navigateScroll(router, router.currentRoute.value, null)
+    navigateScroll(router, router.currentRoute.value, null, stale)
     await router.push('/link')
-    navigateScroll(router, router.currentRoute.value, { left: 0, top: 480 })
+    navigateScroll(router, router.currentRoute.value, { left: 0, top: 480 }, onReady)
     commitRouteContent(router, '/archive', pageContent())
     expect(scroll).not.toHaveBeenCalled()
 
-    commitRouteContent(router, '/link', pageContent())
+    commitRouteContent(router, '/link', content)
     expect(scroll).toHaveBeenCalledExactlyOnceWith({ left: 0, top: 480, behavior: 'instant' })
+    expect(stale).not.toHaveBeenCalled()
+    expect(onReady).toHaveBeenCalledExactlyOnceWith(content)
   })
 
   it('restores the active layout’s scroll container for a history entry', async () => {

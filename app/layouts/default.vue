@@ -3,6 +3,7 @@
     <SiteHeader
       :is-scrolled="useStandardHeader ? false : navigation.isScrolled.value"
       :is-article-route="useStandardHeader ? false : navigation.isArticleRoute.value"
+      :active-path="navigation.headerPath.value"
       :site-settings="navigation.siteSettings.value"
       :site-settings-loaded="navigation.siteSettingsLoaded.value"
       :brand-text="navigation.brandText.value"
@@ -65,10 +66,11 @@ const { forceStandardHeader = false, compactFooter = false, viewportFit = false,
   viewportFit?: boolean
   headerGradient?: boolean
 }>()
-const useStandardHeader = computed(() => forceStandardHeader || aboutLayoutActive.value)
+const isAboutHeader = computed(() => /^\/about\/?$/.test(navigation.headerPath.value))
+const useStandardHeader = computed(() => forceStandardHeader || isAboutHeader.value)
 const useCompactFooter = computed(() => compactFooter || aboutLayoutActive.value)
 const useViewportFit = computed(() => viewportFit || aboutLayoutActive.value)
-const useHeaderGradient = computed(() => headerGradient || aboutLayoutActive.value)
+const useHeaderGradient = computed(() => headerGradient || isAboutHeader.value)
 
 onMounted(() => {
   navigation.syncHeaderState()

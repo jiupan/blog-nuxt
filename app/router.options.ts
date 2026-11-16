@@ -1,5 +1,6 @@
 import type { RouterConfig } from 'nuxt/schema'
 import { START_LOCATION } from 'vue-router'
+import { useSiteHeaderPage } from './composables/useSiteHeaderPage'
 import { navigateScroll, scrollToRouteAnchor, updateRouteHistory } from './utils/route-navigation'
 
 export default <RouterConfig>{
@@ -27,7 +28,8 @@ export default <RouterConfig>{
       return false
     }
 
-    navigateScroll(router, to, savedPosition)
+    const { showPage } = useSiteHeaderPage()
+    navigateScroll(router, to, savedPosition, (element) => showPage(to, element))
     return false
   }
 }
