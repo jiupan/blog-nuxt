@@ -369,19 +369,22 @@
 }
 
 .tool-nav > :is(a, .tool-button)::after {
-  right: 0;
-  left: auto;
+  --tool-tooltip-x: clamp(
+    var(--tool-tooltip-left-limit, -100vw),
+    -50%,
+    calc(var(--tool-tooltip-right-limit, 100vw) - 100%)
+  );
   width: max-content;
   min-width: 0;
   max-width: min(16rem, calc(100vw - 32px));
   overflow-wrap: anywhere;
   line-height: 1.35;
   white-space: normal;
-  transform: translateY(-6px);
+  transform: translate(var(--tool-tooltip-x), -6px);
 }
 
 .tool-nav > :is(a, .tool-button):is(:hover, :focus-visible)::after {
-  transform: translateY(0);
+  transform: translate(var(--tool-tooltip-x), 0);
 }
 
 .tool-nav svg,

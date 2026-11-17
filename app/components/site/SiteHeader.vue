@@ -56,7 +56,14 @@
       </nav>
 
       <div class="header-actions">
-        <nav class="tool-nav" :class="{ 'has-no-shortcuts': shortcuts.length === 0 }" aria-label="快捷入口">
+        <nav
+          ref="toolNav"
+          class="tool-nav"
+          :class="{ 'has-no-shortcuts': shortcuts.length === 0 }"
+          aria-label="快捷入口"
+          @pointerover="positionTooltips"
+          @focusin="positionTooltips"
+        >
           <template v-for="item in shortcuts" :key="item.id">
             <NuxtLink
               v-if="item.id === 'tools' || item.id === 'archive'"
@@ -144,6 +151,7 @@ defineEmits<{
 const searchOpen = ref(false)
 const shortcuts = computed(() => readHeaderShortcuts(props.siteSettings.header_shortcuts).filter(item => item.enabled))
 const mainNav = useTemplateRef<HTMLElement>('mainNav')
+const toolNav = useTemplateRef<HTMLElement>('toolNav')
 const markerPosition = ref<number | null>(null)
 const currentPath = computed(() => menuPath(props.activePath))
 const displayedScrollTitle = ref('')
@@ -179,9 +187,21 @@ function positionMarker() {
   markerPosition.value = active?.offsetWidth ? active.offsetLeft + active.offsetWidth / 2 - 11 : null
 }
 
+function positionTooltips() {
+  const viewportWidth = document.documentElement.clientWidth
+  const gutter = 16
+  for (const button of toolNav.value?.querySelectorAll<HTMLElement>(':scope > [data-tooltip]') ?? []) {
+    const { left, width } = button.getBoundingClientRect()
+    const center = left + width / 2
+    button.style.setProperty('--tool-tooltip-left-limit', `${gutter - center}px`)
+    button.style.setProperty('--tool-tooltip-right-limit', `${viewportWidth - gutter - center}px`)
+  }
+}
+
 watch([activeMenuId, () => props.primaryMenuItems], positionMarker, { flush: 'post' })
 
 onMounted(() => {
+  window.addEventListener('resize', positionTooltips)
   if (!mainNav.value) return
   navResizeObserver = new ResizeObserver(positionMarker)
   navResizeObserver.observe(mainNav.value)
@@ -238,6 +258,7 @@ function toggleColorMode(event: MouseEvent) {
 }
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', positionTooltips)
   navResizeObserver?.disconnect()
   if (menuHoldTimer) clearTimeout(menuHoldTimer)
   heldMenuItemId.value = null
