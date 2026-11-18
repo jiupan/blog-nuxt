@@ -196,26 +196,8 @@ export async function useSiteNavigation() {
   const footerActionRight = computed(() => footerActionLinks.value.slice(Math.ceil(footerActionLinks.value.length / 2)))
   const headerPath = computed(() => headerPage.value.path)
   const isArticleRoute = computed(() => headerPage.value.isArticle)
-  const isScrolled = computed(() => headerPage.value.isScrolled && (!isArticleRoute.value || !!headerPage.value.articleTitle))
-  const scrollTitle = computed(() => {
-    if (isArticleRoute.value) {
-      return headerPage.value.articleTitle
-    }
-
-    if (/^\/archive\/?$/.test(headerPath.value)) {
-      return '文章归档'
-    }
-
-    if (/^\/link\/?$/.test(headerPath.value)) {
-      return '网站导航'
-    }
-
-    if (headerPath.value.startsWith('/about')) {
-      return '我的'
-    }
-
-    return `${siteName.value} - 个人博客`
-  })
+  const isScrolled = computed(() => headerPage.value.isScrolled && headerPage.value.title !== null)
+  const scrollTitle = computed(() => headerPage.value.title || siteName.value)
 
   function footerActionIcon(icon?: string) {
     return footerActionIconMap[icon || ''] || LinkIcon

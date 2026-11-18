@@ -1,5 +1,5 @@
 <template>
-  <div class="tools-page">
+  <div class="tools-page" data-scroll-title="小工具">
     <div class="tools-dot-grid" aria-hidden="true" />
     <div class="tools-scanline" aria-hidden="true" />
 
@@ -304,7 +304,9 @@ useSeoMeta({
 <style scoped>
 .tools-page {
   position: relative;
-  min-height: 680px;
+  min-height: calc(680px + var(--site-header-height));
+  margin-top: calc(-1 * var(--site-header-height));
+  padding-top: var(--site-header-height);
   overflow: hidden;
   background: var(--theme-page);
   color: var(--theme-text);
@@ -338,7 +340,7 @@ useSeoMeta({
 .tools-scanline {
   position: absolute;
   z-index: 2;
-  top: 0;
+  top: var(--site-header-height);
   left: 0;
   width: 100%;
   height: 2px;

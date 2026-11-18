@@ -12,22 +12,6 @@
   --header-capsule-bg: linear-gradient(rgb(0 0 0 / 60%), rgb(0 0 0 / 85%));
 }
 
-.site-header.has-page-gradient:not(.is-scrolled):not(.is-article-route)::after {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  left: 0;
-  z-index: -1;
-  height: 42px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--theme-page-soft) 92%, transparent),
-    transparent
-  );
-  content: '';
-  pointer-events: none;
-}
-
 .site-header.is-scrolled {
   border-color: transparent;
   background: transparent;

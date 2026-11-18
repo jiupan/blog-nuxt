@@ -23,8 +23,9 @@
 }
 
 .friend-page {
-  min-height: 65vh;
-  padding: 60px 0 40px;
+  min-height: calc(65vh + var(--site-header-height));
+  margin-top: calc(-1 * var(--site-header-height));
+  padding: calc(60px + var(--site-header-height)) 0 40px;
   background: var(--friend-bg);
   color: var(--friend-ink);
 }
@@ -436,7 +437,7 @@
 .friend-dialog-note { color: var(--friend-muted); font-size: 13px; }
 
 @media (max-width: 680px) {
-  .friend-page { padding-top: 72px; }
+  .friend-page { padding-top: calc(72px + var(--site-header-height)); }
   .friend-hero h1 { font-size: 40px; }
   .friend-lane { --friend-bleed: 0px; }
   .friend-scroll { display: none; }

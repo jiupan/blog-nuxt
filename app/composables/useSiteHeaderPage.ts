@@ -3,7 +3,7 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router'
 type SiteHeaderPage = {
   path: string
   isArticle: boolean
-  articleTitle: string
+  title: string | null
   isScrolled: boolean
 }
 
@@ -15,15 +15,16 @@ export function useSiteHeaderPage() {
   const page = useState<SiteHeaderPage>('site-header-page', () => ({
     path: route.path,
     isArticle: route.name === 'slug',
-    articleTitle: '',
+    title: null,
     isScrolled: false
   }))
 
   function showPage(to: RouteLocationNormalizedLoaded, element: HTMLElement) {
+    const heading = to.path === '/' ? '' : element.dataset.articleTitle || element.querySelector('h1')?.textContent
     page.value = {
       path: to.path,
       isArticle: to.name === 'slug',
-      articleTitle: element.dataset.articleTitle ?? '',
+      title: (element.dataset.scrollTitle?.trim() || heading || '').replace(/\s+/g, ' ').trim(),
       isScrolled: window.scrollY > scrollThreshold
     }
   }

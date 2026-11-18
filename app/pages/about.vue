@@ -188,10 +188,12 @@ useSeoMeta({
 
 <style scoped>
 .about-stage {
+  --about-padding-top: clamp(20px, 3.5vw, 34px);
   position: relative;
   display: grid;
   width: 100%;
   min-height: 100%;
+  margin-top: calc(-1 * var(--site-header-height));
   place-items: center;
   overflow-x: clip;
   overflow-y: visible;
@@ -199,7 +201,7 @@ useSeoMeta({
     radial-gradient(circle at 18% 18%, rgb(96 165 250 / 13%), transparent 30%),
     radial-gradient(circle at 83% 78%, rgb(129 140 248 / 13%), transparent 32%),
     linear-gradient(145deg, #f8fafc, #f2f5fb 48%, #f8fafc);
-  padding-block: clamp(20px, 3.5vw, 34px);
+  padding-block: calc(var(--about-padding-top) + var(--site-header-height)) var(--about-padding-top);
   padding-inline: 12px;
   isolation: isolate;
 }
@@ -553,7 +555,8 @@ useSeoMeta({
 
 @media (max-width: 640px) {
   .about-stage {
-    padding-block: 20px 24px;
+    --about-padding-top: 20px;
+    padding-bottom: 24px;
     padding-inline: 20px;
   }
 

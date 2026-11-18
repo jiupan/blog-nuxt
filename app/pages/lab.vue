@@ -1,5 +1,5 @@
 <template>
-  <div class="lab-page" :class="{ 'has-modal-open': selectedFeature }">
+  <div class="lab-page" :class="{ 'has-modal-open': selectedFeature }" data-scroll-title="AI 实验室">
     <div class="lab-grid-bg" aria-hidden="true"></div>
 
     <main class="lab-shell">

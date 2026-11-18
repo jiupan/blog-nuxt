@@ -11,7 +11,6 @@
       :scroll-title="navigation.scrollTitle.value"
       :primary-menu-items="navigation.primaryMenuItems.value"
       :mobile-panel-open="navigation.mobilePanelOpen.value"
-      :page-gradient="useHeaderGradient"
       @brand-click="navigation.handleBrandClick"
       @scroll-top="navigation.scrollToTop"
       @open-mobile-panel="navigation.openMobilePanel"
@@ -60,17 +59,15 @@ import SiteHeader from '~/components/site/SiteHeader.vue'
 const navigation = await useSiteNavigation()
 const route = useRoute()
 const aboutLayoutActive = useState<boolean>('about-layout-active', () => route.path === '/about')
-const { forceStandardHeader = false, compactFooter = false, viewportFit = false, headerGradient = false } = defineProps<{
+const { forceStandardHeader = false, compactFooter = false, viewportFit = false } = defineProps<{
   forceStandardHeader?: boolean
   compactFooter?: boolean
   viewportFit?: boolean
-  headerGradient?: boolean
 }>()
 const isAboutHeader = computed(() => /^\/about\/?$/.test(navigation.headerPath.value))
 const useStandardHeader = computed(() => forceStandardHeader || isAboutHeader.value)
 const useCompactFooter = computed(() => compactFooter || aboutLayoutActive.value)
 const useViewportFit = computed(() => viewportFit || aboutLayoutActive.value)
-const useHeaderGradient = computed(() => headerGradient || isAboutHeader.value)
 
 onMounted(() => {
   navigation.syncHeaderState()

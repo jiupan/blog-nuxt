@@ -1,7 +1,9 @@
 .lab-page {
   position: relative;
   isolation: isolate;
-  min-height: 100vh;
+  min-height: calc(100vh + var(--site-header-height));
+  margin-top: calc(-1 * var(--site-header-height));
+  padding-top: var(--site-header-height);
   overflow: hidden;
   background:
     linear-gradient(135deg, rgb(239 246 255 / 62%) 0%, transparent 36%),
