@@ -1,7 +1,7 @@
 <template>
   <div class="post-page" :data-article-title="post.title">
-    <section class="post-hero" :style="{ background: `radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%), ${heroGradient}` }" data-page-enter="0">
-      <div class="post-hero-inner">
+    <section class="post-hero" :style="{ background: `radial-gradient(circle at 79% 22%, rgb(255 255 255 / 18%), transparent 25%), ${heroGradient}` }">
+      <div class="post-hero-inner" data-page-enter="0">
         <div class="post-hero-grid">
           <div class="post-hero-copy">
             <div v-if="post.category || post.tags.length" class="post-kicker">

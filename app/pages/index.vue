@@ -2,7 +2,7 @@
   <div class="home-page" :class="{ 'has-single-hero': singleHero }" :style="heroThemeStyle">
     <div v-if="currentHeroPost" class="hero-backdrop" aria-hidden="true">
       <Transition name="hero-backdrop">
-        <img v-if="backdropImage" :key="backdropImage" :src="backdropImage" alt="" decoding="async" fetchpriority="low">
+        <img v-if="heroBackdrop.image" :key="heroBackdrop.image" :src="heroBackdrop.image" alt="" decoding="async" fetchpriority="low">
       </Transition>
     </div>
     <section class="home-shell content-layout pt-2">
@@ -375,8 +375,9 @@ const heroPosts = computed(() => {
     }
   })
 })
-const backdropImage = ref(heroImage.value)
-const heroTheme = computed(() => currentHeroPost.value?.color)
+const slideColor = computed(() => currentHeroPost.value?.color)
+const heroBackdrop = shallowRef({ image: heroImage.value, color: slideColor.value })
+const heroTheme = computed(() => heroBackdrop.value.color)
 const heroThemeStyle = computed(() => {
   const color = heroTheme.value
   if (!color) return undefined
@@ -391,7 +392,11 @@ const heroThemeStyle = computed(() => {
 })
 
 onMounted(() => {
-  watch(heroImage, async (src, _, onCleanup) => {
+  watch([heroImage, slideColor], async ([src, color], _, onCleanup) => {
+    if (src === heroBackdrop.value.image) {
+      heroBackdrop.value = { image: src, color }
+      return
+    }
     let cancelled = false
     onCleanup(() => { cancelled = true })
     const image = new Image()
@@ -399,10 +404,13 @@ onMounted(() => {
     try {
       await image.decode()
     } catch {
-      if (!cancelled) backdropImage.value = ''
+      if (!cancelled) {
+        if (src === homeHeroFallbackCover) heroBackdrop.value = { image: '', color }
+        else failedHeroCovers.add(src)
+      }
       return
     }
-    if (!cancelled) backdropImage.value = src
+    if (!cancelled) heroBackdrop.value = { image: src, color }
   })
 })
 
@@ -569,6 +577,7 @@ function formatDate(value?: string | Date | null) {
   height: 320px;
   overflow: hidden;
   mask-image: linear-gradient(to bottom, #000 28%, transparent 92%);
+  opacity: .2;
   pointer-events: none;
 }
 
@@ -581,7 +590,6 @@ function formatDate(value?: string | Date | null) {
   object-position: center 30%;
   filter: blur(28px) saturate(1.25) brightness(1.05);
   transform: scale(1.1);
-  opacity: .2;
 }
 
 .hero-backdrop-leave-active { z-index: 1; transition: opacity 450ms ease; }
