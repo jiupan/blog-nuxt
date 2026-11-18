@@ -2,9 +2,8 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  border-top: 1px solid #f3d8d3;
-  background: color-mix(in srgb, var(--theme-page-soft) 86%, transparent);
-  backdrop-filter: blur(18px);
+  border-top: 1px solid transparent;
+  background: transparent;
   transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 

@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/prisma'
 import { validationError } from '../../utils/api-error'
 import { buildPublishedPostWhere } from '../posts/post-visibility'
+import { parseHomeHeroSelection } from '~~/shared/home-hero'
 import { aiRuntimeSettingKeys, aiSecretKeys, type AiRuntimeValues, type AiSecretKey, type AiSecretStatuses } from '~~/types/dto/settings'
 import {
   publicSettingKeys,
@@ -141,6 +142,13 @@ export async function saveSettings(input: unknown) {
       select: { id: true }
     })
     if (!post) throw validationError('请重新选择一篇已公开的文章')
+  }
+
+  if (parsed.data.home_hero_posts !== undefined) {
+    const ids = parseHomeHeroSelection(parsed.data.home_hero_posts)?.map(item => item.postId) ?? []
+    if (ids.length && await prisma.post.count({ where: buildPublishedPostWhere({ id: { in: ids } }) }) !== ids.length) {
+      throw validationError('轮播只支持已公开的文章，请检查所选文章')
+    }
   }
 
   const current = await getSettingsMap()

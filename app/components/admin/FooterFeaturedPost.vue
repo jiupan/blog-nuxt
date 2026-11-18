@@ -6,7 +6,7 @@
       :items="options"
       value-key="value"
       placeholder="选择一篇文章"
-      aria-label="精选文章"
+      :aria-label="label || '精选文章'"
       :search-input="{ placeholder: '搜索文章标题或正文' }"
       :loading="status === 'pending'"
       :disabled="disabled"
@@ -15,7 +15,7 @@
     >
       <template #empty>{{ error ? '文章加载失败，请重试' : status === 'pending' ? '正在查找文章…' : '没有匹配的公开文章' }}</template>
     </USelectMenu>
-    <UButton v-if="postId" type="button" color="neutral" variant="ghost" :disabled="disabled" @click="postId = ''">清除选择</UButton>
+    <UButton v-if="postId && !requiredSelection" type="button" color="neutral" variant="ghost" :disabled="disabled" @click="postId = ''">清除选择</UButton>
     <UButton v-if="error" type="button" color="neutral" variant="ghost" @click="refresh()">重试</UButton>
   </div>
 </template>
@@ -25,7 +25,7 @@ import type { ApiResult } from '~~/types/api'
 import type { AdminPostListItem, PublicPostListPayload } from '~~/types/dto/post'
 
 type PostOption = { value: string, label: string }
-defineProps<{ disabled?: boolean }>()
+const props = defineProps<{ disabled?: boolean, pickerKey?: string, label?: string, requiredSelection?: boolean }>()
 const postId = defineModel<string>({ required: true })
 const search = ref('')
 const keyword = ref('')
@@ -35,7 +35,7 @@ watch(search, (value, _, onCleanup) => {
 })
 
 const { data: results, status, error, refresh } = useLazyFetch('/api/posts', {
-  key: 'footer-featured-post-options',
+  key: props.pickerKey || 'footer-featured-post-options',
   query: { keyword, page: 1, pageSize: 12 },
   transform: (result: ApiResult<PublicPostListPayload>) => result.data.items.map(post => ({ value: String(post.id), label: post.title }))
 })

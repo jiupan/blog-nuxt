@@ -1,5 +1,5 @@
 <template>
-  <article class="archive-item">
+  <article class="archive-item" :class="{ 'has-stable-cover': stableCover }">
     <span
       class="archive-thumb"
       :class="{ 'is-loading': post.cover && !coverLoaded && !coverFailed }"
@@ -8,6 +8,7 @@
         v-if="post.cover && !coverFailed"
         :src="post.cover"
         :alt="post.title"
+        :stable="stableCover"
         @load="coverLoaded = true"
         @error="coverFailed = true"
       />
@@ -62,6 +63,7 @@ import {
 
 const props = defineProps<{
   post: PostSummary
+  stableCover?: boolean
 }>()
 
 const coverLoaded = ref(false)
@@ -116,6 +118,8 @@ watch(() => props.post.cover, () => {
   box-shadow: 0 10px 26px rgb(var(--theme-shadow) / 10%);
   transform: translateY(-2px);
 }
+
+.archive-item.has-stable-cover { content-visibility: visible; }
 
 .archive-thumb {
   position: relative;

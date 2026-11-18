@@ -180,6 +180,14 @@
 
         <div v-else-if="activeTab === 'home'" class="settings-form">
           <div class="settings-row">
+            <label class="settings-label" for="home-hero-layout">首页轮播布局</label>
+            <USelect id="home-hero-layout" v-model="form.home_hero_layout" :items="homeHeroLayoutOptions" :disabled="saving" class="settings-control" />
+          </div>
+          <div class="settings-row">
+            <p class="settings-label">轮播文章</p>
+            <AdminHomeHeroPosts v-model="form.home_hero_posts" :disabled="saving" class="settings-control" />
+          </div>
+          <div class="settings-row">
             <label class="settings-label">首页轮播表情包分组</label>
             <UDropdownMenu
               :items="heroMemeGroupMenuItems"
@@ -536,6 +544,7 @@ import { getApiErrorMessage } from '~/utils/api-error'
 import { parseFooterBottomLinks } from '~/utils/footer-links'
 import type { AdminSettingsPayload } from '~~/types/dto/settings'
 import { defaultHeaderShortcuts, readHeaderShortcuts, validateHeaderShortcuts } from '~~/shared/header-shortcuts'
+import { parseHomeHeroSelection } from '~~/shared/home-hero'
 
 definePageMeta({
   layout: 'admin',
@@ -554,6 +563,8 @@ type SettingsForm = {
   site_logo: string
   site_favicon: string
   hero_meme_group: string
+  home_hero_layout: string
+  home_hero_posts: string
   home_post_card_style: string
   header_shortcuts: string
   seo_noindex: string
@@ -576,9 +587,14 @@ type FooterActionItem = {
   targetBlank: boolean
 }
 
+const homeHeroLayoutOptions = [
+  { label: '全宽', value: 'full' },
+  { label: '单边（右侧显示侧栏）', value: 'single' }
+]
+
 const settingTabs = [
   { label: '站点信息', value: 'basic', area: 'site', keys: ['site_title', 'site_subtitle', 'site_brand', 'site_logo', 'site_favicon'] },
-  { label: '首页展示', value: 'home', area: 'site', keys: ['hero_meme_group', 'home_post_card_style'] },
+  { label: '首页展示', value: 'home', area: 'site', keys: ['home_hero_layout', 'home_hero_posts', 'hero_meme_group', 'home_post_card_style'] },
   { label: '顶部快捷入口', value: 'headerShortcuts', area: 'site', keys: ['header_shortcuts'] },
   { label: '搜索与收录', value: 'seo', area: 'site', keys: ['seo_noindex', 'seo_keywords', 'seo_description'] },
   { label: '版权与备案', value: 'footer', area: 'footer', keys: ['footer_copyright', 'footer_icp', 'footer_bottom_links'] },
@@ -713,6 +729,8 @@ watch(
         site_logo: val.data.site_logo,
         site_favicon: val.data.site_favicon,
         hero_meme_group: val.data.hero_meme_group,
+        home_hero_layout: val.data.home_hero_layout,
+        home_hero_posts: val.data.home_hero_posts,
         home_post_card_style: val.data.home_post_card_style,
         header_shortcuts: val.data.header_shortcuts ?? defaultHeaderShortcuts,
         seo_noindex: val.data.seo_noindex,
@@ -797,6 +815,11 @@ async function save() {
   const changed = siteSettingKeys.filter(key => current[key] !== previous[key])
   if (!changed.length) return
   saveError.value = ''
+  if (changed.includes('home_hero_posts') && !parseHomeHeroSelection(current.home_hero_posts)) {
+    void selectTab('home')
+    saveError.value = '请选择每个轮播位置的文章，确保文章不重复，主题色留空或填写 #RRGGBB。'
+    return
+  }
   if (changed.includes('header_shortcuts') && !validateHeaderShortcuts(current.header_shortcuts)) {
     void selectTab('headerShortcuts')
     saveError.value = '请为每个入口填写提示文字，主题切换需要填写日间和夜间两种提示。'
@@ -825,6 +848,8 @@ async function save() {
     const siteSettings = Object.fromEntries(changed.map(key => [key, current[key]]))
     await $fetch('/api/admin/settings', { method: 'PUT', body: siteSettings })
     if (changed.includes('header_shortcuts')) void refreshNuxtData('public-site-settings')
+    if (changed.includes('home_hero_layout')) void refreshNuxtData('public-site-settings')
+    if (changed.includes('home_hero_posts')) void refreshNuxtData('home-hero-selection')
     if (changed.includes('footer_reading_enabled') || changed.includes('footer_featured_post_id')) void refreshNuxtData('footer-reading')
     savedFields.value = current
     markSaved(submittedSnapshot)

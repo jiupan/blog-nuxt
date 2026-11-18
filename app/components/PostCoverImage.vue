@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-const props = defineProps<{ src: string, alt: string }>()
+const props = defineProps<{ src: string, alt: string, stable?: boolean }>()
 const emit = defineEmits<{ load: [], error: [] }>()
 const image = ref<HTMLImageElement | null>(null)
 // SSR 保留图片，挂载后让屏幕外的封面等到进入视口再显现。
@@ -38,8 +38,10 @@ function reveal() {
 }
 
 function loaded() {
+  if (ready) return
   ready = true
-  reveal()
+  if (props.stable) emit('load')
+  else reveal()
 }
 
 function failed() {
@@ -52,10 +54,10 @@ function syncImage() {
   const element = image.value
   if (!element) return
   stopObserving()
-  pending.value = true
+  pending.value = !props.stable
   ready = false
   inView = typeof IntersectionObserver !== 'function'
-  if (!inView) {
+  if (pending.value && !inView) {
     observer = new IntersectionObserver((entries, currentObserver) => {
       if (observer !== currentObserver) return
       inView = entries.at(-1)?.isIntersecting ?? false

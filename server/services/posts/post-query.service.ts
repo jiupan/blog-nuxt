@@ -25,7 +25,8 @@ export const publicPostListQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
   keyword: z.string().optional().default(''),
   category: z.string().optional().default(''),
-  tag: z.string().optional().default('')
+  tag: z.string().optional().default(''),
+  sort: z.enum(['popular']).optional()
 })
 
 export const publicArchiveQuerySchema = z.object({
@@ -50,6 +51,13 @@ export type PublicPostListQuery = z.infer<typeof publicPostListQuerySchema>
 export type PublicArchiveQuery = z.infer<typeof publicArchiveQuerySchema>
 export type AdminPostListQuery = z.infer<typeof adminPostListQuerySchema>
 
+export const publicPostDefaultOrder: Prisma.PostOrderByWithRelationInput[] = [
+  { isPinned: 'desc' },
+  { pinnedAt: { sort: 'desc', nulls: 'last' } },
+  { createdAt: 'desc' },
+  { id: 'desc' }
+]
+
 export async function listPublicPosts(query: PublicPostListQuery) {
   const page = query.page
   const pageSize = query.pageSize
@@ -65,12 +73,9 @@ export async function listPublicPosts(query: PublicPostListQuery) {
     prisma.post.findMany({
       where,
       include: postInclude,
-      orderBy: [
-        { isPinned: 'desc' },
-        { pinnedAt: { sort: 'desc', nulls: 'last' } },
-        { createdAt: 'desc' },
-        { id: 'desc' }
-      ],
+      orderBy: query.sort === 'popular'
+        ? [{ viewCount: 'desc' }, { publishedAt: 'desc' }, { id: 'desc' }]
+        : publicPostDefaultOrder,
       skip: (page - 1) * pageSize,
       take: pageSize
     }),

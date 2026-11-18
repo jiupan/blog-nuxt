@@ -1,98 +1,101 @@
 <template>
   <aside class="public-sidebar" aria-label="侧边栏">
-    <section v-if="moduleVisible('author')" class="sidebar-author" :style="moduleStyle('author')">
-      <span class="author-glow" aria-hidden="true" />
-      <div class="author-content">
-        <div class="author-avatar">
-          <div class="author-avatar-frame" :class="{ 'has-avatar': authorAvatar && !avatarFailed }">
-            <span v-if="!authorAvatar || avatarFailed" class="author-avatar-fallback" :aria-label="`${authorName} 的头像占位`">{{ initial }}</span>
-            <span v-else-if="!avatarReady" class="author-avatar-placeholder" aria-hidden="true" />
-            <video v-if="authorAvatarIsVideo && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :class="{ 'is-ready': avatarReady }" autoplay muted loop playsinline preload="auto" :aria-label="`${authorName} 的头像视频`" @loadeddata="avatarReady = true" @error="onAvatarError" />
-            <img v-else-if="authorAvatar && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :alt="authorName" :class="{ 'is-ready': avatarReady }" @load="avatarReady = true" @error="onAvatarError">
+    <div v-for="group in sidebarGroups" :key="group.key" class="sidebar-card-group" :class="{ 'is-sticky': group.key === 'sticky' }">
+      <section v-if="group.cards.includes('author')" class="sidebar-author" :class="{ 'has-pointer-glow': pointerGlow }" :style="moduleStyle('author')">
+        <span class="author-glow" aria-hidden="true" />
+        <PointerGlow v-if="pointerGlow" />
+        <div class="author-content">
+          <div class="author-avatar">
+            <div class="author-avatar-frame" :class="{ 'has-avatar': authorAvatar && !avatarFailed }">
+              <span v-if="!authorAvatar || avatarFailed" class="author-avatar-fallback" :aria-label="`${authorName} 的头像占位`">{{ initial }}</span>
+              <span v-else-if="!avatarReady" class="author-avatar-placeholder" aria-hidden="true" />
+              <video v-if="authorAvatarIsVideo && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :class="{ 'is-ready': avatarReady }" autoplay muted loop playsinline preload="auto" :aria-label="`${authorName} 的头像视频`" @loadeddata="avatarReady = true" @error="onAvatarError" />
+              <img v-else-if="authorAvatar && !avatarFailed" :key="authorAvatar" ref="avatarMedia" :src="authorAvatar" :alt="authorName" :class="{ 'is-ready': avatarReady }" @load="avatarReady = true" @error="onAvatarError">
+            </div>
+            <i aria-hidden="true" />
           </div>
-          <i aria-hidden="true" />
+          <h2>{{ authorName }}</h2>
+          <strong>{{ subtitle }}</strong>
+          <p>{{ authorDescription }}</p>
+          <div class="author-signature" aria-hidden="true">{{ authorSignature }}</div>
+          <div class="author-links" aria-label="快捷链接">
+            <NuxtLink to="/about" title="关于">
+              <SparklesIcon aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink to="/archive" title="归档">
+              <BookOpenIcon aria-hidden="true" />
+            </NuxtLink>
+            <NuxtLink to="/link" title="网站导航" aria-label="网站导航">
+              <CompassIcon aria-hidden="true" />
+            </NuxtLink>
+          </div>
         </div>
-        <h2>{{ authorName }}</h2>
-        <strong>{{ subtitle }}</strong>
-        <p>{{ authorDescription }}</p>
-        <div class="author-signature" aria-hidden="true">{{ authorSignature }}</div>
-        <div class="author-links" aria-label="快捷链接">
-          <NuxtLink to="/about" title="关于">
-            <SparklesIcon aria-hidden="true" />
-          </NuxtLink>
-          <NuxtLink to="/archive" title="归档">
-            <BookOpenIcon aria-hidden="true" />
-          </NuxtLink>
-          <NuxtLink to="/link" title="网站导航" aria-label="网站导航">
-            <CompassIcon aria-hidden="true" />
-          </NuxtLink>
+      </section>
+
+      <div v-if="group.cards.includes('after-author')" class="sidebar-extension" :style="extensionStyle('author')">
+        <slot name="after-author" />
+      </div>
+
+      <section v-if="group.cards.includes('featured')" class="sidebar-section featured-section" :style="moduleStyle('featured')">
+        <div class="section-title">
+          <h3>精选阅读</h3>
+          <TrendingUpIcon aria-hidden="true" />
         </div>
-      </div>
-    </section>
-
-    <div v-if="slots['after-author']" class="sidebar-extension" :style="extensionStyle('author')">
-      <slot name="after-author" />
-    </div>
-
-    <section v-if="visiblePosts.length && moduleVisible('featured')" class="sidebar-section featured-section" :style="moduleStyle('featured')">
-      <div class="section-title">
-        <h3>精选阅读</h3>
-        <TrendingUpIcon aria-hidden="true" />
-      </div>
-      <NuxtLink v-for="post in visiblePosts" :key="post.slug" :to="postPath(post.slug)" class="featured-link">
-        <span class="featured-thumb">
-          <img
-            v-if="post.cover"
-            :src="post.cover"
-            :alt="post.title"
-            loading="lazy"
-            decoding="async"
-            fetchpriority="low"
-            @error="hideBrokenImage"
-          >
-        </span>
-        <span class="featured-copy">
-          <em>{{ post.category?.name || '文章' }}</em>
-          <strong>{{ post.title }}</strong>
-          <time v-if="post.publishedAt">
-            <ClockIcon aria-hidden="true" />
-            {{ formatPostDate(post.publishedAt) }}
-          </time>
-        </span>
-      </NuxtLink>
-    </section>
-
-    <section v-if="visibleCategories.length && moduleVisible('categories')" class="sidebar-section topics-section" :style="moduleStyle('categories')">
-      <div class="section-title">
-        <h3><NuxtLink to="/categories">探索话题</NuxtLink></h3>
-        <CompassIcon aria-hidden="true" />
-      </div>
-      <div class="topic-list">
-        <NuxtLink v-for="(category, index) in visibleCategories" :key="category.slug" :to="`/categories/${category.slug}`" class="topic-row">
-          <span class="topic-icon" :class="topicTone(index)">
-            <component :is="topicIcon(index)" aria-hidden="true" />
+        <NuxtLink v-for="post in visiblePosts" :key="post.slug" :to="postPath(post.slug)" class="featured-link">
+          <span class="featured-thumb">
+            <img
+              v-if="post.cover"
+              :src="post.cover"
+              :alt="post.title"
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
+              @error="hideBrokenImage"
+            >
           </span>
-          <span class="topic-name">{{ category.name }}</span>
-          <span v-if="itemCount(category)" class="topic-count">{{ itemCount(category) }}</span>
+          <span class="featured-copy">
+            <em>{{ post.category?.name || '文章' }}</em>
+            <strong>{{ post.title }}</strong>
+            <time v-if="post.publishedAt">
+              <ClockIcon aria-hidden="true" />
+              {{ formatPostDate(post.publishedAt) }}
+            </time>
+          </span>
         </NuxtLink>
-      </div>
-    </section>
+      </section>
 
-    <section v-if="visibleTags.length && moduleVisible('tags')" class="sidebar-section popular-tags-section" :style="moduleStyle('tags')">
-      <div class="section-title">
-        <h3><NuxtLink to="/tags">热门标签</NuxtLink></h3>
-        <TagIcon aria-hidden="true" />
-      </div>
-      <div class="popular-tags">
-        <NuxtLink v-for="tag in visibleTags" :key="tag.slug" :to="`/tags/${tag.slug}`">
-          {{ tag.name }}
-          <span>{{ itemCount(tag) }}</span>
-        </NuxtLink>
-      </div>
-    </section>
+      <section v-if="group.cards.includes('categories')" class="sidebar-section topics-section" :style="moduleStyle('categories')">
+        <div class="section-title">
+          <h3><NuxtLink to="/categories">探索话题</NuxtLink></h3>
+          <CompassIcon aria-hidden="true" />
+        </div>
+        <div class="topic-list">
+          <NuxtLink v-for="(category, index) in visibleCategories" :key="category.slug" :to="`/categories/${category.slug}`" class="topic-row">
+            <span class="topic-icon" :class="topicTone(index)">
+              <component :is="topicIcon(index)" aria-hidden="true" />
+            </span>
+            <span class="topic-name">{{ category.name }}</span>
+            <span v-if="itemCount(category)" class="topic-count">{{ itemCount(category) }}</span>
+          </NuxtLink>
+        </div>
+      </section>
 
-    <div v-if="slots['after-tags']" class="sidebar-extension" :style="extensionStyle('tags')">
-      <slot name="after-tags" />
+      <section v-if="group.cards.includes('tags')" class="sidebar-section popular-tags-section" :style="moduleStyle('tags')">
+        <div class="section-title">
+          <h3><NuxtLink to="/tags">热门标签</NuxtLink></h3>
+          <TagIcon aria-hidden="true" />
+        </div>
+        <div class="popular-tags">
+          <NuxtLink v-for="tag in visibleTags" :key="tag.slug" :to="`/tags/${tag.slug}`">
+            {{ tag.name }}
+            <span>{{ itemCount(tag) }}</span>
+          </NuxtLink>
+        </div>
+      </section>
+
+      <div v-if="group.cards.includes('after-tags')" class="sidebar-extension" :style="extensionStyle('tags')">
+        <slot name="after-tags" />
+      </div>
     </div>
   </aside>
 </template>
@@ -111,6 +114,7 @@ import {
   TrendingUp as TrendingUpIcon
 } from '@lucide/vue'
 import type { Component } from 'vue'
+import PointerGlow from '~/components/PointerGlow.vue'
 
 type SidebarTaxonomy = {
   name: string
@@ -133,6 +137,7 @@ type SidebarPost = {
 
 type SidebarModuleKey = 'author' | 'featured' | 'categories' | 'tags'
 type SidebarModuleSetting = { key: SidebarModuleKey, visible: boolean }
+type SidebarCard = SidebarModuleKey | 'after-author' | 'after-tags'
 
 const props = withDefaults(defineProps<{
   siteName: string
@@ -141,6 +146,8 @@ const props = withDefaults(defineProps<{
   categories?: SidebarTaxonomy[]
   tags?: SidebarTaxonomy[]
   posts?: SidebarPost[]
+  pointerGlow?: boolean
+  stickyAfterAuthor?: boolean
 }>(), {
   description: '个人博客',
   avatar: '',
@@ -185,6 +192,27 @@ const sidebarModules = computed<SidebarModuleSetting[]>(() => parseSidebarModule
 const visibleCategories = computed(() => props.categories.slice(0, 5))
 const visibleTags = computed(() => props.tags.slice(0, 8))
 const visiblePosts = computed(() => props.posts.slice(0, 4))
+const sidebarGroups = computed(() => {
+  const hasContent = {
+    author: true,
+    featured: visiblePosts.value.length > 0,
+    categories: visibleCategories.value.length > 0,
+    tags: visibleTags.value.length > 0
+  }
+  const cards: SidebarCard[] = []
+  for (const { key, visible } of sidebarModules.value) {
+    if (visible !== false && hasContent[key]) cards.push(key)
+    if (key === 'author' && slots['after-author']) cards.push('after-author')
+    if (key === 'tags' && slots['after-tags']) cards.push('after-tags')
+  }
+
+  const flowCount = Math.max(1, cards.indexOf('author') + 1)
+  if (!props.stickyAfterAuthor || cards.length <= flowCount) return [{ key: 'flow', cards }]
+  return [
+    { key: 'flow', cards: cards.slice(0, flowCount) },
+    { key: 'sticky', cards: cards.slice(flowCount) }
+  ]
+})
 const topicIcons: Component[] = [PenLineIcon, LeafIcon, Code2Icon, CameraIcon, SparklesIcon]
 const topicTones = ['tone-blue', 'tone-green', 'tone-purple', 'tone-orange', 'tone-slate']
 
@@ -199,10 +227,6 @@ function parseSidebarModules(raw: string): SidebarModuleSetting[] {
     for (const item of defaults) if (!valid.some(candidate => candidate.key === item.key)) valid.push(item)
     return valid
   } catch { return defaults }
-}
-
-function moduleVisible(key: SidebarModuleKey) {
-  return sidebarModules.value.find(item => item.key === key)?.visible !== false
 }
 
 function moduleStyle(key: SidebarModuleKey) {
@@ -244,6 +268,7 @@ function hideBrokenImage(event: Event) {
 }
 
 .sidebar-extension { display: grid; gap: 28px; }
+.sidebar-card-group { display: contents; }
 
 .sidebar-author {
   --author-accent: #d4a373;
@@ -280,6 +305,26 @@ function hideBrokenImage(event: Event) {
 .sidebar-author:hover .author-glow {
   opacity: 1;
   transform: scale(1.1);
+}
+
+.sidebar-author.has-pointer-glow:hover,
+.sidebar-author.has-pointer-glow:hover .author-glow {
+  transform: none;
+}
+
+.sidebar-author.has-pointer-glow:hover { box-shadow: none; }
+.sidebar-author.has-pointer-glow:hover .author-glow { opacity: .72; }
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .has-pointer-glow .author-avatar i,
+  .has-pointer-glow .author-avatar-frame {
+    transition: opacity 300ms ease, transform 300ms ease;
+  }
+  .has-pointer-glow:hover .author-avatar i {
+    opacity: 0;
+    transform: scale(0);
+  }
+  .has-pointer-glow .author-avatar:hover .author-avatar-frame { transform: scale(1.03); }
 }
 
 .author-content {
@@ -418,6 +463,17 @@ function hideBrokenImage(event: Event) {
   color: #fff;
   box-shadow: 0 8px 18px color-mix(in srgb, var(--author-accent) 28%, transparent);
   transform: translateY(-3px);
+}
+
+.has-pointer-glow .author-links a:is(:hover, :focus-visible) {
+  background: #fff;
+  color: var(--hero-control-ink, var(--theme-accent));
+  box-shadow: none;
+  transform: scale(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .has-pointer-glow .author-links a:is(:hover, :focus-visible) { transform: none; }
 }
 
 .author-links svg {

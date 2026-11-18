@@ -16,6 +16,7 @@ export type SiteSettings = {
   site_logo: string
   site_favicon: string
   hero_meme_group: string
+  home_hero_layout: string
   home_post_card_style: string
   header_shortcuts: string
   seo_noindex: string
@@ -41,6 +42,7 @@ const defaults: SiteSettings = {
   site_logo: '',
   site_favicon: '',
   hero_meme_group: '',
+  home_hero_layout: 'full',
   home_post_card_style: 'grid',
   header_shortcuts: defaultHeaderShortcuts,
   seo_noindex: 'false',
@@ -74,6 +76,7 @@ export function useSiteSettings() {
         site_logo: val.data.site_logo || defaults.site_logo,
         site_favicon: val.data.site_favicon || defaults.site_favicon,
         hero_meme_group: val.data.hero_meme_group || defaults.hero_meme_group,
+        home_hero_layout: val.data.home_hero_layout || defaults.home_hero_layout,
         home_post_card_style: val.data.home_post_card_style || defaults.home_post_card_style,
         header_shortcuts: val.data.header_shortcuts ?? defaults.header_shortcuts,
         seo_noindex: val.data.seo_noindex || defaults.seo_noindex,

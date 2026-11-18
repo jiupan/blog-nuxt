@@ -44,7 +44,7 @@ export function useSiteSeo() {
     robots: () =>
       privatePage.value ||
       settings.value.seo_noindex === 'true' ||
-      Boolean(route.query.keyword || route.query.category || route.query.year)
+      Boolean(route.query.keyword || route.query.category || route.query.year || (route.path === '/' && route.query.sort === 'popular'))
         ? 'noindex, follow'
         : 'index, follow, max-image-preview:large',
     ogSiteName: name,

@@ -1,24 +1,43 @@
 <template>
-  <div class="home-page">
-    <section class="home-shell pt-2">
-      <div v-if="mobileHeroPosts.length" class="mobile-hero-carousel" aria-label="精选文章" data-page-enter="0">
-        <NuxtLink
-          v-for="(item, index) in mobileHeroPosts"
-          :key="`mobile-hero-${item.id}`"
-          :to="item.to"
-          class="mobile-hero-slide"
-        >
-          <img
-            :src="item.cover || '/images/home-hero-ai.png'"
-            :alt="item.title"
-            class="mobile-hero-image"
-            :loading="index === 0 ? 'eager' : 'lazy'"
-            decoding="async"
-            :fetchpriority="index === 0 ? 'high' : 'low'"
+  <div class="home-page" :class="{ 'has-single-hero': singleHero }" :style="heroThemeStyle">
+    <div v-if="currentHeroPost" class="hero-backdrop" aria-hidden="true">
+      <Transition name="hero-backdrop">
+        <img v-if="backdropImage" :key="backdropImage" :src="backdropImage" alt="" decoding="async" fetchpriority="low">
+      </Transition>
+    </div>
+    <section class="home-shell content-layout pt-2">
+      <div v-if="heroPosts.length" class="mobile-hero" data-page-enter="0">
+        <div ref="mobileCarousel" class="mobile-hero-carousel" aria-label="精选文章" @scroll.passive="syncMobileHero">
+          <NuxtLink
+            v-for="(item, index) in heroPosts"
+            :key="`mobile-hero-${item.id}`"
+            :to="item.to"
+            class="mobile-hero-slide"
           >
-          <span class="mobile-hero-shade" aria-hidden="true"></span>
-          <span class="mobile-hero-title">{{ item.title }}</span>
-        </NuxtLink>
+            <img
+              :src="heroCover(item.cover)"
+              alt=""
+              class="mobile-hero-image"
+              :loading="index === 0 ? 'eager' : 'lazy'"
+              decoding="async"
+              :fetchpriority="index === 0 ? 'high' : 'low'"
+              @error="markHeroCoverFailed($event)"
+            >
+            <span class="mobile-hero-shade" aria-hidden="true" />
+            <span class="mobile-hero-title">{{ item.title }}</span>
+          </NuxtLink>
+        </div>
+        <div v-if="singleHero && heroPosts.length > 1" class="hero-indicators mobile-hero-indicators">
+          <button
+            v-for="(item, index) in heroPosts"
+            :key="item.id"
+            type="button"
+            :class="{ 'is-active': item.id === currentHeroPost?.id }"
+            :aria-current="item.id === currentHeroPost?.id ? 'true' : undefined"
+            :aria-label="`切换到第 ${index + 1} 张`"
+            @click="goToMobileHero(index)"
+          />
+        </div>
       </div>
 
       <div class="hero-board" :class="{ 'has-no-posts': !latest }" data-page-enter="0">
@@ -27,29 +46,31 @@
             <img
               :key="heroTransitionKey"
               :src="heroImage"
-              :alt="heroImageAlt"
+              alt=""
               class="hero-image"
               decoding="async"
               fetchpriority="high"
+              @error="markHeroCoverFailed($event)"
             >
           </Transition>
           <div class="hero-copy">
             <Transition name="hero-copy" mode="out-in">
               <div :key="heroTransitionKey" class="hero-copy-content">
                 <h1>{{ currentHeroPost?.title || siteName }}</h1>
-                <p>{{ currentHeroPost?.isPinned ? '⭐ 置顶推荐' : (latest ? '⭐ 最新发布' : '暂无已发布文章') }}</p>
+                <p v-if="!singleHero">{{ heroSelection?.data.configured ? '⭐ 精选推荐' : currentHeroPost?.isPinned ? '⭐ 置顶推荐' : (latest ? '⭐ 最新发布' : '暂无已发布文章') }}</p>
               </div>
             </Transition>
           </div>
         </NuxtLink>
+        <PointerGlow />
 
-        <div v-if="heroPosts.length" class="hero-list">
+        <div v-if="heroPosts.length && !singleHero" class="hero-list">
           <NuxtLink
             v-for="item in heroPosts"
             :key="item.id"
             :to="item.to"
             class="hero-link"
-            :class="{ 'is-active': item.id === (activeHeroPost?.id || heroPosts[0]?.id) }"
+            :class="{ 'is-active': item.id === currentHeroPost?.id }"
             @mouseenter="scheduleHeroChange(item)"
             @mouseleave="cancelHeroChange"
             @focus="setActiveHeroPost(item)"
@@ -60,6 +81,28 @@
             </span>
             <span>{{ item.title }}</span>
           </NuxtLink>
+        </div>
+
+        <div v-if="heroPosts.length" class="hero-controls">
+          <div class="hero-indicators">
+            <span v-if="singleHero && heroPosts.length > 1" class="hero-recommendation">
+              <Icon name="i-lucide-star" mode="svg" aria-hidden="true" />
+              精选推荐
+            </span>
+            <button
+              v-for="(item, index) in heroPosts.length > 1 ? heroPosts : []"
+              :key="item.id"
+              type="button"
+              :class="{ 'is-active': item.id === currentHeroPost?.id }"
+              :aria-current="item.id === currentHeroPost?.id ? 'true' : undefined"
+              :aria-label="`切换到第 ${index + 1} 张`"
+              @click="setActiveHeroPost(item)"
+            />
+          </div>
+          <div v-if="heroPosts.length > 1" class="hero-arrows">
+            <button type="button" aria-label="上一条" @click="stepHero(-1)"><Icon name="i-lucide-chevron-left" aria-hidden="true" /></button>
+            <button type="button" aria-label="下一条" @click="stepHero(1)"><Icon name="i-lucide-chevron-right" aria-hidden="true" /></button>
+          </div>
         </div>
       </div>
 
@@ -76,7 +119,7 @@
           @mouseleave="hideTopicTooltip"
           @focus="showTopicTooltip($event, tab.tooltip)"
           @blur="hideTopicTooltip"
-          @click="selectCategory(tab.slug)"
+          @click="selectTopic(tab.slug, tab.sort)"
         >
           <Icon :name="tab.icon" mode="svg" aria-hidden="true" />
           {{ tab.label }}
@@ -91,128 +134,124 @@
         {{ topicTooltip.label }}
       </div>
 
-      <div class="content-layout">
-        <main :aria-busy="listPending" data-page-enter="2">
-          <template v-if="showListSkeleton">
-            <div v-if="useArchiveCardStyle" class="home-archive-list home-archive-desktop" role="status" aria-label="正在加载文章">
-              <PostCardSkeleton variant="archive" :count="pageSize" />
-            </div>
-            <div class="post-grid" :class="{ 'home-grid-mobile': useArchiveCardStyle }" role="status" aria-label="正在加载文章">
-              <PostCardSkeleton variant="grid" :count="pageSize" />
-            </div>
-          </template>
+      <main :aria-busy="listPending" data-page-enter="2">
+        <template v-if="showListSkeleton">
+          <div v-if="useArchiveCardStyle" class="home-archive-list home-archive-desktop" role="status" aria-label="正在加载文章">
+            <PostCardSkeleton variant="archive" :count="pageSize" />
+          </div>
+          <div class="post-grid" :class="{ 'home-grid-mobile': useArchiveCardStyle }" role="status" aria-label="正在加载文章">
+            <PostCardSkeleton variant="grid" :count="pageSize" />
+          </div>
+        </template>
 
-          <div v-else-if="listError" class="empty-card list-error" role="alert">
-            <h2>文章加载失败</h2>
-            <p>网络似乎开了个小差，请稍后重试。</p>
-            <button type="button" @click="refreshPosts()">重新加载</button>
+        <div v-else-if="listError" class="empty-card list-error" role="alert">
+          <h2>文章加载失败</h2>
+          <p>网络似乎开了个小差，请稍后重试。</p>
+          <button type="button" @click="refreshPosts()">重新加载</button>
+        </div>
+
+        <template v-else-if="displayPosts.length">
+          <div
+            v-if="useArchiveCardStyle"
+            :key="`archive-${topicRevealVersion}`"
+            class="home-archive-list home-archive-desktop"
+            :class="{ 'is-topic-revealing': topicRevealVersion > 0 }"
+          >
+            <div
+              v-for="(post, index) in posts"
+              :key="post.id"
+              class="topic-card-reveal"
+              :style="{ '--topic-card-order': index }"
+            >
+              <ArchivePostCard :post="post" stable-cover />
+            </div>
           </div>
 
-          <template v-else-if="displayPosts.length">
+          <div
+            :key="`grid-${topicRevealVersion}`"
+            class="post-grid"
+            :class="{ 'home-grid-mobile': useArchiveCardStyle, 'is-topic-revealing': topicRevealVersion > 0 }"
+          >
             <div
-              v-if="useArchiveCardStyle"
-              :key="`archive-${topicRevealVersion}`"
-              class="home-archive-list home-archive-desktop"
-              :class="{ 'is-topic-revealing': topicRevealVersion > 0 }"
+              v-for="(post, index) in displayPosts"
+              :key="post.key"
+              class="topic-card-reveal"
+              :style="{ '--topic-card-order': index }"
             >
-              <div
-                v-for="(post, index) in posts"
-                :key="post.id"
-                class="topic-card-reveal"
-                :style="{ '--topic-card-order': index }"
-              >
-                <ArchivePostCard :post="post" />
-              </div>
-            </div>
-
-            <div
-              :key="`grid-${topicRevealVersion}`"
-              class="post-grid"
-              :class="{ 'home-grid-mobile': useArchiveCardStyle, 'is-topic-revealing': topicRevealVersion > 0 }"
-            >
-              <div
-                v-for="(post, index) in displayPosts"
-                :key="post.key"
-                class="topic-card-reveal"
-                :style="{ '--topic-card-order': index }"
-              >
-                <article class="post-card">
-                  <NuxtLink
-                    :to="post.to"
-                    class="post-cover"
-                    :class="{
-                      'has-loaded-image': post.cover && loadedCoverUrls.has(post.cover)
-                    }"
-                  >
-                    <PostCoverImage
-                      v-if="post.cover && !failedCoverUrls.has(post.cover)"
-                      :src="post.cover"
-                      :alt="post.title"
-                      class="cover-image"
-                      @load="loadedCoverUrls.add(post.cover)"
-                      @error="failedCoverUrls.add(post.cover)"
-                    />
-                    <span v-if="post.cover && !failedCoverUrls.has(post.cover)" class="cover-overlay"></span>
-                    <span v-if="post.cover" class="cover-word">{{ post.coverWord }}</span>
-                    <span v-if="post.cover" class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }">
-                      <img v-if="post.memeIcon" :src="post.memeIcon" :alt="`${post.title} 表情包图标`" loading="lazy" decoding="async">
-                      <Icon v-else :name="post.icon" mode="svg" aria-hidden="true" />
+              <article class="post-card">
+                <NuxtLink
+                  :to="post.to"
+                  :aria-label="post.title"
+                  class="post-cover"
+                >
+                  <template v-if="post.cover && !failedCoverUrls.has(post.cover)">
+                    <PostCoverImage :src="post.cover" alt="" class="cover-image" stable @error="failedCoverUrls.add(post.cover)" />
+                    <span class="cover-overlay" aria-hidden="true" />
+                    <span class="cover-word" aria-hidden="true">{{ post.coverWord }}</span>
+                    <span class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }" aria-hidden="true">
+                      <img v-if="post.memeIcon" :src="post.memeIcon" alt="" loading="lazy" decoding="async">
+                      <Icon v-else :name="post.icon" mode="svg" />
                     </span>
-                  </NuxtLink>
-                  <div class="post-body">
-                    <div class="post-meta">
-                      <span v-if="post.isPinned" class="post-pinned-mark">
-                        <PinIcon aria-hidden="true" />
-                        置顶
-                      </span>
-                      <span>{{ post.category }}</span>
-                      <span v-if="index < 2 && !post.isPinned">最新</span>
-                    </div>
-                    <NuxtLink :to="post.to" class="post-title">
-                      <span>{{ post.title }}</span>
-                      <span class="read-more-cue" aria-hidden="true">→</span>
-                    </NuxtLink>
-                    <div class="post-tags">
-                      <span v-for="tag in post.tags" :key="tag"># {{ tag }}</span>
-                      <time>{{ post.date }}</time>
-                    </div>
+                  </template>
+                </NuxtLink>
+                <div class="post-body">
+                  <div class="post-meta">
+                    <span v-if="post.isPinned" class="post-pinned-mark">
+                      <PinIcon aria-hidden="true" />
+                      置顶
+                    </span>
+                    <span>{{ post.category }}</span>
+                    <span v-if="!popular && index < 2 && !post.isPinned">最新</span>
                   </div>
-                </article>
-              </div>
+                  <NuxtLink :to="post.to" class="post-title">
+                    <span>{{ post.title }}</span>
+                    <span class="read-more-cue" aria-hidden="true">→</span>
+                  </NuxtLink>
+                  <div class="post-tags">
+                    <span v-for="tag in post.tags" :key="tag"># {{ tag }}</span>
+                    <time>{{ post.date }}</time>
+                  </div>
+                </div>
+              </article>
             </div>
-          </template>
-
-          <div v-else class="empty-card">
-            <h2>暂无文章</h2>
-            <p>后台发布文章后，这里会自动显示最新内容。</p>
           </div>
+        </template>
 
-          <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
-        </main>
+        <div v-else class="empty-card">
+          <h2>暂无文章</h2>
+          <p>后台发布文章后，这里会自动显示最新内容。</p>
+        </div>
 
-        <PublicSidebar
-          class="sidebar"
-          data-page-enter="2"
-          :site-name="siteName"
-          :description="siteSettings.sidebar_description"
-          :categories="categories"
-          :tags="cloudTags"
-          :posts="heroAll"
-        />
-      </div>
+        <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
+      </main>
+
+      <PublicSidebar
+        class="sidebar"
+        :pointer-glow="singleHero"
+        sticky-after-author
+        data-page-enter="2"
+        :site-name="siteName"
+        :description="siteSettings.sidebar_description"
+        :categories="categories"
+        :tags="cloudTags"
+        :posts="heroAll"
+      />
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
+import PointerGlow from '~/components/PointerGlow.vue'
 import PostCoverImage from '~/components/PostCoverImage.vue'
 import { defaultSeoDescription } from '~/utils/seo'
 import type { ApiResult, PublicMemeImagePayload } from '~~/types/api'
-import type { PostSummary, PublicPostListPayload } from '~~/types/dto/post'
+import type { HomeHeroPayload, HomeHeroPost, PublicPostListPayload } from '~~/types/dto/post'
 import type { TaxonomyItem } from '~~/types/dto/taxonomy'
 import { categoryNavigation } from '~/utils/category-navigation'
 import { resolveCategoryIcon } from '~/utils/category-icons'
 import { Pin as PinIcon } from '@lucide/vue'
+import { coverColorText } from '~/utils/cover-color'
+import { homeHeroFallbackCover } from '~~/shared/home-hero'
 
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
@@ -220,17 +259,16 @@ const siteName = computed(() => siteSettings.value.site_title || config.public.s
 const useArchiveCardStyle = computed(() => siteSettings.value.home_post_card_style === 'archive')
 const pageSize = 12
 const route = useRoute()
-const categorySlug = computed({
-  get: () => typeof route.query.category === 'string' ? route.query.category : '',
-  set: (category: string) => { void navigateTo({ path: route.path, query: { ...route.query, category: category || undefined, page: undefined } }) }
-})
+const singleHero = computed(() => siteSettings.value.home_hero_layout === 'single')
+const popular = computed(() => route.query.sort === 'popular')
+const categorySlug = computed(() => !popular.value && typeof route.query.category === 'string' ? route.query.category : '')
 const { currentPage, pageTo } = usePublicPagination()
-const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: heroData }, { data: categoryData }, { data: tagData }, { data: memeData }] = await Promise.all([
-  useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined })) }),
-  useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: { page: 1, pageSize: 6 } }),
+const [{ data, status: listStatus, error: listError, refresh: refreshPosts }, { data: categoryData }, { data: tagData }, { data: memeData }, { data: heroSelection }] = await Promise.all([
+  useFetch<ApiResult<PublicPostListPayload>>('/api/posts', { query: computed(() => ({ page: currentPage.value, pageSize, category: categorySlug.value || undefined, sort: popular.value ? 'popular' : undefined })) }),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/categories'),
   useFetch<ApiResult<TaxonomyItem[]>>('/api/tags'),
-  useFetch<ApiResult<PublicMemeImagePayload[]>>('/api/gallery/memes')
+  useFetch<ApiResult<PublicMemeImagePayload[]>>('/api/gallery/memes'),
+  useFetch<ApiResult<HomeHeroPayload>>('/api/home/hero', { key: 'home-hero-selection' })
 ])
 
 assertPublicPageExists(data.value?.data)
@@ -247,7 +285,7 @@ watch(listStatus, (status) => {
   if (status === 'success') topicRevealVersion.value += 1
 })
 
-const heroAll = computed(() => heroData.value?.data.items || [])
+const heroAll = computed(() => heroSelection.value?.data.recent || [])
 const totalPosts = computed(() => data.value?.data.total || posts.value.length)
 const totalPages = computed(() => Math.ceil(totalPosts.value / pageSize))
 
@@ -263,10 +301,20 @@ const heroMemeIcons = computed(() => {
   return memeImages.value.filter(image => image.memeGroup === memeGroup).map(image => image.url)
 })
 const heroMemeOffset = useState('home-hero-meme-offset', () => Math.floor(Math.random() * 10000))
-const latest = computed(() => heroAll.value[0])
-const currentHeroPost = computed(() => activeHeroPost.value || latest.value)
-const heroImage = computed(() => currentHeroPost.value?.cover || '/images/home-hero-ai.png')
-const heroImageAlt = computed(() => currentHeroPost.value?.title || '')
+const activeHeroId = ref<number | null>(null)
+const latest = computed(() => heroPosts.value[0])
+const currentHeroPost = computed(() => heroPosts.value.find(post => post.id === activeHeroId.value) || latest.value)
+const failedHeroCovers = reactive(new Set<string>())
+const heroImage = computed(() => heroCover(currentHeroPost.value?.cover))
+
+function heroCover(cover?: string | null) {
+  return cover && !failedHeroCovers.has(cover) ? cover : homeHeroFallbackCover
+}
+
+function markHeroCoverFailed(event: Event) {
+  const cover = (event.currentTarget as HTMLImageElement).getAttribute('src')
+  if (cover && cover !== homeHeroFallbackCover) failedHeroCovers.add(cover)
+}
 const heroTransitionKey = computed(() => currentHeroPost.value?.id || 'hero-empty')
 const homeSeoTitle = computed(() => {
   const subtitle = siteSettings.value.site_subtitle?.trim()
@@ -313,12 +361,13 @@ const displayPosts = computed(() => {
 const heroIconLabels = ['i-lucide-command', 'i-lucide-mail', 'i-lucide-bot', 'i-lucide-newspaper', 'i-lucide-history', 'i-lucide-zap']
 
 const heroPosts = computed(() => {
-  return heroAll.value.slice(0, 5).map((post, index) => {
+  return (heroSelection.value?.data.slides || []).map((post, index) => {
     return {
       id: post.id,
       title: post.title,
       slug: post.slug,
       cover: post.cover,
+      color: post.color,
       isPinned: Boolean(post.isPinned),
       to: postPath(post.slug),
       icon: heroIconLabels[index] || 'i-lucide-file-text',
@@ -326,21 +375,44 @@ const heroPosts = computed(() => {
     }
   })
 })
-const mobileHeroPosts = computed(() => {
-  if (heroPosts.value.length) return heroPosts.value
-  if (!latest.value) return []
-  return [{
-    id: latest.value.id,
-    title: latest.value.title,
-    slug: latest.value.slug,
-    cover: latest.value.cover,
-    to: postPath(latest.value.slug),
-    icon: 'i-lucide-file-text'
-  }]
+const backdropImage = ref(heroImage.value)
+const heroTheme = computed(() => currentHeroPost.value?.color)
+const heroThemeStyle = computed(() => {
+  const color = heroTheme.value
+  if (!color) return undefined
+  const foreground = coverColorText(color)
+  return {
+    '--hero-accent': color,
+    '--hero-accent-text': foreground,
+    '--hero-control-ink': foreground === '#000'
+      ? 'color-mix(in srgb, var(--hero-accent) 56%, #171b24)'
+      : color
+  }
 })
 
-const activeHeroPost = ref<PostSummary | null>(null)
-const loadedCoverUrls = reactive(new Set<string>())
+onMounted(() => {
+  watch(heroImage, async (src, _, onCleanup) => {
+    let cancelled = false
+    onCleanup(() => { cancelled = true })
+    const image = new Image()
+    image.src = src
+    try {
+      await image.decode()
+    } catch {
+      if (!cancelled) backdropImage.value = ''
+      return
+    }
+    if (!cancelled) backdropImage.value = src
+  })
+})
+
+const { page: headerPage } = useSiteHeaderPage()
+useHead(() => ({
+  meta: headerPage.value.path === '/' && !headerPage.value.isScrolled && heroTheme.value
+    ? [{ name: 'theme-color', content: heroTheme.value }]
+    : []
+}))
+const mobileCarousel = ref<HTMLElement>()
 const failedCoverUrls = reactive(new Set<string>())
 let heroChangeTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -350,18 +422,44 @@ function cancelHeroChange() {
   heroChangeTimer = null
 }
 
-function setActiveHeroPost(post: PostSummary) {
+function setActiveHeroPost(post: HomeHeroPost) {
   cancelHeroChange()
-  activeHeroPost.value = post
+  activeHeroId.value = post.id
 }
 
-function scheduleHeroChange(post: PostSummary) {
+function scheduleHeroChange(post: HomeHeroPost) {
   cancelHeroChange()
   if (post.id === currentHeroPost.value?.id) return
   heroChangeTimer = setTimeout(() => {
-    activeHeroPost.value = post
+    activeHeroId.value = post.id
     heroChangeTimer = null
   }, 30)
+}
+
+function stepHero(offset: number) {
+  const index = heroPosts.value.findIndex(post => post.id === currentHeroPost.value?.id)
+  const count = heroPosts.value.length
+  const next = heroPosts.value[(index + offset + count) % count]
+  if (next) setActiveHeroPost(next)
+}
+
+function syncMobileHero() {
+  const carousel = mobileCarousel.value
+  const first = carousel?.children[0] as HTMLElement | undefined
+  if (!carousel?.clientWidth || !first) return
+  const step = (carousel.children[1] as HTMLElement | undefined)?.offsetLeft
+  const index = step === undefined ? 0 : Math.round(carousel.scrollLeft / (step - first.offsetLeft))
+  const post = heroPosts.value[index]
+  if (post) setActiveHeroPost(post)
+}
+
+function goToMobileHero(index: number) {
+  const carousel = mobileCarousel.value
+  const first = carousel?.children[0] as HTMLElement | undefined
+  const target = carousel?.children[index] as HTMLElement | undefined
+  if (!carousel || !first || !target) return
+  const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+  carousel.scrollTo({ left: target.offsetLeft - first.offsetLeft, behavior })
 }
 
 const topicTooltip = reactive({
@@ -372,24 +470,26 @@ const topicTooltip = reactive({
 })
 
 const topicTabs = computed(() => [
-  { label: '全部文章', tooltip: '全部文章', icon: 'i-lucide-layout-list', slug: '', active: categorySlug.value === '' },
+  { label: '全部文章', tooltip: '全部文章', icon: 'i-lucide-layout-list', slug: '', sort: undefined, active: !popular.value && !categorySlug.value },
+  { label: '热门', tooltip: '按累计浏览量排序', icon: 'i-lucide-flame', slug: '', sort: 'popular', active: popular.value },
   ...categoryNavigation(categories.value).map((category) => ({
     label: category.name,
     tooltip: `查看 ${category.name} 分类的文章`,
     icon: resolveCategoryIcon(category.icon),
     slug: category.slug,
-    active: categorySlug.value === category.slug
+    sort: undefined,
+    active: !popular.value && categorySlug.value === category.slug
   }))
 ])
 
-function selectCategory(slug: string) {
-  if (slug === categorySlug.value) {
+function selectTopic(slug: string, sort?: string) {
+  if (slug === categorySlug.value && Boolean(sort) === popular.value && !route.query.page) {
     hideTopicTooltip()
     return
   }
 
   revealTopicCardsOnNextResult = true
-  categorySlug.value = slug
+  void navigateTo({ path: route.path, query: { ...route.query, category: slug || undefined, sort, page: undefined } })
   hideTopicTooltip()
 }
 
@@ -417,8 +517,9 @@ function hideTopicTooltip() {
 
 function resetHomeState() {
   cancelHeroChange()
-  categorySlug.value = ''
-  activeHeroPost.value = null
+  selectTopic('')
+  activeHeroId.value = null
+  mobileCarousel.value?.scrollTo({ left: 0, behavior: 'instant' })
   hideTopicTooltip()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -455,17 +556,45 @@ function formatDate(value?: string | Date | null) {
 
 <style scoped>
 .home-page {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   background: var(--theme-page);
   color: var(--theme-text);
 }
 
+.hero-backdrop {
+  position: absolute;
+  inset: calc(-1 * var(--site-header-height)) 0 auto;
+  height: 320px;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 28%, transparent 92%);
+  pointer-events: none;
+}
+
+.hero-backdrop img {
+  position: absolute;
+  inset: -32px;
+  width: calc(100% + 64px);
+  height: calc(100% + 64px);
+  object-fit: cover;
+  object-position: center 30%;
+  filter: blur(28px) saturate(1.25) brightness(1.05);
+  transform: scale(1.1);
+  opacity: .2;
+}
+
+.hero-backdrop-leave-active { z-index: 1; transition: opacity 450ms ease; }
+.hero-backdrop-leave-to { opacity: 0; }
+
 .home-shell {
+  position: relative;
   width: var(--site-content-width);
   margin: 0 auto;
 }
 
 .hero-board {
+  grid-area: hero;
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 386px;
@@ -478,7 +607,96 @@ function formatDate(value?: string | Date | null) {
   box-shadow: 0 16px 44px rgb(28 35 48 / 16%);
 }
 
-.mobile-hero-carousel {
+.has-single-hero .hero-board {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 320px;
+  border: 1px solid var(--theme-border-soft);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.has-single-hero .hero-main { min-height: 318px; }
+.has-single-hero .hero-copy { inset: auto 104px 67px 32px; max-width: none; }
+.has-single-hero .hero-copy h1 {
+  overflow: hidden;
+  font-weight: 700;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 5px rgb(0 0 0 / 50%);
+}
+
+.has-single-hero .hero-fade-enter-active,
+.has-single-hero .hero-fade-leave-active { transition: opacity 450ms ease; }
+.has-single-hero .hero-image { transform: none; }
+
+.hero-controls {
+  position: absolute;
+  inset: 16px 402px auto 16px;
+  z-index: 2;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px;
+  color: white;
+  pointer-events: none;
+}
+
+.has-single-hero .hero-controls { inset: auto 32px 32px; }
+.hero-indicators,
+.hero-arrows { display: flex; align-items: center; gap: 8px; }
+.hero-controls button { cursor: pointer; pointer-events: auto; }
+.hero-recommendation {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 2px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 16%);
+  font-size: 12px;
+}
+
+.hero-recommendation svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.hero-indicators button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 40%);
+  transition: width 450ms ease, background-color 450ms ease;
+}
+
+.hero-indicators button.is-active { width: 24px; background: rgb(255 255 255 / 90%); }
+.hero-arrows button {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: rgb(255 255 255 / 15%);
+  font-size: 24px;
+  transition: color 300ms ease, background-color 300ms ease, transform 300ms ease;
+}
+.hero-arrows button:is(:hover, :focus-visible) {
+  background: #fff;
+  color: var(--hero-control-ink, var(--theme-accent));
+  transform: scale(1.1);
+}
+.hero-arrows button:active { transform: scale(.8); }
+.hero-controls button:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+
+.mobile-hero {
+  position: relative;
+  grid-area: hero;
   display: none;
 }
 
@@ -542,7 +760,14 @@ function formatDate(value?: string | Date | null) {
   z-index: -1;
   height: 58%;
   content: "";
-  background: linear-gradient(0deg, rgb(0 0 0 / 68%), rgb(0 0 0 / 6%), transparent);
+  background: linear-gradient(0deg, color-mix(in srgb, var(--hero-accent, #20252d) 48%, #000) 0%, rgb(0 0 0 / 6%), transparent);
+}
+
+.has-single-hero .hero-main::after {
+  height: 120px;
+  background: linear-gradient(to top, var(--hero-accent, #20252d), transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  mask-image: linear-gradient(to top, #000, transparent);
 }
 
 .hero-copy {
@@ -639,6 +864,8 @@ function formatDate(value?: string | Date | null) {
 }
 
 .topic-tabs {
+  grid-area: topics;
+  min-width: 0;
   display: flex;
   gap: 10px;
   margin: 12px 0;
@@ -717,8 +944,17 @@ function formatDate(value?: string | Date | null) {
 .content-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 288px;
-  gap: 12px;
+  grid-template-areas: 'hero hero' 'topics topics' 'posts sidebar';
+  gap: 0 12px;
   align-items: start;
+}
+
+.content-layout > main { grid-area: posts; min-width: 0; }
+.has-single-hero .content-layout {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-areas: 'hero sidebar' 'topics sidebar' 'posts sidebar';
+  grid-template-rows: auto auto 1fr;
+  gap: 0 10px;
 }
 
 .post-grid {
@@ -753,8 +989,6 @@ function formatDate(value?: string | Date | null) {
   border-radius: 8px;
   background: var(--theme-surface);
   box-shadow: 0 14px 34px rgb(42 59 91 / 7%);
-  content-visibility: auto;
-  contain-intrinsic-size: auto 350px;
   transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
 }
 
@@ -783,7 +1017,7 @@ function formatDate(value?: string | Date | null) {
   backface-visibility: hidden;
   transform: translateZ(0) scale(1.001);
   transform-origin: center;
-  transition: transform .32s ease, var(--post-cover-fade);
+  transition: transform .32s ease;
   will-change: transform;
 }
 
@@ -796,15 +1030,6 @@ function formatDate(value?: string | Date | null) {
   position: absolute;
   inset: 0;
   background: linear-gradient(0deg, rgb(0 0 0 / 45%), rgb(0 0 0 / 15%));
-  opacity: 0;
-  transition: opacity 180ms ease;
-}
-
-.post-cover.has-loaded-image .cover-overlay { opacity: 1; }
-
-.post-cover:not(.has-loaded-image) .cover-word,
-.post-cover:not(.has-loaded-image) .cover-icon {
-  opacity: 0;
 }
 
 .cover-word {
@@ -952,13 +1177,42 @@ function formatDate(value?: string | Date | null) {
   margin-left: auto;
 }
 
-.sidebar {
-  display: grid;
+.sidebar.public-sidebar {
+  grid-area: sidebar;
   gap: 10px;
-  position: sticky;
-  top: 82px;
-  z-index: 5;
 }
+
+@media (min-width: 1101px) {
+  .sidebar.public-sidebar {
+    display: flex;
+    align-self: stretch;
+    flex-direction: column;
+  }
+
+  .sidebar :deep(.sidebar-card-group) { display: grid; gap: 10px; }
+  .sidebar :deep(.sidebar-card-group.is-sticky) {
+    position: sticky;
+    top: calc(var(--site-header-height) + 8px);
+  }
+}
+
+.has-single-hero .sidebar :deep(.sidebar-author) {
+  --theme-text-strong: var(--hero-accent-text, var(--theme-accent-foreground));
+  --theme-text-muted: var(--theme-text-strong);
+  --theme-surface-muted: color-mix(in srgb, var(--theme-text-strong) 15%, transparent);
+  min-height: 320px;
+  padding: 21px 22px 18px;
+  border-radius: 12px;
+  background: var(--hero-accent, var(--theme-accent));
+  box-shadow: none;
+  transition: background-color 450ms ease;
+}
+
+.has-single-hero .sidebar :deep(.author-avatar) { margin-bottom: 16px; }
+.has-single-hero .sidebar :deep(.author-avatar-fallback) { color: var(--theme-text); }
+.has-single-hero .sidebar :deep(.sidebar-author strong) { margin-bottom: 8px; }
+.has-single-hero .sidebar :deep(.author-signature) { margin-top: 8px; font-size: 20px; }
+.has-single-hero .sidebar :deep(.author-links) { margin-top: 12px; }
 
 .profile-card,
 .tag-cloud,
@@ -1153,6 +1407,15 @@ function formatDate(value?: string | Date | null) {
   cursor: pointer;
 }
 
+@media (max-width: 1200px) {
+  .has-single-hero .home-shell { width: calc(100% - 60px); }
+  .has-single-hero .content-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'hero' 'topics' 'posts';
+  }
+  .has-single-hero .sidebar { display: none; }
+}
+
 @media (max-width: 1100px) {
   .hero-board,
   .content-layout {
@@ -1166,9 +1429,21 @@ function formatDate(value?: string | Date | null) {
   .sidebar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .content-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'hero' 'topics' 'posts' 'sidebar';
+    gap: 0;
+  }
+
+  .hero-controls { right: 16px; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
+  .hero-backdrop { display: none; }
+  .has-single-hero .home-shell { width: calc(100% - 40px); }
+  .mobile-hero { display: block; }
+
   .mobile-hero-carousel {
     display: flex;
     gap: 12px;
@@ -1197,6 +1472,48 @@ function formatDate(value?: string | Date | null) {
     background: #20252d;
     box-shadow: 0 12px 30px rgb(28 35 48 / 14%);
     scroll-snap-align: center;
+  }
+
+  .has-single-hero .mobile-hero-carousel {
+    position: relative;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border-radius: 12px;
+    scroll-padding-inline: 0;
+  }
+  .mobile-hero-indicators {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    gap: 6px;
+  }
+  .mobile-hero-indicators button { width: 6px; height: 6px; }
+  .mobile-hero-indicators button.is-active { width: 20px; }
+  .mobile-hero-indicators button:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+  .has-single-hero .mobile-hero-image { object-position: 70% center; }
+  .has-single-hero .mobile-hero-title {
+    inset: auto 20px 31px;
+    display: block;
+    font-size: 18px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .has-single-hero .mobile-hero-shade {
+    inset: auto 0 0;
+    height: 120px;
+    background: linear-gradient(to top, var(--hero-accent, #20252d), transparent);
+    backdrop-filter: blur(16px) saturate(1.2);
+    mask-image: linear-gradient(to top, #000, transparent);
+  }
+  .has-single-hero .mobile-hero-slide {
+    width: 100%;
+    min-width: 100%;
+    height: 200px;
+    border-radius: 0;
+    box-shadow: none;
+    scroll-snap-align: start;
   }
 
   .mobile-hero-image {
@@ -1288,6 +1605,12 @@ function formatDate(value?: string | Date | null) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hero-arrows button { transition: none; transform: none; }
+  .hero-arrows button:is(:hover, :focus-visible, :active) { transform: none; }
+
+  .has-single-hero .sidebar :deep(.sidebar-author),
+  .hero-backdrop-leave-active,
+  .hero-indicators button,
   .hero-fade-enter-active,
   .hero-fade-leave-active,
   .hero-copy-enter-active,

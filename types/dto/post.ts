@@ -28,6 +28,13 @@ export type PostSummary = {
 
 export type PublicPostListPayload = PaginationPayload<PostSummary>
 
+export type HomeHeroPost = Pick<PostSummary, 'id' | 'slug' | 'title' | 'cover' | 'isPinned'>
+export type HomeHeroPayload = {
+  slides: Array<HomeHeroPost & { color: string }>
+  recent: Array<HomeHeroPost & { publishedAt?: PostSummary['publishedAt'], category?: { name: string } | null }>
+  configured: boolean
+}
+
 export type FooterReadingPost = Pick<PostSummary, 'id' | 'slug' | 'title'>
 
 export type FooterReadingPayload = {
