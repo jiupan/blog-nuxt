@@ -91,7 +91,7 @@ function parseAiJson(text: string): unknown {
   }
 }
 
-function parseAiJsonWithSchema<T>(text: string, schema: { parse: (value: unknown) => T }, invalidMessage: string): T {
+export function parseAiJsonWithSchema<T>(text: string, schema: { parse: (value: unknown) => T }, invalidMessage: string): T {
   try {
     return schema.parse(parseAiJson(text))
   } catch (error) {

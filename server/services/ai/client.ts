@@ -10,10 +10,10 @@ type AiChatJsonOptions = {
   messages: AiChatMessage[]
   temperature?: number
   failureMessage: string
+  signal?: AbortSignal
 }
 
 type AiChatStreamOptions = AiChatJsonOptions & {
-  signal?: AbortSignal
   onDelta: (text: string) => void | Promise<void>
 }
 
@@ -26,6 +26,7 @@ export async function requestAiChatJson(options: AiChatJsonOptions) {
 
   const response = await fetch(`${aiConfig.baseUrl}/chat/completions`, {
     method: 'POST',
+    signal: options.signal,
     headers: {
       Authorization: `Bearer ${aiConfig.apiKey}`,
       'Content-Type': 'application/json'

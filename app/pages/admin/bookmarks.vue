@@ -10,7 +10,7 @@
         :disabled="locked"
         @undo="resetSettings"
       />
-      <UButton v-else size="sm" icon="i-lucide-plus" :disabled="locked || !!sectionEditor || !sections.length" @click="openEditor(undefined, $event)">收录链接</UButton>
+      <UButton v-else-if="tab === 'items'" size="sm" icon="i-lucide-plus" :disabled="locked || !!sectionEditor || !sections.length" @click="openEditor(undefined, $event)">收录链接</UButton>
     </AdminPageActions>
 
     <section class="workspace-panel">
@@ -23,8 +23,9 @@
       </div>
 
       <nav class="workspace-tabs bookmark-tabs" aria-label="网站导航管理">
-        <button v-for="view in views" :key="view.value" type="button" :class="{ 'is-active': tab === view.value }" :aria-pressed="tab === view.value" :disabled="busy" @click="switchTab(view.value)">
+        <button v-for="view in views" :id="'bookmark-view-' + view.value" :key="view.value" type="button" :class="{ 'is-active': tab === view.value }" :aria-pressed="tab === view.value" :disabled="busy" @click="switchTab(view.value)">
           <UIcon :name="view.icon" class="size-4" aria-hidden="true" />{{ view.label }}
+          <span v-if="view.value === 'spotlight' && payload">{{ featuredLinks.length }}</span>
         </button>
       </nav>
 
@@ -55,7 +56,7 @@
                 v-for="group in renderedGroups"
                 :key="group.id"
                 class="bookmark-group"
-                :class="{ 'admin-sortable-item': typeof group.id === 'number', 'bookmark-group-featured': group.id === 'spotlight', 'bookmark-group-editing': sectionEditor?.id === group.id }"
+                :class="{ 'admin-sortable-item': typeof group.id === 'number', 'bookmark-group-editing': sectionEditor?.id === group.id }"
                 :aria-labelledby="'bookmark-group-' + group.id"
               >
                 <div class="bookmark-group-header">
@@ -159,11 +160,11 @@
                       <AdminDragHandle v-if="!filtering && group.items.length > 1" class="bookmark-link-handle" :label="item.title" :disabled="sortingDisabled" />
                       <div class="bookmark-copy">
                         <strong>{{ item.title }}</strong>
-                        <small>{{ group.id === 'spotlight' ? item.sectionName + ' · ' : '' }}{{ domain(item.url) }}</small>
+                        <small>{{ domain(item.url) }}</small>
                       </div>
                       <div class="bookmark-badges">
                         <UBadge :color="item.status === 'PUBLISHED' ? 'primary' : 'neutral'" variant="soft" size="sm">{{ statusLabels[item.status] }}</UBadge>
-                        <UBadge v-if="filtering && item.status === 'PUBLISHED' && isSpotlight(item)" color="warning" variant="soft" size="sm">精选</UBadge>
+                        <UBadge v-if="isSpotlight(item)" color="warning" variant="soft" size="sm">精选</UBadge>
                       </div>
                       <div class="bookmark-actions">
                         <UButton
@@ -173,24 +174,49 @@
                           :title="isSpotlight(item) ? '移出精选' : '加入精选'"
                           :aria-label="`${isSpotlight(item) ? '移出精选' : '加入精选'} ${item.title}`"
                           :disabled="locked || !!sectionEditor"
-                          @click="toggleSpotlight(item)"
+                          @click="toggleSpotlight(item, $event)"
                         />
                         <UButton size="sm" color="neutral" variant="outline" :disabled="locked || !!sectionEditor" :aria-label="`编辑 ${item.title}`" @click="openEditor(item, $event)">编辑</UButton>
-                        <UDropdownMenu :items="linkActions(item, group.id, group.items, index)" :content="{ align: 'end' }">
+                        <UDropdownMenu :items="linkActions(item, group.items, index)" :content="{ align: 'end' }">
                           <UButton :id="'bookmark-link-actions-' + item.id" size="sm" icon="i-lucide-ellipsis" color="neutral" variant="ghost" :aria-label="`${item.title}链接操作`" :disabled="locked || !!sectionEditor" />
                         </UDropdownMenu>
                       </div>
                     </div>
                   </AdminSortableList>
-                  <p v-else-if="!group.items.length" class="bookmark-group-empty bookmark-muted">{{ sectionCounts.get(Number(group.id)) ? '此分类的链接已放在精选收录。' : '此分类还没有链接。' }}</p>
+                  <p v-else-if="!group.items.length" class="bookmark-group-empty bookmark-muted">此分类还没有链接。</p>
                 </div>
               </section>
             </AdminSortableList>
-            <div v-if="!visibleGroups.length && !sectionEditor" class="bookmark-empty">
+            <div v-if="!visibleCategories.length && !sectionEditor" class="bookmark-empty">
               <p>{{ sections.length ? '没有符合条件的链接。' : '还没有分类。先创建分类，再收录链接。' }}</p>
               <UButton v-if="sections.length" size="sm" color="neutral" variant="outline" @click="resetFilters">清除筛选</UButton>
             </div>
           </div>
+
+          <section v-else-if="tab === 'spotlight'" aria-label="精选收录">
+            <div v-if="!featuredLinks.length" class="bookmark-empty">
+              <p>还没有精选链接。在收录列表中点击已发布链接的星标，即可加入精选。</p>
+            </div>
+            <template v-else>
+              <p class="bookmark-muted">精选链接显示在网站导航页顶部。<template v-if="featuredLinks.length > 1">可拖动排序。</template></p>
+              <AdminSortableList :items="featuredLinks" :disabled="sortingDisabled" handle=".bookmark-link-handle" role="list" @reorder="reorderLinks">
+                <div v-for="(item, index) in featuredLinks" :key="item.id" class="admin-sortable-item bookmark-row bookmark-spotlight-row" :class="{ 'bookmark-row-sortable': featuredLinks.length > 1 }" role="listitem">
+                  <AdminDragHandle v-if="featuredLinks.length > 1" class="bookmark-link-handle" :label="item.title" :disabled="sortingDisabled" />
+                  <div class="bookmark-copy">
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ item.sectionName }} · {{ domain(item.url) }}</small>
+                  </div>
+                  <div class="bookmark-actions">
+                    <UButton size="sm" color="neutral" variant="ghost" :disabled="locked" :aria-label="`移出精选 ${item.title}`" @click="toggleSpotlight(item, $event)">移出精选</UButton>
+                    <UButton size="sm" color="neutral" variant="outline" :disabled="locked" :aria-label="`编辑 ${item.title}`" @click="openEditor(item, $event)">编辑</UButton>
+                    <UDropdownMenu :items="linkActions(item, featuredLinks, index)" :content="{ align: 'end' }">
+                      <UButton :id="'bookmark-link-actions-' + item.id" size="sm" icon="i-lucide-ellipsis" color="neutral" variant="ghost" :aria-label="`${item.title}链接操作`" :disabled="locked" />
+                    </UDropdownMenu>
+                  </div>
+                </div>
+              </AdminSortableList>
+            </template>
+          </section>
 
           <form v-else id="bookmark-settings-form" class="bookmark-settings" @submit.prevent="saveSettings">
             <fieldset>
@@ -244,6 +270,15 @@
           </UFormField>
           <UFormField label="推荐语" help="发布时必填。写一句它适合谁，或为什么值得收藏。" :error="fieldErrors.note">
             <UTextarea v-model="editor.fields.note" name="note" :rows="3" maxlength="180" class="w-full" :disabled="busy" @update:model-value="delete fieldErrors.note" />
+            <UButton class="mt-2" type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-sparkles" :disabled="locked || !!enriching || !editor.fields.url.trim()" :loading="enriching === 'note'" @click="enrichBookmark('note')">AI 生成简介</UButton>
+            <p v-if="enrichmentErrors.note" class="bookmark-enrichment-error" role="status">{{ enrichmentErrors.note }}</p>
+            <div v-if="enrichmentPreview.note" class="bookmark-enrichment-preview">
+              <p role="status">{{ enrichmentPreview.note }}</p>
+              <div class="bookmark-actions">
+                <UButton type="button" size="xs" color="neutral" variant="outline" :disabled="locked" @click="applyEnrichment('note', enrichmentPreview.note)">替换推荐语</UButton>
+                <UButton type="button" size="xs" color="neutral" variant="ghost" @click="delete enrichmentPreview.note">舍弃</UButton>
+              </div>
+            </div>
           </UFormField>
           <details class="bookmark-appearance" :open="appearanceOpen" @toggle="appearanceOpen = ($event.currentTarget as HTMLDetailsElement).open">
             <summary>卡片展示<span v-if="editor.fields.isSpotlight" class="bookmark-muted">将在精选区展示</span></summary>
@@ -258,10 +293,19 @@
                   <strong>{{ image.label }}</strong>
                   <p v-if="failedImages[image.key] && failedImages[image.key] === editor.fields[image.key]" class="bookmark-muted">图片加载失败</p>
                   <div class="bookmark-actions">
+                    <UButton v-if="image.key === 'avatar'" type="button" color="neutral" variant="outline" size="sm" :disabled="locked || !!uploading || !!enriching || !editor.fields.url.trim()" :loading="enriching === 'avatar'" @click="enrichBookmark('avatar')">获取网站图标</UButton>
                     <UButton type="button" color="neutral" variant="outline" size="sm" :aria-label="`${editor.fields[image.key] ? '替换' : '上传'}${image.label}`" :disabled="busy || !!uploading || stale" :loading="uploading === image.key" @click="openImageInput(image.key)">{{ editor.fields[image.key] ? '替换' : '上传' }}</UButton>
                     <UButton v-if="editor.fields[image.key]" type="button" color="neutral" variant="ghost" size="sm" :aria-label="`移除${image.label}`" :disabled="busy || !!uploading" @click="editor.fields[image.key] = ''">移除</UButton>
                     <input :id="`bookmark-image-${image.key}`" type="file" accept="image/*" hidden :disabled="busy || !!uploading" @change="uploadImage($event, image.key)">
                   </div>
+                  <template v-if="image.key === 'avatar'">
+                    <p v-if="enrichmentErrors.avatar" class="bookmark-enrichment-error" role="status">{{ enrichmentErrors.avatar }}</p>
+                    <div v-if="enrichmentPreview.avatar" class="bookmark-enrichment-preview bookmark-actions">
+                      <img :src="enrichmentPreview.avatar" alt="获取到的网站图标" width="32" height="32" class="object-contain">
+                      <UButton type="button" size="xs" color="neutral" variant="outline" :disabled="locked || !!uploading" @click="applyEnrichment('avatar', enrichmentPreview.avatar)">替换图标</UButton>
+                      <UButton type="button" size="xs" color="neutral" variant="ghost" @click="delete enrichmentPreview.avatar">舍弃</UButton>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -274,8 +318,8 @@
           <UButton v-if="editor?.id" size="md" color="neutral" variant="ghost" class="bookmark-delete-trigger" :disabled="locked || !!uploading" @click="requestEditorDelete($event)">删除</UButton>
         </div>
         <div class="bookmark-actions">
-          <UButton v-if="editor?.status === 'DRAFT'" type="button" size="md" color="neutral" variant="outline" :disabled="locked || !!uploading" @click="saveEditor('DRAFT')">保存草稿</UButton>
-          <UButton type="submit" form="bookmark-editor-form" size="md" :loading="busy" :disabled="locked || !!uploading">{{ editor?.status === 'PUBLISHED' ? '保存修改' : '发布链接' }}</UButton>
+          <UButton v-if="editor?.status === 'DRAFT'" type="button" size="md" color="neutral" variant="outline" :disabled="locked || !!uploading || !!enriching" @click="saveEditor('DRAFT')">保存草稿</UButton>
+          <UButton type="submit" form="bookmark-editor-form" size="md" :loading="busy" :disabled="locked || !!uploading || !!enriching">{{ editor?.status === 'PUBLISHED' ? '保存修改' : '发布链接' }}</UButton>
         </div>
       </template>
     </USlideover>
@@ -325,6 +369,7 @@ const { data, error: loadError, status, refresh } = await useFetch<ApiResult<Adm
 const payload = computed(() => data.value?.data)
 const views = [
   { value: 'items', label: '收录列表', icon: 'i-lucide-bookmark' },
+  { value: 'spotlight', label: '精选收录', icon: 'i-lucide-star' },
   { value: 'settings', label: '页面设置', icon: 'i-lucide-sliders-horizontal' }
 ] as const
 const tab = ref<typeof views[number]['value']>('items')
@@ -339,18 +384,15 @@ const sections = computed(() => payload.value?.sections ?? [])
 const isSpotlight = (item: AdminBookmark) => item.status === 'PUBLISHED' && isBookmarkSpotlight(item, payload.value?.settings.featuredId)
 const options = <T extends Record<string, string>>(labels: T) => (Object.keys(labels) as Array<keyof T & string>).map(value => ({ value, label: labels[value] }))
 const categoryOptions = computed(() => sections.value.map(({ id, name }) => ({ value: id, label: name })))
-type GroupId = number | 'spotlight'
-type CollectionGroup = Omit<BookmarkSection, 'id'> & { id: GroupId; items: AdminBookmark[] }
-type CollectionCard = Omit<CollectionGroup, 'id'> & { id: GroupId | 'new' }
-const spotlightOption = { value: 'spotlight', label: '精选收录' } as const
-const sectionOptions = computed(() => [{ value: 'all', label: '全部分类' } as const, ...categoryOptions.value, spotlightOption])
+type CollectionCard = BookmarkSectionFields & { id: number | 'new'; items: AdminBookmark[] }
+const sectionOptions = computed(() => [{ value: 'all', label: '全部分类' } as const, ...categoryOptions.value])
 const statusLabels = { DRAFT: '草稿', PUBLISHED: '已发布', HIDDEN: '已下架' }
 const statusOptions = [{ value: 'all', label: '全部状态' }, ...options(statusLabels)]
 const query = ref('')
-const sectionFilter = ref<GroupId | 'all'>('all')
+const sectionFilter = ref<number | 'all'>('all')
 const statusFilter = ref<AdminBookmark['status'] | 'all'>('all')
-const openGroups = reactive(new Set<GroupId>())
-const closedSearchGroups = reactive(new Set<GroupId>())
+const openGroups = reactive(new Set<number>())
+const closedSearchGroups = reactive(new Set<number>())
 const filtering = computed(() => !!query.value.trim() || sectionFilter.value !== 'all' || statusFilter.value !== 'all')
 const domain = (url: string) => new URL(url).hostname.replace(/^www\./, '')
 const filtered = computed(() => {
@@ -358,7 +400,7 @@ const filtered = computed(() => {
   return items.value.filter(item =>
     (!keyword || item.title.toLowerCase().includes(keyword) || item.url.toLowerCase().includes(keyword))
     && (statusFilter.value === 'all' || item.status === statusFilter.value)
-    && (sectionFilter.value === 'all' || (sectionFilter.value === 'spotlight' ? item.status === 'PUBLISHED' && isSpotlight(item) : item.sectionId === sectionFilter.value))
+    && (sectionFilter.value === 'all' || item.sectionId === sectionFilter.value)
   )
 })
 const pendingLinkOrder = ref<number[]>()
@@ -375,30 +417,26 @@ const visibleCategories = computed(() => {
   const links = filtering.value ? filtered.value : orderedLinks.value
   return categories.flatMap((section) => {
     if (typeof sectionFilter.value === 'number' && sectionFilter.value !== section.id) return []
-    const groupItems = links.filter(item => item.sectionId === section.id && (filtering.value || !isSpotlight(item)))
+    const groupItems = links.filter(item => item.sectionId === section.id)
     if (!groupItems.length && filtering.value && sectionFilter.value !== section.id) return []
     return [{ ...section, items: groupItems }]
   })
 })
 const featuredLinks = computed(() => orderedLinks.value.filter(isSpotlight))
-const visibleGroups = computed<CollectionGroup[]>(() => {
-  if (filtering.value || !featuredLinks.value.length) return visibleCategories.value
-  return [{ id: 'spotlight', name: '精选收录', description: '显示在导航页顶部', items: featuredLinks.value }, ...visibleCategories.value]
-})
 const renderedGroups = computed<CollectionCard[]>(() => {
+  const groups = visibleCategories.value
   const draft = sectionEditor.value
-  if (!draft) return visibleGroups.value
-  if (draft.id === 'new') return [{ id: 'new', name: '新建分类', description: '', items: [] }, ...visibleGroups.value]
-  if (visibleGroups.value.some(group => group.id === draft.id)) return visibleGroups.value
-  return [{ id: draft.id, ...draft.original, items: [] }, ...visibleGroups.value]
+  if (!draft || groups.some(group => group.id === draft.id)) return groups
+  const original = draft.id === 'new' ? { name: '新建分类', description: '' } : draft.original
+  return [{ id: draft.id, ...original, items: [] }, ...groups]
 })
 watch([query, sectionFilter, statusFilter], () => closedSearchGroups.clear())
 
-function isGroupOpen(id: GroupId) {
+function isGroupOpen(id: number) {
   return filtering.value ? !closedSearchGroups.has(id) : openGroups.has(id)
 }
 
-function toggleGroup(id: GroupId) {
+function toggleGroup(id: number) {
   const groups = filtering.value ? closedSearchGroups : openGroups
   if (groups.has(id)) groups.delete(id)
   else groups.add(id)
@@ -414,7 +452,7 @@ watch(sections, (latest) => {
   if (typeof sectionFilter.value === 'number' && !latest.some(section => section.id === sectionFilter.value)) sectionFilter.value = 'all'
   const validIds = new Set(latest.map(section => section.id))
   for (const id of openGroups) {
-    if (id !== 'spotlight' && !validIds.has(id)) openGroups.delete(id)
+    if (!validIds.has(id)) openGroups.delete(id)
   }
 })
 
@@ -425,16 +463,15 @@ function resetFilters() {
 }
 
 function switchTab(value: typeof tab.value) {
-  if (tab.value === value) return true
-  if (sectionDirty.value && !window.confirm('分类修改尚未保存。放弃修改并切换？')) return false
+  if (tab.value === value) return
+  if (sectionDirty.value && !window.confirm('分类修改尚未保存。放弃修改并切换？')) return
   sectionEditor.value = null
   feedback.value = ''
   if (!stale.value) failure.value = ''
   tab.value = value
-  return true
 }
 
-const sortingDisabled = computed(() => locked.value || filtering.value || !!sectionEditor.value)
+const sortingDisabled = computed(() => locked.value || (tab.value === 'items' && filtering.value) || !!sectionEditor.value)
 
 async function reorderLinks(reordered: AdminBookmark[]) {
   if (sortingDisabled.value) return
@@ -474,13 +511,13 @@ function categoryActions(group: CollectionCard) {
   ]
 }
 
-function linkActions(item: AdminBookmark, groupId: GroupId, groupItems: AdminBookmark[], index: number) {
+function linkActions(item: AdminBookmark, groupItems: AdminBookmark[], index: number) {
   return [
     [
       { label: '上移', icon: 'i-lucide-chevron-up', disabled: sortingDisabled.value || index === 0, onSelect: () => reorderLinks(moveArrayItem(groupItems, index, index - 1)) },
       { label: '下移', icon: 'i-lucide-chevron-down', disabled: sortingDisabled.value || index === groupItems.length - 1, onSelect: () => reorderLinks(moveArrayItem(groupItems, index, index + 1)) }
     ],
-    [{ label: '永久删除', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => requestDelete(item, document.getElementById('bookmark-link-actions-' + item.id), groupId) }]
+    [{ label: '永久删除', icon: 'i-lucide-trash-2', color: 'error' as const, onSelect: () => requestDelete(item, document.getElementById('bookmark-link-actions-' + item.id)) }]
   ]
 }
 
@@ -530,14 +567,14 @@ async function closeSection(focusId = sectionFocusId) {
   if (focusId) (document.getElementById(focusId) ?? document.getElementById('bookmark-new-section'))?.focus()
 }
 
-function cancelSectionEdit(event: KeyboardEvent, id: GroupId | 'new') {
+function cancelSectionEdit(event: KeyboardEvent, id: CollectionCard['id']) {
   if (event.isComposing || sectionEditor.value?.id !== id) return
   event.preventDefault()
   event.stopPropagation()
   void closeSection()
 }
 
-async function saveSection(groupId: GroupId | 'new') {
+async function saveSection(groupId: CollectionCard['id']) {
   const draft = sectionEditor.value
   if (!draft || draft.id !== groupId || draft.missing || !sectionDirty.value || !draft.fields.name.trim()) return
   const id = draft.id === 'new' ? undefined : draft.id
@@ -588,13 +625,28 @@ type InputField = 'url' | 'title' | 'note' | 'sectionId'
 const uploading = ref<ImageField>()
 const failedImages = reactive<Partial<Record<ImageField, string>>>({})
 const fieldErrors = ref<Partial<Record<InputField, string>>>({})
+type EnrichmentField = 'avatar' | 'note'
+const enriching = ref<EnrichmentField>()
+const enrichmentPreview = reactive<Partial<Record<EnrichmentField, string>>>({})
+const enrichmentErrors = reactive<Partial<Record<EnrichmentField, string>>>({})
+let enrichmentRequest: AbortController | undefined
+watch([editor, () => editor.value?.fields.url], () => {
+  enrichmentRequest?.abort()
+  enrichmentRequest = undefined
+  enriching.value = undefined
+  delete enrichmentPreview.avatar
+  delete enrichmentPreview.note
+  delete enrichmentErrors.avatar
+  delete enrichmentErrors.note
+})
+onBeforeUnmount(() => enrichmentRequest?.abort())
 const appearanceOpen = ref(false)
 const editorSnapshot = ref('')
 const editorDirty = computed(() => !!editor.value && JSON.stringify(editor.value.fields) !== editorSnapshot.value)
 let editorTrigger: HTMLElement | undefined
 const deletingItem = ref<AdminBookmark>()
 let deleteTrigger: HTMLElement | undefined
-let deleteFallbackSection: GroupId | undefined
+let deleteFallbackSection: number | undefined
 
 useAdminUnsavedChanges(() => ({
   editor: editorDirty.value,
@@ -656,7 +708,7 @@ async function reload() {
 
 function openEditor(item: AdminBookmark | undefined, event: MouseEvent, groupId?: number) {
   const sectionId = item?.sectionId ?? groupId ?? (typeof sectionFilter.value === 'number' ? sectionFilter.value : sections.value[0]?.id)
-  if (locked.value || sectionId === undefined || !switchTab('items')) return
+  if (locked.value || sectionId === undefined) return
   editorTrigger = event.currentTarget as HTMLElement
   failure.value = ''
   feedback.value = ''
@@ -686,21 +738,22 @@ function closeEditor(open: boolean) {
 
 function restoreEditorFocus(event: Event) {
   event.preventDefault()
-  editorTrigger?.focus()
+  if (editorTrigger?.isConnected) editorTrigger.focus()
+  else bookmarkTabButton()?.focus()
   editorTrigger = undefined
 }
 
-function requestDelete(item: AdminBookmark, trigger: HTMLElement | null, groupId: GroupId = item.sectionId) {
+function requestDelete(item: AdminBookmark, trigger: HTMLElement | null) {
   if (locked.value || uploading.value) return
   deleteTrigger = trigger ?? undefined
-  deleteFallbackSection = groupId
+  deleteFallbackSection = item.sectionId
   failure.value = ''
   deletingItem.value = item
 }
 
 function requestEditorDelete(event: MouseEvent) {
   const item = items.value.find(item => item.id === editor.value?.id)
-  if (item) requestDelete(item, event.currentTarget as HTMLElement, !filtering.value && isSpotlight(item) && item.status === 'PUBLISHED' ? 'spotlight' : item.sectionId)
+  if (item) requestDelete(item, event.currentTarget as HTMLElement)
 }
 
 function closeDelete(open: boolean) {
@@ -722,9 +775,13 @@ function restoreDeleteFocus(event: Event) {
   deleteFallbackSection = undefined
 }
 
-function bookmarkGroupFocusTarget(sectionId?: GroupId) {
+function bookmarkTabButton() {
+  return document.getElementById('bookmark-view-' + tab.value)
+}
+
+function bookmarkGroupFocusTarget(sectionId?: number) {
   return document.getElementById('bookmark-group-toggle-' + sectionId)
-    ?? document.querySelector<HTMLElement>('.bookmark-search input') ?? undefined
+    ?? document.querySelector<HTMLElement>('.bookmark-search input') ?? bookmarkTabButton() ?? undefined
 }
 
 async function refreshDeleteItem() {
@@ -750,6 +807,47 @@ async function deleteBookmark() {
 
 function openImageInput(field: ImageField) {
   document.getElementById(`bookmark-image-${field}`)?.click()
+}
+
+function applyEnrichment(field: EnrichmentField, value: string) {
+  if (!editor.value || locked.value) return
+  editor.value.fields[field] = value
+  enrichmentPreview[field] = undefined
+  if (field === 'note') delete fieldErrors.value.note
+  else delete failedImages.avatar
+}
+
+async function enrichBookmark(field: EnrichmentField) {
+  const current = editor.value
+  if (!current || locked.value || enriching.value) return
+  const url = current.fields.url.trim()
+  if (!url) return
+  const original = current.fields[field]
+  const request = new AbortController()
+  enrichmentRequest = request
+  enriching.value = field
+  enrichmentErrors[field] = undefined
+  enrichmentPreview[field] = undefined
+  try {
+    const { data } = await $fetch<ApiResult<{ value: string }>>(`${endpoint}/enrich`, {
+      method: 'POST', body: { url, field }, signal: request.signal
+    })
+    if (request.signal.aborted || editor.value !== current || current.fields.url.trim() !== url) return
+    if (!current.fields[field]?.trim() && current.fields[field] === original && !locked.value && !(field === 'avatar' && uploading.value)) {
+      applyEnrichment(field, data.value)
+    } else enrichmentPreview[field] = data.value
+  } catch (error) {
+    if (!request.signal.aborted) {
+      enrichmentErrors[field] = getApiErrorMessage(error, {
+        fallback: field === 'avatar' ? '获取图标失败，可以手动上传' : '生成简介失败，可以手动填写'
+      })
+    }
+  } finally {
+    if (enrichmentRequest === request) {
+      enrichmentRequest = undefined
+      enriching.value = undefined
+    }
+  }
 }
 
 async function uploadImage(event: Event, field: ImageField) {
@@ -794,14 +892,13 @@ function validateEditor(fields: BookmarkFields, publish: boolean) {
 }
 
 async function saveEditor(status: 'PUBLISHED' | 'DRAFT') {
-  if (!editor.value || uploading.value || !validateEditor(editor.value.fields, status === 'PUBLISHED')) return
+  if (!editor.value || uploading.value || enriching.value || !validateEditor(editor.value.fields, status === 'PUBLISHED')) return
   const { id, fields } = editor.value
   if (await send({ action: 'save', id, fields, status }, status === 'DRAFT' ? '已保存草稿' : '链接已保存，前台已更新')) {
     editor.value = null
     const saved = items.value.find(item => item.id === id || item.url === new URL(fields.url.trim()).href)
-    if (saved) {
-      const group = saved.status === 'PUBLISHED' && isSpotlight(saved) ? 'spotlight' : saved.sectionId
-      openGroups.add(group)
+    if (saved && tab.value === 'items') {
+      openGroups.add(saved.sectionId)
       closedSearchGroups.delete(saved.sectionId)
       if (!filtered.value.some(item => item.id === saved.id)) resetFilters()
     }
@@ -814,9 +911,15 @@ async function hideEditor() {
   if (await send({ action: 'hide', id }, '链接已下架')) editor.value = null
 }
 
-async function toggleSpotlight(item: AdminBookmark) {
+async function toggleSpotlight(item: AdminBookmark, event: MouseEvent) {
+  const trigger = event.currentTarget as HTMLElement
+  const wasFocused = document.activeElement === trigger
   const enabled = !isSpotlight(item)
   await send({ action: 'spotlight', id: item.id, enabled }, enabled ? '已加入精选' : '已移出精选')
+  if (wasFocused) {
+    await nextTick()
+    if (document.activeElement === document.body) (trigger.isConnected ? trigger : bookmarkTabButton())?.focus()
+  }
 }
 </script>
 
@@ -830,7 +933,6 @@ async function toggleSpotlight(item: AdminBookmark) {
 .bookmark-muted, .bookmark-copy small { color: var(--admin-muted); font-size: 13px; }
 .bookmark-group { margin-block: 12px; padding-inline: 14px; border: 1px solid var(--admin-line); border-radius: 10px; }
 .bookmark-group-header { display: flex; align-items: center; gap: 8px; padding-block: 10px; }
-.bookmark-group-featured { border-color: var(--admin-accent-soft); }
 .bookmark-group-editing { border-color: color-mix(in srgb, var(--admin-accent) 34%, var(--admin-line)); box-shadow: 0 1px 4px rgb(32 38 51 / 5%); }
 .bookmark-group-copy { display: grid; flex: 1; gap: 3px; min-width: 0; padding-block: 3px; overflow-wrap: anywhere; }
 .bookmark-group-name { display: flex; align-items: center; gap: 6px 8px; font-weight: 650; }
@@ -878,6 +980,8 @@ button.bookmark-group-arrow:hover,
 .bookmark-row .bookmark-copy strong { font-size: 13px; font-weight: 550; }
 .bookmark-row .bookmark-copy small { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .bookmark-row-sortable { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.bookmark-spotlight-row { grid-template-columns: minmax(0, 1fr) auto; }
+.bookmark-spotlight-row.bookmark-row-sortable { grid-template-columns: auto minmax(0, 1fr) auto; }
 .bookmark-section-handle, .bookmark-link-handle { width: 26px; }
 .bookmark-empty { display: grid; justify-items: start; gap: 12px; padding: 24px 0; }
 .bookmark-feedback { margin-bottom: 12px; color: var(--ui-error); font-size: 13px; }
@@ -892,6 +996,9 @@ button.bookmark-group-arrow:hover,
 .bookmark-appearance-body { padding: 0 12px 12px; }
 .bookmark-image { display: flex; align-items: center; gap: 12px; }
 .bookmark-image strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.bookmark-enrichment-preview { margin-top: 8px; padding: 8px; border: 1px solid var(--admin-line); border-radius: 6px; font-size: 13px; }
+.bookmark-enrichment-preview p { margin-bottom: 6px; overflow-wrap: anywhere; }
+.bookmark-enrichment-error { margin-top: 6px; color: var(--ui-error); font-size: 13px; }
 .bookmark-thumbnail { display: grid; width: 42px; height: 42px; flex: none; place-items: center; overflow: hidden; border: 1px solid var(--ui-border); border-radius: 6px; background: var(--ui-bg-muted); color: var(--ui-text-muted); }
 .bookmark-thumbnail.is-cover { width: 68px; }
 .bookmark-thumbnail img { width: 100%; height: 100%; object-fit: cover; }
