@@ -40,7 +40,7 @@
         </div>
       </div>
 
-      <div class="hero-board" :class="{ 'has-no-posts': !latest }" data-page-enter="0">
+      <div class="hero-board" :class="{ 'has-no-posts': !latest, 'has-hero-controls': heroPosts.length > 1 }" data-page-enter="0">
         <NuxtLink :to="currentHeroPost ? postPath(currentHeroPost.slug) : '/archive'" class="hero-main">
           <Transition name="hero-fade">
             <img
@@ -57,7 +57,10 @@
             <Transition name="hero-copy" mode="out-in">
               <div :key="heroTransitionKey" class="hero-copy-content">
                 <h1>{{ currentHeroPost?.title || siteName }}</h1>
-                <p v-if="!singleHero">{{ heroSelection?.data.configured ? '⭐ 精选推荐' : currentHeroPost?.isPinned ? '⭐ 置顶推荐' : (latest ? '⭐ 最新发布' : '暂无已发布文章') }}</p>
+                <p v-if="!singleHero || heroPosts.length > 1">
+                  <Icon v-if="latest || singleHero" name="i-lucide-star" mode="svg" aria-hidden="true" />
+                  {{ singleHero || heroSelection?.data.configured ? '精选推荐' : currentHeroPost?.isPinned ? '置顶推荐' : (latest ? '最新发布' : '暂无已发布文章') }}
+                </p>
               </div>
             </Transition>
           </div>
@@ -83,14 +86,10 @@
           </NuxtLink>
         </div>
 
-        <div v-if="heroPosts.length" class="hero-controls">
+        <div v-if="heroPosts.length > 1" class="hero-controls" role="group" aria-label="轮播切换">
           <div class="hero-indicators">
-            <span v-if="singleHero && heroPosts.length > 1" class="hero-recommendation">
-              <Icon name="i-lucide-star" mode="svg" aria-hidden="true" />
-              精选推荐
-            </span>
             <button
-              v-for="(item, index) in heroPosts.length > 1 ? heroPosts : []"
+              v-for="(item, index) in heroPosts"
               :key="item.id"
               type="button"
               :class="{ 'is-active': item.id === currentHeroPost?.id }"
@@ -99,7 +98,7 @@
               @click="setActiveHeroPost(item)"
             />
           </div>
-          <div v-if="heroPosts.length > 1" class="hero-arrows">
+          <div class="hero-arrows">
             <button type="button" aria-label="上一条" @click="stepHero(-1)"><Icon name="i-lucide-chevron-left" aria-hidden="true" /></button>
             <button type="button" aria-label="下一条" @click="stepHero(1)"><Icon name="i-lucide-chevron-right" aria-hidden="true" /></button>
           </div>
@@ -602,6 +601,10 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-board {
+  --hero-gutter: clamp(24px, 3vw, 32px);
+  --hero-controls-bottom: 18px;
+  --hero-control-height: 38px;
+  --hero-copy-bottom: 28px;
   grid-area: hero;
   position: relative;
   display: grid;
@@ -615,6 +618,10 @@ function formatDate(value?: string | Date | null) {
   box-shadow: 0 16px 44px rgb(28 35 48 / 16%);
 }
 
+.hero-board.has-hero-controls {
+  --hero-copy-bottom: calc(var(--hero-controls-bottom) + var(--hero-control-height) + 12px);
+}
+
 .has-single-hero .hero-board {
   grid-template-columns: minmax(0, 1fr);
   min-height: 320px;
@@ -624,14 +631,9 @@ function formatDate(value?: string | Date | null) {
 }
 
 .has-single-hero .hero-main { min-height: 318px; }
-.has-single-hero .hero-copy { inset: auto 104px 67px 32px; max-width: none; }
+.has-single-hero .hero-copy { max-width: none; }
 .has-single-hero .hero-copy h1 {
-  overflow: hidden;
   font-weight: 700;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-shadow: 0 1px 5px rgb(0 0 0 / 50%);
 }
 
 .has-single-hero .hero-fade-enter-active,
@@ -639,37 +641,21 @@ function formatDate(value?: string | Date | null) {
 .has-single-hero .hero-image { transform: none; }
 
 .hero-controls {
+  grid-area: 1 / 1 / 2 / 2;
   position: absolute;
-  inset: 16px 402px auto 16px;
+  inset: auto var(--hero-gutter) var(--hero-controls-bottom);
   z-index: 2;
   display: flex;
-  align-items: end;
+  min-height: var(--hero-control-height);
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   color: white;
   pointer-events: none;
 }
 
-.has-single-hero .hero-controls { inset: auto 32px 32px; }
-.hero-indicators,
-.hero-arrows { display: flex; align-items: center; gap: 8px; }
+.hero-indicators { display: flex; align-items: center; }
 .hero-controls button { cursor: pointer; pointer-events: auto; }
-.hero-recommendation {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 2px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background: rgb(255 255 255 / 16%);
-  font-size: 12px;
-}
-
-.hero-recommendation svg {
-  width: 12px;
-  height: 12px;
-  fill: currentColor;
-}
 
 .hero-indicators button {
   width: 8px;
@@ -682,24 +668,51 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-indicators button.is-active { width: 24px; background: rgb(255 255 255 / 90%); }
+.hero-controls .hero-indicators button {
+  display: grid;
+  width: 24px;
+  height: var(--hero-control-height);
+  place-items: center;
+  background: transparent;
+}
+
+.hero-controls .hero-indicators button::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 58%);
+  content: "";
+  transition: width 240ms ease, background-color 180ms ease;
+}
+
+.hero-controls .hero-indicators button:hover::before { background: #fff; }
+.hero-controls .hero-indicators button.is-active::before { width: 20px; background: #fff; }
+
+.hero-arrows {
+  display: flex;
+  flex: none;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 999px;
+  background: rgb(18 20 25 / 42%);
+  backdrop-filter: blur(10px);
+}
+
 .hero-arrows button {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: calc(var(--hero-control-height) - 2px);
   place-items: center;
   border: 0;
-  border-radius: 50%;
   color: inherit;
-  background: rgb(255 255 255 / 15%);
-  font-size: 24px;
-  transition: color 300ms ease, background-color 300ms ease, transform 300ms ease;
+  font-size: 19px;
+  transition: color 180ms ease, background-color 180ms ease;
 }
+.hero-arrows button:first-child { border-radius: 999px 0 0 999px; }
+.hero-arrows button + button { border-left: 1px solid rgb(255 255 255 / 18%); border-radius: 0 999px 999px 0; }
 .hero-arrows button:is(:hover, :focus-visible) {
   background: #fff;
   color: var(--hero-control-ink, var(--theme-accent));
-  transform: scale(1.1);
 }
-.hero-arrows button:active { transform: scale(.8); }
 .hero-controls button:focus-visible { outline: 2px solid white; outline-offset: 3px; }
 
 .mobile-hero {
@@ -721,6 +734,7 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-main {
+  grid-area: 1 / 1;
   position: relative;
   isolation: isolate;
   min-height: 324px;
@@ -766,22 +780,20 @@ function formatDate(value?: string | Date | null) {
   position: absolute;
   inset: auto 0 0;
   z-index: -1;
-  height: 58%;
+  height: 72%;
   content: "";
-  background: linear-gradient(0deg, color-mix(in srgb, var(--hero-accent, #20252d) 48%, #000) 0%, rgb(0 0 0 / 6%), transparent);
+  background: linear-gradient(to top, color-mix(in srgb, var(--hero-accent, #20252d) 34%, #13141a) 0%, rgb(19 20 26 / 62%) 32%, transparent 100%);
 }
 
 .has-single-hero .hero-main::after {
-  height: 120px;
-  background: linear-gradient(to top, var(--hero-accent, #20252d), transparent);
+  height: max(120px, 60%);
   backdrop-filter: blur(16px) saturate(1.2);
   mask-image: linear-gradient(to top, #000, transparent);
 }
 
 .hero-copy {
   position: absolute;
-  left: 32px;
-  bottom: 28px;
+  inset: auto var(--hero-gutter) var(--hero-copy-bottom);
   max-width: 620px;
   color: white;
 }
@@ -806,18 +818,29 @@ function formatDate(value?: string | Date | null) {
 }
 
 .hero-copy h1 {
+  display: -webkit-box;
+  overflow: hidden;
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: 28px;
   font-weight: 800;
   line-height: 1.18;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 42%);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .hero-copy p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 10px 0 0;
   font-size: 13px;
   font-weight: 700;
   opacity: .9;
 }
+
+.hero-copy p svg { width: 13px; height: 13px; fill: #f6d788; color: #f6d788; }
 
 .hero-list {
   position: relative;
@@ -1444,7 +1467,6 @@ function formatDate(value?: string | Date | null) {
     gap: 0;
   }
 
-  .hero-controls { right: 16px; }
 }
 
 @media (max-width: 768px) {
@@ -1613,12 +1635,11 @@ function formatDate(value?: string | Date | null) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-arrows button { transition: none; transform: none; }
-  .hero-arrows button:is(:hover, :focus-visible, :active) { transform: none; }
-
   .has-single-hero .sidebar :deep(.sidebar-author),
   .hero-backdrop-leave-active,
+  .hero-arrows button,
   .hero-indicators button,
+  .hero-controls .hero-indicators button::before,
   .hero-fade-enter-active,
   .hero-fade-leave-active,
   .hero-copy-enter-active,
