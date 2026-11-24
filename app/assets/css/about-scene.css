@@ -1,0 +1,14 @@
+.about-scene {
+  background:
+    radial-gradient(circle at 18% 18%, rgb(96 165 250 / 13%), transparent 30%),
+    radial-gradient(circle at 83% 78%, rgb(129 140 248 / 13%), transparent 32%),
+    linear-gradient(145deg, #f8fafc, #f2f5fb 48%, #f8fafc);
+}
+
+.dark .about-scene:not([data-theme]),
+.about-scene[data-theme="dark"] {
+  background:
+    radial-gradient(circle at 18% 18%, rgb(34 211 238 / 12%), transparent 30%),
+    radial-gradient(circle at 83% 78%, rgb(99 102 241 / 15%), transparent 32%),
+    linear-gradient(145deg, #020617, #070d1d 48%, #020617);
+}

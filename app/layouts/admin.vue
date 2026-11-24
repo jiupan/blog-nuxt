@@ -165,6 +165,7 @@ const pageNames: Record<string, string> = {
   gallery: '图库',
   bookmarks: '网站收录',
   sidebar: '侧栏',
+  about: '关于页',
   knowledge: 'AI 知识库',
   agent: 'Agent 发布接入',
   users: '用户管理',

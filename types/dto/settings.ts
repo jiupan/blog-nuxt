@@ -1,4 +1,5 @@
 export type SiteSettingsKey =
+  | 'about_profile'
   | 'site_title'
   | 'site_subtitle'
   | 'site_brand'

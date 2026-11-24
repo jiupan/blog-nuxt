@@ -2,11 +2,13 @@ import { z } from 'zod'
 import { animatedAvatarCompression, embeddingDimensions } from '~~/types/dto/settings'
 import { defaultHeaderShortcuts, validateHeaderShortcuts } from '~~/shared/header-shortcuts'
 import { homeHeroLayouts, parseHomeHeroSelection } from '~~/shared/home-hero'
+import { aboutLimits, defaultAboutProfile, parseAboutProfile } from '~~/shared/about-profile'
 
 export const settingsDefaults = {
   site_title: 'Jiupan Blog',
   site_subtitle: '个人博客',
   site_brand: 'DYU',
+  about_profile: defaultAboutProfile,
   sidebar_description: '个人博客',
   sidebar_author_name: '',
   sidebar_author_subtitle: '独立写作者',
@@ -93,6 +95,12 @@ export const settingsInputSchema = z.object({
   site_title: z.string().optional(),
   site_subtitle: z.string().optional(),
   site_brand: z.string().optional(),
+  about_profile: z.string().max(aboutLimits.payload).transform((value, ctx) => {
+    const profile = parseAboutProfile(value)
+    if (profile?.success) return JSON.stringify(profile.data)
+    ctx.addIssue({ code: 'custom', message: '请检查关于页资料和技术栈' })
+    return z.NEVER
+  }).optional(),
   sidebar_description: z.string().optional(),
   sidebar_author_name: z.string().optional(),
   sidebar_author_subtitle: z.string().optional(),

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readHeaderShortcuts } from '../shared/header-shortcuts'
+import { searchAboutIcons } from '../shared/about-icons'
+import { emptyAboutProfile, parseAboutProfile } from '../shared/about-profile'
 import {
   publicSettingKeys,
   settingKeys,
@@ -28,6 +30,45 @@ describe('settings defaults', () => {
 })
 
 describe('settingsInputSchema', () => {
+  it('stores an ordered about profile with optional icons without changing site SEO', () => {
+    const about_profile = JSON.stringify({
+      ...emptyAboutProfile,
+      name: ' Jiupan ',
+      description: '第一段\n\n第二段',
+      groups: [{ name: '', items: [
+        { name: ' Java ', icon: 'i-simple-icons-openjdk' },
+        { name: '模型评估', icon: '' }
+      ] }]
+    })
+    const saved = settingsInputSchema.parse({ about_profile })
+    expect(saved).not.toHaveProperty('seo_description')
+    expect(parseAboutProfile(saved.about_profile!)).toMatchObject({
+      success: true,
+      data: {
+        name: 'Jiupan',
+        description: '第一段\n\n第二段',
+        groups: [{ name: '', items: [
+          { name: 'Java', icon: 'i-simple-icons-openjdk' },
+          { name: '模型评估', icon: '' }
+        ] }]
+      }
+    })
+    expect(parseAboutProfile(settingsDefaults.about_profile)).toMatchObject({ success: true, data: emptyAboutProfile })
+  })
+
+  it('rejects unknown about icons and duplicate names in the same technology group', () => {
+    for (const items of [
+      [{ name: 'Java', icon: 'unknown' }],
+      [{ name: 'Java', icon: '' }, { name: ' java ', icon: '' }]
+    ]) {
+      const about_profile = JSON.stringify({ ...emptyAboutProfile, groups: [{ name: '', items }] })
+      expect(settingsInputSchema.safeParse({ about_profile }).success).toBe(false)
+    }
+    expect(searchAboutIcons('Java')[0]?.name).toBe('i-simple-icons-openjdk')
+    expect(searchAboutIcons('人工智能')[0]?.name).toBe('i-lucide-brain-circuit')
+    expect(searchAboutIcons('Python')[0]?.name).toBe('i-simple-icons-python')
+  })
+
   it('persists ordered header shortcuts even when every item is hidden', () => {
     const shortcuts = readHeaderShortcuts().reverse().map(item => ({ ...item, enabled: false }))
     const header_shortcuts = JSON.stringify(shortcuts)

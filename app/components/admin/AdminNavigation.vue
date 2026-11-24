@@ -76,6 +76,7 @@ const groups = [
       { label: '站点设置', to: '/admin/settings', icon: 'i-lucide-settings-2' },
       { label: '主导航', to: '/admin/menus', icon: 'i-lucide-list-tree' },
       { label: '侧栏', to: '/admin/sidebar', icon: 'i-lucide-panel-right' },
+      { label: '关于页', to: '/admin/about', icon: 'i-lucide-contact-round' },
       { label: '页脚', to: '/admin/settings?tab=footer', icon: 'i-lucide-panel-bottom' }
     ]
   },
