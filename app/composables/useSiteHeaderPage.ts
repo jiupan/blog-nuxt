@@ -20,11 +20,11 @@ export function useSiteHeaderPage() {
   }))
 
   function showPage(to: RouteLocationNormalizedLoaded, element: HTMLElement) {
-    const heading = element.dataset.scrollTitle?.trim() || element.dataset.articleTitle || element.querySelector('h1')?.textContent
+    const heading = to.path === '/' ? '' : element.dataset.articleTitle || element.querySelector('h1')?.textContent
     page.value = {
       path: to.path,
       isArticle: to.name === 'slug',
-      title: to.path === '/' ? null : (heading || '').replace(/\s+/g, ' ').trim(),
+      title: (element.dataset.scrollTitle?.trim() || heading || '').replace(/\s+/g, ' ').trim(),
       isScrolled: window.scrollY > scrollThreshold
     }
   }

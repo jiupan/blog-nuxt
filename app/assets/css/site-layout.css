@@ -1,6 +1,6 @@
 .site-header {
   --header-capsule-bg: linear-gradient(rgb(255 255 255 / 60%), rgb(255 255 255 / 85%));
-  --header-capsule-shadow: inset 0 0 0 1px rgb(34 49 77 / 7%), 0 3px 8px rgb(31 43 68 / 6%), 0 14px 34px -10px rgb(31 43 68 / 29%);
+  --header-capsule-shadow: inset 0 0 0 1px rgb(34 49 77 / 6%), 0 12px 38px -10px rgb(31 43 68 / 18%);
   --header-center-height: 44px;
   --header-center-font-size: 16px;
   --header-center-motion: 300ms cubic-bezier(.2, .7, .3, 1);
@@ -14,7 +14,7 @@
 
 .dark .site-header {
   --header-capsule-bg: linear-gradient(rgb(0 0 0 / 60%), rgb(0 0 0 / 85%));
-  --header-capsule-shadow: inset 0 0 0 1px rgb(255 255 255 / 11%), 0 3px 8px rgb(0 0 0 / 16%), 0 14px 34px -10px rgb(0 0 0 / 54%);
+  --header-capsule-shadow: inset 0 0 0 1px rgb(255 255 255 / 9%), 0 12px 38px -10px rgb(0 0 0 / 38%);
 }
 
 .site-header.is-scrolled {
@@ -217,11 +217,11 @@
   min-height: var(--header-center-height);
   align-items: center;
   justify-content: center;
-  overflow: visible;
   padding: 0 28px;
   border-radius: 999px;
-  background: transparent;
-  box-shadow: none;
+  background: var(--header-capsule-bg);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--header-capsule-shadow);
   cursor: pointer;
   color: var(--theme-text);
   font-size: var(--header-center-font-size);
@@ -234,19 +234,7 @@
   pointer-events: none;
 }
 
-.scroll-title::before {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--header-capsule-bg);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--header-capsule-shadow);
-  content: "";
-}
-
 .scroll-title-text {
-  position: relative;
-  z-index: 1;
   display: block;
   max-width: 100%;
   overflow: hidden;
