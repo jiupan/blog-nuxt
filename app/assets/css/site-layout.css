@@ -1,5 +1,7 @@
 .site-header {
   --header-capsule-bg: linear-gradient(rgb(255 255 255 / 60%), rgb(255 255 255 / 85%));
+  --header-center-height: 44px;
+  --header-center-font-size: 16px;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -89,7 +91,7 @@
   gap: 9px;
   transform: translateX(-50%);
   color: var(--theme-text);
-  font-size: 16px;
+  font-size: var(--header-center-font-size);
   font-weight: 900;
   opacity: 1;
   transition: opacity .18s ease, transform .18s ease;
@@ -102,7 +104,7 @@
 .nav-item > a {
   display: inline-flex;
   min-width: 58px;
-  height: 38px;
+  height: var(--header-center-height);
   align-items: center;
   justify-content: center;
   gap: 5px;
@@ -209,7 +211,7 @@
   left: 50%;
   display: inline-flex;
   max-width: min(520px, 42vw);
-  min-height: 44px;
+  min-height: var(--header-center-height);
   align-items: center;
   justify-content: center;
   overflow: visible;
@@ -219,7 +221,7 @@
   box-shadow: none;
   cursor: pointer;
   color: var(--theme-text);
-  font-size: 18px;
+  font-size: var(--header-center-font-size);
   font-weight: 900;
   line-height: 1.35;
   opacity: 0;
@@ -236,11 +238,9 @@
   border-radius: inherit;
   background: var(--header-capsule-bg);
   backdrop-filter: blur(20px);
-  box-shadow: 0 12px 32px rgb(31 43 68 / 14%);
+  box-shadow: 0 6px 20px rgb(31 43 68 / 10%);
   content: "";
-  transform: scale(1);
-  transform-origin: center;
-  transition: box-shadow .18s ease, transform .18s ease;
+  transition: box-shadow .18s ease;
 }
 
 .scroll-title-text {
@@ -901,8 +901,7 @@ html:has(.site-search-modal[open]) {
 
 .site-header.is-scrolled .scroll-title:hover::before,
 .site-header.is-scrolled .scroll-title:focus-visible::before {
-  box-shadow: 0 16px 34px rgb(31 43 68 / 16%);
-  transform: scale(1.04);
+  box-shadow: 0 8px 22px rgb(31 43 68 / 14%);
 }
 
 .site-header.is-scrolled .tool-nav {
