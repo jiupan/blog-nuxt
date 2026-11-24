@@ -207,7 +207,6 @@
 </template>
 
 <script setup lang="ts">
-import postHeroCss from '~/assets/css/post-hero.css?raw'
 import { shouldSendChat, trapChatFocus } from '~/utils/chat-interaction'
 import { absoluteSiteUrl, serializeJsonLd } from '~/utils/seo'
 import type { ArticleChatCitation } from '~/utils/article-chat-markdown'
@@ -236,7 +235,9 @@ const canonicalPostPath = postPath(post.value.slug)
 if (decodeURI(route.path) !== decodeURI(canonicalPostPath)) {
   await navigateTo({ path: canonicalPostPath, query: route.query, hash: route.hash }, { redirectCode: 301, replace: true })
 }
-if (import.meta.server) {
+// Nuxt inlines the component stylesheet in production. Dev serves it as a link.
+if (import.meta.dev && import.meta.server) {
+  const { default: postHeroCss } = await import('~/assets/css/post-hero.css?raw')
   useHead({ style: [{ key: 'article-hero-css', innerHTML: postHeroCss }] })
 }
 const siteSettings = useSiteSettings()
