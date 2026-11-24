@@ -1,6 +1,6 @@
 <template>
   <main class="auth-page">
-    <section class="auth-card">
+    <section class="auth-card" data-page-enter="0">
       <div class="auth-art" aria-hidden="true">
         <svg class="auth-blob" viewBox="0 0 200 200">
           <path

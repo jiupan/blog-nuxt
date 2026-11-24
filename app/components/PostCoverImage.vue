@@ -5,9 +5,9 @@
     :class="{ 'is-pending': pending }"
     :src="src"
     :alt="alt"
-    loading="lazy"
+    :fetchpriority="prioritized ? 'high' : 'low'"
+    :loading="prioritized ? 'eager' : 'lazy'"
     decoding="async"
-    fetchpriority="low"
     @load="loaded"
     @error="failed"
   >
@@ -16,11 +16,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-const props = defineProps<{ src: string, alt: string, stable?: boolean }>()
+const props = defineProps<{ src: string, alt: string }>()
 const emit = defineEmits<{ load: [], error: [] }>()
 const image = ref<HTMLImageElement | null>(null)
 // SSR 保留图片，挂载后让屏幕外的封面等到进入视口再显现。
 const pending = ref(false)
+const prioritized = ref(false)
 let ready = false
 let inView = false
 let observer: IntersectionObserver | undefined
@@ -40,8 +41,7 @@ function reveal() {
 function loaded() {
   if (ready) return
   ready = true
-  if (props.stable) emit('load')
-  else reveal()
+  reveal()
 }
 
 function failed() {
@@ -54,10 +54,14 @@ function syncImage() {
   const element = image.value
   if (!element) return
   stopObserving()
-  pending.value = !props.stable
+  // 新列表渲染时只提高当前视口内的封面优先级。隐藏的响应式布局不参与。
+  const { width, height, top, bottom, left, right } = element.getBoundingClientRect()
+  prioritized.value = width > 0 && height > 0 && bottom > 0 && top < window.innerHeight
+    && right > 0 && left < window.innerWidth
+  pending.value = true
   ready = false
   inView = typeof IntersectionObserver !== 'function'
-  if (pending.value && !inView) {
+  if (!inView) {
     observer = new IntersectionObserver((entries, currentObserver) => {
       if (observer !== currentObserver) return
       inView = entries.at(-1)?.isIntersecting ?? false
@@ -82,7 +86,10 @@ onBeforeUnmount(stopObserving)
   opacity: 1;
   transition: var(--post-cover-fade);
 }
-.post-cover-image.is-pending { opacity: 0; }
+.post-cover-image.is-pending {
+  --post-cover-fade: opacity 0s;
+  opacity: 0;
+}
 @media (prefers-reduced-motion: reduce) {
   .post-cover-image { transition: none !important; }
 }

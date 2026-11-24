@@ -15,35 +15,31 @@
             </p>
           </header>
 
-          <div
-            v-if="showListSkeleton"
-            class="collection-list"
-            role="status"
-            aria-label="正在加载文章"
-            data-page-enter="1"
-          >
-            <PostCardSkeleton variant="archive" :count="pageSize" />
-          </div>
+          <div data-page-enter="1">
+            <div v-if="showListSkeleton" class="collection-list" role="status" aria-label="正在加载文章">
+              <PostCardSkeleton variant="archive" :count="pageSize" />
+            </div>
 
-          <div v-else-if="listError" class="collection-empty is-error" role="alert" data-page-enter="1">
-            <span><UIcon name="i-lucide-cloud-alert" class="size-7" /></span>
-            <strong>文章加载失败</strong>
-            <p>网络似乎开了个小差，请稍后重试。</p>
-            <button type="button" @click="refreshPosts()">重新加载</button>
-          </div>
+            <div v-else-if="listError" class="collection-empty is-error" role="alert">
+              <span><UIcon name="i-lucide-cloud-alert" class="size-7" /></span>
+              <strong>文章加载失败</strong>
+              <p>网络似乎开了个小差，请稍后重试。</p>
+              <button type="button" @click="refreshPosts()">重新加载</button>
+            </div>
 
-          <div v-else-if="posts.length" class="collection-list" :aria-busy="listPending" data-page-enter="1">
-            <ArchivePostCard v-for="post in posts" :key="post.id" :post="post" />
-          </div>
+            <div v-else-if="posts.length" class="collection-list" :aria-busy="listPending">
+              <ArchivePostCard v-for="post in posts" :key="post.id" :post="post" />
+            </div>
 
-          <div v-else class="collection-empty" data-page-enter="1">
-            <span><UIcon :name="kind === 'category' ? 'i-lucide-folder-open' : 'i-lucide-tags'" class="size-7" /></span>
-            <strong>暂无相关文章</strong>
-            <p>可以浏览其他{{ kind === 'category' ? '分类' : '标签' }}，或者返回全部文章。</p>
-            <NuxtLink to="/archive">浏览全部文章</NuxtLink>
-          </div>
+            <div v-else class="collection-empty">
+              <span><UIcon :name="kind === 'category' ? 'i-lucide-folder-open' : 'i-lucide-tags'" class="size-7" /></span>
+              <strong>暂无相关文章</strong>
+              <p>可以浏览其他{{ kind === 'category' ? '分类' : '标签' }}，或者返回全部文章。</p>
+              <NuxtLink to="/archive">浏览全部文章</NuxtLink>
+            </div>
 
-          <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
+            <SeoPagination v-if="!listError" :page="currentPage" :total="totalPages" :page-to="pageTo" />
+          </div>
         </main>
 
         <PublicSidebar

@@ -39,6 +39,24 @@ it('shows only the image placeholder until load, including when a cover URL chan
   expect(image.getAttribute('src')).toBe('/second.webp')
 })
 
+it('prioritizes visible covers while keeping below-fold and hidden covers lazy', async () => {
+  vi.spyOn(HTMLImageElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLImageElement) {
+    if (this.alt === 'hidden') return new DOMRect()
+    return new DOMRect(0, this.alt === 'below' ? window.innerHeight : 32, 176, 132)
+  })
+  const host = document.createElement('div')
+  const app = createApp({ render: () => h('div', ['visible', 'below', 'hidden'].map(alt => h(PostCoverImage, { src: `/${alt}.webp`, alt }))) })
+  app.mount(host)
+  dispose = () => app.unmount()
+  await nextTick()
+
+  const images = [...host.querySelectorAll('img')]
+  expect(images.map(img => [img.getAttribute('loading'), img.getAttribute('fetchpriority')])).toEqual([
+    ['eager', 'high'], ['lazy', 'low'], ['lazy', 'low']
+  ])
+  expect(images.every(img => img.classList.contains('is-pending'))).toBe(true)
+})
+
 it('recognizes cached covers even when the load event already fired', async () => {
   vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
   vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(800)

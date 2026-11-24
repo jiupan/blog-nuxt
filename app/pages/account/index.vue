@@ -1,13 +1,13 @@
 <template>
   <section class="account-shell">
-    <header class="account-heading">
+    <header class="account-heading" data-page-enter="0">
       <h1>账户设置</h1>
       <p>管理个人资料、登录和安全设置。</p>
     </header>
-    <UAlert v-if="error" color="error" variant="soft" title="账户信息暂时无法加载">
+    <UAlert v-if="error" color="error" variant="soft" title="账户信息暂时无法加载" data-page-enter="1">
       <template #actions><UButton size="sm" color="neutral" @click="refresh()">重试</UButton></template>
     </UAlert>
-    <div v-else-if="account" class="account-grid">
+    <div v-else-if="account" class="account-grid" data-page-enter="1">
       <div class="account-column">
         <AccountProfileEditor :account="account" @saved="profileSaved" />
         <section class="account-card" aria-labelledby="account-email-heading">

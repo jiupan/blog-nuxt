@@ -91,8 +91,29 @@ body {
   transition: opacity 60ms ease-in;
 }
 
-:is(.route-page-enter-from, .route-layout-enter-from, .route-interrupted-enter-from) { opacity: .82; }
+:is(.route-page-enter-from, .route-layout-enter-from, .route-interrupted-enter-from):not([data-page-enter], :has([data-page-enter])) { opacity: .82; }
 :is(.route-page-leave-to, .route-layout-leave-to) { opacity: .68; }
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  :is([data-page-enter], [data-home-enter]):not(:where([data-route-history-entry] *, [data-route-skip-enter], [data-route-skip-enter] *)),
+  .is-page-revealing {
+    animation: site-section-enter 600ms ease backwards;
+  }
+
+  [data-page-enter] { animation-delay: 100ms; }
+  [data-page-enter="1"] { animation-delay: 250ms; }
+  [data-page-enter="2"] { animation-delay: 350ms; }
+  [data-page-enter="3"] { animation-delay: 400ms; }
+  [data-home-enter="hero"] { animation-delay: 100ms; }
+  [data-home-enter="topics"] { animation-delay: 250ms; }
+  [data-home-enter="sidebar"] { animation-delay: 300ms; }
+  [data-home-enter="posts"] { animation-delay: 400ms; }
+}
+
+@keyframes site-section-enter {
+  from { opacity: 0; translate: 0 20px; }
+  to { opacity: 1; translate: none; }
+}
 
 :is(html, [data-route-scroll-container]):has(.route-page-enter-active, .route-layout-enter-active, .route-interrupted-enter-active, .route-page-leave-active, .route-layout-leave-active),
 :is(.route-layout-enter-active, .route-interrupted-enter-active, .route-layout-leave-active) [data-route-scroll-container] {

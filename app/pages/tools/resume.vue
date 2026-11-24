@@ -2,7 +2,7 @@
   <div class="resume-workspace">
     <component :is="'style'">{{ printPageCss }}</component>
 
-    <header class="workspace-bar">
+    <header class="workspace-bar" data-page-enter="0">
       <div class="document-name">
         <NuxtLink class="back-to-tools" to="/tools" aria-label="返回工具页" title="返回工具页">
           <ArrowLeftIcon aria-hidden="true" />
@@ -98,7 +98,7 @@
       <button type="button" :aria-pressed="mobileView === 'editor'" @click="mobileView = 'editor'">编辑内容</button>
       <button type="button" :aria-pressed="mobileView === 'preview'" @click="mobileView = 'preview'">预览简历</button>
     </div>
-    <div ref="workspaceBody" class="workspace-body" :data-view="mobileView" :style="splitStyle">
+    <div ref="workspaceBody" class="workspace-body" :data-view="mobileView" :style="splitStyle" data-page-enter="1">
       <aside ref="resumeEditor" class="resume-editor">
         <div class="editor-heading">
           <div>

@@ -6,7 +6,7 @@
       </Transition>
     </div>
     <section class="home-shell content-layout pt-2">
-      <div v-if="heroPosts.length" class="mobile-hero" data-page-enter="0">
+      <div v-if="heroPosts.length" class="mobile-hero" data-home-enter="hero">
         <div ref="mobileCarousel" class="mobile-hero-carousel" aria-label="精选文章" @scroll.passive="syncMobileHero">
           <NuxtLink
             v-for="(item, index) in heroPosts"
@@ -40,7 +40,7 @@
         </div>
       </div>
 
-      <div class="hero-board" :class="{ 'has-no-posts': !latest, 'has-hero-controls': heroPosts.length > 1 }" data-page-enter="0">
+      <div class="hero-board" :class="{ 'has-no-posts': !latest, 'has-hero-controls': heroPosts.length > 1 }" data-home-enter="hero">
         <NuxtLink :to="currentHeroPost ? postPath(currentHeroPost.slug) : '/archive'" class="hero-main">
           <Transition name="hero-fade">
             <img
@@ -105,7 +105,7 @@
         </div>
       </div>
 
-      <nav v-if="topicTabs.length" class="topic-tabs" aria-label="文章分类" data-page-enter="1">
+      <nav v-if="topicTabs.length" class="topic-tabs" aria-label="文章分类" data-home-enter="topics">
         <button
           v-for="tab in topicTabs"
           :key="tab.label"
@@ -133,7 +133,7 @@
         {{ topicTooltip.label }}
       </div>
 
-      <main :aria-busy="listPending" data-page-enter="2">
+      <main :aria-busy="listPending" data-home-enter="posts">
         <template v-if="showListSkeleton">
           <div v-if="useArchiveCardStyle" class="home-archive-list home-archive-desktop" role="status" aria-label="正在加载文章">
             <PostCardSkeleton variant="archive" :count="pageSize" />
@@ -152,9 +152,9 @@
         <template v-else-if="displayPosts.length">
           <div
             v-if="useArchiveCardStyle"
-            :key="`archive-${topicRevealVersion}`"
+            :key="`archive-${listRevealVersion}`"
             class="home-archive-list home-archive-desktop"
-            :class="{ 'is-topic-revealing': topicRevealVersion > 0 }"
+            :class="listRevealClass"
           >
             <div
               v-for="(post, index) in posts"
@@ -162,14 +162,14 @@
               class="topic-card-reveal"
               :style="{ '--topic-card-order': index }"
             >
-              <ArchivePostCard :post="post" stable-cover />
+              <ArchivePostCard :post="post" render-offscreen />
             </div>
           </div>
 
           <div
-            :key="`grid-${topicRevealVersion}`"
+            :key="`grid-${listRevealVersion}`"
             class="post-grid"
-            :class="{ 'home-grid-mobile': useArchiveCardStyle, 'is-topic-revealing': topicRevealVersion > 0 }"
+            :class="[listRevealClass, { 'home-grid-mobile': useArchiveCardStyle }]"
           >
             <div
               v-for="(post, index) in displayPosts"
@@ -184,7 +184,7 @@
                   class="post-cover"
                 >
                   <template v-if="post.cover && !failedCoverUrls.has(post.cover)">
-                    <PostCoverImage :src="post.cover" alt="" class="cover-image" stable @error="failedCoverUrls.add(post.cover)" />
+                    <PostCoverImage :src="post.cover" alt="" class="cover-image" @error="failedCoverUrls.add(post.cover)" />
                     <span class="cover-overlay" aria-hidden="true" />
                     <span class="cover-word" aria-hidden="true">{{ post.coverWord }}</span>
                     <span class="cover-icon" :class="{ 'has-meme': Boolean(post.memeIcon) }" aria-hidden="true">
@@ -228,7 +228,7 @@
         class="sidebar"
         :pointer-glow="singleHero"
         sticky-after-author
-        data-page-enter="2"
+        data-home-enter="sidebar"
         :site-name="siteName"
         :description="siteSettings.sidebar_description"
         :categories="categories"
@@ -251,6 +251,8 @@ import { resolveCategoryIcon } from '~/utils/category-icons'
 import { Pin as PinIcon } from '@lucide/vue'
 import { coverColorText } from '~/utils/cover-color'
 import { homeHeroFallbackCover } from '~~/shared/home-hero'
+
+definePageMeta({ pageTransition: false, layoutTransition: false })
 
 const config = useRuntimeConfig()
 const siteSettings = useSiteSettings()
@@ -275,13 +277,21 @@ assertPublicPageExists(data.value?.data)
 const posts = computed(() => data.value?.data.items || [])
 const listPending = computed(() => listStatus.value === 'pending')
 const showListSkeleton = useDelayedPending(listPending)
-const topicRevealVersion = ref(0)
+const listRevealVersion = ref(0)
+const listRevealClass = ref('')
+let displayedPage = data.value?.data.page ?? currentPage.value
 let revealTopicCardsOnNextResult = false
 
-watch(listStatus, (status) => {
-  if (!revealTopicCardsOnNextResult || status === 'pending' || status === 'idle') return
+watch([listStatus, () => data.value?.data.page], ([status, page]) => {
+  if (status === 'error') revealTopicCardsOnNextResult = false
+  if (status !== 'success' || page === undefined || page !== currentPage.value) return
+
+  if (revealTopicCardsOnNextResult || displayedPage !== page) {
+    listRevealClass.value = revealTopicCardsOnNextResult ? 'is-topic-revealing' : 'is-page-revealing'
+    listRevealVersion.value += 1
+  }
+  displayedPage = page
   revealTopicCardsOnNextResult = false
-  if (status === 'success') topicRevealVersion.value += 1
 })
 
 const heroAll = computed(() => heroSelection.value?.data.recent || [])
@@ -1048,7 +1058,7 @@ function formatDate(value?: string | Date | null) {
   backface-visibility: hidden;
   transform: translateZ(0) scale(1.001);
   transform-origin: center;
-  transition: transform .32s ease;
+  transition: transform .32s ease, var(--post-cover-fade);
   will-change: transform;
 }
 

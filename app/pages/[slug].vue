@@ -207,6 +207,7 @@
 </template>
 
 <script setup lang="ts">
+import postHeroCss from '~/assets/css/post-hero.css?raw'
 import { shouldSendChat, trapChatFocus } from '~/utils/chat-interaction'
 import { absoluteSiteUrl, serializeJsonLd } from '~/utils/seo'
 import type { ArticleChatCitation } from '~/utils/article-chat-markdown'
@@ -234,6 +235,9 @@ const post = computed(() => data.value!.data)
 const canonicalPostPath = postPath(post.value.slug)
 if (decodeURI(route.path) !== decodeURI(canonicalPostPath)) {
   await navigateTo({ path: canonicalPostPath, query: route.query, hash: route.hash }, { redirectCode: 301, replace: true })
+}
+if (import.meta.server) {
+  useHead({ style: [{ key: 'article-hero-css', innerHTML: postHeroCss }] })
 }
 const siteSettings = useSiteSettings()
 const siteName = computed(() => siteSettings.value.site_title || config.public.siteName || 'Jiupan Blog')
@@ -973,82 +977,13 @@ function scrollToTocHeading(id: string) {
 
 </script>
 
+<style src="../assets/css/post-hero.css"></style>
+
 <style scoped>
 .post-page {
   min-height: 100vh;
   background: var(--theme-page);
   color: var(--theme-text);
-}
-
-.post-hero {
-  min-height: 400px;
-  margin-top: -70px;
-  padding: 108px 0 58px;
-  color: white;
-}
-
-.post-hero-inner {
-  width: var(--site-content-width);
-  margin: 0 auto;
-}
-
-.post-kicker {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
-  color: rgb(255 255 255 / 86%);
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.post-kicker a:first-child {
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--theme-surface) 18%, transparent);
-  color: white;
-  font-weight: 800;
-}
-
-.post-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 56px;
-  align-items: center;
-}
-
-.post-hero-copy h1 {
-  max-width: 900px;
-  margin: 0;
-  font-size: clamp(32px, 3vw, 42px);
-  font-weight: 700;
-  line-height: 1.38;
-  overflow-wrap: anywhere;
-  text-wrap: pretty;
-}
-
-.post-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.post-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--theme-surface) 18%, transparent);
-}
-
-.post-meta-icon {
-  flex: 0 0 auto;
 }
 
 .post-shell {
@@ -1756,11 +1691,6 @@ function scrollToTocHeading(id: string) {
 }
 
 @media (max-width: 900px) {
-  .post-hero-grid {
-    grid-template-columns: minmax(0, 1fr) 240px;
-    gap: 36px;
-  }
-
   .post-shell {
     grid-template-columns: 1fr;
   }
@@ -1780,75 +1710,6 @@ function scrollToTocHeading(id: string) {
 }
 
 @media (max-width: 640px) {
-  .post-hero {
-    margin-top: -70px;
-    min-height: 0;
-    padding: 92px 0 48px;
-  }
-
-  .post-hero-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 24px;
-    text-align: center;
-  }
-
-  .post-hero-copy {
-    display: contents;
-  }
-
-  .post-cover {
-    order: 1;
-    justify-self: center;
-  }
-
-  .post-kicker {
-    order: 2;
-    justify-content: center;
-    gap: 10px;
-    margin: 4px auto 0;
-    font-size: 14px;
-  }
-
-  .post-kicker a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-    padding: 0 13px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--theme-surface) 16%, transparent);
-    color: white;
-  }
-
-  .post-kicker a:first-child {
-    padding: 0 13px;
-  }
-
-  .post-hero-copy h1 {
-    order: 3;
-    max-width: 12em;
-    justify-self: center;
-    font-size: clamp(26px, 7.4vw, 34px);
-    line-height: 1.38;
-    text-wrap: balance;
-  }
-
-  .post-meta {
-    order: 4;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 0;
-    font-size: 13px;
-  }
-
-  .post-meta span {
-    min-height: 36px;
-    padding: 0 13px;
-    background: color-mix(in srgb, var(--theme-surface) 18%, transparent);
-    color: rgb(255 255 255 / 94%);
-    white-space: nowrap;
-  }
-
   .post-shell {
     margin-top: -18px;
     padding-top: 30px;

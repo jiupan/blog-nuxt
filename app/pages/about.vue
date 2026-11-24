@@ -6,7 +6,7 @@
       <div class="about-glow glow-two" />
     </div>
 
-    <section class="about-card" aria-labelledby="about-title">
+    <section class="about-card" aria-labelledby="about-title" data-page-enter="0">
       <div class="portrait-shell">
         <div class="portrait-glow" aria-hidden="true" />
         <video v-if="authorAvatarIsVideo" :src="authorAvatar" autoplay muted loop playsinline preload="metadata" :aria-label="`${authorName} 的头像视频`" />
@@ -256,7 +256,6 @@ useSeoMeta({
   padding: clamp(26px, 4vw, 39px);
   text-align: center;
   backdrop-filter: blur(24px);
-  animation: card-arrive .8s cubic-bezier(.2, .78, .2, 1) both;
 }
 
 .portrait-shell {
@@ -548,11 +547,6 @@ useSeoMeta({
   background: #22d3ee;
 }
 
-@keyframes card-arrive {
-  from { opacity: 0; transform: translateY(28px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 @media (max-width: 640px) {
   .about-stage {
     --about-padding-top: 20px;
@@ -609,10 +603,6 @@ useSeoMeta({
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .about-card {
-    animation: none;
-  }
-
   .portrait-shell img,
   .portrait-shell video,
   .stack-chip,

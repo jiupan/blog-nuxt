@@ -24,6 +24,15 @@ import { commitRouteContent, rememberLeavingPage } from '~/utils/route-navigatio
 useSiteSeo()
 
 if (import.meta.server) {
+  // A cross-document history return can load a fresh document before Vue starts.
+  useHead({
+    script: [{
+      key: 'route-history-entry',
+      tagPriority: 'critical',
+      innerHTML: "if (performance.getEntriesByType('navigation')[0]?.type === 'back_forward') document.documentElement.setAttribute('data-route-history-entry', '')"
+    }]
+  })
+
   const vary = useResponseHeader('Vary')
   const fields = String(vary.value ?? '').split(',').map(field => field.trim()).filter(Boolean)
   if (!fields.some(field => field === '*' || field.toLowerCase() === 'cookie')) {
@@ -73,6 +82,10 @@ function mountPage(route: RouteLocationNormalizedLoaded, vnode: VNode) {
   const firstPage = renderedPath.value === null
   renderedPath.value = route.path
   if (vnode.el instanceof HTMLElement) {
+    if (document.documentElement.hasAttribute('data-route-history-entry')) {
+      vnode.el.dataset.routeSkipEnter = ''
+      document.documentElement.removeAttribute('data-route-history-entry')
+    }
     if (firstPage) showPage(route, vnode.el)
     commitRouteContent(router, route.path, vnode.el)
   }

@@ -1,7 +1,7 @@
 <template>
   <main class="account-shell account-auth-shell">
     <NuxtLink to="/login" class="auth-back">返回登录</NuxtLink>
-    <section class="account-card">
+    <section class="account-card" data-page-enter="0">
       <h1>{{ title }}</h1>
       <template v-if="done">
         <UAlert color="success" variant="soft" :title="successMessage" />
